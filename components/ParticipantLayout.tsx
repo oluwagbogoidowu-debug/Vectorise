@@ -38,6 +38,10 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
 
   useEffect(() => {
     if (!user) return;
+    if (location.pathname.startsWith('/participant/day-success')) {
+      localStorage.removeItem('pending_first_action');
+      return;
+    }
     const pendingRaw = localStorage.getItem('pending_first_action');
     if (!pendingRaw) return;
     try {
@@ -90,7 +94,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                 setPendingSprint(sprint);
                 setShowAlreadyDonePopup(true);
               } else {
-                // Case 2: In-progress/active, save any pending preview inputs to database and resume automatically
+                // Case 2: In-progress/active, save any pending preview inputs to database and navigate to Day Success
                 if (pending && (pending.taskInputs || pending.firstActionInput) && existingEnrollment.progress && existingEnrollment.progress[0]) {
                   try {
                     const updatedProgress = [...existingEnrollment.progress];
@@ -110,10 +114,19 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                     console.error("Failed to update active enrollment progress with pending preview action:", e);
                   }
                 }
-                toast.success("Resuming your active sprint...");
                 console.log("[ParticipantLayout] Confirmed existing enrollment updated:", existingEnrollment.id, "Removing pending_first_action");
                 localStorage.removeItem('pending_first_action');
-                navigate(`/participant/sprint/${existingEnrollment.id}?day=1`);
+                const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+                navigate('/participant/day-success', {
+                  replace: true,
+                  state: {
+                    day: 1,
+                    coinsUnlocked: 10,
+                    bridgeNote: d1Content?.bridgeNote,
+                    sprintId: pending.sprintId,
+                    enrollmentId: existingEnrollment.id
+                  }
+                });
               }
             });
           }
@@ -122,7 +135,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
     } catch (err) {
       console.error("Error reading pending first action in layout:", err);
     }
-  }, [user]);
+  }, [user, location.pathname]);
 
   useEffect(() => {
     if (localStorage.getItem('show_bonus_toast') === 'true') {

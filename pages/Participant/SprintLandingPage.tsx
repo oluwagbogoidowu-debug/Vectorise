@@ -603,9 +603,6 @@ const SprintLandingPage: React.FC = () => {
                         <div className="flex flex-col items-start">
                             <div className="flex items-center gap-2.5 mb-2">
                                 <LocalLogo type="green" className="h-8 w-auto" />
-                                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-gray-500">
-                                    GET 1% BETTER DAILY
-                                </span>
                             </div>
                             <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
                                 <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: '25%' }}></div>
@@ -644,9 +641,6 @@ const SprintLandingPage: React.FC = () => {
                         ) : (
                             <div className="flex items-center gap-2.5">
                                 <LocalLogo type="green" className="h-8 w-auto" />
-                                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-gray-500">
-                                    GET 1% BETTER DAILY
-                                </span>
                             </div>
                         )}
                         <div className="flex items-center gap-3">

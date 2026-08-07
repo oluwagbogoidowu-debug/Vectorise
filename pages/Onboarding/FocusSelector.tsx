@@ -29,7 +29,7 @@ const FocusSelector: React.FC = () => {
 
   const currentOptions = useMemo(() => {
     // For Foundation: Clarity, default to FOUNDATION_CLARITY_OPTIONS if not explicitly overridden with custom options
-    if (currentLevel === 0 && (activeSlotName === "Foundation: Clarity" || activeTrigger === 'after_homepage')) {
+    if (currentLevel === 0 && (activeSlotName === "Foundation: Clarity" || activeSlotName.includes("Foundation") || activeTrigger === 'after_homepage')) {
       if (activeAssignment?.availableFocusOptions && activeAssignment.availableFocusOptions.length > 0 && activeAssignment.availableFocusOptions.length !== 4) {
         return activeAssignment.availableFocusOptions;
       }

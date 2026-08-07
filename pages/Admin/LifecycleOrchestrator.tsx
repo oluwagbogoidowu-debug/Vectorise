@@ -19,7 +19,7 @@ const SYSTEM_DESTINATIONS = [
 ];
 
 const getSlotDefaultOptions = (slotId: string) => {
-    return slotId === 'slot_found_clarity' ? FOUNDATION_CLARITY_OPTIONS : FOCUS_OPTIONS;
+    return (slotId.includes('found') || slotId === 'slot_found_clarity') ? FOUNDATION_CLARITY_OPTIONS : FOCUS_OPTIONS;
 };
 
 const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTracks, refreshKey }) => {
