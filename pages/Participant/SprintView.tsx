@@ -28,6 +28,7 @@ import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
 import PushPermissionModal from "../../components/PushPermissionModal";
 import ConfirmModal from "../../components/ConfirmModal";
+import ActionStepConfirmModal from "../../components/ActionStepConfirmModal";
 import { Participant } from "../../types";
 import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, getSoundSettings, setSoundSettings } from "../../utils/haptics";
 
@@ -1088,6 +1089,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   // Day Completion State (Task Inputs)
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+  const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (location.state?.resetPreview) {
@@ -3118,13 +3120,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          const newInputs = [...taskInputs];
-                                          if (newInputs[i] === "Completed") {
+                                          if (taskInputs[i] === "Completed") {
+                                            const newInputs = [...taskInputs];
                                             newInputs[i] = "";
+                                            setTaskInputs(newInputs);
                                           } else {
-                                            newInputs[i] = "Completed";
+                                            setConfirmMarkStepIndex(i);
                                           }
-                                          setTaskInputs(newInputs);
                                         }}
                                         className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[i] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
                                       >
@@ -3744,13 +3746,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <button
                                 type="button"
                                 onClick={() => {
-                                  const newInputs = [...taskInputs];
-                                  if (newInputs[0] === "Completed") {
+                                  if (taskInputs[0] === "Completed") {
+                                    const newInputs = [...taskInputs];
                                     newInputs[0] = "";
+                                    setTaskInputs(newInputs);
                                   } else {
-                                    newInputs[0] = "Completed";
+                                    setConfirmMarkStepIndex(0);
                                   }
-                                  setTaskInputs(newInputs);
                                 }}
                                 className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[0] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
                               >
@@ -4221,6 +4223,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         onClose={() => setIsSprintOverviewOpen(false)}
         sprint={sprint}
         coach={coach}
+      />
+      <ActionStepConfirmModal
+        isOpen={confirmMarkStepIndex !== null}
+        onConfirm={() => {
+          if (confirmMarkStepIndex !== null) {
+            const newInputs = [...taskInputs];
+            newInputs[confirmMarkStepIndex] = "Completed";
+            setTaskInputs(newInputs);
+            setConfirmMarkStepIndex(null);
+          }
+        }}
+        onCancel={() => setConfirmMarkStepIndex(null)}
       />
     </>
   );

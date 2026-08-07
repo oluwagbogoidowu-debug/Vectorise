@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Eye, EyeOff } from 'lucide-react';
 
 import { toast } from 'sonner';
+import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 
 const AutoGrowingTextarea: React.FC<{
   value: string;
@@ -307,6 +308,7 @@ const SprintPreview: React.FC = () => {
     };
     
     // Bottom modal bar states
+    const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
     const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login
     const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
     const [authFirstName, setAuthFirstName] = useState('');
@@ -1656,13 +1658,13 @@ const SprintPreview: React.FC = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        const newInputs = [...taskInputs];
-                                                        if (newInputs[i] === "Completed") {
+                                                        if (taskInputs[i] === "Completed") {
+                                                            const newInputs = [...taskInputs];
                                                             newInputs[i] = "";
+                                                            setTaskInputs(newInputs);
                                                         } else {
-                                                            newInputs[i] = "Completed";
+                                                            setConfirmMarkStepIndex(i);
                                                         }
-                                                        setTaskInputs(newInputs);
                                                     }}
                                                     className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[i] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
                                                 >
@@ -2259,6 +2261,18 @@ const SprintPreview: React.FC = () => {
                     </>
                 )}
             </AnimatePresence>
+            <ActionStepConfirmModal
+                isOpen={confirmMarkStepIndex !== null}
+                onConfirm={() => {
+                    if (confirmMarkStepIndex !== null) {
+                        const newInputs = [...taskInputs];
+                        newInputs[confirmMarkStepIndex] = "Completed";
+                        setTaskInputs(newInputs);
+                        setConfirmMarkStepIndex(null);
+                    }
+                }}
+                onCancel={() => setConfirmMarkStepIndex(null)}
+            />
         </div>
     );
 };

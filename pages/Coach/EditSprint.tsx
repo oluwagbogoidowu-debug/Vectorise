@@ -17,6 +17,7 @@ import CustomSelect from '../../components/CustomSelect';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
+import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
 import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
@@ -304,6 +305,7 @@ const EditSprint: React.FC = () => {
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
   const [previewInputs, setPreviewInputs] = useState<Record<number, string>>({});
+  const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
   const [collapsedBranchingPaths, setCollapsedBranchingPaths] = useState<Record<number, boolean>>({});
 
@@ -4424,10 +4426,14 @@ const EditSprint: React.FC = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        setPreviewInputs(prev => ({
-                                                            ...prev,
-                                                            [i]: isChecked ? "" : "Completed"
-                                                        }));
+                                                        if (isChecked) {
+                                                            setPreviewInputs(prev => ({
+                                                                ...prev,
+                                                                [i]: ""
+                                                            }));
+                                                        } else {
+                                                            setConfirmMarkStepIndex(i);
+                                                        }
                                                     }}
                                                     className={`w-full space-y-3 border rounded-2xl p-4 text-left animate-fade-in flex items-center justify-between cursor-pointer transition-all ${
                                                         isChecked 
@@ -5681,6 +5687,20 @@ const EditSprint: React.FC = () => {
         day={selectedDay}
         dayContent={currentContent}
         sprintName={sprint?.title}
+      />
+
+      <ActionStepConfirmModal
+        isOpen={confirmMarkStepIndex !== null}
+        onConfirm={() => {
+          if (confirmMarkStepIndex !== null) {
+            setPreviewInputs(prev => ({
+              ...prev,
+              [confirmMarkStepIndex]: "Completed"
+            }));
+            setConfirmMarkStepIndex(null);
+          }
+        }}
+        onCancel={() => setConfirmMarkStepIndex(null)}
       />
 
       {scrolledDown && !(isAdmin && !isFoundational) && !showAdvancedActionModal && (
