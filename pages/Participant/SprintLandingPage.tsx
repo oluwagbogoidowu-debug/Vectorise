@@ -321,13 +321,20 @@ const SprintLandingPage: React.FC = () => {
 
         if (!user) {
             analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath }, undefined);
-            setCommitmentContext({
-                isGuest: true,
-                guestEmail: `guest_${Date.now()}@vectorise.app`,
-                emailExists: false
+            setIsCheckingEmail(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const effectiveEmail = `guest_${Date.now()}@vectorise.app`;
+            toast.success("Day 1 unlocked! Create an account to continue.");
+            navigate('/signup', {
+                state: {
+                    fromPayment: true,
+                    targetSprintId: sprint.id,
+                    prefilledEmail: effectiveEmail,
+                    authMessage: "This is your first sprint—it's completely free! Create an account to start."
+                },
+                replace: true
             });
-            setIsCommitted(false);
-            setShowCommitmentSheet(true);
+            setIsCheckingEmail(false);
             return;
         }
 
@@ -851,11 +858,11 @@ const SprintLandingPage: React.FC = () => {
                                     {enrollmentStatus === 'none' ? (
                                         <Button 
                                             onClick={handleJoinClick} 
-                                            isLoading={isCheckingEmail}
+                                            disabled={isCheckingEmail}
                                             className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0"
                                         >
-                                            Begin Day 1 
-                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
+                                            {isCheckingEmail ? "Unlocking Day 1..." : "Begin Day 1"}
+                                            {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />}
                                         </Button>
                                     ) : enrollmentStatus === 'active' ? (
                                         <Button 
@@ -928,11 +935,11 @@ const SprintLandingPage: React.FC = () => {
                         </div>
                         <Button 
                             onClick={handleJoinClick} 
-                            isLoading={isCheckingEmail}
+                            disabled={isCheckingEmail}
                             className="py-3 px-5 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0 shrink-0 bg-primary text-white hover:bg-primary-hover cursor-pointer"
                         >
-                            Begin Day 1 
-                            <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                            {isCheckingEmail ? "Unlocking Day 1..." : "Begin Day 1"}
+                            {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />}
                         </Button>
                     </div>
                 </div>
@@ -1080,7 +1087,7 @@ const SprintLandingPage: React.FC = () => {
                             >
                                 {isProcessingPayment ? "Unlocking Day 1..." : (
                                     commitmentContext?.isGuest && commitmentContext?.emailExists === false 
-                                    ? "Claim Free Day 1" 
+                                    ? "Start Day 1 Now" 
                                     : (
                                         paymentMethod === 'coins'
                                         ? `Start Day 1 Now • Use ${sprint.pointCost || 10} Coins`
