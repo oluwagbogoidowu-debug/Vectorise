@@ -145,14 +145,14 @@ const HomePage: React.FC = () => {
                 </p>
             </div>
             
-            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner my-6">
+            <div className="bg-gray-50 rounded-[2rem] px-8 py-5 md:px-10 md:py-6 text-center border border-gray-100 shadow-inner my-6">
               <p className="text-[14px] md:text-[16px] text-gray-600 font-medium leading-relaxed">
                 <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided sprint system</strong> that helps you <strong className="text-gray-800 font-bold">focus</strong>, <strong className="text-gray-800 font-bold">act</strong>, and build <strong className="text-gray-800 font-bold">real capability</strong>.
               </p>
             </div>
 
             <div className="flex flex-col items-center gap-1">
-                <span className="text-[11px] font-light tracking-widest text-black uppercase">BUILT FOR WHERE YOU ARE RIGHT NOW.</span>
+                <span className="text-[11px] font-light tracking-widest text-black uppercase">BUILT FOR WHERE YOU ARE <strong className="font-extrabold">RIGHT NOW</strong>.</span>
             </div>
           </div>
 
@@ -165,7 +165,7 @@ const HomePage: React.FC = () => {
                   Start your Rise
               </button>
               <p className="text-[10px] md:text-xs font-normal text-gray-500 tracking-wider mt-2">
-                Your first sprint is free
+                Your first sprint is <strong className="font-bold text-gray-800">free</strong>
               </p>
             </div>
             <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">
@@ -177,7 +177,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* SEE HOW IT WORKS - SMALL BUTTON AT END */}
-      <div className="pb-8 pt-2 flex flex-col items-center justify-center relative z-10 flex-shrink-0">
+      <div className="pb-4 pt-1 flex flex-col items-center justify-center relative z-10 flex-shrink-0">
         <button
           onClick={() => setShowHowItWorks(!showHowItWorks)}
           className="px-3 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200/80 text-gray-400 hover:text-gray-700 font-bold uppercase tracking-[0.15em] text-[8px] md:text-[9px] rounded-full transition-all flex items-center gap-1 cursor-pointer"

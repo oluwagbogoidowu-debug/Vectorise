@@ -627,8 +627,8 @@ const SprintLandingPage: React.FC = () => {
                 {/* Main Content */}
                 <main className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-6 text-center">
                     <div className="space-y-2">
-                        <h1 className="text-3xl md:text-4xl font-black italic tracking-tight text-white uppercase">
-                            Start here
+                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">
+                            Where are you right now?
                         </h1>
                     </div>
 

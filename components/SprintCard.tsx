@@ -165,14 +165,10 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         </h3>
 
                         {sprint.subtitle && (
-                            <p className="text-xs font-bold text-white/80 mb-2 leading-snug">
+                            <p className="text-xs font-bold text-white/80 mb-4 leading-snug">
                                 {sprint.subtitle}
                             </p>
                         )}
-
-                        <p className="text-xs sm:text-sm text-white/60 font-medium leading-relaxed mb-6 flex-grow">
-                            {displayDescription}
-                        </p>
 
                         {!hideFooterDetails && (
                             <div className="pt-4 border-t border-white/10 mt-auto flex items-center justify-between">
