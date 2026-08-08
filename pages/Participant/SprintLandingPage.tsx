@@ -628,6 +628,7 @@ const SprintLandingPage: React.FC = () => {
                             sprint={sprint} 
                             coach={fetchedCoach || vectoriseCoach} 
                             isStatic={true} 
+                            hideFooterDetails={true}
                         />
                     </div>
 

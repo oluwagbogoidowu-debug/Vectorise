@@ -12,9 +12,10 @@ interface SprintCardProps {
     coach: Coach;
     forceShowOutcomeTag?: boolean; 
     isStatic?: boolean; // New prop to disable navigation
+    hideFooterDetails?: boolean; // Hide Guided By and Price/Coins section
 }
 
-const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false }) => {
+const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false, hideFooterDetails = false }) => {
     const { user, updateProfile } = useAuth();
     const [isProcessingSave, setIsProcessingSave] = useState(false);
 
@@ -166,25 +167,27 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         </span>
                     </div>
                     
-                    <div className="pt-3 border-t border-gray-50 mt-auto">
-                        <div className="flex items-center gap-2 mb-3">
-                            <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-7 h-7 rounded-lg object-cover border-2 border-white shadow-sm ring-1 ring-gray-100" />
-                            <div className="min-w-0">
-                                <p className="text-[6px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
-                                <p className="text-[9px] font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
+                    {!hideFooterDetails && (
+                        <div className="pt-3 border-t border-gray-50 mt-auto">
+                            <div className="flex items-center gap-2 mb-3">
+                                <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-7 h-7 rounded-lg object-cover border-2 border-white shadow-sm ring-1 ring-gray-100" />
+                                <div className="min-w-0">
+                                    <p className="text-[6px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
+                                    <p className="text-[9px] font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
+                                </div>
+                            </div>
+
+                            <div className={`py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.25em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-2 ${
+                                isEnrolled 
+                                ? 'bg-green-50 text-green-700' 
+                                : isQueued 
+                                ? 'bg-blue-50 text-blue-700' 
+                                : 'bg-primary text-white group-hover:bg-primary-hover shadow-primary/20'
+                            }`}>
+                                {isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {sprint.pointCost}</>) : `₦${sprint.price.toLocaleString()}`}
                             </div>
                         </div>
-
-                        <div className={`py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.25em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-2 ${
-                            isEnrolled 
-                            ? 'bg-green-50 text-green-700' 
-                            : isQueued 
-                            ? 'bg-blue-50 text-blue-700' 
-                            : 'bg-primary text-white group-hover:bg-primary-hover shadow-primary/20'
-                        }`}>
-                            {isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {sprint.pointCost}</>) : `₦${sprint.price.toLocaleString()}`}
-                        </div>
-                    </div>
+                    )}
                 </div>
             </CardContainer>
             <style>{`
