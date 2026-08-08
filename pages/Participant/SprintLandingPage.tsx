@@ -77,6 +77,7 @@ const SprintLandingPage: React.FC = () => {
     const allMatchedSprintIds = location.state?.allMatchedSprintIds || [];
 
     const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
+    const [showFullDescription, setShowFullDescription] = useState(false);
 
     useEffect(() => {
         if (!isOnboardingPath) return;
@@ -313,19 +314,20 @@ const SprintLandingPage: React.FC = () => {
     const handleJoinClick = async () => {
         if (!sprint) return;
         
-        if (isOnboardingPath) {
-            analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: true }, user?.id);
-            if (!user) {
-                navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
-            } else {
-                navigate('/onboarding/commitment', { state: { sprintId: sprint.id, sprint: sprint, selectedFocus, trigger: activeTrigger, allMatchedSprintIds } });
-            }
+        if (isOnboardingPath && !showFullDescription) {
+            setShowFullDescription(true);
             return;
         }
 
         if (!user) {
-            // Navigate directly to sprint preview page without any email requirement
-            navigate(`/sprint/preview/${sprint.id}`, { state: { sprintId: sprint.id, sprint: sprint } });
+            analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath }, undefined);
+            setCommitmentContext({
+                isGuest: true,
+                guestEmail: `guest_${Date.now()}@vectorise.app`,
+                emailExists: false
+            });
+            setIsCommitted(false);
+            setShowCommitmentSheet(true);
             return;
         }
 
@@ -341,6 +343,9 @@ const SprintLandingPage: React.FC = () => {
         if (!isCommitted || !sprint || !commitmentContext) return;
         
         setIsProcessingPayment(true);
+        // Minimum delay to show 'Unlocking Day 1...'
+        await new Promise(resolve => setTimeout(resolve, 1200));
+
         try {
             if (commitmentContext.isGuest) {
                 const effectiveEmail = commitmentContext.guestEmail || guestEmail;
@@ -348,7 +353,7 @@ const SprintLandingPage: React.FC = () => {
                 // If this is their first time (email doesn't exist in system), they get it for free!
                 if (commitmentContext.emailExists === false) {
                     setShowCommitmentSheet(false);
-                    toast.success("Congratulations! Your first sprint is completely free!");
+                    toast.success("Day 1 unlocked! Create an account to continue.");
                     navigate('/signup', {
                         state: {
                             fromPayment: true,
@@ -595,7 +600,7 @@ const SprintLandingPage: React.FC = () => {
             .catch(() => toast.error('Failed to copy link.'));
     };
 
-    if (isOnboardingPath) {
+    if (isOnboardingPath && !showFullDescription) {
         return (
             <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-primary text-white relative overflow-hidden selection:bg-white/10">
                 {/* Navigation Header */}
@@ -618,9 +623,6 @@ const SprintLandingPage: React.FC = () => {
                         <h1 className="text-3xl md:text-4xl font-black italic tracking-tight text-white uppercase">
                             Start here
                         </h1>
-                        <p className="text-xs sm:text-sm font-medium text-white/80 max-w-[280px] mx-auto leading-relaxed">
-                            This will help you build direction before anything else
-                        </p>
                     </div>
 
                     <div className="w-full text-left">
@@ -632,8 +634,12 @@ const SprintLandingPage: React.FC = () => {
                         />
                     </div>
 
+                    <p className="text-xs sm:text-sm font-medium text-white/80 max-w-[280px] mx-auto leading-relaxed">
+                        This will help you build direction before anything else
+                    </p>
+
                     <button
-                        onClick={handleJoinClick}
+                        onClick={() => setShowFullDescription(true)}
                         className="w-full py-5 bg-white text-primary font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                         Continue
@@ -1072,7 +1078,7 @@ const SprintLandingPage: React.FC = () => {
                                     : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
                                 }`}
                             >
-                                {isProcessingPayment ? "Processing..." : (
+                                {isProcessingPayment ? "Unlocking Day 1..." : (
                                     commitmentContext?.isGuest && commitmentContext?.emailExists === false 
                                     ? "Claim Free Day 1" 
                                     : (
