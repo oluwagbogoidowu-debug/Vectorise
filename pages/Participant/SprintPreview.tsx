@@ -235,7 +235,17 @@ const SprintPreview: React.FC = () => {
     const { user, loading, checkVerification, logout, deferVerification, resetVerificationDeferral } = useAuth();
     
     const [sprint, setSprint] = useState<Sprint | null>(location.state?.sprint || null);
-    const [isLoading, setIsLoading] = useState(!location.state?.sprint);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // Enforce smooth minimum loader transition before revealing sprint preview
+        const timer = setTimeout(() => {
+            if (sprint) {
+                setIsLoading(false);
+            }
+        }, 700);
+        return () => clearTimeout(timer);
+    }, [sprint]);
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
     const [showSignupModal, setShowSignupModal] = useState(false);
@@ -263,10 +273,11 @@ const SprintPreview: React.FC = () => {
         triggerHaptic(hapticPatterns.light);
     }, [activeTaskIndex, soundEnabled]);
     
-    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route)
+    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route or forced preview)
     useEffect(() => {
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        if (!loading && user && !showLockModal && !isCoachPreview) {
+        const forcePreview = location.state?.forcePreview || location.state?.sprint;
+        if (!loading && user && !showLockModal && !isCoachPreview && !forcePreview) {
             sprintService.getUserEnrollments(user.id)
                 .then(enrollments => {
                     const enrolled = enrollments.find(e => e.sprint_id === sprintId);
@@ -748,46 +759,19 @@ const SprintPreview: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="max-w-2xl mx-auto px-4 py-8 pb-32 animate-pulse space-y-6">
-                {/* Back Link Placeholder */}
-                <div className="flex justify-between items-center">
-                    <div className="h-4 w-28 bg-gray-200 rounded"></div>
-                    <div className="h-4 w-16 bg-gray-100 rounded"></div>
-                </div>
-
-                {/* Main Heading Block */}
-                <div className="space-y-2">
-                    <div className="h-8 w-2/3 bg-gray-200 rounded-lg"></div>
-                    <div className="h-4 w-1/3 bg-gray-100 rounded"></div>
-                </div>
-
-                {/* Daily Insight Card Placeholder */}
-                <div className="bg-white rounded-[2rem] border border-gray-100 p-6 flex justify-between items-center">
-                    <div className="h-4 w-32 bg-gray-200 rounded"></div>
-                    <div className="w-5 h-5 bg-gray-100 rounded-full"></div>
-                </div>
-
-                {/* Action Step Card Placeholder */}
-                <div className="p-6 bg-[#0E7850]/5 rounded-[2rem] border border-[#0E7850]/10 space-y-4">
-                    <div className="h-3.5 w-40 bg-gray-200 rounded"></div>
-                    <div className="h-5 w-5/6 bg-gray-200 rounded"></div>
-                    <div className="space-y-2 pt-2">
-                        <div className="h-3.5 w-full bg-gray-100 rounded"></div>
-                        <div className="h-3.5 w-full bg-gray-100 rounded"></div>
+            <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                <div className="relative mb-6">
+                    <div className="w-14 h-14 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-2.5 h-2.5 bg-primary rounded-full animate-ping"></div>
                     </div>
                 </div>
-
-                {/* Input Fields Placeholder */}
-                <div className="bg-white rounded-[2rem] border border-gray-100 p-6 space-y-4">
-                    <div className="h-4 w-36 bg-gray-200 rounded"></div>
-                    <div className="h-20 w-full bg-gray-100 rounded-2xl"></div>
-                </div>
-
-                {/* Bottom Navigation controls */}
-                <div className="flex justify-between items-center pt-4">
-                    <div className="h-10 w-24 bg-gray-200 rounded-xl"></div>
-                    <div className="h-10 w-24 bg-gray-200 rounded-xl"></div>
-                </div>
+                <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-1">
+                    Unlocking Day 1...
+                </h2>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    Preparing your sprint preview
+                </p>
             </div>
         );
     }

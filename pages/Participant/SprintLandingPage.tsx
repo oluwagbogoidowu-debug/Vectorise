@@ -319,31 +319,19 @@ const SprintLandingPage: React.FC = () => {
             return;
         }
 
-        if (!user) {
-            analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath }, undefined);
-            setIsCheckingEmail(true);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            const effectiveEmail = `guest_${Date.now()}@vectorise.app`;
-            toast.success("Day 1 unlocked! Create an account to continue.");
-            navigate('/signup', {
-                state: {
-                    fromPayment: true,
-                    targetSprintId: sprint.id,
-                    prefilledEmail: effectiveEmail,
-                    authMessage: "This is your first sprint—it's completely free! Create an account to start."
-                },
-                replace: true
-            });
-            setIsCheckingEmail(false);
-            return;
-        }
+        analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath }, user?.id);
+        setIsCheckingEmail(true);
+        await new Promise(resolve => setTimeout(resolve, 600));
+        setIsCheckingEmail(false);
 
-        analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId }, user?.id);
-        setCommitmentContext({
-            isGuest: false
+        navigate(`/sprint/preview/${sprint.id}`, {
+            state: {
+                sprint: sprint,
+                prefilledEmail: user?.email || guestEmail,
+                isOnboarding: isOnboardingPath,
+                forcePreview: true
+            }
         });
-        setIsCommitted(false);
-        setShowCommitmentSheet(true);
     };
 
     const handleConfirmCommitment = async () => {
@@ -627,8 +615,8 @@ const SprintLandingPage: React.FC = () => {
                 {/* Main Content */}
                 <main className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-6 text-center">
                     <div className="space-y-2">
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase">
-                            Where are you right now?
+                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+                            Start here
                         </h1>
                     </div>
 
@@ -642,7 +630,7 @@ const SprintLandingPage: React.FC = () => {
                         />
                     </div>
 
-                    <p className="text-xs sm:text-sm font-medium text-white/80 max-w-[280px] mx-auto leading-relaxed">
+                    <p className="text-sm sm:text-base font-semibold text-white/90 max-w-[320px] mx-auto leading-relaxed">
                         This will help you build direction before anything else
                     </p>
 
@@ -932,7 +920,7 @@ const SprintLandingPage: React.FC = () => {
                     <div className="max-w-md mx-auto flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{sprint.duration || 7} Day Journey</p>
+                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Get 1%</p>
                         </div>
                         <Button 
                             onClick={handleJoinClick} 
