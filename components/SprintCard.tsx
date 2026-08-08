@@ -13,9 +13,10 @@ interface SprintCardProps {
     forceShowOutcomeTag?: boolean; 
     isStatic?: boolean; // New prop to disable navigation
     hideFooterDetails?: boolean; // Hide Guided By and Price/Coins section
+    variant?: 'light' | 'dark' | 'glass';
 }
 
-const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false, hideFooterDetails = false }) => {
+const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false, hideFooterDetails = false, variant = 'light' }) => {
     const { user, updateProfile } = useAuth();
     const [isProcessingSave, setIsProcessingSave] = useState(false);
 
@@ -102,6 +103,96 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
         
         return coach;
     }, [coach, sprint.sprintType, sprint.category]);
+
+    if (variant === 'glass' || variant === 'dark') {
+        return (
+            <div className="relative group h-full w-full">
+                {!isEnrolled && !isQueued && !isStatic && (
+                    <button 
+                        onClick={handleToggleSave}
+                        disabled={isProcessingSave}
+                        className={`absolute top-4 left-4 z-20 w-10 h-10 rounded-full backdrop-blur-xl transition-all duration-300 shadow-xl active:scale-90 flex items-center justify-center ${
+                            isSaved 
+                            ? 'bg-white text-primary scale-105' 
+                            : 'bg-white/10 text-white hover:bg-white/20 border border-white/20'
+                        }`}
+                        title={isSaved ? "Remove from waitlist" : "Save to waitlist"}
+                    >
+                        {isProcessingSave ? (
+                            <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                        )}
+                    </button>
+                )}
+
+                <CardContainer 
+                    {...(containerProps as any)} 
+                    className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2.5rem] p-6 sm:p-7 relative overflow-hidden shadow-2xl flex flex-col text-white transition-all duration-500 h-full group ${!isStatic ? 'hover:bg-white/15 hover:border-white/30 cursor-pointer' : 'cursor-default'}`}
+                >
+                    <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex justify-between items-start mb-5">
+                            <span className="px-4 py-1.5 bg-white/20 text-white rounded-full text-[10px] font-black uppercase tracking-widest">
+                                {sprint.category || 'Phase 02'}
+                            </span>
+                            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                                {sprint.sprintType || 'Evolution'}
+                            </span>
+                        </div>
+
+                        <div className="mb-5 rounded-2xl overflow-hidden aspect-video border border-white/10 relative">
+                            <img 
+                                src={sprint.coverImageUrl || fallbackUrl} 
+                                alt="" 
+                                className="w-full h-full object-cover grayscale opacity-80 transition-transform duration-700 group-hover:scale-105" 
+                                onError={(e) => { e.currentTarget.src = fallbackUrl; }} 
+                                referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black text-white/90 uppercase tracking-[0.2em] border border-white/10">
+                                {sprint.duration} Days
+                            </div>
+                            {forceShowOutcomeTag && sprint.outcomeTag && (
+                                <div className="absolute top-3 left-3 bg-primary text-white px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest italic shadow-lg z-10 border border-white/20">
+                                    {sprint.outcomeTag}
+                                </div>
+                            )}
+                        </div>
+
+                        <h3 className="text-xl sm:text-2xl font-black mb-2 leading-tight tracking-tight text-white">
+                            {sprint.title}
+                        </h3>
+
+                        {sprint.subtitle && (
+                            <p className="text-xs font-bold text-white/80 mb-2 leading-snug">
+                                {sprint.subtitle}
+                            </p>
+                        )}
+
+                        <p className="text-xs sm:text-sm text-white/60 font-medium leading-relaxed mb-6 flex-grow">
+                            {displayDescription}
+                        </p>
+
+                        {!hideFooterDetails && (
+                            <div className="pt-4 border-t border-white/10 mt-auto flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-7 h-7 rounded-lg object-cover border border-white/20" />
+                                    <div>
+                                        <p className="text-[6px] font-black text-white/40 uppercase tracking-widest">Guided By</p>
+                                        <p className="text-[9px] font-black text-white uppercase tracking-tight">{displayCoach.name}</p>
+                                    </div>
+                                </div>
+                                <div className="px-3 py-1.5 rounded-xl bg-white/20 text-white font-black text-[9px] uppercase tracking-widest">
+                                    {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </CardContainer>
+            </div>
+        );
+    }
 
     return (
         <div className="relative group h-full w-full">

@@ -638,6 +638,7 @@ const SprintLandingPage: React.FC = () => {
                             coach={fetchedCoach || vectoriseCoach} 
                             isStatic={true} 
                             hideFooterDetails={true}
+                            variant="glass"
                         />
                     </div>
 
