@@ -11,6 +11,7 @@ import FormattedText from '../../components/FormattedText';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import LocalLogo from '../../components/LocalLogo';
+import SprintCard from '../../components/SprintCard';
 import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
@@ -593,6 +594,61 @@ const SprintLandingPage: React.FC = () => {
             .then(() => toast.success('Share link copied to clipboard!'))
             .catch(() => toast.error('Failed to copy link.'));
     };
+
+    if (isOnboardingPath) {
+        return (
+            <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-primary text-white relative overflow-hidden selection:bg-white/10">
+                {/* Navigation Header */}
+                <header className="w-full max-w-[340px] sm:max-w-[380px] z-10 flex items-center justify-between pt-2">
+                    <button 
+                        onClick={() => navigate('/onboarding/focus-selector', { state: { trigger: activeTrigger } })} 
+                        className="group flex items-center text-white/60 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Refine Focus
+                    </button>
+                    <LocalLogo type="white" className="h-5 w-auto opacity-40" />
+                </header>
+
+                {/* Main Content */}
+                <main className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-6 text-center">
+                    <div className="space-y-2">
+                        <h1 className="text-3xl md:text-4xl font-black italic tracking-tight text-white uppercase">
+                            Start here
+                        </h1>
+                        <p className="text-xs sm:text-sm font-medium text-white/80 max-w-[280px] mx-auto leading-relaxed">
+                            This will help you build direction before anything else
+                        </p>
+                    </div>
+
+                    <div className="w-full text-left">
+                        <SprintCard 
+                            sprint={sprint} 
+                            coach={fetchedCoach || vectoriseCoach} 
+                            isStatic={true} 
+                        />
+                    </div>
+
+                    <button
+                        onClick={handleJoinClick}
+                        className="w-full py-5 bg-white text-primary font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                        Continue
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
+                </main>
+
+                {/* Footer */}
+                <footer className="w-full text-center pb-4 opacity-20 z-10">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em]">GET 1% BETTER DAILY</p>
+                </footer>
+
+                <div className="absolute top-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">

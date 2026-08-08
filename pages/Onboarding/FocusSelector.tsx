@@ -319,9 +319,11 @@ const FocusSelector: React.FC = () => {
             <header className="mb-12 text-center">
                <LocalLogo type="white" className="h-5 w-auto mx-auto mb-8 opacity-40" />
                <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight italic">{pollQuestion}</h1>
-               <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
-                 {selections.length > 0 ? selections.join(' > ') : (activeTrigger === 'skip_clarity' ? 'Execution Registry' : 'GET 1% BETTER DAILY')}
-               </p>
+               {selections.length > 0 && (
+                 <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.3em] mt-4">
+                   {selections.join(' > ')}
+                 </p>
+               )}
             </header>
             
             <div className="w-full space-y-3 animate-slide-up">
@@ -390,6 +392,7 @@ const FocusSelector: React.FC = () => {
           </div>
         )}
         <footer className="mt-12 opacity-20 text-center">
+          <p className="text-[9px] font-black uppercase tracking-[0.3em]">GET 1% BETTER DAILY</p>
         </footer>
       </div>
       <div className="absolute top-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>

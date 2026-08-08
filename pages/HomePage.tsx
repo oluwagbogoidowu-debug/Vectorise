@@ -111,79 +111,78 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="bg-white w-full font-sans selection:bg-primary/10 selection:text-primary overflow-x-hidden flex flex-col">
-      {/* NAVIGATION */}
-      <nav className="fixed top-0 left-0 w-full z-[100] bg-white/95 backdrop-blur-md px-6 py-5">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Link to="/" className="hover:scale-105 transition-transform duration-500">
-            <LocalLogo type="green" className="h-[2.125rem] w-auto" />
-          </Link>
-          <div className="flex gap-6 items-center">
-            <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[8px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
-              I'M A COACH
+      {/* FIRST VIEWPORT */}
+      <div className="min-h-[100dvh] h-[100dvh] flex flex-col justify-between relative bg-white">
+        {/* NAVIGATION */}
+        <nav className="w-full z-[100] bg-white/95 backdrop-blur-md px-6 py-4 flex-shrink-0">
+          <div className="max-w-7xl mx-auto flex justify-between items-center">
+            <Link to="/" className="hover:scale-105 transition-transform duration-500">
+              <LocalLogo type="green" className="h-7 md:h-8 w-auto" />
             </Link>
-            <button 
-              onClick={handleStartAction}
-              className="px-6 py-2.5 bg-primary text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
-            >
-              Start
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* HERO SECTION */}
-      <section className="relative pt-[100px] pb-10 md:pt-40 md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
-        <div className="max-w-5xl mx-auto flex flex-col items-center">
-          <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-8">
-            Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
-          </h1>
-          
-          <div className="max-w-2xl mx-auto mb-8 flex flex-col items-center">
-            <div className="text-center">
-                <p className="text-base md:text-lg text-black font-bold leading-tight">
-                    You don’t lack ambition. You lack a clear structure that turns effort into real progress.
-                </p>
-            </div>
-            
-            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner my-6">
-              <p className="text-[14px] md:text-[16px] text-gray-600 font-medium leading-relaxed">
-                <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided sprint system</strong> that helps you <strong className="text-gray-800 font-bold">focus</strong>, <strong className="text-gray-800 font-bold">act</strong>, and build <strong className="text-gray-800 font-bold">real capability</strong>.
-              </p>
-            </div>
-
-            <div className="flex flex-col items-center gap-1">
-                <span className="text-[11px] font-black uppercase tracking-widest text-black">Built for where you are right now.</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex flex-col items-center">
+            <div className="flex gap-4 md:gap-6 items-center">
+              <Link to="/onboarding/coach/welcome" className="hidden sm:block text-[8px] font-black text-gray-400 hover:text-primary uppercase tracking-[0.1em] transition-colors">
+                I'M A COACH
+              </Link>
               <button 
-                  onClick={handleStartAction}
-                  className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+                onClick={handleStartAction}
+                className="px-5 py-2 md:px-6 md:py-2.5 bg-primary text-white rounded-full text-[8px] font-black uppercase tracking-[0.1em] shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all active:scale-95 cursor-pointer"
               >
-                  Start your Rise
+                Start
               </button>
-              <p className="text-[10px] md:text-xs font-semibold text-gray-500 uppercase tracking-wider mt-3">
-                Your first sprint is free
+            </div>
+          </div>
+        </nav>
+
+        {/* HERO SECTION */}
+        <section className="flex-1 flex flex-col items-center justify-center px-6 text-center animate-fade-in relative z-10 py-2">
+          <div className="max-w-3xl mx-auto flex flex-col items-center">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-gray-900 tracking-tighter leading-[0.88] mb-3 md:mb-5">
+              Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
+            </h1>
+            
+            <div className="max-w-xl mx-auto mb-3 md:mb-5 flex flex-col items-center">
+              <p className="text-xs sm:text-sm md:text-base text-black font-bold leading-tight mb-2">
+                You don’t lack ambition. You lack a clear structure that turns effort into real progress.
+              </p>
+              
+              <div className="bg-gray-50 rounded-2xl md:rounded-[1.5rem] p-4 sm:p-5 text-center border border-gray-100 shadow-inner my-2 md:my-3">
+                <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed">
+                  <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided sprint system</strong> that helps you <strong className="text-gray-800 font-bold">focus</strong>, <strong className="text-gray-800 font-bold">act</strong>, and build <strong className="text-gray-800 font-bold">real capability</strong>.
+                </p>
+              </div>
+
+              <span className="text-[10px] md:text-[11px] font-black uppercase tracking-widest text-black">Built for where you are right now.</span>
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center">
+                <button 
+                  onClick={handleStartAction}
+                  className="px-8 py-3.5 md:px-10 md:py-4 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] md:text-xs rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+                >
+                  Start your Rise
+                </button>
+                <p className="text-[9px] md:text-[10px] font-semibold text-gray-500 uppercase tracking-wider mt-2">
+                  Your first sprint is free
+                </p>
+              </div>
+              <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-1">
+                ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-black hover:underline ml-1">CONTINUE YOUR RISE</Link>
               </p>
             </div>
-            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">
-                ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-black hover:underline ml-1">CONTINUE YOUR RISE</Link>
-            </p>
           </div>
-        </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-primary/2 rounded-full blur-[120px] pointer-events-none -z-10"></div>
-      </section>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-primary/2 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+        </section>
 
-      {/* REVEAL BUTTON TOGGLE */}
-      <div className="py-10 bg-white flex flex-col items-center justify-center relative z-10 border-t border-gray-100 flex-shrink-0">
-        <button
-          onClick={() => setShowHowItWorks(!showHowItWorks)}
-          className="px-8 py-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900 font-black uppercase tracking-[0.15em] text-[11px] md:text-xs rounded-full shadow-sm hover:scale-[1.03] active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
-        >
-          {showHowItWorks ? "See how it works ↑" : "See how it works ↓"}
-        </button>
+        {/* SEE HOW IT WORKS - SMALL AT END OF VIEWPORT */}
+        <div className="py-2.5 flex flex-col items-center justify-center relative z-10 flex-shrink-0">
+          <button
+            onClick={() => setShowHowItWorks(!showHowItWorks)}
+            className="px-3 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200/80 text-gray-400 hover:text-gray-700 font-bold uppercase tracking-[0.15em] text-[8px] md:text-[9px] rounded-full transition-all flex items-center gap-1 cursor-pointer"
+          >
+            {showHowItWorks ? "See how it works ↑" : "See how it works ↓"}
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -391,25 +390,25 @@ const HomePage: React.FC = () => {
               </div>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/5 rounded-full pointer-events-none"></div>
             </section>
+
+            {/* FOOTER */}
+            <footer className="py-20 bg-white border-t border-gray-100 px-10">
+              <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+                  <div className="flex items-center gap-6">
+                      <LocalLogo type="green" className="h-4 w-auto" />
+                      <div className="h-5 w-px bg-gray-200"></div>
+                      <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-8 md:gap-12">
+                      <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
+                      <Link to="/onboarding/coach/welcome" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
+                      <Link to="/partner" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
+                  </div>
+              </div>
+            </footer>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* FOOTER */}
-      <footer className="py-20 bg-white border-t border-gray-100 px-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-            <div className="flex items-center gap-6">
-                <LocalLogo type="green" className="h-4 w-auto" />
-                <div className="h-5 w-px bg-gray-200"></div>
-                <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] leading-none pt-0.5">VISIBLE PROGRESS SYSTEM</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-                <p className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em]">© 2026 VECTORISE</p>
-                <Link to="/onboarding/coach/welcome" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">I'M A COACH</Link>
-                <Link to="/partner" className="text-[8px] font-black text-gray-300 uppercase tracking-[0.4em] hover:text-primary transition-colors">BE A PARTNER</Link>
-            </div>
-        </div>
-      </footer>
 
       {/* Engagement Micro Selector Modal */}
       {showMicroSelector && activeSelector && currentStep && (
