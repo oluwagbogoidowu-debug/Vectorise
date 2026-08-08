@@ -132,7 +132,7 @@ const HomePage: React.FC = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative pt-[60px] pb-10 md:pt-20 md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
+      <section className="relative pt-[90px] pb-10 md:pt-[120px] md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-8">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
@@ -168,7 +168,7 @@ const HomePage: React.FC = () => {
                 Your first sprint is free
               </p>
             </div>
-            <p className="text-[16px] font-black text-gray-400 uppercase tracking-widest mt-1">
+            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-black hover:underline ml-1">CONTINUE YOUR RISE</Link>
             </p>
           </div>
