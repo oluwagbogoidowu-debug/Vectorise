@@ -132,21 +132,21 @@ const HomePage: React.FC = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative pt-[75px] pb-4 md:pt-[85px] md:pb-6 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
+      <section className="relative pt-[90px] pb-10 md:pt-[120px] md:pb-28 flex flex-col items-center justify-center px-6 text-center animate-fade-in flex-shrink-0">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
-          <h1 className="text-5xl md:text-[95px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-5">
+          <h1 className="text-6xl md:text-[110px] font-black text-gray-900 tracking-tighter leading-[0.85] mb-8">
             Grow into who <br/> <span className="italic">you’re <span className="text-primary">becoming.</span></span>
           </h1>
           
-          <div className="max-w-2xl mx-auto mb-5 flex flex-col items-center">
+          <div className="max-w-2xl mx-auto mb-8 flex flex-col items-center">
             <div className="text-center">
-                <p className="text-sm md:text-base text-black font-bold leading-tight">
+                <p className="text-base md:text-lg text-black font-bold leading-tight">
                     You don’t lack ambition. You lack a clear structure that turns effort into real progress.
                 </p>
             </div>
             
-            <div className="bg-gray-50 rounded-[1.5rem] p-5 md:p-6 text-center border border-gray-100 shadow-inner my-4">
-              <p className="text-[13px] md:text-[15px] text-gray-600 font-medium leading-relaxed">
+            <div className="bg-gray-50 rounded-[2rem] p-8 md:p-10 text-center border border-gray-100 shadow-inner my-6">
+              <p className="text-[14px] md:text-[16px] text-gray-600 font-medium leading-relaxed">
                 <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided sprint system</strong> that helps you <strong className="text-gray-800 font-bold">focus</strong>, <strong className="text-gray-800 font-bold">act</strong>, and build <strong className="text-gray-800 font-bold">real capability</strong>.
               </p>
             </div>
@@ -156,19 +156,19 @@ const HomePage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-2.5">
+          <div className="flex flex-col items-center gap-3">
             <div className="flex flex-col items-center">
               <button 
                   onClick={handleStartAction}
-                  className="px-10 py-4 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
+                  className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
               >
                   Start your Rise
               </button>
-              <p className="text-[10px] md:text-xs font-normal text-gray-500 tracking-wider mt-1.5">
+              <p className="text-[10px] md:text-xs font-normal text-gray-500 tracking-wider mt-2">
                 Your first sprint is free
               </p>
             </div>
-            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-1">
+            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest mt-2">
                 ALREADY HAVE AN ACCOUNT? <Link to="/login" className="text-black hover:underline ml-1">CONTINUE YOUR RISE</Link>
             </p>
           </div>
@@ -177,7 +177,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* SEE HOW IT WORKS - SMALL BUTTON AT END */}
-      <div className="pb-3 pt-1 flex flex-col items-center justify-center relative z-10 flex-shrink-0">
+      <div className="pb-8 pt-2 flex flex-col items-center justify-center relative z-10 flex-shrink-0">
         <button
           onClick={() => setShowHowItWorks(!showHowItWorks)}
           className="px-3 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200/80 text-gray-400 hover:text-gray-700 font-bold uppercase tracking-[0.15em] text-[8px] md:text-[9px] rounded-full transition-all flex items-center gap-1 cursor-pointer"
