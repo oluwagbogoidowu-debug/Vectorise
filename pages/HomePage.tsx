@@ -39,6 +39,7 @@ const HomePage: React.FC = () => {
   const [activeSelector, setActiveSelector] = useState<MicroSelector | null>(null);
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [currentFlowIndex, setCurrentFlowIndex] = useState(0);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -151,15 +152,12 @@ const HomePage: React.FC = () => {
             </div>
 
             <div className="flex flex-col items-center gap-1">
-                <span className="text-[11px] font-black uppercase tracking-widest text-black"><span className="text-primary">It is </span>A clear path of progression.</span>
+                <span className="text-[11px] font-black uppercase tracking-widest text-black">Built for where you are right now.</span>
             </div>
           </div>
 
           <div className="flex flex-col items-center gap-6">
             <div className="flex flex-col items-center">
-              <p className="text-sm md:text-base font-normal text-gray-800 uppercase tracking-wider text-center mb-3 leading-snug">
-                START WITH A SPRINT <br /> BUILT FOR WHERE YOU ARE
-              </p>
               <button 
                   onClick={handleStartAction}
                   className="px-12 py-5 bg-primary text-white font-black uppercase tracking-[0.15em] text-[10px] rounded-full shadow-2xl shadow-primary/30 hover:scale-[1.03] transition-all active:scale-95 cursor-pointer"
@@ -178,202 +176,224 @@ const HomePage: React.FC = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] bg-primary/2 rounded-full blur-[120px] pointer-events-none -z-10"></div>
       </section>
 
-      {/* THE REAL PROBLEM SECTION */}
-      <section className="relative py-16 md:py-24 bg-gray-50 border-y border-gray-100 px-6 text-center flex-shrink-0">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10">
-            Here's the <span className="text-primary italic">problem</span>.
-          </h2>
-          
-          <div className="max-w-3xl mx-auto mb-16">
-            <p className="text-[12px] text-gray-500 font-medium leading-relaxed mb-12">
-              Without a system connecting learning, practice, and application, effort becomes scattered.
-            </p>
-            
-            <div className="relative min-h-[120px] md:min-h-[60px] flex justify-center items-center mb-16 w-full">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentFlowIndex}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="flex flex-wrap justify-center gap-3 md:gap-4 absolute w-full px-4"
-                >
-                  {PROBLEM_FLOWS[currentFlowIndex].map((item, i) => (
-                    <div key={i} className={`${item.color} px-4 py-2 md:px-6 md:py-3 rounded-full border font-black italic text-[12px] md:text-sm shadow-sm whitespace-nowrap`}>
-                      {item.text}
+      {/* REVEAL BUTTON TOGGLE */}
+      <div className="py-10 bg-white flex flex-col items-center justify-center relative z-10 border-t border-gray-100 flex-shrink-0">
+        <button
+          onClick={() => setShowHowItWorks(!showHowItWorks)}
+          className="px-8 py-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-900 font-black uppercase tracking-[0.15em] text-[11px] md:text-xs rounded-full shadow-sm hover:scale-[1.03] active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+        >
+          {showHowItWorks ? "See how it works ↑" : "See how it works ↓"}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {showHowItWorks && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="overflow-hidden w-full"
+          >
+            {/* THE REAL PROBLEM SECTION */}
+            <section className="relative py-16 md:py-24 bg-gray-50 border-y border-gray-100 px-6 text-center flex-shrink-0">
+              <div className="max-w-5xl mx-auto">
+                <h2 className="text-5xl md:text-[80px] font-black text-gray-900 tracking-tighter leading-none mb-10">
+                  Here's the <span className="text-primary italic">problem</span>.
+                </h2>
+                
+                <div className="max-w-3xl mx-auto mb-16">
+                  <p className="text-[12px] text-gray-500 font-medium leading-relaxed mb-12">
+                    Without a system connecting learning, practice, and application, effort becomes scattered.
+                  </p>
+                  
+                  <div className="relative min-h-[120px] md:min-h-[60px] flex justify-center items-center mb-16 w-full">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={currentFlowIndex}
+                        initial={{ opacity: 0, x: 50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -50 }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                        className="flex flex-wrap justify-center gap-3 md:gap-4 absolute w-full px-4"
+                      >
+                        {PROBLEM_FLOWS[currentFlowIndex].map((item, i) => (
+                          <div key={i} className={`${item.color} px-4 py-2 md:px-6 md:py-3 rounded-full border font-black italic text-[12px] md:text-sm shadow-sm whitespace-nowrap`}>
+                            {item.text}
+                          </div>
+                        ))}
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+
+                  <div className="max-w-2xl mx-auto">
+                      <p className="text-lg md:text-2xl text-gray-900 font-black leading-[1.2] tracking-tight">
+                          "Effort isn’t the issue. Structure is."
+                      </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* THE INSIGHT SECTION - ANIMATED FILTERS */}
+            <section className="py-24 md:py-40 bg-white px-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+                  <div className="lg:col-span-7 space-y-12">
+                    <div className="space-y-4">
+                       <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1]">
+                          You stay active.<br />But nothing stacks.
+                       </h2>
+                       <p className="text-2xl md:text-4xl font-black text-gray-300 tracking-tight leading-[1] italic mt-4">
+                          Growth stays uneven.<br />Nothing compounds.
+                       </p>
+                    </div>
+                    
+                    <div className="space-y-6 text-[15px] md:text-[17px] text-gray-600 font-medium leading-[1.8] max-w-lg relative">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-gray-100 via-gray-200 to-primary/20 rounded-full"></div>
+                      <div className="pl-6 md:pl-10 space-y-6">
+                        <p>I didn’t build this as a theory.<br />I built it from trying to grow without a system.</p>
+                        <p>I was learning, switching focus, picking up skills, trying to improve — but nothing connected.<br />I wasn’t progressing. I was accumulating random effort.</p>
+                        <p className="text-gray-900 font-bold text-base md:text-lg mt-8">
+                          Until I started building structured cycles for focus, practice, and reflection.<br />
+                          That’s when growth started compounding.<br />
+                          <span className="text-primary italic font-black text-xl md:text-2xl block mt-4 tracking-tight">Not faster. Just structured.</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-5 flex flex-col items-center">
+                     <div className="relative w-full aspect-[4/5] bg-white rounded-[3rem] p-2 md:p-3 shadow-2xl ring-1 ring-gray-900/5">
+                       <div className="w-full h-full rounded-[2.5rem] overflow-hidden bg-gray-100 relative">
+                        <img 
+                          src="https://lh3.googleusercontent.com/d/1adBe3Z_E3_9mAPPG86f67dYENzT1jR7O" 
+                          className="w-full h-full object-cover animate-grayscale-loop" 
+                          alt="Founder Story" 
+                        />
+                        <div className="absolute inset-0 ring-1 ring-inset ring-black/10 rounded-[2.5rem]"></div>
+                       </div>
+                     </div>
+                     <p className="mt-8 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO LEARNED <br/> THAT EFFORT WITHOUT STRUCTURE DOESN’T COMPOUND.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* THE PRINCIPLE SECTION (DARK) */}
+            <section className="py-24 md:py-40 bg-dark text-white px-6">
+              <div className="max-w-5xl mx-auto">
+                <div className="text-center mb-20">
+                  <h2 className="text-4xl md:text-[80px] font-black italic tracking-tighter leading-none mb-8">The Principle.</h2>
+                  <p className="text-white/60 font-medium text-xs md:text-sm max-w-lg mx-auto leading-relaxed uppercase tracking-[0.1em]">
+                      Vectorise is built on a simple idea. Growth compounds when it’s structured. Not a collection of courses.<br/>
+                      <span className="text-white font-black">A progression system.</span>
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { label: "PROTOCOL", title: "Sprints", desc: "One outcome." },
+                    { label: "STRATEGY", title: "One Focus", desc: "No split attention." },
+                    { label: "EXECUTION", title: "Daily Action", desc: "Execution, not theory." },
+                    { label: "SUPPORT", title: "Guidance", desc: "Clarity when stuck." }
+                  ].map((item, i) => (
+                    <div key={i} className="bg-white/[0.03] border border-white/10 p-8 rounded-[1.5rem] group hover:bg-white/[0.05] transition-all">
+                      <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">{item.label}</p>
+                      <h4 className="text-xl font-black mb-2 italic">{item.title}</h4>
+                      <p className="text-[12px] md:text-sm text-white/40 font-medium italic">"{item.desc}"</p>
                     </div>
                   ))}
-                </motion.div>
-              </AnimatePresence>
-            </div>
+                </div>
 
-            <div className="max-w-2xl mx-auto">
-                <p className="text-lg md:text-2xl text-gray-900 font-black leading-[1.2] tracking-tight">
-                    "Effort isn’t the issue. Structure is."
-                </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* THE INSIGHT SECTION - ANIMATED FILTERS */}
-      <section className="py-24 md:py-40 bg-white px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-            <div className="lg:col-span-7 space-y-12">
-              <div className="space-y-4">
-                 <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1]">
-                    You stay active.<br />But nothing stacks.
-                 </h2>
-                 <p className="text-2xl md:text-4xl font-black text-gray-300 tracking-tight leading-[1] italic mt-4">
-                    Growth stays uneven.<br />Nothing compounds.
-                 </p>
-              </div>
-              
-              <div className="space-y-6 text-[15px] md:text-[17px] text-gray-600 font-medium leading-[1.8] max-w-lg relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-gray-100 via-gray-200 to-primary/20 rounded-full"></div>
-                <div className="pl-6 md:pl-10 space-y-6">
-                  <p>I didn’t build this as a theory.<br />I built it from trying to grow without a system.</p>
-                  <p>I was learning, switching focus, picking up skills, trying to improve — but nothing connected.<br />I wasn’t progressing. I was accumulating random effort.</p>
-                  <p className="text-gray-900 font-bold text-base md:text-lg mt-8">
-                    Until I started building structured cycles for focus, practice, and reflection.<br />
-                    That’s when growth started compounding.<br />
-                    <span className="text-primary italic font-black text-xl md:text-2xl block mt-4 tracking-tight">Not faster. Just structured.</span>
+                <div className="mt-20 text-center">
+                  <p className="text-lg md:text-2xl font-black italic tracking-tight opacity-80 leading-snug">
+                      Finish a sprint. Build the next capability. <br className="hidden md:block" /> That’s how development stacks.
                   </p>
                 </div>
               </div>
-            </div>
+            </section>
 
-            <div className="lg:col-span-5 flex flex-col items-center">
-               <div className="relative w-full aspect-[4/5] bg-white rounded-[3rem] p-2 md:p-3 shadow-2xl ring-1 ring-gray-900/5">
-                 <div className="w-full h-full rounded-[2.5rem] overflow-hidden bg-gray-100 relative">
-                  <img 
-                    src="https://lh3.googleusercontent.com/d/1adBe3Z_E3_9mAPPG86f67dYENzT1jR7O" 
-                    className="w-full h-full object-cover animate-grayscale-loop" 
-                    alt="Founder Story" 
-                  />
-                  <div className="absolute inset-0 ring-1 ring-inset ring-black/10 rounded-[2.5rem]"></div>
-                 </div>
-               </div>
-               <p className="mt-8 text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] text-center leading-relaxed">BUILT BY SOMEONE WHO LEARNED <br/> THAT EFFORT WITHOUT STRUCTURE DOESN’T COMPOUND.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* THE PRINCIPLE SECTION (DARK) */}
-      <section className="py-24 md:py-40 bg-dark text-white px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-[80px] font-black italic tracking-tighter leading-none mb-8">The Principle.</h2>
-            <p className="text-white/60 font-medium text-xs md:text-sm max-w-lg mx-auto leading-relaxed uppercase tracking-[0.1em]">
-                Vectorise is built on a simple idea. Growth compounds when it’s structured. Not a collection of courses.<br/>
-                <span className="text-white font-black">A progression system.</span>
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { label: "PROTOCOL", title: "Sprints", desc: "One outcome." },
-              { label: "STRATEGY", title: "One Focus", desc: "No split attention." },
-              { label: "EXECUTION", title: "Daily Action", desc: "Execution, not theory." },
-              { label: "SUPPORT", title: "Guidance", desc: "Clarity when stuck." }
-            ].map((item, i) => (
-              <div key={i} className="bg-white/[0.03] border border-white/10 p-8 rounded-[1.5rem] group hover:bg-white/[0.05] transition-all">
-                <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">{item.label}</p>
-                <h4 className="text-xl font-black mb-2 italic">{item.title}</h4>
-                <p className="text-[12px] md:text-sm text-white/40 font-medium italic">"{item.desc}"</p>
+            {/* WHEN YOU CLICK START SECTION */}
+            <section className="py-24 md:py-40 bg-white px-6">
+              <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+                  <div className="lg:col-span-5">
+                      <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1] mb-8">
+                          When you click <br/><span className="text-primary italic">Start.</span>
+                      </h2>
+                  </div>
+                  
+                  <div className="lg:col-span-7 space-y-3">
+                      {[
+                          "You enter a guided growth cycle.",
+                          "You focus on one capability for a short period.",
+                          "You learn by doing, not consuming.",
+                          "You apply in real situations immediately.",
+                          "You reflect on what changed in your thinking and behavior."
+                      ].map((text, i) => (
+                          <div key={i} className="bg-gray-50 border border-gray-100 p-5 md:p-6 rounded-[1.5rem] flex items-center gap-6">
+                              <span className="text-lg md:text-xl font-black text-gray-200 italic">0{i+1}</span>
+                              <p className="text-sm md:text-base font-black text-gray-900 tracking-tight leading-snug">{text}</p>
+                          </div>
+                      ))}
+                      
+                      <div className="pt-8 md:pt-12">
+                          <p className="text-xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight italic">
+                              You don’t just understand more.<br/>
+                              <span className="text-primary">You become more capable.</span>
+                          </p>
+                      </div>
+                  </div>
               </div>
-            ))}
-          </div>
+            </section>
 
-          <div className="mt-20 text-center">
-            <p className="text-lg md:text-2xl font-black italic tracking-tight opacity-80 leading-snug">
-                Finish a sprint. Build the next capability. <br className="hidden md:block" /> That’s how development stacks.
-            </p>
-          </div>
-        </div>
-      </section>
+            {/* WHO THIS IS FOR SECTION */}
+            <section className="py-24 md:py-40 bg-gray-50 border-y border-gray-100 px-6">
+              <div className="max-w-5xl mx-auto text-center">
+                  <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-none mb-6">Who this is for</h2>
+                  <p className="text-gray-400 font-medium italic text-xs md:text-sm mb-16 uppercase tracking-widest">Vectorise is for people in transition and growth phases.</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+                      {[
+                          { t: "Students", s: "PREPARING", d: "Preparing for real-world expectations." },
+                          { t: "Early professionals", s: "BUILDING", d: "Building competence and direction." },
+                          { t: "Builders/Creators", s: "DEVELOPING", d: "Developing themselves to match their ambitions." }
+                      ].map((item, i) => (
+                          <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-200 shadow-sm flex flex-col text-left h-full">
+                              <h4 className="text-lg font-black text-gray-900 italic mb-1">{item.t}</h4>
+                              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-6">{item.s}</p>
+                              <p className="text-[10px] text-gray-500 font-medium leading-relaxed italic mt-auto">"{item.d}"</p>
+                          </div>
+                      ))}
+                  </div>
 
-      {/* WHEN YOU CLICK START SECTION */}
-      <section className="py-24 md:py-40 bg-white px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
-            <div className="lg:col-span-5">
-                <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-[1] mb-8">
-                    When you click <br/><span className="text-primary italic">Start.</span>
-                </h2>
-            </div>
-            
-            <div className="lg:col-span-7 space-y-3">
-                {[
-                    "You enter a guided growth cycle.",
-                    "You focus on one capability for a short period.",
-                    "You learn by doing, not consuming.",
-                    "You apply in real situations immediately.",
-                    "You reflect on what changed in your thinking and behavior."
-                ].map((text, i) => (
-                    <div key={i} className="bg-gray-50 border border-gray-100 p-5 md:p-6 rounded-[1.5rem] flex items-center gap-6">
-                        <span className="text-lg md:text-xl font-black text-gray-200 italic">0{i+1}</span>
-                        <p className="text-sm md:text-base font-black text-gray-900 tracking-tight leading-snug">{text}</p>
-                    </div>
-                ))}
-                
-                <div className="pt-8 md:pt-12">
-                    <p className="text-xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight italic">
-                        You don’t just understand more.<br/>
-                        <span className="text-primary">You become more capable.</span>
-                    </p>
-                </div>
-            </div>
-        </div>
-      </section>
+                  <p className="text-lg md:text-2xl font-black italic tracking-tight text-gray-900 leading-tight">
+                      "If you feel like you’re learning a lot but not becoming more effective, <span className="text-primary underline decoration-primary/20 underline-offset-8">this is for you.</span>"
+                  </p>
+              </div>
+            </section>
 
-      {/* WHO THIS IS FOR SECTION */}
-      <section className="py-24 md:py-40 bg-gray-50 border-y border-gray-100 px-6">
-        <div className="max-w-5xl mx-auto text-center">
-            <h2 className="text-4xl md:text-[64px] font-black text-gray-900 tracking-tighter leading-none mb-6">Who this is for</h2>
-            <p className="text-gray-400 font-medium italic text-xs md:text-sm mb-16 uppercase tracking-widest">Vectorise is for people in transition and growth phases.</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-                {[
-                    { t: "Students", s: "PREPARING", d: "Preparing for real-world expectations." },
-                    { t: "Early professionals", s: "BUILDING", d: "Building competence and direction." },
-                    { t: "Builders/Creators", s: "DEVELOPING", d: "Developing themselves to match their ambitions." }
-                ].map((item, i) => (
-                    <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-200 shadow-sm flex flex-col text-left h-full">
-                        <h4 className="text-lg font-black text-gray-900 italic mb-1">{item.t}</h4>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-6">{item.s}</p>
-                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed italic mt-auto">"{item.d}"</p>
-                    </div>
-                ))}
-            </div>
-
-            <p className="text-lg md:text-2xl font-black italic tracking-tight text-gray-900 leading-tight">
-                "If you feel like you’re learning a lot but not becoming more effective, <span className="text-primary underline decoration-primary/20 underline-offset-8">this is for you.</span>"
-            </p>
-        </div>
-      </section>
-
-      {/* FINAL CTA SECTION - RECTANGULAR FULL WIDTH */}
-      <section className="bg-primary py-24 md:py-40 px-6 relative overflow-hidden flex-shrink-0">
-        <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center">
-            <h2 className="text-4xl md:text-[80px] font-black text-white italic tracking-tighter leading-[1] mb-10">
-                You don’t need <br className="hidden md:block" /> more information.
-            </h2>
-            <p className="text-white/60 text-[12px] md:text-sm font-bold uppercase tracking-widest max-w-sm mx-auto mb-12 leading-relaxed">
-                You need structured growth.
-            </p>
-            <button 
-                onClick={handleStartAction}
-                className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
-            >
-                Start your sprint now
-            </button>
-        </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/5 rounded-full pointer-events-none"></div>
-      </section>
+            {/* FINAL CTA SECTION - RECTANGULAR FULL WIDTH */}
+            <section className="bg-primary py-24 md:py-40 px-6 relative overflow-hidden flex-shrink-0">
+              <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center">
+                  <h2 className="text-4xl md:text-[80px] font-black text-white italic tracking-tighter leading-[1] mb-10">
+                      You don’t need <br className="hidden md:block" /> more information.
+                  </h2>
+                  <p className="text-white/60 text-[12px] md:text-sm font-bold uppercase tracking-widest max-w-sm mx-auto mb-12 leading-relaxed">
+                      You need structured growth.
+                  </p>
+                  <button 
+                      onClick={handleStartAction}
+                      className="px-12 py-5 bg-white text-primary font-black uppercase tracking-[0.3em] text-[10px] rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all"
+                  >
+                      Start your sprint now
+                  </button>
+              </div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/5 rounded-full pointer-events-none"></div>
+            </section>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* FOOTER */}
       <footer className="py-20 bg-white border-t border-gray-100 px-10">
