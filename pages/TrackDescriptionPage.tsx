@@ -299,47 +299,49 @@ const TrackDescriptionPage: React.FC = () => {
                 </div>
             </header>
 
-            {/* MODERN FULL-WIDTH HERO HEADER SECTION */}
-            <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[460px] bg-[#0c1310] overflow-hidden">
-                <img 
-                    src={imageError || !track.coverImageUrl ? fallbackImage : track.coverImageUrl} 
-                    className="w-full h-full object-cover object-center scale-[1.01] filter brightness-[0.7] contrast-[1.02]" 
-                    alt={track.title} 
-                    onError={() => setImageError(true)}
-                    referrerPolicy="no-referrer"
-                />
-                
-                {/* Visual Gradient Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0c1310] via-[#0c1310]/50 to-transparent"></div>
-                <div className="absolute inset-0 bg-gradient-to-r from-[#0c1310]/60 via-transparent to-[#0c1310]/40"></div>
+            {/* MODERN HERO HEADER SECTION WITH HORIZONTAL PADDING */}
+            <div className="px-4 sm:px-6 lg:px-8 pt-2 sm:pt-4 max-w-screen-xl mx-auto">
+                <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[460px] bg-[#0c1310] rounded-[2rem] overflow-hidden shadow-xl">
+                    <img 
+                        src={imageError || !track.coverImageUrl ? fallbackImage : track.coverImageUrl} 
+                        className="w-full h-full object-cover object-center scale-[1.01] filter brightness-[0.7] contrast-[1.02]" 
+                        alt={track.title} 
+                        onError={() => setImageError(true)}
+                        referrerPolicy="no-referrer"
+                    />
+                    
+                    {/* Visual Gradient Overlays */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0c1310] via-[#0c1310]/50 to-transparent"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#0c1310]/60 via-transparent to-[#0c1310]/40"></div>
 
-                {/* Content aligned inside a beautiful centered container */}
-                <div className="absolute inset-0 flex flex-col justify-end">
-                    <div className="max-w-screen-lg w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12">
-                        <div className="space-y-4 animate-fade-in max-w-2xl">
-                            <div className="flex flex-wrap gap-2">
-                                <span className="px-3 py-1 bg-[#0E7850] text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-[#159E6A]/20">
-                                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                                    TRACK BUNDLE
-                                </span>
-                                <span className="px-3 py-1 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-primary/20">
-                                    SAVE {track.discountPercentage}%
-                                </span>
-                            </div>
-                            
-                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter text-white leading-[1.05] uppercase">
-                                <FormattedText text={track.title} inline />
-                            </h1>
-                            
-                            {track.subtitle && (
-                                <p className="text-white/85 text-sm sm:text-base md:text-lg font-semibold tracking-tight leading-relaxed max-w-xl">
-                                    {track.subtitle}
-                                </p>
-                            )}
-                            
-                            <div className="pt-2 flex items-center gap-2 text-white/50 text-[10px] font-black uppercase tracking-[0.2em]">
-                                <Package className="w-3.5 h-3.5 text-[#159E6A]" />
-                                <span>{sprints.length} INCLUDED SPRINTS</span>
+                    {/* Content aligned inside a beautiful centered container */}
+                    <div className="absolute inset-0 flex flex-col justify-end">
+                        <div className="max-w-screen-lg w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12">
+                            <div className="space-y-4 animate-fade-in max-w-2xl">
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="px-3 py-1 bg-[#0E7850] text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-[#159E6A]/20">
+                                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                                        TRACK BUNDLE
+                                    </span>
+                                    <span className="px-3 py-1 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-primary/20">
+                                        SAVE {track.discountPercentage}%
+                                    </span>
+                                </div>
+                                
+                                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter text-white leading-[1.05] uppercase">
+                                    <FormattedText text={track.title} inline />
+                                </h1>
+                                
+                                {track.subtitle && (
+                                    <p className="text-white/85 text-sm sm:text-base md:text-lg font-semibold tracking-tight leading-relaxed max-w-xl">
+                                        {track.subtitle}
+                                    </p>
+                                )}
+                                
+                                <div className="pt-2 flex items-center gap-2 text-white/50 text-[10px] font-black uppercase tracking-[0.2em]">
+                                    <Package className="w-3.5 h-3.5 text-[#159E6A]" />
+                                    <span>{sprints.length} INCLUDED SPRINTS</span>
+                                </div>
                             </div>
                         </div>
                     </div>
