@@ -5700,6 +5700,15 @@ const EditSprint: React.FC = () => {
             setConfirmMarkStepIndex(null);
           }
         }}
+        onSkip={() => {
+          if (confirmMarkStepIndex !== null) {
+            setPreviewInputs(prev => ({
+              ...prev,
+              [confirmMarkStepIndex]: "Skipped"
+            }));
+            setConfirmMarkStepIndex(null);
+          }
+        }}
         onCancel={() => setConfirmMarkStepIndex(null)}
       />
 

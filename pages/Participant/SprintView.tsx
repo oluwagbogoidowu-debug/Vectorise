@@ -2493,7 +2493,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       if (!val) return false;
 
       if (type === "mark") {
-        return val === "Completed";
+        return val === "Completed" || val === "Skipped";
       }
       
       if (isLinkedTextStep(i)) {
@@ -3351,7 +3351,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         const isNone = dayContent.taskInputTypes?.[i] === "none";
                                         let stepCompleted = isNote || isNone;
                                         if (isMark) {
-                                          stepCompleted = val === "Completed";
+                                          stepCompleted = val === "Completed" || val === "Skipped";
                                         } else if (!isNote && !!val) {
                                           if (isTags || (dayContent.taskInputTypes?.[i] === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
                                             stepCompleted = val !== "[]" && val !== "";
@@ -4232,6 +4232,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             newInputs[confirmMarkStepIndex] = "Completed";
             setTaskInputs(newInputs);
             setConfirmMarkStepIndex(null);
+          }
+        }}
+        onSkip={() => {
+          if (confirmMarkStepIndex !== null) {
+            const idx = confirmMarkStepIndex;
+            const newInputs = [...taskInputs];
+            newInputs[idx] = "Skipped";
+            setTaskInputs(newInputs);
+            setConfirmMarkStepIndex(null);
+            if (getNextVisibleStepIndex(idx) !== -1) {
+              setActiveTaskIndex(getNextVisibleStepIndex(idx));
+            }
           }
         }}
         onCancel={() => setConfirmMarkStepIndex(null)}

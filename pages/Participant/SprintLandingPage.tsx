@@ -855,6 +855,26 @@ const SprintLandingPage: React.FC = () => {
                 </p>
             </div>
 
+            {/* Fixed Bottom CTA Bar for Viewport */}
+            {enrollmentStatus === 'none' && !showCommitmentSheet && (
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 lg:hidden shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
+                    <div className="max-w-md mx-auto flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
+                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">{sprint.duration || 7} Day Journey</p>
+                        </div>
+                        <Button 
+                            onClick={handleJoinClick} 
+                            isLoading={isCheckingEmail}
+                            className="py-3 px-5 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0 shrink-0 bg-primary text-white hover:bg-primary-hover cursor-pointer"
+                        >
+                            Begin Day 1 
+                            <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             {/* Commitment Bottom Sheet */}
             {showCommitmentSheet && (
                 <>
@@ -862,7 +882,7 @@ const SprintLandingPage: React.FC = () => {
                         className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
                         onClick={() => setShowCommitmentSheet(false)}
                     />
-                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[60vh] sm:max-h-[55vh] pb-6 animate-slide-up-quick">
+                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[70vh] pb-6 animate-slide-up-quick">
                         {/* Drag Handle indicator */}
                         <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
                         
@@ -984,40 +1004,42 @@ const SprintLandingPage: React.FC = () => {
                             )
                         )}
 
-                        {/* Start Day 1 Now / Continue button */}
-                        <Button 
-                            onClick={handleConfirmCommitment}
-                            disabled={!isCommitted || isProcessingPayment}
-                            className={`w-full py-4 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase border-none ${
-                                isCommitted && !isProcessingPayment
-                                ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15' 
-                                : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
-                            }`}
-                        >
-                            {isProcessingPayment ? "Processing..." : (
-                                commitmentContext?.isGuest && commitmentContext?.emailExists === false 
-                                ? "Claim Free Day 1" 
-                                : (
-                                    paymentMethod === 'coins'
-                                    ? `Start Day 1 Now • Use ${sprint.pointCost || 10} Coins`
-                                    : paymentMethod === 'card'
-                                    ? (() => {
-                                        const neededCoins = sprint.pointCost || 10;
-                                        const userBal = (user as Participant)?.walletBalance ?? 0;
-                                        const coinsRem = Math.max(0, neededCoins - userBal);
-                                        const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
-                                        return `Start Day 1 Now • ₦${topupPrice.toLocaleString()}`;
-                                    })()
-                                    : paymentMethod === 'pkg_30'
-                                    ? "Start Day 1 Now • Pay ₦500"
-                                    : paymentMethod === 'pkg_100'
-                                    ? "Start Day 1 Now • Pay ₦1,300"
-                                    : paymentMethod === 'pkg_300'
-                                    ? "Start Day 1 Now • Pay ₦3,600"
-                                    : "Start Day 1 Now"
-                                )
-                            )}
-                        </Button>
+                        {/* Start Day 1 Now / Continue button fixed to bottom of sheet */}
+                        <div className="sticky bottom-0 bg-white pt-2 pb-1 border-t border-gray-100 z-10 mt-2">
+                            <Button 
+                                onClick={handleConfirmCommitment}
+                                disabled={!isCommitted || isProcessingPayment}
+                                className={`w-full py-4 rounded-2xl shadow-xl transition-all text-[10px] font-black tracking-[0.2em] uppercase border-none ${
+                                    isCommitted && !isProcessingPayment
+                                    ? 'bg-gray-900 text-white hover:scale-[1.01] active:scale-95 shadow-gray-900/15' 
+                                    : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
+                                }`}
+                            >
+                                {isProcessingPayment ? "Processing..." : (
+                                    commitmentContext?.isGuest && commitmentContext?.emailExists === false 
+                                    ? "Claim Free Day 1" 
+                                    : (
+                                        paymentMethod === 'coins'
+                                        ? `Start Day 1 Now • Use ${sprint.pointCost || 10} Coins`
+                                        : paymentMethod === 'card'
+                                        ? (() => {
+                                            const neededCoins = sprint.pointCost || 10;
+                                            const userBal = (user as Participant)?.walletBalance ?? 0;
+                                            const coinsRem = Math.max(0, neededCoins - userBal);
+                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+                                            return `Start Day 1 Now • ₦${topupPrice.toLocaleString()}`;
+                                        })()
+                                        : paymentMethod === 'pkg_30'
+                                        ? "Start Day 1 Now • Pay ₦500"
+                                        : paymentMethod === 'pkg_100'
+                                        ? "Start Day 1 Now • Pay ₦1,300"
+                                        : paymentMethod === 'pkg_300'
+                                        ? "Start Day 1 Now • Pay ₦3,600"
+                                        : "Start Day 1 Now"
+                                    )
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </>
             )}

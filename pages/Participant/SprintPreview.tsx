@@ -1795,7 +1795,7 @@ const SprintPreview: React.FC = () => {
                                                 const val = taskInputs[i];
                                                 let stepCompleted = isNote || isNone;
                                                 if (isMark) {
-                                                    stepCompleted = val === "Completed";
+                                                    stepCompleted = val === "Completed" || val === "Skipped";
                                                 } else if (!isNote && !isNone && val) {
                                                     if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
                                                         stepCompleted = val !== "[]" && val !== "";
@@ -2269,6 +2269,18 @@ const SprintPreview: React.FC = () => {
                         newInputs[confirmMarkStepIndex] = "Completed";
                         setTaskInputs(newInputs);
                         setConfirmMarkStepIndex(null);
+                    }
+                }}
+                onSkip={() => {
+                    if (confirmMarkStepIndex !== null) {
+                        const idx = confirmMarkStepIndex;
+                        const newInputs = [...taskInputs];
+                        newInputs[idx] = "Skipped";
+                        setTaskInputs(newInputs);
+                        setConfirmMarkStepIndex(null);
+                        if (getNextVisibleStepIndex(idx) !== -1) {
+                            setActiveTaskIndex(getNextVisibleStepIndex(idx));
+                        }
                     }
                 }}
                 onCancel={() => setConfirmMarkStepIndex(null)}
