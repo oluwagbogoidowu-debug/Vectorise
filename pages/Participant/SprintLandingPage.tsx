@@ -909,20 +909,13 @@ const SprintLandingPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* GET 1% BETTER DAILY Footer Banner */}
-            <div className="text-center mt-10 mb-8">
-                <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400">
-                    GET 1% BETTER DAILY
-                </p>
-            </div>
-
             {/* Fixed Bottom CTA Bar for Viewport */}
             {enrollmentStatus === 'none' && !showCommitmentSheet && (
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 lg:hidden shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
                     <div className="max-w-md mx-auto flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">Get 1%</p>
+                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">GET 1% BETTER DAILY</p>
                         </div>
                         <Button 
                             onClick={handleJoinClick} 
