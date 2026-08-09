@@ -221,6 +221,26 @@ export default function AdminUsers() {
         });
     }, [participants, enrollments, sprints, searchTerm, roleFilter]);
 
+    const handleExportCSV = () => {
+        const listToExport = userStats.length > 0 ? userStats : participants;
+        const csvRows = [
+            ['Name', 'Email'].join(','),
+            ...listToExport.map(u => [
+                `"${(u.name || '').replace(/"/g, '""')}"`,
+                `"${(u.email || '').replace(/"/g, '""')}"`
+            ].join(','))
+        ];
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `user_emails_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-20">
@@ -238,17 +258,30 @@ export default function AdminUsers() {
                         Monitoring {participants.length} participants across the ecosystem
                     </p>
                 </div>
-                <div className="relative">
-                    <input 
-                        type="text" 
-                        placeholder="Search by name or email..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:w-80 pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                    />
-                    <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1 md:flex-initial">
+                        <input 
+                            type="text" 
+                            placeholder="Search by name or email..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full md:w-80 pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                        />
+                        <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleExportCSV}
+                        className="px-4 py-3 bg-[#0E7850] text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-[#0b5d3e] transition-all shadow-sm flex items-center gap-2 border-0 cursor-pointer shrink-0"
+                        title="Download CSV of Name and Email"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Export CSV</span>
+                    </button>
                 </div>
             </div>
 
