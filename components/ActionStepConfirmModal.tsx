@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 interface ActionStepConfirmModalProps {
   isOpen: boolean;
@@ -33,8 +34,8 @@ export const ActionStepConfirmModal: React.FC<ActionStepConfirmModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
       <div className="relative bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border border-gray-100 transform transition-all animate-scale-up">
         {/* Top-Right X Close Button */}
         <button
@@ -87,7 +88,8 @@ export const ActionStepConfirmModal: React.FC<ActionStepConfirmModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
