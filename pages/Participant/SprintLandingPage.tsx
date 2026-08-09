@@ -765,6 +765,29 @@ const SprintLandingPage: React.FC = () => {
                 </div>
             </div>
 
+            {/* QUICK INFO CARDS BELOW IMAGE */}
+            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-center">
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                            Duration
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-tight">
+                            {sprint.duration || 5} DAY
+                        </span>
+                    </div>
+
+                    <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-center">
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                            Guided By
+                        </span>
+                        <span className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-tight">
+                            Vectorise
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             {/* TWO-COLUMN CONTENT LAYOUT */}
             <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-12">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
