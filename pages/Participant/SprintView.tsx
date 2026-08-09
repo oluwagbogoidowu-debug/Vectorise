@@ -969,10 +969,10 @@ const SprintOverviewSheet: React.FC<{
   coach: Coach | null;
 }> = ({ isOpen, onClose, sprint }) => {
   useLockBodyScroll(isOpen && Boolean(sprint));
-  return (
+  return createPortal(
     <AnimatePresence>
-      {isOpen && sprint && createPortal(
-        <>
+      {isOpen && sprint && (
+        <div key="sprint-overview-sheet">
           <div
             className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
             onClick={onClose}
@@ -1017,10 +1017,10 @@ const SprintOverviewSheet: React.FC<{
               Got It
             </button>
           </div>
-        </>,
-        document.body
+        </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 
