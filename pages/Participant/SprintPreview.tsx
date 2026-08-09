@@ -868,6 +868,86 @@ const SprintPreview: React.FC = () => {
         return isText && labels.length > 0;
     };
 
+    const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
+        if (!day1Content) return "";
+
+        // 1. Check if the taskLinkedSources has sources
+        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
+            const texts: string[] = [];
+            day1Content.taskLinkedSources[stepIndex].forEach(srcIndex => {
+                if (srcIndex >= 0) {
+                    if (srcIndex < currentInputs.length && currentInputs[srcIndex]) {
+                        const val = currentInputs[srcIndex];
+                        if (val) {
+                            if (val.startsWith("{")) {
+                                try {
+                                    const parsed = JSON.parse(val);
+                                    const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
+                                    texts.push(parts.join("\n"));
+                                } catch (e) {
+                                    texts.push(val);
+                                }
+                            } else if (val.startsWith("[")) {
+                                try {
+                                    const parsed = JSON.parse(val);
+                                    if (Array.isArray(parsed)) {
+                                        texts.push(parsed.join(", "));
+                                    } else {
+                                        texts.push(val);
+                                    }
+                                } catch (e) {
+                                    texts.push(val);
+                                }
+                            } else {
+                                texts.push(val);
+                            }
+                        }
+                    }
+                }
+            });
+            return texts.join("\n\n");
+        }
+
+        // 2. Fallback to legacy structure - only if taskLinkedToNext is true for stepIndex - 1
+        let linkedSourceIndex = -1;
+        for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+            const isLinked = 
+                day1Content.taskLinkedToNext?.[prevIndex] === true ||
+                (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
+            if (isLinked) {
+                linkedSourceIndex = prevIndex;
+                break;
+            }
+        }
+
+        if (linkedSourceIndex !== -1 && currentInputs[linkedSourceIndex]) {
+            const val = currentInputs[linkedSourceIndex];
+            if (val.startsWith("{")) {
+                try {
+                    const parsed = JSON.parse(val);
+                    const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
+                    return parts.join("\n");
+                } catch (e) {
+                    return val;
+                }
+            } else if (val.startsWith("[")) {
+                try {
+                    const parsed = JSON.parse(val);
+                    if (Array.isArray(parsed)) {
+                        return parsed.join(", ");
+                    }
+                    return val;
+                } catch (e) {
+                    return val;
+                }
+            } else {
+                return val;
+            }
+        }
+
+        return "";
+    };
+
     const isStepVisible = (stepIndex: number): boolean => {
         if (!day1Content) return true;
         
