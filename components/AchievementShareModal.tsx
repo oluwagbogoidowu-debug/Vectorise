@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import { Share2, Download, Copy, Check, ChevronLeft, Sparkles, X, Award } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface AchievementShareModalProps {
     isOpen: boolean;
@@ -18,6 +19,7 @@ const AchievementShareModal: React.FC<AchievementShareModalProps> = ({
     milestoneTitle,
     points
 }) => {
+    useLockBodyScroll(isOpen);
     const { user } = useAuth();
     const [viewMode, setViewMode] = useState<'main' | 'share'>('main');
     const [shareImage, setShareImage] = useState<string | null>(null);

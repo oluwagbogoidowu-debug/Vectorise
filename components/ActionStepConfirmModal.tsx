@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface ActionStepConfirmModalProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ export const ActionStepConfirmModal: React.FC<ActionStepConfirmModalProps> = ({
   skipText = "Skip for now",
   cancelText = "Skip for now"
 }) => {
+  useLockBodyScroll(isOpen);
+
   if (!isOpen) return null;
 
   const handleSkip = () => {

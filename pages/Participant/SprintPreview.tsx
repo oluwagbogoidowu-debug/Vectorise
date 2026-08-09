@@ -24,6 +24,7 @@ import { X, Eye, EyeOff } from 'lucide-react';
 
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
+import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 const AutoGrowingTextarea: React.FC<{
   value: string;
@@ -266,6 +267,8 @@ const SprintPreview: React.FC = () => {
     const [isSprintOverviewOpen, setIsSprintOverviewOpen] = useState(false);
     const [soundEnabled] = useState(() => getSoundSettings());
     const prevTaskIndexRef = useRef(0);
+
+    useLockBodyScroll(showLockModal || showSignupModal || showBottomCancelConfirm || isSprintOverviewOpen);
 
     useEffect(() => {
         if (activeTaskIndex > prevTaskIndexRef.current) {

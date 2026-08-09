@@ -2,6 +2,7 @@ import React from 'react';
 import { Sprint } from '../types';
 import Button from './Button';
 import LocalLogo from './LocalLogo';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface NextSprintModalProps {
     isOpen: boolean;
@@ -11,6 +12,8 @@ interface NextSprintModalProps {
 }
 
 const NextSprintModal: React.FC<NextSprintModalProps> = ({ isOpen, sprint, onStart, onClose }) => {
+    useLockBodyScroll(isOpen);
+
     if (!isOpen) return null;
 
     return (

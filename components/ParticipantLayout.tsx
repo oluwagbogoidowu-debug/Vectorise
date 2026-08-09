@@ -11,6 +11,7 @@ import { userService } from '../services/userService';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { NotificationManager } from './NotificationManager';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface ParticipantLayoutProps {
   children?: React.ReactNode;
@@ -29,6 +30,8 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const [showCoinPopup, setShowCoinPopup] = useState(false);
   const [showAlreadyDonePopup, setShowAlreadyDonePopup] = useState(false);
   const [isUnlocking, setIsUnlocking] = useState(false);
+
+  useLockBodyScroll(showCoinPopup || showAlreadyDonePopup);
 
   // Dynamic coin calculations
   const sprintCost = pendingSprint?.pointCost || 30;

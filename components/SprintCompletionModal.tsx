@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { Sparkles, Trophy, ArrowRight, X, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface SprintCompletionModalProps {
     isOpen: boolean;
@@ -18,6 +19,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     sprintTitle = "Growth Sprint",
     streakCount = 0
 }) => {
+    useLockBodyScroll(isOpen);
     const { user } = useAuth();
     const [rating, setRating] = useState<number>(0);
     const [outcome, setOutcome] = useState<string>('');
