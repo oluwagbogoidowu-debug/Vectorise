@@ -818,18 +818,10 @@ const SprintLandingPage: React.FC = () => {
                             {/* Card displaying Action Trigger line */}
                             <div className="relative z-10">
                                 {enrollmentStatus === 'none' ? (
-                                    <div className="space-y-5">
+                                    <div>
                                         <p className="text-sm sm:text-base font-semibold text-gray-700 leading-relaxed">
                                             {sprint.actionTrigger || "Start by seeing how you actually spend your time."}
                                         </p>
-                                        <Button 
-                                            onClick={handleJoinClick} 
-                                            disabled={isCheckingEmail}
-                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-primary hover:bg-primary-hover text-white border-none group/btn cursor-pointer"
-                                        >
-                                            {isCheckingEmail ? "Unlocking Day 1..." : "Begin Day 1"}
-                                            {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />}
-                                        </Button>
                                     </div>
                                 ) : enrollmentStatus === 'active' ? (
                                     <div className="space-y-4">

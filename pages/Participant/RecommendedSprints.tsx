@@ -9,8 +9,7 @@ import { translateToTag, calculateMatchScore } from '../../utils/tagUtils';
 const RecommendedSprints: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { persona, answers, recommendedPlan, targetSprintId: rawTargetSprintId, sprintId, referrerId } = location.state || {};
-  const targetSprintId = rawTargetSprintId || sprintId;
+  const { persona, answers, recommendedPlan, targetSprintId, referrerId } = location.state || {};
 
   const [isQueued, setIsQueued] = useState(true); 
   const [availableSprints, setAvailableSprints] = useState<Sprint[]>([]);
@@ -34,10 +33,8 @@ const RecommendedSprints: React.FC = () => {
   const path = useMemo(() => {
     if (availableSprints.length === 0) return null;
 
-    let targetSprint = availableSprints.find(s => s.id === targetSprintId);
-
-    // Phase 01: Platform-Owned Foundational Sprint or target sprint
-    let foundational = targetSprint || availableSprints.find(s => 
+    // Phase 01: Strictly 1 Platform-Owned Foundational Sprint
+    let foundational = availableSprints.find(s => 
         s.sprintType === 'Foundational' ||
         s.sprintType === 'Fundamentals' ||
         s.sprintType === 'Core' ||
@@ -49,7 +46,6 @@ const RecommendedSprints: React.FC = () => {
 
     // Phase 02: Strictly 1 Coach-Led Registry Sprint
     const registrySprints = availableSprints.filter(s => 
-        s.id !== foundational?.id &&
         s.sprintType !== 'Foundational' &&
         s.sprintType !== 'Fundamentals' &&
         s.sprintType !== 'Core' &&
@@ -60,7 +56,7 @@ const RecommendedSprints: React.FC = () => {
     
     let nextPath = registrySprints.find(s => s.id === targetSprintId);
     
-    if (!nextPath && answers) {
+    if (!nextPath) {
         const userProfile = {
             persona: persona,
             p1: translateToTag(persona, answers[1]),
@@ -80,29 +76,18 @@ const RecommendedSprints: React.FC = () => {
         }
     }
 
-    if (!nextPath && registrySprints.length > 0) nextPath = registrySprints[0];
+    if (!nextPath) nextPath = registrySprints[0];
 
     return { foundational, nextPath };
   }, [availableSprints, targetSprintId, persona, answers]);
 
   const handleContinueToSignUp = () => {
-    const nextSprintId = targetSprintId || path?.foundational?.id;
-    if (nextSprintId) {
-      navigate(`/onboarding/description/${nextSprintId}`, { 
-          state: { 
-              ...location.state, 
-              isQueued,
-              sprintId: nextSprintId
-          } 
-      });
-    } else {
-      navigate('/signup', { 
-          state: { 
-              ...location.state, 
-              isQueued 
-          } 
-      });
-    }
+    navigate('/signup', { 
+        state: { 
+            ...location.state, 
+            isQueued 
+        } 
+    });
   };
 
   return (

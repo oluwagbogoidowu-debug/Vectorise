@@ -128,7 +128,6 @@ export const AppRoutes: React.FC = () => {
       {/* Consolidated Onboarding Paths */}
       <Route path="/onboarding/welcome" element={<Welcome />} />
       <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
-      <Route path="/onboarding/recommendation" element={<RecommendedSprints />} />
       <Route path="/onboarding/description/:sprintId" element={<SprintLandingPage />} />
       <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
       <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />
