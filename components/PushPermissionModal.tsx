@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Button from './Button';
-import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface PushPermissionModalProps {
   isOpen: boolean;
@@ -12,8 +11,6 @@ interface PushPermissionModalProps {
 }
 
 const PushPermissionModal: React.FC<PushPermissionModalProps> = ({ isOpen, onAccept, onDecline, onIgnore, isLoading }) => {
-  useLockBodyScroll(isOpen);
-
   return (
     <AnimatePresence>
       {isOpen && (

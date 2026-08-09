@@ -28,7 +28,6 @@ import { paymentService } from '../../services/paymentService';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
 import { shineService } from '../../services/shineService';
 import { localNotificationScheduler } from '../../services/localNotificationScheduler';
-import useLockBodyScroll from '../../hooks/useLockBodyScroll';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -141,8 +140,6 @@ const ParticipantDashboard: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<string>('coins');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showStreakText, setShowStreakText] = useState(false);
-
-  useLockBodyScroll(showOverviewSheet || Boolean(activePlayIgnite));
   const [unlockedUnclaimedMilestone, setUnlockedUnclaimedMilestone] = useState<any | null>(null);
   const [nextToUnlockMilestone, setNextToUnlockMilestone] = useState<any | null>(null);
   const [isClaimingMilestone, setIsClaimingMilestone] = useState(false);

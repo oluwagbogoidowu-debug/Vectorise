@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertCircle, CheckCircle2, X } from 'lucide-react';
-import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -24,8 +23,6 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   cancelText = 'Cancel',
   variant = 'info'
 }) => {
-  useLockBodyScroll(isOpen);
-
   // Use a ref to track if we was open to handle exit animation text stability
   const lastActiveData = React.useRef<{title: string, message: string} | null>(null);
   

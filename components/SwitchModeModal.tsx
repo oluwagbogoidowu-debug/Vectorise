@@ -2,7 +2,6 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Users, Handshake, User as UserIcon, X } from 'lucide-react';
 import { UserRole } from '../types';
-import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface SwitchModeModalProps {
   isOpen: boolean;
@@ -19,8 +18,6 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
   activeRole,
   onSelectMode,
 }) => {
-  useLockBodyScroll(isOpen);
-
   if (!user) return null;
 
   const getActivatedModes = () => {

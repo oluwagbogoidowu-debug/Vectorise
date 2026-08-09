@@ -5,14 +5,11 @@ import { Participant } from '../types';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 export const DormancyPrompt: React.FC = () => {
   const { user } = useAuth();
   const [showPrompt, setShowPrompt] = useState(false);
   const navigate = useNavigate();
-
-  useLockBodyScroll(showPrompt);
 
   useEffect(() => {
     if (user && (user as Participant).notificationState === 'Dormant') {

@@ -39,7 +39,6 @@ import { localNotificationScheduler, SprintReminderConfig } from "../../services
 import { offlineSyncService } from "../../services/offlineSyncService";
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
-import useLockBodyScroll from "../../hooks/useLockBodyScroll";
 
 const DayCompletionModal: React.FC<{
   isOpen: boolean;
@@ -47,7 +46,6 @@ const DayCompletionModal: React.FC<{
   day: number;
   bridgeNote?: string;
 }> = ({ isOpen, onClose, day, bridgeNote }) => {
-  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -107,7 +105,6 @@ interface MirrorReportModalProps {
 }
 
 const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, day, dayContent, answers, totalDays }) => {
-  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   const introText = dayContent?.mirrorIntro || "Here is a mirror of your reflections and alignments from today's sprint action steps:";
@@ -219,7 +216,6 @@ const SprintSettingsModal: React.FC<{
   onToggleHaptics,
   sprint,
 }) => {
-  useLockBodyScroll(isOpen);
   if (!isOpen) return null;
 
   const { user } = useAuth();
@@ -571,8 +567,6 @@ const CoachingChatModal: React.FC<{
       setIsSending(false);
     }
   };
-
-  useLockBodyScroll(isOpen);
 
   if (!isOpen) return null;
 
@@ -934,7 +928,6 @@ const SprintCardModal: React.FC<{
   sprint: Sprint | null;
   coach: Coach | null;
 }> = ({ isOpen, onClose, sprint, coach }) => {
-  useLockBodyScroll(isOpen && Boolean(sprint));
   if (!isOpen || !sprint) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -968,11 +961,10 @@ const SprintOverviewSheet: React.FC<{
   sprint: Sprint | null;
   coach: Coach | null;
 }> = ({ isOpen, onClose, sprint }) => {
-  useLockBodyScroll(isOpen && Boolean(sprint));
-  return createPortal(
+  return (
     <AnimatePresence>
-      {isOpen && sprint && (
-        <div key="sprint-overview-sheet">
+      {isOpen && sprint && createPortal(
+        <>
           <div
             className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
             onClick={onClose}
@@ -1017,10 +1009,10 @@ const SprintOverviewSheet: React.FC<{
               Got It
             </button>
           </div>
-        </div>
+        </>,
+        document.body
       )}
-    </AnimatePresence>,
-    document.body
+    </AnimatePresence>
   );
 };
 

@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
 import LocalLogo from './LocalLogo';
-import useLockBodyScroll from '../hooks/useLockBodyScroll';
 
 interface PWAInstallPromptProps {
   deferredPrompt: any;
@@ -89,8 +88,6 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ deferredPrompt }) =
     localStorage.setItem('vec_pwa_last_dismiss', new Date().toISOString());
     setIsVisible(false);
   };
-
-  useLockBodyScroll(isVisible && !isFullBleed && Boolean(user));
 
   if (!isVisible || isFullBleed || !user) return null;
 
