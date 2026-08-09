@@ -721,7 +721,7 @@ const SprintLandingPage: React.FC = () => {
 
             {/* MODERN HERO HEADER SECTION WITH HORIZONTAL PADDING */}
             <div className="px-4 sm:px-6 lg:px-8 pt-2 sm:pt-4 max-w-screen-xl mx-auto">
-                <div className="relative w-full h-[320px] sm:h-[380px] lg:h-[460px] bg-[#0c1310] rounded-[2rem] overflow-hidden shadow-xl">
+                <div className="relative w-full h-[240px] sm:h-[285px] lg:h-[345px] bg-[#0c1310] rounded-[2rem] overflow-hidden shadow-xl">
                     <img 
                         src={imageError || !sprint.coverImageUrl ? fallbackImage : sprint.coverImageUrl} 
                         className="w-full h-full object-cover object-center scale-[1.01] filter brightness-[0.7] contrast-[1.02]" 
@@ -736,8 +736,8 @@ const SprintLandingPage: React.FC = () => {
 
                     {/* Content aligned inside a beautiful centered container */}
                     <div className="absolute inset-0 flex flex-col justify-end">
-                        <div className="max-w-screen-lg w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12">
-                            <div className="space-y-4 animate-fade-in max-w-2xl">
+                        <div className="max-w-screen-lg w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
+                            <div className="space-y-3 animate-fade-in max-w-2xl">
                                 <div>
                                     <span className="px-3 py-1 bg-[#0E7850] text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-[#159E6A]/20">
                                         <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
@@ -745,20 +745,15 @@ const SprintLandingPage: React.FC = () => {
                                     </span>
                                 </div>
                                 
-                                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter text-white leading-[1.05] uppercase">
+                                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-white leading-[1.05] uppercase">
                                     <FormattedText text={sprint.title} inline />
                                 </h1>
                                 
                                 {sprint.subtitle && (
-                                    <p className="text-white/85 text-sm sm:text-base md:text-lg font-semibold tracking-tight leading-relaxed max-w-xl">
+                                    <p className="text-white/85 text-xs sm:text-sm md:text-base font-semibold tracking-tight leading-relaxed max-w-xl">
                                         {sprint.subtitle}
                                     </p>
                                 )}
-                                
-                                <div className="pt-2 flex items-center gap-2 text-white/50 text-[10px] font-black uppercase tracking-[0.2em]">
-                                    <Clock className="w-3.5 h-3.5 text-[#159E6A]" />
-                                    <span>{sprint.duration} DAY JOURNEY</span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -822,63 +817,21 @@ const SprintLandingPage: React.FC = () => {
 
                     <aside className="lg:col-span-4">
                         <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 relative lg:sticky lg:top-8">
-                            {/* Simple Card Design - Clean flat layout without decorative blobs or top gradients */}
+                            {/* Card displaying Action Trigger line */}
                             <div className="relative z-10">
                                 {enrollmentStatus === 'none' ? (
-                                    <div className="mb-6">
-                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">
-                                            Start Your <span className="text-primary italic">Rise</span>
-                                        </h3>
-                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
-                                            Start by seeing how you actually spend your time.
+                                    <div>
+                                        <p className="text-sm sm:text-base font-semibold text-gray-700 leading-relaxed">
+                                            {sprint.actionTrigger || "Start by seeing how you actually spend your time."}
                                         </p>
                                     </div>
                                 ) : enrollmentStatus === 'active' ? (
-                                    <div className="mb-6">
+                                    <div className="space-y-4">
                                         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase tracking-wider mb-2">
                                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                                             In Progress
                                         </div>
                                         <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Sprint Active</h3>
-                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
-                                            Continue your current sprint to build momentum.
-                                        </p>
-                                    </div>
-                                ) : enrollmentStatus === 'queued' ? (
-                                    <div className="mb-6">
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-wider mb-2">
-                                            <Clock className="w-3 h-3" />
-                                            Enrolled
-                                        </div>
-                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">In Upcoming Queue</h3>
-                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
-                                            You are enrolled and ready to begin soon.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="mb-6">
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-50 text-gray-400 border border-gray-100 text-[10px] font-black uppercase tracking-wider mb-2">
-                                            <CheckCircle2 className="w-3 h-3" />
-                                            Completed
-                                        </div>
-                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Sprint Mastered</h3>
-                                        <p className="text-xs font-semibold text-gray-500 leading-relaxed">
-                                            You have successfully completed this sprint!
-                                        </p>
-                                    </div>
-                                )}
-
-                                <div className="space-y-4">
-                                    {enrollmentStatus === 'none' ? (
-                                        <Button 
-                                            onClick={handleJoinClick} 
-                                            disabled={isCheckingEmail}
-                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0"
-                                        >
-                                            {isCheckingEmail ? "Unlocking Day 1..." : "Begin Day 1"}
-                                            {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />}
-                                        </Button>
-                                    ) : enrollmentStatus === 'active' ? (
                                         <Button 
                                             onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} 
                                             className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-emerald-600 hover:bg-emerald-700 border-none group/btn"
@@ -886,7 +839,13 @@ const SprintLandingPage: React.FC = () => {
                                             Back to Sprint 
                                             <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
                                         </Button>
-                                    ) : (
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-wider mb-2">
+                                            <Clock className="w-3 h-3" />
+                                            Enrolled
+                                        </div>
                                         <Button 
                                             onClick={() => navigate('/my-sprints')} 
                                             className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-blue-600 hover:bg-blue-700 border-none group/btn"
@@ -894,36 +853,6 @@ const SprintLandingPage: React.FC = () => {
                                             View in My Sprints 
                                             <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
                                         </Button>
-                                    )}
-                                </div>
-
-                                {/* COACH SECTION */}
-                                <div className="mt-6 pt-6 border-t border-gray-100">
-                                    <div className="flex items-center gap-3">
-                                        <img 
-                                            src={displayCoachImage} 
-                                            alt="" 
-                                            className="w-10 h-10 rounded-xl object-cover border border-gray-100" 
-                                            referrerPolicy="no-referrer"
-                                        />
-                                        <div className="min-w-0">
-                                            <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
-                                            <p className="text-xs font-black text-gray-800 uppercase tracking-tight truncate">
-                                                {displayCoachName}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {isOnboardingPath && slotInfo?.name === 'CLARITY' && (
-                                    <div className="text-center space-y-3 pt-6 border-t border-gray-100 mt-6">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">Already clear on your direction?</p>
-                                        <button 
-                                            onClick={handleSkipClarity} 
-                                            className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest transition-all cursor-pointer bg-primary/5 px-6 py-3 rounded-2xl hover:bg-primary/10 border-none w-full"
-                                        >
-                                            Skip to Execution
-                                        </button>
                                     </div>
                                 )}
                             </div>

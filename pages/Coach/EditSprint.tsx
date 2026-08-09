@@ -162,7 +162,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
 
     // Top level fields
     const fields: (keyof Sprint)[] = [
-        'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
+        'title', 'subtitle', 'actionTrigger', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'audience', 'overrideOrchestrator', 'price', 'currency', 'pointCost', 
         'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays',
         'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate', 'curriculumSource'
@@ -1862,6 +1862,7 @@ const EditSprint: React.FC = () => {
     let updatedSprintData: Partial<Sprint> = {
       title: editSettings.title,
       subtitle: editSettings.subtitle,
+      actionTrigger: editSettings.actionTrigger,
       coverImageUrl: editSettings.coverImageUrl,
       dynamicSections: editSettings.dynamicSections,
       category: editSettings.category,
@@ -5334,6 +5335,10 @@ const EditSprint: React.FC = () => {
                                             <div className="md:col-span-2">
                                                 <label className={labelClasses}>Sprint Subtitle</label>
                                                 <input type="text" value={editSettings.subtitle || ''} onChange={e => setEditSettings({...editSettings, subtitle: e.target.value})} className={registryInputClasses + " mt-2"} />
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className={labelClasses}>Action Trigger</label>
+                                                <input type="text" value={editSettings.actionTrigger || ''} onChange={e => setEditSettings({...editSettings, actionTrigger: e.target.value})} className={registryInputClasses + " mt-2"} placeholder="e.g. Start by seeing how you actually spend your time." />
                                             </div>
                                             <div className="md:col-span-2">
                                                 <label className={labelClasses}>Cover Image URL</label>

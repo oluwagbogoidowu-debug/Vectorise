@@ -362,6 +362,7 @@ const CreateSprint: React.FC = () => {
     const [formData, setFormData] = useState<{
         title: string;
         subtitle: string;
+        actionTrigger: string;
         coverImageUrl: string;
         dynamicSections: DynamicSection[];
         category: string;
@@ -377,6 +378,7 @@ const CreateSprint: React.FC = () => {
     }>({
         title: '',
         subtitle: '',
+        actionTrigger: '',
         coverImageUrl: '',
         dynamicSections: [
             { id: 'overview', title: 'Sprint Overview', body: '', type: 'text' }
@@ -429,6 +431,7 @@ const CreateSprint: React.FC = () => {
             coachId: user.id,
             title: formData.title,
             subtitle: formData.subtitle,
+            actionTrigger: formData.actionTrigger,
             coverImageUrl: formData.coverImageUrl || `https://picsum.photos/seed/${sprintId}/800/400`,
             published: false,
             approvalStatus: 'draft',
@@ -609,6 +612,18 @@ const CreateSprint: React.FC = () => {
                                             onChange={handleChange} 
                                             className={inputClasses + " mt-2"} 
                                             placeholder="e.g. For emerging creators" 
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className={labelClasses}>Action Trigger</label>
+                                        <input 
+                                            type="text" 
+                                            name="actionTrigger" 
+                                            value={formData.actionTrigger} 
+                                            onChange={handleChange} 
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="e.g. Start by seeing how you actually spend your time." 
                                         />
                                     </div>
 
