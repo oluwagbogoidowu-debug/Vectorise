@@ -234,18 +234,28 @@ const SprintPreview: React.FC = () => {
     const location = useLocation();
     const { user, loading, checkVerification, logout, deferVerification, resetVerificationDeferral } = useAuth();
     
-    const [sprint, setSprint] = useState<Sprint | null>(location.state?.sprint || null);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        // Enforce smooth minimum loader transition before revealing sprint preview
-        const timer = setTimeout(() => {
-            if (sprint) {
-                setIsLoading(false);
-            }
-        }, 700);
-        return () => clearTimeout(timer);
-    }, [sprint]);
+    const [sprint, setSprint] = useState<Sprint | null>(() => {
+        if (location.state?.sprint) {
+            const targetSource = location.state.sprint;
+            const approvedDailyContent = (Array.isArray(targetSource.dailyContent) && targetSource.dailyContent.length > 0)
+                ? targetSource.dailyContent
+                : (Array.isArray(targetSource.pendingChanges?.dailyContent) ? targetSource.pendingChanges.dailyContent : []);
+            return {
+                ...targetSource,
+                dailyContent: approvedDailyContent.map((c: any) => ({
+                    ...c,
+                    taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+                })),
+                duration: targetSource.duration || targetSource.pendingChanges?.duration || 0,
+                outcomes: Array.isArray(targetSource.outcomes) ? targetSource.outcomes : (Array.isArray(targetSource.pendingChanges?.outcomes) ? targetSource.pendingChanges.outcomes : []),
+                forWho: Array.isArray(targetSource.forWho) ? targetSource.forWho : (Array.isArray(targetSource.pendingChanges?.forWho) ? targetSource.pendingChanges.forWho : []),
+                notForWho: Array.isArray(targetSource.notForWho) ? targetSource.notForWho : (Array.isArray(targetSource.pendingChanges?.notForWho) ? targetSource.pendingChanges.notForWho : []),
+                methodSnapshot: Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : (Array.isArray(targetSource.pendingChanges?.methodSnapshot) ? targetSource.pendingChanges.methodSnapshot : []),
+                dynamicSections: Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : (Array.isArray(targetSource.pendingChanges?.dynamicSections) ? targetSource.pendingChanges.dynamicSections : [])
+            };
+        }
+        return null;
+    });
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
     const [showSignupModal, setShowSignupModal] = useState(false);
@@ -651,15 +661,6 @@ const SprintPreview: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (!isLoading) {
-            const timer = setTimeout(() => {
-                window.scrollTo(0, 0);
-            }, 100);
-            return () => clearTimeout(timer);
-        }
-    }, [isLoading]);
-
-    useEffect(() => {
         if (!sprintId) return;
         
         console.log("[SprintPreview] Initializing subscription or loading static fallback for sprint ID:", sprintId);
@@ -692,7 +693,6 @@ const SprintPreview: React.FC = () => {
             const initialProcessed = processSprint(location.state.sprint);
             if (initialProcessed) {
                 setSprint(initialProcessed);
-                setIsLoading(false);
             }
         }
 
@@ -704,11 +704,9 @@ const SprintPreview: React.FC = () => {
                     console.log("[SprintPreview] Successfully processed static sprint data:", processed.id);
                     setSprint(processed);
                 }
-                setIsLoading(false);
             })
             .catch((err: any) => {
                 console.error("[SprintPreview] Error fetching static sprint data:", err);
-                if (active) setIsLoading(false);
             });
 
         // Also subscribe for realtime updates, wrapping in try/catch to avoid crash if permissions are missing
@@ -721,11 +719,9 @@ const SprintPreview: React.FC = () => {
                     console.log("[SprintPreview] Received realtime sprint details snapshot updates.");
                     setSprint(processed);
                 }
-                setIsLoading(false);
             });
         } catch (err) {
             console.error("[SprintPreview] Realtime subscription failed (usually expected for guest users):", err);
-            if (active) setIsLoading(false);
         }
 
         return () => {
@@ -770,24 +766,6 @@ const SprintPreview: React.FC = () => {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                <div className="relative mb-6">
-                    <div className="w-14 h-14 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-2.5 h-2.5 bg-primary rounded-full animate-ping"></div>
-                    </div>
-                </div>
-                <h2 className="text-xl font-black uppercase tracking-tight text-gray-900 mb-1">
-                    Unlocking Day 1...
-                </h2>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                    Preparing your sprint preview
-                </p>
-            </div>
-        );
-    }
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
