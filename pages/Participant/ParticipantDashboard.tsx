@@ -22,6 +22,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import FormattedText from '../../components/FormattedText';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
+import PushPermissionModal from '../../components/PushPermissionModal';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
 import { paymentService } from '../../services/paymentService';
@@ -143,6 +144,49 @@ const ParticipantDashboard: React.FC = () => {
   const [unlockedUnclaimedMilestone, setUnlockedUnclaimedMilestone] = useState<any | null>(null);
   const [nextToUnlockMilestone, setNextToUnlockMilestone] = useState<any | null>(null);
   const [isClaimingMilestone, setIsClaimingMilestone] = useState(false);
+  const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] = useState(false);
+  const [isSubmittingPush, setIsSubmittingPush] = useState(false);
+
+  const handleAcceptPush = async () => {
+    if (!user) return;
+    setIsSubmittingPush(true);
+    const toastId = toast.loading("Activating notifications...");
+    try {
+      await pushNotificationService.subscribeUser(user.id);
+      await pushNotificationService.recordPermissionResponse(
+        user.id,
+        user as Participant,
+        'accepted'
+      );
+      toast.success("Notifications activated!", { id: toastId });
+      setIsPushPermissionModalOpen(false);
+    } catch (err: any) {
+      console.error("Push subscription failed", err);
+      toast.error(`Failed to activate: ${err.message || "Unknown error"}`, { id: toastId });
+    } finally {
+      setIsSubmittingPush(false);
+    }
+  };
+
+  const handleDeclinePush = async () => {
+    if (!user) return;
+    await pushNotificationService.recordPermissionResponse(
+      user.id,
+      user as Participant,
+      'denied'
+    );
+    setIsPushPermissionModalOpen(false);
+  };
+
+  const handleIgnorePush = async () => {
+    if (!user) return;
+    await pushNotificationService.recordPermissionResponse(
+      user.id,
+      user as Participant,
+      'ignored'
+    );
+    setIsPushPermissionModalOpen(false);
+  };
 
   const handleClaimMilestoneCard = async (e?: React.MouseEvent) => {
     if (e) {
@@ -1581,8 +1625,84 @@ const ParticipantDashboard: React.FC = () => {
                 `}</style>
                 <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
 
+                        {/* Identity Setup Card (Visible for users who have NOT set up their identity) */}
+                        {!isIdentitySet && (
+                            <Link 
+                                to="/profile/settings/identity"
+                                className="flex-shrink-0 w-60 h-60 bg-white border border-rose-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-rose-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative"
+                            >
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
+                                    Identity Setup
+                                </div>
+
+                                <div className="flex-1 flex flex-col justify-between pt-2">
+                                    <div className="space-y-2 mt-2 text-left">
+                                        <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-100/50 shadow-sm">
+                                            <span className="text-lg">👤</span>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-[11px] font-black text-gray-950 leading-tight">
+                                                Set Up Your Identity
+                                            </h4>
+                                            <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
+                                                Define your growth pathway and archetype to customize your Rise experience.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="w-full py-2 bg-[#0E7850] hover:bg-[#13a372] text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
+                                            [ Complete Setup ]
+                                        </div>
+                                        <div className="text-center mt-1.5">
+                                            <span className="text-[9px] font-bold text-gray-400">
+                                                Takes under 1 min
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
+                        )}
+
+                        {/* Notifications Setup Card (Pops up permission modal) */}
+                        <div 
+                            onClick={() => setIsPushPermissionModalOpen(true)}
+                            className="flex-shrink-0 w-60 h-60 bg-white border border-indigo-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-indigo-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative"
+                        >
+                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-indigo-50 text-indigo-700 border border-indigo-100/40 z-20">
+                                Notifications
+                            </div>
+
+                            <div className="flex-1 flex flex-col justify-between pt-2">
+                                <div className="space-y-2 mt-2 text-left">
+                                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100/50 shadow-sm">
+                                        <span className="text-lg">🔔</span>
+                                    </div>
+                                    <div>
+                                        <h4 className="text-[11px] font-black text-gray-950 leading-tight">
+                                            Turn On Notifications
+                                        </h4>
+                                        <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
+                                            Get timely reminders for your daily sprint steps and stay on track with your goals.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
+                                        [ Enable Notifications ]
+                                    </div>
+                                    <div className="text-center mt-1.5">
+                                        <span className="text-[9px] font-bold text-gray-400">
+                                            Never miss a day
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Complete Your Profile Card OR Request Coach Account Card */}
-                        {cardSettings.profile && (
+                        {cardSettings.profile && isIdentitySet && (
                             isEligibleForCoachRequest ? (
                                 !(user as any).coachApplicationSubmitted ? (
                                     <Link 
@@ -2432,6 +2552,13 @@ const ParticipantDashboard: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+      <PushPermissionModal
+        isOpen={isPushPermissionModalOpen}
+        onAccept={handleAcceptPush}
+        onDecline={handleDeclinePush}
+        onIgnore={handleIgnorePush}
+        isLoading={isSubmittingPush}
+      />
     </div>
   );
 };
