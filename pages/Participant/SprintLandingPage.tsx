@@ -707,7 +707,7 @@ const SprintLandingPage: React.FC = () => {
                             </button>
                             <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest hidden sm:flex items-center gap-2">
                                 <LocalLogo type="favicon" className="h-3 w-auto" />
-                                {isFoundational ? 'FOUNDATIONAL PATH' : 'FOUNDATION PATH'}
+                                VECTORISE
                             </div>
                         </div>
                     </div>
@@ -733,13 +733,6 @@ const SprintLandingPage: React.FC = () => {
                     <div className="absolute inset-0 flex flex-col justify-end">
                         <div className="max-w-screen-lg w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
                             <div className="space-y-3 animate-fade-in max-w-2xl">
-                                <div>
-                                    <span className="px-3 py-1 bg-[#0E7850] text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-[#159E6A]/20">
-                                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                                        {isFoundational ? 'FOUNDATIONAL PATH' : 'PREMIUM SPRINT'}
-                                    </span>
-                                </div>
-                                
                                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter text-white leading-[1.05] uppercase">
                                     <FormattedText text={sprint.title} inline />
                                 </h1>

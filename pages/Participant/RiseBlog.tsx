@@ -412,19 +412,19 @@ export const RiseBlog: React.FC = () => {
           <div className="bg-emerald-50/40 border border-emerald-100/70 rounded-3xl p-6 text-center">
             <span className="text-lg mb-2 block">🎯</span>
             <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-1">
-              {user ? "Put This Lesson Into Practice" : "Join Rise to Level Up"}
+              Put This Lesson Into Practice
             </h3>
             <p className="text-xs text-gray-500 font-medium mb-5 leading-relaxed">
               {user 
                 ? "Don't let this be another piece of information that sits idle. Convert knowledge into execution steps."
-                : "Create an account to join sprints, track your habits, and accelerate your execution."
+                : "Start your journey with Vectorise and convert insights into real momentum."
               }
             </p>
             <Link 
-              to={user ? "/explore" : "/login"} 
+              to={user ? "/explore" : "/"} 
               className="inline-block px-6 py-3 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
             >
-              {user ? "Start Sprint Now" : "Join Rise Now"}
+              {user ? "Start Sprint Now" : "Start Your Journey"}
             </Link>
           </div>
 

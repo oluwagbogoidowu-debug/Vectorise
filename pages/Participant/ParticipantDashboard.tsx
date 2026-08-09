@@ -1526,10 +1526,10 @@ const ParticipantDashboard: React.FC = () => {
                                         </span>
                                     </div>
 
-                                    {/* Down position within the image: Recommended Sprint Header */}
+                                    {/* Down position within the image: Sprint Title */}
                                     <div className="absolute bottom-4 left-4 right-4 z-10">
-                                        <h3 className="text-base md:text-xl font-black text-white leading-tight tracking-tight drop-shadow-md uppercase">
-                                            RECOMMENDED SPRINT
+                                        <h3 className="text-base md:text-xl font-black text-white leading-tight tracking-tight drop-shadow-md line-clamp-2">
+                                            {recommendedNextSprint?.title || "Growth Foundations"}
                                         </h3>
                                     </div>
                                 </div>
@@ -1793,8 +1793,8 @@ const ParticipantDashboard: React.FC = () => {
                                     {/* Bottom part: Title, Subtitle & Action link inside padding */}
                                     <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
                                         <div className="space-y-1 text-left">
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors uppercase">
-                                                RECOMMENDED SPRINT
+                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
+                                                {recommendedNextSprint.title}
                                             </p>
                                             <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
                                                 {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
