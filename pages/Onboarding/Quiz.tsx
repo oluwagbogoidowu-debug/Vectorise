@@ -125,7 +125,7 @@ const Quiz: React.FC = () => {
     const recommendedPlan = 'basic';
     
     // Pass data through state to recommendations page
-    navigate('/recommended', { 
+    navigate('/onboarding/recommendation', { 
       state: sanitizeData({ 
         persona: selectedPersona, 
         answers, 

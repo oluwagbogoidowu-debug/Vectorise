@@ -253,8 +253,8 @@ const FocusSelector: React.FC = () => {
               state: { selectedFocus: finalUsedOption, trigger: activeTrigger, allMatchedSprintIds } 
             });
           } else {
-            navigate(`/onboarding/description/${resolvedSprintId}`, { 
-              state: { selectedFocus: finalUsedOption, sprintId: resolvedSprintId, trigger: activeTrigger, allMatchedSprintIds } 
+            navigate('/onboarding/recommendation', { 
+              state: { selectedFocus: finalUsedOption, targetSprintId: resolvedSprintId, sprintId: resolvedSprintId, trigger: activeTrigger, allMatchedSprintIds } 
             });
           }
       } else {
