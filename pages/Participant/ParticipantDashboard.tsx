@@ -146,6 +146,16 @@ const ParticipantDashboard: React.FC = () => {
   const [isClaimingMilestone, setIsClaimingMilestone] = useState(false);
   const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] = useState(false);
   const [isSubmittingPush, setIsSubmittingPush] = useState(false);
+  const [isNotificationActive, setIsNotificationActive] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const isGranted = typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
+    const isSubscribedInUser = Boolean((user as any).fcmToken || (user as any).pushPermissionStatus === 'accepted');
+    if (isGranted || isSubscribedInUser) {
+      setIsNotificationActive(true);
+    }
+  }, [user]);
 
   const handleAcceptPush = async () => {
     if (!user) return;
@@ -159,6 +169,7 @@ const ParticipantDashboard: React.FC = () => {
         'accepted'
       );
       toast.success("Notifications activated!", { id: toastId });
+      setIsNotificationActive(true);
       setIsPushPermissionModalOpen(false);
     } catch (err: any) {
       console.error("Push subscription failed", err);
@@ -1665,41 +1676,43 @@ const ParticipantDashboard: React.FC = () => {
                         )}
 
                         {/* Notifications Setup Card (Pops up permission modal) */}
-                        <div 
-                            onClick={() => setIsPushPermissionModalOpen(true)}
-                            className="flex-shrink-0 w-60 h-60 bg-white border border-indigo-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-indigo-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative"
-                        >
-                            <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-indigo-50 text-indigo-700 border border-indigo-100/40 z-20">
-                                Notifications
-                            </div>
+                        {!isNotificationActive && (
+                            <div 
+                                onClick={() => setIsPushPermissionModalOpen(true)}
+                                className="flex-shrink-0 w-60 h-60 bg-white border border-indigo-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-indigo-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative"
+                            >
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-indigo-50 text-indigo-700 border border-indigo-100/40 z-20">
+                                    Notifications
+                                </div>
 
-                            <div className="flex-1 flex flex-col justify-between pt-2">
-                                <div className="space-y-2 mt-2 text-left">
-                                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100/50 shadow-sm">
-                                        <span className="text-lg">🔔</span>
+                                <div className="flex-1 flex flex-col justify-between pt-2">
+                                    <div className="space-y-2 mt-2 text-left">
+                                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100/50 shadow-sm">
+                                            <span className="text-lg">🔔</span>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-[11px] font-black text-gray-950 leading-tight">
+                                                Turn On Notifications
+                                            </h4>
+                                            <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
+                                                Get timely reminders for your daily sprint steps and stay on track with your goals.
+                                            </p>
+                                        </div>
                                     </div>
+
                                     <div>
-                                        <h4 className="text-[11px] font-black text-gray-950 leading-tight">
-                                            Turn On Notifications
-                                        </h4>
-                                        <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
-                                            Get timely reminders for your daily sprint steps and stay on track with your goals.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
-                                        [ Enable Notifications ]
-                                    </div>
-                                    <div className="text-center mt-1.5">
-                                        <span className="text-[9px] font-bold text-gray-400">
-                                            Never miss a day
-                                        </span>
+                                        <div className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
+                                            [ Enable Notifications ]
+                                        </div>
+                                        <div className="text-center mt-1.5">
+                                            <span className="text-[9px] font-bold text-gray-400">
+                                                Never miss a day
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Complete Your Profile Card OR Request Coach Account Card */}
                         {cardSettings.profile && isIdentitySet && (
@@ -1766,179 +1779,6 @@ const ParticipantDashboard: React.FC = () => {
                                     </div>
                                 )
                             ) : null
-                        )}
-
-                        {/* 1. Read RiseBlog */}
-                        {cardSettings.blog && (
-                            <Link 
-                                to={isStepUpLocked ? "#" : "/blog"} 
-                                onClick={(e) => isStepUpLocked && e.preventDefault()}
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                    isStepUpLocked 
-                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
-                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                            >
-                                {/* Tag positioned nicely like the impact page milestone cards */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
-                                    Read RiseBlog
-                                </div>
-
-                                {latestBlogPost ? (
-                                    <div className="flex-1 flex flex-col justify-between h-full">
-                                        {/* Top part has the cover image */}
-                                        <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
-                                            <img 
-                                                src={latestBlogPost.coverImage} 
-                                                alt={latestBlogPost.title} 
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
-                                            <span className="absolute bottom-2 left-4 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
-                                                {latestBlogPost.category}
-                                            </span>
-
-                                            {recentBlogPosts.length > 1 && (
-                                                <div className="absolute top-2 right-2.5 z-20 flex items-center gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        title="Shuffle next blog post"
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setCurrentBlogIndex((prev) => (prev + 1) % recentBlogPosts.length);
-                                                        }}
-                                                        className="p-1 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all hover:scale-110 active:scale-95 border border-white/20"
-                                                    >
-                                                        <Shuffle className="w-3 h-3" />
-                                                    </button>
-                                                    <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-1.5 py-1 rounded-full border border-white/20">
-                                                        {recentBlogPosts.map((_, idx) => (
-                                                            <span
-                                                                key={idx}
-                                                                className={`h-1.5 rounded-full transition-all duration-300 ${
-                                                                    idx === (currentBlogIndex % recentBlogPosts.length)
-                                                                        ? 'bg-emerald-400 w-3'
-                                                                        : 'bg-white/50 w-1.5'
-                                                                }`}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Bottom part has details */}
-                                        <div className="p-4 flex-1 flex flex-col justify-between">
-                                            <div className="space-y-1.5 text-left">
-                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
-                                                    {latestBlogPost.publishedAt} • {latestBlogPost.readTime}
-                                                </p>
-                                                <h4 className="text-[11px] font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                                                    {latestBlogPost.title}
-                                                </h4>
-                                            </div>
-
-                                            <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
-                                                <div className="flex items-center gap-1.5">
-                                                    <img 
-                                                        src={latestBlogPost.author.avatar} 
-                                                        alt={latestBlogPost.author.name} 
-                                                        className="w-4 h-4 rounded-full object-cover"
-                                                    />
-                                                    <span className="text-[8px] font-black text-gray-600 uppercase tracking-wider truncate max-w-[100px]">
-                                                        {latestBlogPost.author.name}
-                                                    </span>
-                                                </div>
-                                                <span className="text-[9px] font-black uppercase text-[#0E7850] inline-flex items-center gap-0.5">
-                                                    Read
-                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 flex flex-col justify-center items-center p-6 text-center">
-                                        <p className="text-xs font-semibold text-gray-400">No releases found</p>
-                                    </div>
-                                )}
-                            </Link>
-                        )}
-
-                        {/* 2. See what's next (only shown if there's an active sprint, to avoid duplicate card when there's no active sprint) */}
-                        {cardSettings.explore && hasActiveSprints && recommendedNextSprint && (
-                            <div 
-                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
-                                    isStepUpLocked 
-                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
-                                    : 'hover:shadow-md hover:border-rose-500/20'
-                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
-                            >
-                                {/* Tag: See what's next */}
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                    See what's next
-                                </div>
-
-                                <div 
-                                    onClick={(e) => {
-                                        if (isStepUpLocked) return;
-                                        navigate(`/sprint/${recommendedNextSprint.id}`);
-                                    }}
-                                    className="flex-1 flex flex-col justify-between cursor-pointer"
-                                >
-                                    {/* Top part: Cover Image stretching to fill */}
-                                    <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
-                                        <img 
-                                            src={recommendedNextSprint.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                            alt="" 
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                            onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
-                                            referrerPolicy="no-referrer"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                                        
-                                        {/* Category & Duration Overlay on the Image */}
-                                        <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between z-10">
-                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
-                                                {recommendedNextSprint.category || "Growth"}
-                                            </span>
-                                            <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
-                                                {recommendedNextSprint.duration || 7} Days
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Bottom part: Title, Subtitle & Action link inside padding */}
-                                    <div className="p-4 pt-3 flex-1 flex flex-col justify-between min-h-0">
-                                        <div className="space-y-1 text-left">
-                                            <p className="text-[11px] font-black text-gray-950 leading-tight line-clamp-1 group-hover:text-primary transition-colors">
-                                                {recommendedNextSprint.title}
-                                            </p>
-                                            <p className="text-[9px] text-gray-400 leading-snug line-clamp-3 font-medium">
-                                                {recommendedNextSprint.description || recommendedNextSprint.subtitle || "Unlock consistency and start your rise with templates."}
-                                            </p>
-                                        </div>
-
-                                        <div 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (isStepUpLocked) return;
-                                                navigate("/explore");
-                                            }}
-                                            className="pt-2 border-t border-gray-50 flex items-center justify-between cursor-pointer mt-2"
-                                        >
-                                            <span className="text-[9px] font-black uppercase text-rose-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                                                Explore sprints
-                                                <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         )}
 
                         {/* Hall of Rise Coins / Next to Unlock Card */}
@@ -2050,6 +1890,105 @@ const ParticipantDashboard: React.FC = () => {
                                     </div>
                                 </Link>
                             ) : null
+                        )}
+
+                        {/* 1. Read RiseBlog */}
+                        {cardSettings.blog && (
+                            <Link 
+                                to={isStepUpLocked ? "#" : "/blog"} 
+                                onClick={(e) => isStepUpLocked && e.preventDefault()}
+                                className={`flex-shrink-0 w-60 h-60 bg-white border border-gray-150 rounded-[2rem] shadow-sm transition-all duration-300 flex flex-col justify-between group snap-start animate-fade-in relative ${
+                                    isStepUpLocked 
+                                    ? 'opacity-40 grayscale pointer-events-none cursor-not-allowed' 
+                                    : 'hover:shadow-md hover:border-emerald-500/20 cursor-pointer'
+                                } ${showPulse ? 'animate-unlock-pulse-card' : ''}`}
+                            >
+                                {/* Tag positioned nicely like the impact page milestone cards */}
+                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-emerald-50 text-emerald-700 border border-emerald-100/40 z-20">
+                                    Read RiseBlog
+                                </div>
+
+                                {latestBlogPost ? (
+                                    <div className="flex-1 flex flex-col justify-between h-full">
+                                        {/* Top part has the cover image */}
+                                        <div className="h-28 w-full relative overflow-hidden rounded-t-[1.95rem]">
+                                            <img 
+                                                src={latestBlogPost.coverImage} 
+                                                alt={latestBlogPost.title} 
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
+                                            <span className="absolute bottom-2 left-4 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/20 text-white backdrop-blur-sm">
+                                                {latestBlogPost.category}
+                                            </span>
+
+                                            {recentBlogPosts.length > 1 && (
+                                                <div className="absolute top-2 right-2.5 z-20 flex items-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        title="Shuffle next blog post"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            setCurrentBlogIndex((prev) => (prev + 1) % recentBlogPosts.length);
+                                                        }}
+                                                        className="p-1 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all hover:scale-110 active:scale-95 border border-white/20"
+                                                    >
+                                                        <Shuffle className="w-3 h-3" />
+                                                    </button>
+                                                    <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-1.5 py-1 rounded-full border border-white/20">
+                                                        {recentBlogPosts.map((_, idx) => (
+                                                            <span
+                                                                key={idx}
+                                                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                                                    idx === (currentBlogIndex % recentBlogPosts.length)
+                                                                        ? 'bg-emerald-400 w-3'
+                                                                        : 'bg-white/50 w-1.5'
+                                                                }`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Bottom part has details */}
+                                        <div className="p-4 flex-1 flex flex-col justify-between">
+                                            <div className="space-y-1.5 text-left">
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">
+                                                    {latestBlogPost.publishedAt} • {latestBlogPost.readTime}
+                                                </p>
+                                                <h4 className="text-[11px] font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                                                    {latestBlogPost.title}
+                                                </h4>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
+                                                <div className="flex items-center gap-1.5">
+                                                    <img 
+                                                        src={latestBlogPost.author.avatar} 
+                                                        alt={latestBlogPost.author.name} 
+                                                        className="w-4 h-4 rounded-full object-cover"
+                                                    />
+                                                    <span className="text-[8px] font-black text-gray-600 uppercase tracking-wider truncate max-w-[100px]">
+                                                        {latestBlogPost.author.name}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[9px] font-black uppercase text-[#0E7850] inline-flex items-center gap-0.5">
+                                                    Read
+                                                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex flex-col justify-center items-center p-6 text-center">
+                                        <p className="text-xs font-semibold text-gray-400">No releases found</p>
+                                    </div>
+                                )}
+                            </Link>
                         )}
 
                         {/* 3. See your rise analysis */}
