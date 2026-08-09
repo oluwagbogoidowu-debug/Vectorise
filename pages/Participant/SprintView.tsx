@@ -1025,7 +1025,26 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(null);
+  const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(() => {
+    if (isPreview) {
+      const stateSprint = location.state?.sprint;
+      const duration = stateSprint?.duration || stateSprint?.pendingChanges?.duration || 5;
+      const progress = Array.from({ length: duration }, (_, i) => ({
+        day: i + 1,
+        completed: false,
+        answers: [],
+        submission: "",
+      }));
+      return {
+        id: "preview-enrollment",
+        sprint_id: previewSprintId || stateSprint?.id || "preview-sprint",
+        user_id: user?.id || "preview-user",
+        status: "active",
+        progress,
+      } as any;
+    }
+    return null;
+  });
   const [sprint, setSprint] = useState<Sprint | null>(() => {
     if (isPreview && location.state?.sprint) {
       const stateSprint = location.state.sprint;
@@ -1688,48 +1707,69 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   useEffect(() => {
     if (isPreview && previewSprintId) {
       let unsubSprint: (() => void) | undefined;
-      unsubSprint = sprintService.subscribeToSprint(previewSprintId, (found) => {
-        if (found) {
-          // Check if location.state.sprint was passed from EditSprint editor
-          const stateSprint = location.state?.sprint?.id === previewSprintId ? location.state.sprint : null;
-          const targetSource = stateSprint || found;
-          const approvedDailyContent = (Array.isArray(targetSource.dailyContent) && targetSource.dailyContent.length > 0)
-            ? targetSource.dailyContent
-            : (Array.isArray(targetSource.pendingChanges?.dailyContent) ? targetSource.pendingChanges.dailyContent : []);
 
-          const processed = {
-            ...targetSource,
-            dailyContent: approvedDailyContent.map((c: any) => ({
-              ...c,
-              taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
-            })),
-            duration: targetSource.duration || targetSource.pendingChanges?.duration || 0,
-            outcomes: Array.isArray(targetSource.outcomes) ? targetSource.outcomes : (Array.isArray(targetSource.pendingChanges?.outcomes) ? targetSource.pendingChanges.outcomes : []),
-            forWho: Array.isArray(targetSource.forWho) ? targetSource.forWho : (Array.isArray(targetSource.pendingChanges?.forWho) ? targetSource.pendingChanges.forWho : []),
-            notForWho: Array.isArray(targetSource.notForWho) ? targetSource.notForWho : (Array.isArray(targetSource.pendingChanges?.notForWho) ? targetSource.pendingChanges.notForWho : []),
-            methodSnapshot: Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : (Array.isArray(targetSource.pendingChanges?.methodSnapshot) ? targetSource.pendingChanges.methodSnapshot : []),
-            dynamicSections: Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : (Array.isArray(targetSource.pendingChanges?.dynamicSections) ? targetSource.pendingChanges.dynamicSections : [])
-          };
+      const handleSprintLoaded = (targetSource: any) => {
+        if (!targetSource) return;
+        const approvedDailyContent = (Array.isArray(targetSource.dailyContent) && targetSource.dailyContent.length > 0)
+          ? targetSource.dailyContent
+          : (Array.isArray(targetSource.pendingChanges?.dailyContent) ? targetSource.pendingChanges.dailyContent : []);
 
-          setSprint(processed);
-          setEnrollment((prevMock) => {
-            if (prevMock && prevMock.sprint_id === previewSprintId && prevMock.progress.length === processed.duration) return prevMock;
-            const progress = Array.from({ length: processed.duration || 5 }, (_, i) => ({
-              day: i + 1,
-              completed: false,
-              answers: [],
-              submission: "",
-            }));
-            return {
-              id: "preview-enrollment",
-              sprint_id: previewSprintId,
-              user_id: user?.id || "preview-user",
-              status: "active",
-              progress,
-            } as any;
-          });
-        }
-      });
+        const processed = {
+          ...targetSource,
+          dailyContent: approvedDailyContent.map((c: any) => ({
+            ...c,
+            taskPrompts: (c as any).taskPrompts || [c.taskPrompt || '']
+          })),
+          duration: targetSource.duration || targetSource.pendingChanges?.duration || 0,
+          outcomes: Array.isArray(targetSource.outcomes) ? targetSource.outcomes : (Array.isArray(targetSource.pendingChanges?.outcomes) ? targetSource.pendingChanges.outcomes : []),
+          forWho: Array.isArray(targetSource.forWho) ? targetSource.forWho : (Array.isArray(targetSource.pendingChanges?.forWho) ? targetSource.pendingChanges.forWho : []),
+          notForWho: Array.isArray(targetSource.notForWho) ? targetSource.notForWho : (Array.isArray(targetSource.pendingChanges?.notForWho) ? targetSource.pendingChanges.notForWho : []),
+          methodSnapshot: Array.isArray(targetSource.methodSnapshot) ? targetSource.methodSnapshot : (Array.isArray(targetSource.pendingChanges?.methodSnapshot) ? targetSource.pendingChanges.methodSnapshot : []),
+          dynamicSections: Array.isArray(targetSource.dynamicSections) ? targetSource.dynamicSections : (Array.isArray(targetSource.pendingChanges?.dynamicSections) ? targetSource.pendingChanges.dynamicSections : [])
+        };
+
+        setSprint(processed);
+        setEnrollment((prevMock) => {
+          if (prevMock && prevMock.sprint_id === previewSprintId && prevMock.progress?.length === processed.duration) return prevMock;
+          const progress = Array.from({ length: processed.duration || 5 }, (_, i) => ({
+            day: i + 1,
+            completed: false,
+            answers: [],
+            submission: "",
+          }));
+          return {
+            id: "preview-enrollment",
+            sprint_id: previewSprintId,
+            user_id: user?.id || "preview-user",
+            status: "active",
+            progress,
+          } as any;
+        });
+      };
+
+      try {
+        unsubSprint = sprintService.subscribeToSprint(previewSprintId, (found) => {
+          const target = found || (location.state?.sprint?.id === previewSprintId ? location.state.sprint : location.state?.sprint);
+          if (target) {
+            handleSprintLoaded(target);
+          } else {
+            sprintService.getSprintById(previewSprintId).then((data) => {
+              const fallbackTarget = data || location.state?.sprint;
+              if (fallbackTarget) handleSprintLoaded(fallbackTarget);
+            }).catch(() => {
+              if (location.state?.sprint) handleSprintLoaded(location.state.sprint);
+            });
+          }
+        });
+      } catch (err) {
+        sprintService.getSprintById(previewSprintId).then((data) => {
+          const fallbackTarget = data || location.state?.sprint;
+          if (fallbackTarget) handleSprintLoaded(fallbackTarget);
+        }).catch(() => {
+          if (location.state?.sprint) handleSprintLoaded(location.state.sprint);
+        });
+      }
+
       return () => {
         if (unsubSprint) unsubSprint();
       };

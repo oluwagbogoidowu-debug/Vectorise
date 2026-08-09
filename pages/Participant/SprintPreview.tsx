@@ -664,11 +664,9 @@ const SprintPreview: React.FC = () => {
         
         console.log("[SprintPreview] Initializing subscription or loading static fallback for sprint ID:", sprintId);
         
-        // As a reliable and direct fallback, load static sprint data.
-        // This is safe from snapshot/permissions issues on Firestore for guest users.
         const processSprint = (data: any) => {
-            if (!data) return data;
-            const targetSource = data || (location.state?.sprint?.id === data.id ? location.state.sprint : null);
+            const targetSource = data || location.state?.sprint;
+            if (!targetSource) return null;
             const approvedDailyContent = (Array.isArray(targetSource.dailyContent) && targetSource.dailyContent.length > 0)
                 ? targetSource.dailyContent
                 : (Array.isArray(targetSource.pendingChanges?.dailyContent) ? targetSource.pendingChanges.dailyContent : []);
@@ -689,37 +687,52 @@ const SprintPreview: React.FC = () => {
         };
 
         let active = true;
+
+        if (location.state?.sprint) {
+            const initialProcessed = processSprint(location.state.sprint);
+            if (initialProcessed) {
+                setSprint(initialProcessed);
+                setIsLoading(false);
+            }
+        }
+
         sprintService.getSprintById(sprintId)
             .then((data: any) => {
-                if (active && data) {
-                    console.log("[SprintPreview] Successfully fetched static sprint data:", data.id);
-                    setSprint(processSprint(data));
-                    setIsLoading(false);
+                if (!active) return;
+                const processed = processSprint(data);
+                if (processed) {
+                    console.log("[SprintPreview] Successfully processed static sprint data:", processed.id);
+                    setSprint(processed);
                 }
+                setIsLoading(false);
             })
             .catch((err: any) => {
                 console.error("[SprintPreview] Error fetching static sprint data:", err);
+                if (active) setIsLoading(false);
             });
 
         // Also subscribe for realtime updates, wrapping in try/catch to avoid crash if permissions are missing
         let unsubscribe = () => {};
         try {
             unsubscribe = sprintService.subscribeToSprint(sprintId, (data) => {
-                if (active && data) {
+                if (!active) return;
+                const processed = processSprint(data);
+                if (processed) {
                     console.log("[SprintPreview] Received realtime sprint details snapshot updates.");
-                    setSprint(processSprint(data));
-                    setIsLoading(false);
+                    setSprint(processed);
                 }
+                setIsLoading(false);
             });
         } catch (err) {
             console.error("[SprintPreview] Realtime subscription failed (usually expected for guest users):", err);
+            if (active) setIsLoading(false);
         }
 
         return () => {
             active = false;
             unsubscribe();
         };
-    }, [sprintId]);
+    }, [sprintId, location.state?.sprint]);
 
     // Sync Horizontal Scroll Container offset on activeTaskIndex changes
     useEffect(() => {
