@@ -741,22 +741,6 @@ const SprintPreview: React.FC = () => {
         }
     }, [activeTaskIndex]);
 
-    const handlePreviewScroll = () => {
-        if (isScrollingInternal.current) return;
-        if (previewStepsContainerRef.current) {
-            const container = previewStepsContainerRef.current;
-            const scrollLeft = container.scrollLeft;
-            const cardWidth = container.clientWidth;
-            if (cardWidth > 0) {
-                const index = Math.round(scrollLeft / cardWidth);
-                const activePrompts = day1Content?.taskPrompts?.filter(p => p && p.trim()) || (day1Content?.taskPrompt ? [day1Content.taskPrompt] : []);
-                if (index >= 0 && index < activePrompts.length && index !== activeTaskIndex) {
-                    setActiveTaskIndex(index);
-                }
-            }
-        }
-    };
-
     if (isLoading) {
         return (
             <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
@@ -778,6 +762,111 @@ const SprintPreview: React.FC = () => {
     if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
 
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+
+    const getLinkedTagsForStep = (stepIndex: number): string[] => {
+        if (!day1Content) return [];
+
+        // 1. Check if the new taskLinkedSources tells us which steps are linked
+        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
+            const allTags: string[] = [];
+            day1Content.taskLinkedSources[stepIndex].forEach(srcIndex => {
+                if (srcIndex >= 0) {
+                    if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
+                        try {
+                            const val = taskInputs[srcIndex];
+                            const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
+                            if (val.startsWith("[")) {
+                                allTags.push(...JSON.parse(val));
+                            } else if (srcType === "poll") {
+                                allTags.push(val);
+                            } else {
+                                allTags.push(...val.split(",").filter(Boolean));
+                            }
+                        } catch (e) {
+                            console.error("Error parsing tags for source in preview", srcIndex, e);
+                        }
+                    }
+                } else {
+                    // Cross-day link!
+                    const absVal = Math.abs(srcIndex);
+                    const targetDay = Math.floor(absVal / 100);
+                    const targetStepIdx = absVal % 100;
+                    
+                    const targetProgress = (sprint as any)?.enrollment?.progress?.find((p: any) => p.day === targetDay);
+                    const targetDayContent = Array.isArray(sprint?.dailyContent)
+                        ? sprint.dailyContent.find((dc) => dc.day === targetDay)
+                        : undefined;
+                        
+                    if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
+                        const val = targetProgress.answers[targetStepIdx];
+                        if (val) {
+                            try {
+                                const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
+                                if (val.startsWith("[")) {
+                                    allTags.push(...JSON.parse(val));
+                                } else if (srcType === "poll") {
+                                    allTags.push(val);
+                                } else {
+                                    allTags.push(...val.split(",").filter(Boolean));
+                                }
+                            } catch (e) {
+                                console.error("Error parsing cross-day tags for source", srcIndex, e);
+                            }
+                        }
+                    }
+                }
+            });
+            return Array.from(new Set(allTags)).filter(Boolean);
+        }
+
+        // 2. Fallback to legacy structure - only if taskLinkedToNext is true
+        let linkedSourceIndex = -1;
+        for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+            const isLinked = 
+                day1Content.taskLinkedToNext?.[prevIndex] === true ||
+                (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
+            if (isLinked) {
+                const inputType = String(
+                    day1Content.taskInputTypes?.[prevIndex] || ""
+                ).trim().toLowerCase();
+                if (inputType === "tags" || inputType === "poll") {
+                    linkedSourceIndex = prevIndex;
+                    break;
+                }
+            }
+        }
+
+        if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
+            try {
+                const val = taskInputs[linkedSourceIndex];
+                const srcType = String(day1Content.taskInputTypes?.[linkedSourceIndex] || "").trim().toLowerCase();
+                if (val.startsWith("[")) {
+                    return JSON.parse(val);
+                } else if (srcType === "poll") {
+                    return [val];
+                } else {
+                    return val.split(",").filter(Boolean);
+                }
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
+    };
+
+    const isLinkedTextStep = (stepIndex: number): boolean => {
+        return false;
+    };
+
+    const isMultiTextStep = (stepIndex: number): boolean => {
+        if (!day1Content) return false;
+        const type = String(day1Content.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
+        const isText = type === "text" || type === "" || type === "undefined";
+        const labels = Array.isArray(day1Content.taskMultiTextLabels?.[stepIndex])
+          ? day1Content.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim().length > 0)
+          : [];
+        return isText && labels.length > 0;
+    };
 
     const isStepVisible = (stepIndex: number): boolean => {
         if (!day1Content) return true;
@@ -978,6 +1067,22 @@ const SprintPreview: React.FC = () => {
         return count;
     };
 
+    const handlePreviewScroll = () => {
+        if (isScrollingInternal.current) return;
+        if (previewStepsContainerRef.current) {
+            const container = previewStepsContainerRef.current;
+            const scrollLeft = container.scrollLeft;
+            const cardWidth = container.clientWidth;
+            if (cardWidth > 0) {
+                const index = Math.round(scrollLeft / cardWidth);
+                const activePrompts = day1Content?.taskPrompts?.filter(p => p && p.trim()) || (day1Content?.taskPrompt ? [day1Content.taskPrompt] : []);
+                if (index >= 0 && index < activePrompts.length && index !== activeTaskIndex) {
+                    setActiveTaskIndex(index);
+                }
+            }
+        }
+    };
+
     useEffect(() => {
         if (day1Content?.taskPrompts && day1Content.taskPrompts.length > 0) {
             if (!isStepVisible(activeTaskIndex)) {
@@ -995,191 +1100,6 @@ const SprintPreview: React.FC = () => {
             }
         }
     }, [taskInputs, activeTaskIndex, day1Content]);
-
-    const getLinkedTagsForStep = (stepIndex: number): string[] => {
-        if (!day1Content) return [];
-
-        // 1. Check if the new taskLinkedSources tells us which steps are linked
-        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
-            const allTags: string[] = [];
-            day1Content.taskLinkedSources[stepIndex].forEach(srcIndex => {
-                if (srcIndex >= 0) {
-                    if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
-                        try {
-                            const val = taskInputs[srcIndex];
-                            const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
-                            if (val.startsWith("[")) {
-                                allTags.push(...JSON.parse(val));
-                            } else if (srcType === "poll") {
-                                allTags.push(val);
-                            } else {
-                                allTags.push(...val.split(",").filter(Boolean));
-                            }
-                        } catch (e) {
-                            console.error("Error parsing tags for source in preview", srcIndex, e);
-                        }
-                    }
-                } else {
-                    // Cross-day link!
-                    const absVal = Math.abs(srcIndex);
-                    const targetDay = Math.floor(absVal / 100);
-                    const targetStepIdx = absVal % 100;
-                    
-                    const targetProgress = (sprint as any)?.enrollment?.progress?.find((p: any) => p.day === targetDay);
-                    const targetDayContent = Array.isArray(sprint?.dailyContent)
-                        ? sprint.dailyContent.find((dc) => dc.day === targetDay)
-                        : undefined;
-                        
-                    if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
-                        const val = targetProgress.answers[targetStepIdx];
-                        if (val) {
-                            try {
-                                const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
-                                if (val.startsWith("[")) {
-                                    allTags.push(...JSON.parse(val));
-                                } else if (srcType === "poll") {
-                                    allTags.push(val);
-                                } else {
-                                    allTags.push(...val.split(",").filter(Boolean));
-                                }
-                            } catch (e) {
-                                console.error("Error parsing cross-day tags for source", srcIndex, e);
-                            }
-                        }
-                    }
-                }
-            });
-            return Array.from(new Set(allTags)).filter(Boolean);
-        }
-
-        // 2. Fallback to legacy structure - only if taskLinkedToNext is true
-        let linkedSourceIndex = -1;
-        for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
-            const isLinked = 
-                day1Content.taskLinkedToNext?.[prevIndex] === true ||
-                (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
-            if (isLinked) {
-                const inputType = String(
-                    day1Content.taskInputTypes?.[prevIndex] || ""
-                ).trim().toLowerCase();
-                if (inputType === "tags" || inputType === "poll") {
-                    linkedSourceIndex = prevIndex;
-                    break;
-                }
-            }
-        }
-
-        if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
-            try {
-                const val = taskInputs[linkedSourceIndex];
-                const srcType = String(day1Content.taskInputTypes?.[linkedSourceIndex] || "").trim().toLowerCase();
-                if (val.startsWith("[")) {
-                    return JSON.parse(val);
-                } else if (srcType === "poll") {
-                    return [val];
-                } else {
-                    return val.split(",").filter(Boolean);
-                }
-            } catch (e) {
-                return [];
-            }
-        }
-        return [];
-    };
-
-    const isLinkedTextStep = (stepIndex: number): boolean => {
-        return false;
-    };
-
-    const isMultiTextStep = (stepIndex: number): boolean => {
-        if (!day1Content) return false;
-        const type = String(day1Content.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
-        const isText = type === "text" || type === "" || type === "undefined";
-        const labels = Array.isArray(day1Content.taskMultiTextLabels?.[stepIndex])
-          ? day1Content.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim().length > 0)
-          : [];
-        return isText && labels.length > 0;
-    };
-
-    const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
-        if (!day1Content) return "";
-
-        // 1. Check if the taskLinkedSources has sources
-        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
-            const texts: string[] = [];
-            day1Content.taskLinkedSources[stepIndex].forEach(srcIndex => {
-                if (srcIndex >= 0) {
-                    if (srcIndex < currentInputs.length && currentInputs[srcIndex]) {
-                        const val = currentInputs[srcIndex];
-                        if (val) {
-                            if (val.startsWith("{")) {
-                                try {
-                                    const parsed = JSON.parse(val);
-                                    const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-                                    texts.push(parts.join("\n"));
-                                } catch (e) {
-                                    texts.push(val);
-                                }
-                            } else if (val.startsWith("[")) {
-                                try {
-                                    const parsed = JSON.parse(val);
-                                    if (Array.isArray(parsed)) {
-                                        texts.push(parsed.join(", "));
-                                    } else {
-                                        texts.push(val);
-                                    }
-                                } catch (e) {
-                                    texts.push(val);
-                                }
-                            } else {
-                                texts.push(val);
-                            }
-                        }
-                    }
-                }
-            });
-            return texts.join("\n\n");
-        }
-
-        // 2. Fallback to legacy structure - only if taskLinkedToNext is true for stepIndex - 1
-        let linkedSourceIndex = -1;
-        for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
-            const isLinked = 
-                day1Content.taskLinkedToNext?.[prevIndex] === true ||
-                (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
-            if (isLinked) {
-                linkedSourceIndex = prevIndex;
-                break;
-            }
-        }
-
-        if (linkedSourceIndex !== -1 && currentInputs[linkedSourceIndex]) {
-            const val = currentInputs[linkedSourceIndex];
-            if (val.startsWith("{")) {
-                try {
-                    const parsed = JSON.parse(val);
-                    const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-                    return parts.join("\n");
-                } catch (e) {
-                    return val;
-                }
-            } else if (val.startsWith("[")) {
-                try {
-                    const parsed = JSON.parse(val);
-                    if (Array.isArray(parsed)) {
-                        return parsed.join(", ");
-                    }
-                    return val;
-                } catch (e) {
-                    return val;
-                }
-            } else {
-                return val;
-            }
-        }
-
-        return "";
-    };
 
     useEffect(() => {
         if (!day1Content || !taskInputs) return;
