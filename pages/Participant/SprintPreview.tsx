@@ -2187,7 +2187,7 @@ const SprintPreview: React.FC = () => {
 
             {/* Sprint Description Sheet */}
             <AnimatePresence>
-                {isSprintOverviewOpen && sprint && (
+                {isSprintOverviewOpen && sprint && createPortal(
                     <>
                         <div
                             className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
@@ -2233,7 +2233,8 @@ const SprintPreview: React.FC = () => {
                                 Got It
                             </button>
                         </div>
-                    </>
+                    </>,
+                    document.body
                 )}
             </AnimatePresence>
             <ActionStepConfirmModal

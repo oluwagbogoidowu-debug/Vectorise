@@ -47,7 +47,7 @@ const DayCompletionModal: React.FC<{
   bridgeNote?: string;
 }> = ({ isOpen, onClose, day, bridgeNote }) => {
   if (!isOpen) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
         <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6 text-green-500 relative">
@@ -90,7 +90,8 @@ const DayCompletionModal: React.FC<{
           Continue
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -133,7 +134,7 @@ const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, 
     return <p className="text-gray-800 text-sm font-black leading-relaxed">{answer}</p>;
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md animate-fade-in">
       <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto border border-gray-100 flex flex-col animate-slide-up">
         {/* Header */}
@@ -189,7 +190,8 @@ const MirrorReportModal: React.FC<MirrorReportModalProps> = ({ isOpen, onClose, 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -961,7 +963,7 @@ const SprintOverviewSheet: React.FC<{
 }> = ({ isOpen, onClose, sprint }) => {
   return (
     <AnimatePresence>
-      {isOpen && sprint && (
+      {isOpen && sprint && createPortal(
         <>
           <div
             className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
@@ -1007,7 +1009,8 @@ const SprintOverviewSheet: React.FC<{
               Got It
             </button>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </AnimatePresence>
   );
