@@ -147,7 +147,7 @@ const HomePage: React.FC = () => {
             
             <div className="bg-gray-50 rounded-[2rem] px-8 py-5 md:px-10 md:py-6 text-center border border-gray-100 shadow-inner my-6">
               <p className="text-[14px] md:text-[16px] text-gray-600 font-medium leading-relaxed">
-                <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided sprint system</strong> that helps you <strong className="text-gray-800 font-bold">focus</strong>, <strong className="text-gray-800 font-bold">act</strong>, and build <strong className="text-gray-800 font-bold">real capability</strong>.
+                <strong className="text-primary font-bold">Vectorise</strong> is a <strong className="text-gray-800 font-bold">guided sprint system</strong> that helps you <strong className="text-gray-800 font-bold">focus</strong>, <strong className="text-gray-800 font-bold">act</strong>, and <strong className="text-gray-800 font-bold">build real capability</strong>.
               </p>
             </div>
 

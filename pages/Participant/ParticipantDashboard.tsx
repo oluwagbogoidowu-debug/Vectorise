@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
-import { ParticipantSprint, Sprint, Notification, Participant, Referral, Coach, UserRole } from '../../types';
+import type { ParticipantSprint, Sprint, Notification as AppNotification, Participant, Referral, Coach, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { analyticsService } from '../../services/analyticsService';
 import { userService } from '../../services/userService';
@@ -117,7 +117,7 @@ const ParticipantDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [timeToMidnight, setTimeToMidnight] = useState<string>('00:00:00');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNextSprintModalOpen, setIsNextSprintModalOpen] = useState(false);
   const [isStartingNext, setIsStartingNext] = useState(false);
   const [checkInSprints, setCheckInSprints] = useState<{ enrollment: ParticipantSprint; sprint: Sprint }[]>([]);
@@ -150,7 +150,7 @@ const ParticipantDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    const isGranted = typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
+    const isGranted = typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'granted';
     const isSubscribedInUser = Boolean((user as any).fcmToken || (user as any).pushPermissionStatus === 'accepted');
     if (isGranted || isSubscribedInUser) {
       setIsNotificationActive(true);
