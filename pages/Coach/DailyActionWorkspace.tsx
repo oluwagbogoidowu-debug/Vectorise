@@ -988,10 +988,16 @@ export default function DailyActionWorkspace({
                                 <div key={dIdx} className="flex flex-wrap items-center justify-between gap-2 bg-white/80 p-2 rounded-lg border border-red-100">
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-[10px] text-gray-500 italic">
-                                      ({detail.mode === 'list' ? 'List mode: separated into bulleted lines' : 'Normal mode: displayed inline within sentence'})
+                                      ({detail.mode === 'list' 
+                                        ? 'List mode: bulleted list' 
+                                        : detail.mode === 'hide' 
+                                        ? 'Hide mode: logic linked, input hidden' 
+                                        : detail.mode === 'sentence' 
+                                        ? 'Sentence mode: starts input with sentence case' 
+                                        : 'Normal mode: inline lowercase text'})
                                     </span>
                                   </div>
-                                  <div className="inline-flex p-0.5 bg-gray-100 rounded-lg shrink-0">
+                                  <div className="inline-flex p-0.5 bg-gray-100 rounded-lg shrink-0 flex-wrap gap-0.5">
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -999,14 +1005,30 @@ export default function DailyActionWorkspace({
                                         const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'normal');
                                         handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
                                       }}
-                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'normal'
                                           ? 'bg-red-600 text-white shadow-xs'
                                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
                                       }`}
-                                      title="Normal Tag: Displays data inline as text within a sentence separated by commas"
+                                      title="Normal Tag: Displays data inline as lowercase text"
                                     >
-                                      Normal Tag
+                                      Normal
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'sentence');
+                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                      }}
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'sentence'
+                                          ? 'bg-red-600 text-white shadow-xs'
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="Sentence Tag: Starts received input with sentence case"
+                                    >
+                                      Sentence (s)
                                     </button>
                                     <button
                                       type="button"
@@ -1015,14 +1037,30 @@ export default function DailyActionWorkspace({
                                         const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'list');
                                         handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
                                       }}
-                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'list'
                                           ? 'bg-red-600 text-white shadow-xs'
                                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
                                       }`}
-                                      title="List Tag: Separates data into a bulleted list rather than comma separation"
+                                      title="List Tag: Separates data into a bulleted list"
                                     >
-                                      List Tag
+                                      List
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'hide');
+                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                      }}
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'hide'
+                                          ? 'bg-red-600 text-white shadow-xs'
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="Hide Tag: Logic linked to step, but hides input from display text"
+                                    >
+                                      Hide (h)
                                     </button>
                                   </div>
                                 </div>

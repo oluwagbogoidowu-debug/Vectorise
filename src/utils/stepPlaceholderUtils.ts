@@ -1,7 +1,9 @@
+export type StepPlaceholderMode = 'normal' | 'list' | 'hide' | 'sentence';
+
 export interface StepPlaceholderDetail {
   stepNum: number;
   opNum?: number;
-  mode: 'normal' | 'list';
+  mode: StepPlaceholderMode;
   rawLabel: string;
   token: string;
 }
@@ -18,8 +20,18 @@ export interface StepPlaceholderValidation {
   isLogicLinked?: boolean;
 }
 
+export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
+  if (!modeStr) return 'normal';
+  const m = modeStr.toLowerCase().trim();
+  if (m === 'h' || m === 'hide') return 'hide';
+  if (m === 's' || m === 'sentence') return 'sentence';
+  if (m === 'list' || m === 'l') return 'list';
+  if (m === 'normal' || m === 'n') return 'normal';
+  return 'normal';
+}
+
 /**
- * Validates `{step N}`, `{Step N list}`, `{Step N normal}`, or `{Step N OpM}` placeholders in prompt text.
+ * Validates `{step N}`, `{Step N list}`, `{Step N normal}`, `{Step N h}`, `{Step N s}` or `{Step N OpM}` placeholders in prompt text.
  * Rule:
  * - Placeholders can be used on ANY step input type ('text', 'tags', 'poll', 'mark', 'note', 'none') to receive input from a preceding step.
  * - For option syntax `{Step N OpM}`, the target step MUST have inputType 'poll'.
@@ -34,16 +46,22 @@ export function validateStepPlaceholders(
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal))?\}/gi;
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
   let match: RegExpExecArray | null;
   const references: StepPlaceholderDetail[] = [];
 
   while ((match = regex.exec(prompt)) !== null) {
     const stepNum = parseInt(match[1], 10);
     const opNum = match[2] ? parseInt(match[2], 10) : undefined;
-    const modeStr = match[3] ? match[3].toLowerCase() : undefined;
-    const mode: 'normal' | 'list' = modeStr === 'list' ? 'list' : 'normal';
-    const rawLabel = opNum !== undefined ? `${stepNum} Op${opNum}` : `${stepNum}`;
+    const modeStr = match[3];
+    const mode = parsePlaceholderMode(modeStr);
+
+    let modeSuffix = '';
+    if (mode === 'hide') modeSuffix = ' h';
+    else if (mode === 'sentence') modeSuffix = ' s';
+    else if (mode === 'list') modeSuffix = ' list';
+
+    const rawLabel = opNum !== undefined ? `${stepNum} Op${opNum}${modeSuffix}` : `${stepNum}${modeSuffix}`;
     const token = match[0];
 
     if (!references.some(r => r.token === token)) {
@@ -123,16 +141,16 @@ export function validateStepPlaceholders(
 }
 
 /**
- * Toggles or sets the mode ('normal' | 'list') of a {Step N} placeholder within a prompt string.
+ * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence') of a {Step N} placeholder within a prompt string.
  */
 export function togglePlaceholderMode(
   prompt: string,
   targetStepNum: number,
-  targetMode: 'normal' | 'list'
+  targetMode: StepPlaceholderMode
 ): string {
   if (!prompt) return prompt;
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal))?\}/gi;
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
 
   return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr) => {
     const stepNum = parseInt(stepNumStr, 10);
@@ -142,14 +160,17 @@ export function togglePlaceholderMode(
 
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
-    const modePart = targetMode === 'list' ? ' list' : '';
+    let modePart = '';
+    if (targetMode === 'list') modePart = ' list';
+    else if (targetMode === 'hide') modePart = ' h';
+    else if (targetMode === 'sentence') modePart = ' s';
 
     return `{Step ${stepNum}${opPart}${modePart}}`;
   });
 }
 
 /**
- * Replaces `{step N}` or `{Step N list}` or `{Step N OpM}` placeholders in prompt with user's choices from step N.
+ * Replaces `{step N}` or `{Step N list}` or `{Step N h}` or `{Step N s}` or `{Step N OpM}` placeholders in prompt with user's choices from step N.
  */
 export function formatInterpolatedText(
   prompt: string,
@@ -158,14 +179,14 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal))?\}/gi;
+  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
 
   // First pass: identify explicitly called written option indices for each step across all step prompts in the day
   const explicitlyCalledOptsMap = new Map<number, Set<number>>();
 
   const scanPromptForOpClaims = (pStr: string) => {
     if (!pStr || typeof pStr !== 'string') return;
-    const scanRegex = /\{[sS]?tep\s*(\d+)\s*[oO][pP]\s*(\d+)(?:\s*(?:list|normal))?\}/gi;
+    const scanRegex = /\{[sS]?tep\s*(\d+)\s*[oO][pP]\s*(\d+)(?:\s*(?:list|normal|hide|sentence|h|s|l|n))?\}/gi;
     let m: RegExpExecArray | null;
     while ((m = scanRegex.exec(pStr)) !== null) {
       const sNum = parseInt(m[1], 10);
@@ -240,12 +261,16 @@ export function formatInterpolatedText(
   return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr, modeStr) => {
     const stepNum = parseInt(stepNumStr, 10);
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
-    const mode: 'normal' | 'list' = modeStr && modeStr.toLowerCase() === 'list' ? 'list' : 'normal';
+    const mode = parsePlaceholderMode(modeStr);
     const stepIndex = stepNum - 1;
 
     const inputType = dayContent?.taskInputTypes?.[stepIndex];
 
     const formatOutput = (rawList: string[]): string => {
+      if (mode === 'hide') {
+        return '';
+      }
+
       const cleaned = rawList.map((item) => item.trim()).filter(Boolean);
 
       if (cleaned.length === 0) {
@@ -254,6 +279,13 @@ export function formatInterpolatedText(
 
       if (mode === 'list') {
         return '\n' + cleaned.map((item) => `• ${item}`).join('\n');
+      }
+
+      if (mode === 'sentence') {
+        return cleaned.map((item) => {
+          if (!item) return item;
+          return item.charAt(0).toUpperCase() + item.slice(1);
+        }).join(', ');
       }
 
       return cleaned.map(c => c.toLowerCase()).join(', ');

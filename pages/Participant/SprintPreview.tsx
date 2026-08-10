@@ -2186,57 +2186,73 @@ const SprintPreview: React.FC = () => {
             )}
 
             {/* Sprint Description Sheet */}
-            <AnimatePresence>
-                {isSprintOverviewOpen && sprint && createPortal(
-                    <>
-                        <div
-                            className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick cursor-pointer"
-                            onClick={() => setIsSprintOverviewOpen(false)}
-                        />
-                        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[70vh] pb-6 animate-slide-up-quick text-left font-sans">
-                            {/* Drag Handle indicator */}
-                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
-
-                            {/* Close button */}
-                            <button
+            {createPortal(
+                <AnimatePresence>
+                    {isSprintOverviewOpen && sprint && (
+                        <>
+                            <motion.div
+                                key="overview-preview-backdrop"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="fixed inset-0 bg-black/60 z-[9999] backdrop-blur-sm cursor-pointer"
                                 onClick={() => setIsSprintOverviewOpen(false)}
-                                className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                            />
+                            <motion.div
+                                key="overview-preview-sheet"
+                                initial={{ y: "100%" }}
+                                animate={{ y: 0 }}
+                                exit={{ y: "100%" }}
+                                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.2)] border-t border-gray-100 z-[10000] p-5 sm:p-6 overflow-y-auto max-h-[85vh] sm:max-h-[80vh] pb-8 text-left font-sans"
                             >
-                                <X className="w-5 h-5" />
-                            </button>
+                                {/* Drag Handle indicator */}
+                                <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
 
-                            {/* Category / Duration */}
-                            <div className="flex items-center gap-2 mb-3">
-                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
-                                    {sprint.category || "Growth"}
-                                </span>
-                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
-                                    {sprint.duration || 7} Days
-                                </span>
-                            </div>
+                                {/* Close button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSprintOverviewOpen(false)}
+                                    className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
 
-                            {/* Sprint Title */}
-                            <h3 className="text-xl font-black tracking-tight leading-tight text-gray-900 mb-3 uppercase">
-                                {sprint.title}
-                            </h3>
+                                {/* Category / Duration */}
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
+                                        {sprint.category || "Growth"}
+                                    </span>
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
+                                        {sprint.duration || 7} Days
+                                    </span>
+                                </div>
 
-                            {/* Description with Paged Slides */}
-                            <div className="mb-4">
-                                <PagedSprintDescription text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
-                            </div>
+                                {/* Sprint Title */}
+                                <h3 className="text-xl font-black tracking-tight leading-tight text-gray-900 mb-3 uppercase">
+                                    {sprint.title}
+                                </h3>
 
-                            {/* Action button */}
-                            <button
-                                onClick={() => setIsSprintOverviewOpen(false)}
-                                className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
-                            >
-                                Got It
-                            </button>
-                        </div>
-                    </>,
-                    document.body
-                )}
-            </AnimatePresence>
+                                {/* Description with Paged Slides */}
+                                <div className="mb-4">
+                                    <PagedSprintDescription text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
+                                </div>
+
+                                {/* Action button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSprintOverviewOpen(false)}
+                                    className="w-full py-3.5 bg-gray-900 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-xl hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-2"
+                                >
+                                    Got It
+                                </button>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
             <ActionStepConfirmModal
                 isOpen={confirmMarkStepIndex !== null}
                 onConfirm={() => {
