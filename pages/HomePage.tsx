@@ -70,8 +70,8 @@ const HomePage: React.FC = () => {
       if (slotId === 'slot_found_clarity') {
         navigate('/onboarding/focus-selector', { state: { trigger: 'after_homepage' } });
       } else if (assignment.sprintId) {
-        // If it's a direct sprint, go to description
-        navigate(`/onboarding/description/${assignment.sprintId}`, { state: { trigger: 'after_homepage' } });
+        // If it's a direct sprint, go to start-here
+        navigate(`/onboarding/start-here/${assignment.sprintId}`, { state: { trigger: 'after_homepage' } });
       } else {
         // Fallback
         navigate('/onboarding/focus-selector', { state: { trigger: 'after_homepage' } });
