@@ -845,10 +845,10 @@ const SprintPreview: React.FC = () => {
             }
         }
 
-        // Implicit placeholder branch checking ({Step N OpM} vs {Step N})
+        // Implicit placeholder branch checking ({Step N OpM h}, {Step N OpM}, {Step N h}, {Step N list}, {Step N})
         const prompt = day1Content.taskPrompts?.[stepIndex];
         if (prompt) {
-            const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?\}/g;
+            const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|h|s|l|n))?\}/gi;
             let match: RegExpExecArray | null;
 
             while ((match = regex.exec(prompt)) !== null) {
@@ -856,62 +856,64 @@ const SprintPreview: React.FC = () => {
                 const opNum = match[2] ? parseInt(match[2], 10) : undefined;
                 const targetIdx = stepNum - 1;
 
-                if (targetIdx >= 0 && targetIdx < stepIndex && day1Content.taskInputTypes?.[targetIdx] === 'poll') {
+                if (targetIdx >= 0 && targetIdx < stepIndex) {
                     const val = taskInputs[targetIdx];
                     if (!val || typeof val !== 'string' || !val.trim()) {
                         return false;
                     }
 
-                    let userChoices: string[] = [];
-                    try {
-                        if (val.trim().startsWith('[')) {
-                            userChoices = JSON.parse(val);
-                        } else if (val.trim().startsWith('{')) {
-                            userChoices = Object.values(JSON.parse(val));
-                        } else {
+                    if (day1Content.taskInputTypes?.[targetIdx] === 'poll') {
+                        let userChoices: string[] = [];
+                        try {
+                            if (val.trim().startsWith('[')) {
+                                userChoices = JSON.parse(val);
+                            } else if (val.trim().startsWith('{')) {
+                                userChoices = Object.values(JSON.parse(val));
+                            } else {
+                                userChoices = [val.trim()];
+                            }
+                        } catch (e) {
                             userChoices = [val.trim()];
                         }
-                    } catch (e) {
-                        userChoices = [val.trim()];
-                    }
-                    userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
+                        userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
 
-                    let writtenOpts: string[] = [];
-                    if (day1Content.taskPollOptions?.[targetIdx]) {
-                        try {
-                            writtenOpts = JSON.parse(day1Content.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
-                        } catch (e) {}
-                    }
-
-                    if (opNum !== undefined) {
-                        const optIndex = opNum - 1;
-                        const targetWrittenText = writtenOpts[optIndex];
-                        if (targetWrittenText) {
-                            const selectedMatch = userChoices.some(c => c.toLowerCase() === targetWrittenText.toLowerCase());
-                            if (!selectedMatch) {
-                                return false;
-                            }
+                        let writtenOpts: string[] = [];
+                        if (day1Content.taskPollOptions?.[targetIdx]) {
+                            try {
+                                writtenOpts = JSON.parse(day1Content.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
+                            } catch (e) {}
                         }
-                    } else {
-                        const claimedWrittenOpts = new Set<string>();
-                        if (Array.isArray(day1Content.taskPrompts)) {
-                            day1Content.taskPrompts.forEach((otherP: string) => {
-                                if (!otherP) return;
-                                const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)\\}`, 'g');
-                                let sm: RegExpExecArray | null;
-                                while ((sm = subRegex.exec(otherP)) !== null) {
-                                    const oIdx = parseInt(sm[1], 10) - 1;
-                                    if (writtenOpts[oIdx]) {
-                                        claimedWrittenOpts.add(writtenOpts[oIdx].toLowerCase());
-                                    }
+
+                        if (opNum !== undefined) {
+                            const optIndex = opNum - 1;
+                            const targetWrittenText = writtenOpts[optIndex];
+                            if (targetWrittenText) {
+                                const selectedMatch = userChoices.some(c => c.toLowerCase() === targetWrittenText.toLowerCase());
+                                if (!selectedMatch) {
+                                    return false;
                                 }
-                            });
-                        }
+                            }
+                        } else {
+                            const claimedWrittenOpts = new Set<string>();
+                            if (Array.isArray(day1Content.taskPrompts)) {
+                                day1Content.taskPrompts.forEach((otherP: string) => {
+                                    if (!otherP) return;
+                                    const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|h|s|l|n))?\\}`, 'gi');
+                                    let sm: RegExpExecArray | null;
+                                    while ((sm = subRegex.exec(otherP)) !== null) {
+                                        const oIdx = parseInt(sm[1], 10) - 1;
+                                        if (writtenOpts[oIdx]) {
+                                            claimedWrittenOpts.add(writtenOpts[oIdx].toLowerCase());
+                                        }
+                                    }
+                                });
+                            }
 
-                        if (claimedWrittenOpts.size > 0 && userChoices.length > 0) {
-                            const unclaimedSelected = userChoices.filter(c => !claimedWrittenOpts.has(c.toLowerCase()));
-                            if (unclaimedSelected.length === 0) {
-                                return false;
+                            if (claimedWrittenOpts.size > 0 && userChoices.length > 0) {
+                                const unclaimedSelected = userChoices.filter(c => !claimedWrittenOpts.has(c.toLowerCase()));
+                                if (unclaimedSelected.length === 0) {
+                                    return false;
+                                }
                             }
                         }
                     }

@@ -614,10 +614,6 @@ const SprintLandingPage: React.FC = () => {
                                 </svg>
                                 Refine Focus
                             </button>
-                            <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                                <LocalLogo type="favicon" className="h-3 w-auto" />
-                                {slotInfo ? `${slotInfo.stage}: ${slotInfo.name}` : 'PHASE 01: CORE'}
-                            </div>
                         </div>
                     </div>
                 </header>
