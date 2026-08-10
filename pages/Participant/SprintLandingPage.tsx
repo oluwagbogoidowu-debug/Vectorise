@@ -741,10 +741,10 @@ const SprintLandingPage: React.FC = () => {
 
                                 {/* Category & Sprint Type Badges */}
                                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                                    <span className="px-2.5 py-1 rounded-md bg-white/20 backdrop-blur-md border border-white/20 text-white text-[9px] font-black uppercase tracking-[0.2em]">
+                                    <span className="px-2 py-0.5 rounded-md bg-white/20 backdrop-blur-md border border-white/20 text-white text-[8px] font-black uppercase tracking-[0.2em]">
                                         {sprint.category || 'Fundamentals'}
                                     </span>
-                                    <span className="px-2.5 py-1 rounded-md bg-primary text-white text-[9px] font-black uppercase tracking-[0.2em] shadow-sm border border-primary/20">
+                                    <span className="px-2 py-0.5 rounded-md bg-primary text-white text-[8px] font-black uppercase tracking-[0.2em] shadow-sm border border-primary/20">
                                         {sprint.sprintType || 'Evolution'}
                                     </span>
                                 </div>

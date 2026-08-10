@@ -134,10 +134,10 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 >
                     <div className="relative z-10 flex flex-col h-full">
                         <div className="flex justify-between items-start mb-5">
-                            <span className="px-4 py-1.5 bg-white/20 text-white rounded-full text-[10px] font-black uppercase tracking-widest">
+                            <span className="px-2.5 py-0.5 bg-white/20 text-white rounded-full text-[8px] font-black uppercase tracking-widest">
                                 {sprint.category || 'Phase 02'}
                             </span>
-                            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">
+                            <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">
                                 {sprint.sprintType || 'Evolution'}
                             </span>
                         </div>
