@@ -93,6 +93,8 @@ const SignUpPage: React.FC = () => {
         });
       }
 
+      await userService.addUserEnrollment(uid, sprintId);
+
       if (enrollment && enrollment.id) {
         console.log("[SignUpPage] Confirmed enrollment created/updated:", enrollment.id, "Removing pending_first_action");
         localStorage.removeItem('pending_first_action');

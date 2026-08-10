@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
 import { sanitizeData, safeJSONStringify, userService } from './userService';
 import { ensureSeedBlogsInFirestore } from './blogService';
@@ -838,8 +838,40 @@ export const sprintService = {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
         const enrollmentRef = doc(db, 'users', userId, 'enrollments', enrollmentId);
         const existing = await getDoc(enrollmentRef);
+
+        const hasInputs = !!(
+            (commercial?.taskInputs && commercial.taskInputs.some(a => a && String(a).trim().length > 0)) ||
+            (commercial?.firstActionInput && commercial.firstActionInput.trim().length > 0)
+        );
+        const now = new Date().toISOString();
         
-        if (existing.exists()) return sanitizeData(existing.data()) as ParticipantSprint;
+        if (existing.exists()) {
+            const existingData = sanitizeData(existing.data()) as ParticipantSprint;
+            if (hasInputs && existingData.progress && existingData.progress[0]) {
+                const updatedProgress = [...existingData.progress];
+                if (!updatedProgress[0].completed || commercial?.taskInputs) {
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: updatedProgress[0].completedAt || now,
+                        answers: commercial?.taskInputs || (commercial?.firstActionInput ? [commercial.firstActionInput] : updatedProgress[0].answers),
+                        submission: commercial?.taskInputs?.[0] || commercial?.firstActionInput || updatedProgress[0].submission || ""
+                    };
+                    await updateDoc(enrollmentRef, {
+                        progress: updatedProgress,
+                        last_activity_at: now
+                    });
+                    existingData.progress = updatedProgress;
+                }
+            }
+            try {
+                const userRef = doc(db, 'users', userId);
+                await updateDoc(userRef, {
+                    enrolledSprintIds: arrayUnion(sprintId)
+                });
+            } catch (e) {}
+            return existingData;
+        }
 
         // Check for active enrollments to determine if this should be queued
         const activeQuery = query(
@@ -849,7 +881,7 @@ export const sprintService = {
         const activeSnap = await getDocs(activeQuery);
         const hasActive = !activeSnap.empty;
 
-        const now = new Date().toISOString();
+        const effectiveDuration = duration && duration > 0 ? duration : 1;
         const newEnrollment: ParticipantSprint = {
             id: enrollmentId,
             sprint_id: sprintId,
@@ -865,15 +897,25 @@ export const sprintService = {
             sentNudges: [],
             soundDisabled: false,
             notificationsDisabled: false,
-            progress: Array.from({ length: duration }, (_, i) => ({
+            progress: Array.from({ length: effectiveDuration }, (_, i) => ({
                 day: i + 1,
-                completed: false,
+                completed: (i === 0 && hasInputs) ? true : false,
+                completedAt: (i === 0 && hasInputs) ? now : undefined,
                 answers: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs : (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
                 submission: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs[0] || "" : (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
             }))
         };
 
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
+
+        try {
+            const userRef = doc(db, 'users', userId);
+            await updateDoc(userRef, {
+                enrolledSprintIds: arrayUnion(sprintId)
+            });
+        } catch (e) {
+            console.warn("[SprintService] Failed to update enrolledSprintIds on user doc:", e);
+        }
         
         // Notify coach(es) via push and in-app notification when a user starts a sprint
         notifyCoachesOnSprintStart(userId, sprintId, commercial?.coachId).catch(err => 

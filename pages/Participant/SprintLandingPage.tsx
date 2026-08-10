@@ -595,16 +595,8 @@ const SprintLandingPage: React.FC = () => {
             {/* NAVIGATION HEADER - Full Width */}
             {isOnboardingPath ? (
                 <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
-                    <div className="max-w-screen-lg mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex flex-col items-start">
-                            <div className="flex items-center gap-2.5 mb-2">
-                                <LocalLogo type="green" className="h-8 w-auto" />
-                            </div>
-                            <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: '25%' }}></div>
-                            </div>
-                        </div>
-                        <div className="flex justify-between sm:justify-end items-center gap-4 w-full sm:w-auto">
+                    <div className="max-w-screen-lg mx-auto flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
                             <button 
                                 onClick={() => navigate('/onboarding/focus-selector', { state: { trigger: activeTrigger } })} 
                                 className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
@@ -614,6 +606,12 @@ const SprintLandingPage: React.FC = () => {
                                 </svg>
                                 Refine Focus
                             </button>
+                            <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden hidden sm:block">
+                                <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: '25%' }}></div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                            <LocalLogo type="green" className="h-7 w-auto" />
                         </div>
                     </div>
                 </header>

@@ -426,14 +426,22 @@ const SprintPreview: React.FC = () => {
             const firebaseUser = res.user;
             toast.success("Connected with Google successfully!");
 
-            if (sprint) {
+            let targetSprint = sprint;
+            const targetSprintId = sprint?.id || sprintId;
+            if (!targetSprint && targetSprintId) {
+                targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            if (targetSprint) {
                 const effectiveInputs = getEffectiveTaskInputs();
                 const firstInput = effectiveInputs[0] || "";
                 // Auto enroll and complete Day 1 in database
-                const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs
                 } as any);
+
+                await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
 
                 if (enrollment && enrollment.progress && enrollment.progress[0]) {
                     const updatedProgress = [...enrollment.progress];
@@ -453,20 +461,21 @@ const SprintPreview: React.FC = () => {
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
                     localStorage.removeItem('pending_first_action');
-                } else {
-                    console.warn("[SprintPreview:GoogleSignIn] Enrollment ID not confirmed, keeping pending_first_action");
                 }
-                const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+                const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
                 setShowLockModal(false);
                 navigate('/participant/day-success', { 
                     state: { 
                         day: 1, 
                         coinsUnlocked: 10,
                         bridgeNote: d1Content?.bridgeNote,
-                        sprintId: sprint.id,
+                        sprintId: targetSprint.id,
                         enrollmentId: enrollment?.id
                     } 
                 });
+            } else {
+                setShowLockModal(false);
+                navigate('/dashboard', { replace: true });
             }
         } catch (error: any) {
             console.error("Google Sign-In Failure:", error);
@@ -498,7 +507,13 @@ const SprintPreview: React.FC = () => {
 
             await updateFbProfile(firebaseUser, { displayName: `${authFirstName} ${authLastName}` });
 
-            const isCoachRegistration = !!(sprint?.audience && sprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
+            let targetSprint = sprint;
+            const targetSprintId = sprint?.id || sprintId;
+            if (!targetSprint && targetSprintId) {
+                targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            const isCoachRegistration = !!(targetSprint?.audience && targetSprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
             const newUser: Partial<any> = {
                 id: firebaseUser.uid,
                 name: `${authFirstName} ${authLastName}`,
@@ -509,7 +524,7 @@ const SprintPreview: React.FC = () => {
                 profileImageUrl: `https://ui-avatars.com/api/?name=${authFirstName}+${authLastName}&background=0E7850&color=fff`,
                 persona: isCoachRegistration ? 'Coach' : 'Seeker',
                 onboardingAnswers: {},
-                enrolledSprintIds: [],
+                enrolledSprintIds: targetSprintId ? [targetSprintId] : [],
                 isPartner: false,
                 partnerData: null,
                 walletBalance: 0,
@@ -526,16 +541,18 @@ const SprintPreview: React.FC = () => {
             await userService.createUserDocument(firebaseUser.uid, newUser);
 
             let enrollmentId = "";
-            const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+            const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
             let day1BridgeNote = d1Content?.bridgeNote;
-            if (sprint) {
+            if (targetSprint) {
                 const effectiveInputs = getEffectiveTaskInputs();
                 const firstInput = effectiveInputs[0] || "";
                 // Auto enroll and complete Day 1 in database
-                const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs
                 } as any);
+
+                await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
 
                 if (enrollment && enrollment.progress && enrollment.progress[0]) {
                     const updatedProgress = [...enrollment.progress];
@@ -557,8 +574,6 @@ const SprintPreview: React.FC = () => {
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:EmailSignUp] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
                     localStorage.removeItem('pending_first_action');
-                } else {
-                    console.warn("[SprintPreview:EmailSignUp] Enrollment ID not confirmed, keeping pending_first_action");
                 }
             }
 
@@ -568,7 +583,7 @@ const SprintPreview: React.FC = () => {
                 coinsUnlocked: 10,
                 bridgeNote: day1BridgeNote,
                 enrollmentId,
-                sprintId: sprint?.id
+                sprintId: targetSprint?.id || targetSprintId
             };
 
             toast.success("Account created successfully!");
@@ -599,14 +614,22 @@ const SprintPreview: React.FC = () => {
             const firebaseUser = userCredential.user;
             toast.success("Logged in successfully!");
 
-            if (sprint) {
+            let targetSprint = sprint;
+            const targetSprintId = sprint?.id || sprintId;
+            if (!targetSprint && targetSprintId) {
+                targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            if (targetSprint) {
                 const effectiveInputs = getEffectiveTaskInputs();
                 const firstInput = effectiveInputs[0] || "";
                 // Auto enroll and complete Day 1 in database
-                const enrollment = await sprintService.enrollUser(firebaseUser.uid, sprint.id, sprint.duration, {
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs
                 } as any);
+
+                await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
 
                 if (enrollment && enrollment.progress && enrollment.progress[0]) {
                     const updatedProgress = [...enrollment.progress];
@@ -627,8 +650,6 @@ const SprintPreview: React.FC = () => {
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:EmailLogin] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
                     localStorage.removeItem('pending_first_action');
-                } else {
-                    console.warn("[SprintPreview:EmailLogin] Enrollment ID not confirmed, keeping pending_first_action");
                 }
 
                 setShowLockModal(false);
@@ -637,10 +658,13 @@ const SprintPreview: React.FC = () => {
                     coinsUnlocked: 10, 
                     bridgeNote: day1Content?.bridgeNote,
                     enrollmentId: enrollment.id,
-                    sprintId: sprint.id
+                    sprintId: targetSprint.id
                 };
 
                 navigate('/participant/day-success', { state: daySuccessState, replace: true });
+            } else {
+                setShowLockModal(false);
+                navigate('/dashboard', { replace: true });
             }
         } catch (error: any) {
             console.error("Login error:", error);
