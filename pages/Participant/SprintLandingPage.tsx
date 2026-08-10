@@ -595,6 +595,7 @@ const SprintLandingPage: React.FC = () => {
             <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-primary text-white relative overflow-hidden selection:bg-white/10">
                 {/* Navigation Header */}
                 <header className="w-full max-w-[340px] sm:max-w-[380px] z-10 flex items-center justify-between pt-2">
+                    <LocalLogo type="white" className="h-5 w-auto opacity-80" />
                     <button 
                         onClick={() => navigate('/onboarding/focus-selector', { state: { trigger: activeTrigger } })} 
                         className="group flex items-center text-white/60 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer"
@@ -604,7 +605,6 @@ const SprintLandingPage: React.FC = () => {
                         </svg>
                         Refine Focus
                     </button>
-                    <LocalLogo type="white" className="h-5 w-auto opacity-40" />
                 </header>
 
                 {/* Main Content */}
