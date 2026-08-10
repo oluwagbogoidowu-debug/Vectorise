@@ -625,10 +625,6 @@ const SprintLandingPage: React.FC = () => {
                         />
                     </div>
 
-                    <p className="text-sm sm:text-base font-semibold text-white/90 max-w-[320px] mx-auto leading-relaxed">
-                        This will help you build direction before anything else
-                    </p>
-
                     <button
                         onClick={() => setShowFullDescription(true)}
                         className="w-full py-5 bg-white text-primary font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -819,7 +815,7 @@ const SprintLandingPage: React.FC = () => {
                             <div className="relative z-10">
                                 {enrollmentStatus === 'none' ? (
                                     <div>
-                                        <p className="text-sm sm:text-base font-semibold text-gray-700 leading-relaxed">
+                                        <p className="text-sm sm:text-base font-semibold text-gray-700 leading-relaxed text-center">
                                             {sprint.actionTrigger || "Start by seeing how you actually spend your time."}
                                         </p>
                                     </div>
