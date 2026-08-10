@@ -597,8 +597,8 @@ const SprintLandingPage: React.FC = () => {
                 <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
                     <div className="max-w-screen-lg mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex flex-col items-start">
-                            <div className="flex items-center gap-2.5 mb-2 bg-primary px-3 py-1.5 rounded-xl shadow-sm">
-                                <LocalLogo type="white" className="h-6 w-auto" />
+                            <div className="flex items-center gap-2.5 mb-2">
+                                <LocalLogo type="green" className="h-8 w-auto" />
                             </div>
                             <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
                                 <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: '25%' }}></div>
@@ -614,8 +614,8 @@ const SprintLandingPage: React.FC = () => {
                                 </svg>
                                 Refine Focus
                             </button>
-                            <div className="px-4 py-1.5 rounded-xl border border-primary/20 bg-primary text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm">
-                                <LocalLogo type="white" className="h-3.5 w-auto" />
+                            <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                                <LocalLogo type="favicon" className="h-3 w-auto" />
                                 {slotInfo ? `${slotInfo.stage}: ${slotInfo.name}` : 'PHASE 01: CORE'}
                             </div>
                         </div>
@@ -635,8 +635,8 @@ const SprintLandingPage: React.FC = () => {
                                 Back to Registry
                             </button>
                         ) : (
-                            <div className="flex items-center gap-2.5 bg-primary px-3 py-1.5 rounded-xl shadow-sm">
-                                <LocalLogo type="white" className="h-6 w-auto" />
+                            <div className="flex items-center gap-2.5">
+                                <LocalLogo type="green" className="h-8 w-auto" />
                             </div>
                         )}
                         <div className="flex items-center gap-3">
@@ -647,8 +647,8 @@ const SprintLandingPage: React.FC = () => {
                                 <Share2 className="w-3.5 h-3.5" />
                                 Share
                             </button>
-                            <div className="px-4 py-1.5 rounded-xl border border-primary/20 bg-primary text-white text-[11px] font-black uppercase tracking-widest hidden sm:flex items-center gap-2 shadow-sm">
-                                <LocalLogo type="white" className="h-3.5 w-auto" />
+                            <div className="px-4 py-1.5 rounded-xl border border-[#D3EBE3] bg-white text-[#159E6A] text-[11px] font-black uppercase tracking-widest hidden sm:flex items-center gap-2">
+                                <LocalLogo type="favicon" className="h-3 w-auto" />
                                 VECTORISE
                             </div>
                         </div>
