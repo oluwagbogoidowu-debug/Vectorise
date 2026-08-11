@@ -231,8 +231,8 @@ export function formatInterpolatedText(
                 const parsed = JSON.parse(val);
                 if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
               } catch (e) {}
-            } else if (typeof val === 'string') {
-              linkedItems.push(...val.split(',').map((s: string) => s.trim()).filter(Boolean));
+            } else if (typeof val === 'string' && val.trim()) {
+              linkedItems.push(val.trim());
             }
           } else {
             const srcType = dayContent?.taskInputTypes?.[srcIdx];

@@ -1357,7 +1357,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             return {
               ...p,
               answers: inputsToSave,
-              submission: inputsToSave.filter((ti) => ti && ti.trim()).join(" | "),
+              submission: inputsToSave.map((ti) => ti || "").join(" | "),
             };
           }
           return p;
@@ -1382,7 +1382,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           return {
             ...p,
             answers: inputsToSave,
-            submission: inputsToSave.filter((ti) => ti && ti.trim()).join(" | "),
+            submission: inputsToSave.map((ti) => ti || "").join(" | "),
           };
         }
         return p;
@@ -1393,7 +1393,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           day: viewingDay,
           completed: false,
           answers: inputsToSave,
-          submission: inputsToSave.filter((ti) => ti && ti.trim()).join(" | "),
+          submission: inputsToSave.map((ti) => ti || "").join(" | "),
         });
       }
 
@@ -1471,10 +1471,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getLinkedTagsForStep = (stepIndex: number): string[] => {
     if (!dayContent) return [];
 
-    // 1. Check if the new taskLinkedSources tells us which steps are linked
-    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
+    // 1. Check if taskLinkedSources tells us which steps are linked
+    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {
+      const sources = dayContent.taskLinkedSources[stepIndex];
+      if (sources.length === 0) return [];
       const allTags: string[] = [];
-      dayContent.taskLinkedSources[stepIndex].forEach(srcIndex => {
+      sources.forEach(srcIndex => {
         if (srcIndex >= 0) {
           if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
             try {
@@ -1524,7 +1526,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       return Array.from(new Set(allTags)).filter(Boolean);
     }
 
-    // 2. Fallback to legacy structure - only if taskLinkedToNext is true
+    // 2. If taskLinkedSources is not set at all, check if step has its own custom poll options
+    let customOptions: string[] = [];
+    if (dayContent.taskPollOptions?.[stepIndex]) {
+      try {
+        customOptions = JSON.parse(dayContent.taskPollOptions[stepIndex]).filter(Boolean);
+      } catch (e) {}
+    }
+    if (customOptions.length > 0) {
+      return [];
+    }
+
+    // Fallback to legacy structure only if taskLinkedToNext is true
     let linkedSourceIndex = -1;
     for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
       const isLinked = 
@@ -1618,10 +1631,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
     if (!dayContent) return "";
 
-    // 1. Check if the taskLinkedSources has sources
-    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
+    // 1. Check if taskLinkedSources has sources for this step
+    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {
+      const sources = dayContent.taskLinkedSources[stepIndex];
+      if (sources.length === 0) return "";
       const texts: string[] = [];
-      dayContent.taskLinkedSources[stepIndex].forEach(srcIndex => {
+      sources.forEach(srcIndex => {
         if (srcIndex >= 0) {
           if (srcIndex < currentInputs.length && currentInputs[srcIndex]) {
             const val = currentInputs[srcIndex];
@@ -1653,43 +1668,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         }
       });
       return texts.join("\n\n");
-    }
-
-    // 2. Fallback to legacy structure - only if taskLinkedToNext is true for stepIndex - 1
-    let linkedSourceIndex = -1;
-    for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
-      const isLinked = 
-        dayContent.taskLinkedToNext?.[prevIndex] === true ||
-        (dayContent.taskLinkedToNext?.[prevIndex] as any) === "true";
-      if (isLinked) {
-        linkedSourceIndex = prevIndex;
-        break;
-      }
-    }
-
-    if (linkedSourceIndex !== -1 && currentInputs[linkedSourceIndex]) {
-      const val = currentInputs[linkedSourceIndex];
-      if (val.startsWith("{")) {
-        try {
-          const parsed = JSON.parse(val);
-          const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-          return parts.join("\n");
-        } catch (e) {
-          return val;
-        }
-      } else if (val.startsWith("[")) {
-        try {
-          const parsed = JSON.parse(val);
-          if (Array.isArray(parsed)) {
-            return parsed.join(", ");
-          }
-          return val;
-        } catch (e) {
-          return val;
-        }
-      } else {
-        return val;
-      }
     }
 
     return "";
@@ -1961,7 +1939,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               return {
                 ...p,
                 answers: taskInputs,
-                submission: taskInputs.filter((ti) => ti && ti.trim()).join(" | "),
+                submission: taskInputs.map((ti) => ti || "").join(" | "),
               };
             }
             return p;
@@ -1988,7 +1966,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             return {
               ...p,
               answers: taskInputs,
-              submission: taskInputs.filter((ti) => ti && ti.trim()).join(" | "),
+              submission: taskInputs.map((ti) => ti || "").join(" | "),
             };
           }
           return p;
@@ -1999,7 +1977,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             day: viewingDay,
             completed: false,
             answers: taskInputs,
-            submission: taskInputs.filter((ti) => ti && ti.trim()).join(" | "),
+            submission: taskInputs.map((ti) => ti || "").join(" | "),
           });
         }
 
@@ -2271,7 +2249,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 ...p,
                 completed: true,
                 completedAt: timestamp,
-                submission: taskInputs.filter((ti) => ti.trim()).join(" | "),
+                submission: taskInputs.map((ti) => ti || "").join(" | "),
                 answers: taskInputs,
               }
             : p,
@@ -2336,7 +2314,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               ...p,
               completed: true,
               completedAt: timestamp,
-              submission: taskInputs.filter((ti) => ti.trim()).join(" | "),
+              submission: taskInputs.map((ti) => ti || "").join(" | "),
               answers: taskInputs,
             }
           : p,
@@ -2969,7 +2947,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         if (taskInputs[i] && taskInputs[i].startsWith("[")) {
                                           selectedTags = JSON.parse(taskInputs[i]);
                                         } else if (taskInputs[i]) {
-                                          selectedTags = taskInputs[i].split(",").map(t => t.trim()).filter(Boolean);
+                                          selectedTags = [taskInputs[i].trim()].filter(Boolean);
                                         }
                                       } catch (e) {}
 
@@ -3334,7 +3312,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             tags = [taskInputs[i]];
                                           }
                                         } else if (cleanVal) {
-                                          tags = cleanVal.split(",").map(t => t.trim()).filter(Boolean);
+                                          tags = [cleanVal];
                                         }
                                         return tags.map((tag: string, tIndex: number) => (
                                           <span
@@ -3922,7 +3900,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       tags = [taskInputs[0]];
                                     }
                                   } else if (cleanVal) {
-                                    tags = cleanVal.split(",").map(t => t.trim()).filter(Boolean);
+                                    tags = [cleanVal];
                                   }
                                   return tags.map((tag: string, tIndex: number) => (
                                     <span

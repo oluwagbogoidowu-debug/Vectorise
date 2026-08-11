@@ -1017,9 +1017,11 @@ const SprintPreview: React.FC = () => {
         if (!day1Content) return [];
 
         // 1. Check if the new taskLinkedSources tells us which steps are linked
-        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
+        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex])) {
+            const sources = day1Content.taskLinkedSources[stepIndex];
+            if (sources.length === 0) return [];
             const allTags: string[] = [];
-            day1Content.taskLinkedSources[stepIndex].forEach(srcIndex => {
+            sources.forEach(srcIndex => {
                 if (srcIndex >= 0) {
                     if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
                         try {
@@ -1069,7 +1071,18 @@ const SprintPreview: React.FC = () => {
             return Array.from(new Set(allTags)).filter(Boolean);
         }
 
-        // 2. Fallback to legacy structure - only if taskLinkedToNext is true
+        // 2. Check if step has its own custom poll options
+        let customOptions: string[] = [];
+        if (day1Content.taskPollOptions?.[stepIndex]) {
+            try {
+                customOptions = JSON.parse(day1Content.taskPollOptions[stepIndex]).filter(Boolean);
+            } catch (e) {}
+        }
+        if (customOptions.length > 0) {
+            return [];
+        }
+
+        // Fallback to legacy structure only if taskLinkedToNext is true
         let linkedSourceIndex = -1;
         for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
             const isLinked = 
@@ -1122,9 +1135,11 @@ const SprintPreview: React.FC = () => {
         if (!day1Content) return "";
 
         // 1. Check if the taskLinkedSources has sources
-        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
+        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex])) {
+            const sources = day1Content.taskLinkedSources[stepIndex];
+            if (sources.length === 0) return "";
             const texts: string[] = [];
-            day1Content.taskLinkedSources[stepIndex].forEach(srcIndex => {
+            sources.forEach(srcIndex => {
                 if (srcIndex >= 0) {
                     if (srcIndex < currentInputs.length && currentInputs[srcIndex]) {
                         const val = currentInputs[srcIndex];
@@ -1156,43 +1171,6 @@ const SprintPreview: React.FC = () => {
                 }
             });
             return texts.join("\n\n");
-        }
-
-        // 2. Fallback to legacy structure - only if taskLinkedToNext is true for stepIndex - 1
-        let linkedSourceIndex = -1;
-        for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
-            const isLinked = 
-                day1Content.taskLinkedToNext?.[prevIndex] === true ||
-                (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
-            if (isLinked) {
-                linkedSourceIndex = prevIndex;
-                break;
-            }
-        }
-
-        if (linkedSourceIndex !== -1 && currentInputs[linkedSourceIndex]) {
-            const val = currentInputs[linkedSourceIndex];
-            if (val.startsWith("{")) {
-                try {
-                    const parsed = JSON.parse(val);
-                    const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-                    return parts.join("\n");
-                } catch (e) {
-                    return val;
-                }
-            } else if (val.startsWith("[")) {
-                try {
-                    const parsed = JSON.parse(val);
-                    if (Array.isArray(parsed)) {
-                        return parsed.join(", ");
-                    }
-                    return val;
-                } catch (e) {
-                    return val;
-                }
-            } else {
-                return val;
-            }
         }
 
         return "";
@@ -1437,7 +1415,7 @@ const SprintPreview: React.FC = () => {
                                                         if (taskInputs[i] && taskInputs[i].startsWith("[")) {
                                                             selectedTags = JSON.parse(taskInputs[i]);
                                                         } else if (taskInputs[i]) {
-                                                            selectedTags = taskInputs[i].split(",").map(t => t.trim()).filter(Boolean);
+                                                            selectedTags = [taskInputs[i].trim()].filter(Boolean);
                                                         }
                                                     } catch (e) {}
 

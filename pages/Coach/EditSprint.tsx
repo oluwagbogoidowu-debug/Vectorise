@@ -480,7 +480,7 @@ const EditSprint: React.FC = () => {
                 try {
                     options = JSON.parse(pollOptsRaw);
                 } catch (e) {
-                    options = pollOptsRaw.split(',').map((o: any) => String(o).trim()).filter(Boolean);
+                    options = [pollOptsRaw.trim()].filter(Boolean);
                 }
             }
             tags.push({ prompt, options: options.filter(Boolean) });

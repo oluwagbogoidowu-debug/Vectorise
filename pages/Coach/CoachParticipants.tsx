@@ -624,7 +624,7 @@ const CoachParticipants: React.FC = () => {
                                                             } catch (e) {}
                                                         }
                                                         if (!displayAsTags && (item.type === 'tags' || item.type === 'poll')) {
-                                                            tags = item.answer.split(',').map((t: string) => t.trim()).filter(Boolean);
+                                                            tags = [item.answer.trim()].filter(Boolean);
                                                             displayAsTags = true;
                                                         }
                                                     }
