@@ -431,9 +431,16 @@ export function formatInterpolatedText(
         userChoices = userChoices.map((c) => String(c).trim()).filter(Boolean);
 
         if (userChoices.length > 0) {
-          const matchChoice = userChoices.find((c) => c.toLowerCase() === targetWrittenText.toLowerCase());
+          const matchChoice = userChoices.find((c) => {
+            const lowerC = c.toLowerCase();
+            return lowerC === targetWrittenText.toLowerCase() ||
+                   lowerC === `poll ${opNum}` ||
+                   lowerC === `op ${opNum}` ||
+                   lowerC === `op${opNum}` ||
+                   lowerC === String(opNum);
+          });
           if (matchChoice) {
-            return formatOutput([matchChoice]);
+            return formatOutput([targetWrittenText]);
           }
         }
 

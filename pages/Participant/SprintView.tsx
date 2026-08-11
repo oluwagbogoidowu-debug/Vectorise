@@ -1188,12 +1188,21 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (pollLink && pollLink !== 'none' && pollLink !== 'null') {
       let pollIdx = -1;
       let targetLinkTag = pollLink;
+      let targetPollDay = viewingDay;
 
       if (pollLink.includes(":")) {
         const parts = pollLink.split(":");
-        const stepPart = parts[0].replace("step", "");
-        pollIdx = parseInt(stepPart, 10);
-        targetLinkTag = parts[1];
+        if (parts.length === 3) {
+          const dayPart = parts[0].replace(/day|d/gi, "");
+          targetPollDay = parseInt(dayPart, 10) || viewingDay;
+          const stepPart = parts[1].replace("step", "");
+          pollIdx = parseInt(stepPart, 10);
+          targetLinkTag = parts[2];
+        } else {
+          const stepPart = parts[0].replace("step", "");
+          pollIdx = parseInt(stepPart, 10);
+          targetLinkTag = parts[1];
+        }
       } else {
         if (dayContent.taskInputTypes) {
           for (let i = stepIndex - 1; i >= 0; i--) {
@@ -1214,21 +1223,33 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }
 
       if (pollIdx >= 0) {
-        const selection = taskInputs[pollIdx];
+        const pollDC = targetPollDay === viewingDay ? dayContent : (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => Number(dc.day) === targetPollDay) : undefined);
+        
+        let selection: string | undefined = undefined;
+        if (targetPollDay === viewingDay) {
+          selection = taskInputs[pollIdx];
+        } else {
+          const prevProg = enrollment?.progress?.find(p => Number(p.day) === targetPollDay);
+          if (prevProg) {
+            if (Array.isArray(prevProg.answers)) selection = prevProg.answers[pollIdx];
+            else if (prevProg.answersMap) selection = (prevProg.answersMap as any)[pollIdx];
+          }
+        }
+
         if (!selection) {
           return false;
         }
 
         let customOptions: string[] = [];
-        if (dayContent.taskPollOptions?.[pollIdx]) {
+        if (pollDC?.taskPollOptions?.[pollIdx]) {
           try {
-            customOptions = JSON.parse(dayContent.taskPollOptions[pollIdx]);
+            customOptions = JSON.parse(pollDC.taskPollOptions[pollIdx]);
           } catch (e) {}
         }
         customOptions = customOptions.filter(Boolean);
 
         let linkedTags: string[] = [];
-        if (pollIdx > 0) {
+        if (pollIdx > 0 && pollDC) {
           linkedTags = getLinkedTagsForStep(pollIdx);
         }
         const pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
@@ -1244,10 +1265,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           selectedOptions = [selection];
         }
 
+        const normTarget = targetLinkTag.toLowerCase().trim();
         const match = pollOptions.some((opt, optIndex) => {
           const tag = `poll ${optIndex + 1}`;
-          if (tag === targetLinkTag) {
-            return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
+          if (tag === normTarget || normTarget === `op ${optIndex + 1}` || normTarget === `op${optIndex + 1}`) {
+            return selectedOptions.some(s => {
+              const lowerS = String(s).toLowerCase().trim();
+              return lowerS === opt.toLowerCase().trim() || lowerS === tag || lowerS === String(optIndex + 1) || lowerS === `op ${optIndex + 1}` || lowerS === `op${optIndex + 1}`;
+            });
           }
           return false;
         });
@@ -1256,24 +1281,43 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }
     }
 
-    // Implicit placeholder branch checking ({Step N OpM h}, {Step N OpM}, {Step N h}, {Step N list}, {Step N})
+    // Implicit placeholder branch checking ({Step N OpM}, {D1 Step N OpM}, {D2 Step N OpM}, etc.)
     const prompt = dayContent.taskPrompts?.[stepIndex];
     if (prompt) {
-      const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|h|s|l|n))?\}/gi;
+      const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|h|s|l|n))?\}/gi;
       let match: RegExpExecArray | null;
 
       while ((match = regex.exec(prompt)) !== null) {
-        const stepNum = parseInt(match[1], 10);
-        const opNum = match[2] ? parseInt(match[2], 10) : undefined;
+        const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
+        const stepNum = parseInt(match[2], 10);
+        const opNum = match[3] ? parseInt(match[3], 10) : undefined;
         const targetIdx = stepNum - 1;
+        const targetDay = dayNum !== undefined ? dayNum : (dayContent.day || viewingDay);
 
-        if (targetIdx >= 0 && targetIdx < stepIndex) {
-          const val = taskInputs[targetIdx];
+        if (targetDay <= viewingDay) {
+          if (targetDay === viewingDay && targetIdx >= stepIndex) {
+            continue;
+          }
+
+          const targetDC = targetDay === viewingDay ? dayContent : (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => Number(dc.day) === targetDay) : undefined);
+          if (!targetDC) continue;
+
+          let val: string | undefined = undefined;
+          if (targetDay === viewingDay) {
+            val = taskInputs[targetIdx];
+          } else {
+            const prevProg = enrollment?.progress?.find(p => Number(p.day) === targetDay);
+            if (prevProg) {
+              if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
+              else if (prevProg.answersMap) val = (prevProg.answersMap as any)[targetIdx];
+            }
+          }
+
           if (!val || typeof val !== 'string' || !val.trim()) {
             return false;
           }
 
-          if (dayContent.taskInputTypes?.[targetIdx] === 'poll') {
+          if (targetDC.taskInputTypes?.[targetIdx] === 'poll') {
             let userChoices: string[] = [];
             try {
               if (val.trim().startsWith('[')) {
@@ -1289,27 +1333,32 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
 
             let writtenOpts: string[] = [];
-            if (dayContent.taskPollOptions?.[targetIdx]) {
+            if (targetDC.taskPollOptions?.[targetIdx]) {
               try {
-                writtenOpts = JSON.parse(dayContent.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
+                writtenOpts = JSON.parse(targetDC.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
               } catch (e) {}
             }
 
             if (opNum !== undefined) {
               const optIndex = opNum - 1;
               const targetWrittenText = writtenOpts[optIndex];
-              if (targetWrittenText) {
-                const selectedMatch = userChoices.some(c => c.toLowerCase() === targetWrittenText.toLowerCase());
-                if (!selectedMatch) {
-                  return false;
-                }
+              const selectedMatch = userChoices.some(c => {
+                const lowerC = c.toLowerCase();
+                if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;
+                if (lowerC === `poll ${opNum}` || lowerC === `op ${opNum}` || lowerC === `op${opNum}` || lowerC === String(opNum)) return true;
+                return false;
+              });
+
+              if (!selectedMatch) {
+                return false;
               }
             } else {
               const claimedWrittenOpts = new Set<string>();
               if (Array.isArray(dayContent.taskPrompts)) {
                 dayContent.taskPrompts.forEach((otherP: string) => {
                   if (!otherP) return;
-                  const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|h|s|l|n))?\\}`, 'gi');
+                  const dayPattern = targetDay !== viewingDay ? `(?:[dD](?:ay)?\\s*${targetDay}\\s+)?` : `(?:[dD](?:ay)?\\s*${viewingDay}\\s+)?`;
+                  const subRegex = new RegExp(`\\{${dayPattern}[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|h|s|l|n))?\\}`, 'gi');
                   let sm: RegExpExecArray | null;
                   while ((sm = subRegex.exec(otherP)) !== null) {
                     const oIdx = parseInt(sm[1], 10) - 1;
