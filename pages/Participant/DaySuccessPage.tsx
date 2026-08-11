@@ -79,10 +79,19 @@ const DaySuccessPage: React.FC = () => {
     const sprintId = location.state?.sprintId;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
 
-    if (returnToPreviewUrl) {
-      navigate(returnToPreviewUrl, { replace: true, state: { resetPreview: true } });
-    } else if (isPreview && sprintId) {
-      navigate(`/coach/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
+    if (isPreview) {
+      if (sprintId) {
+        try {
+          sessionStorage.removeItem(`vectorise_preview_enrollment_${sprintId}`);
+        } catch (e) {}
+      }
+      if (returnToPreviewUrl) {
+        navigate(returnToPreviewUrl, { replace: true, state: { resetPreview: true } });
+      } else if (sprintId) {
+        navigate(`/coach/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
+      } else {
+        navigate(-1);
+      }
     } else {
       navigate('/');
     }
@@ -209,7 +218,25 @@ const DaySuccessPage: React.FC = () => {
 
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
-    handleExit();
+    const isPreview = location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl);
+    const sprintId = location.state?.sprintId;
+    const returnToPreviewUrl = location.state?.returnToPreviewUrl;
+
+    if (isPreview) {
+      const nextDay = completedDay + 1;
+      const targetUrl = returnToPreviewUrl || `/coach/sprint/preview/${sprintId}`;
+      navigate(targetUrl, {
+        replace: true,
+        state: {
+          sprint: location.state?.sprint,
+          enrollment: location.state?.enrollment,
+          targetDay: nextDay,
+          isPreview: true
+        }
+      });
+    } else {
+      handleExit();
+    }
   };
 
   const handleRemindMeTomorrow = async () => {

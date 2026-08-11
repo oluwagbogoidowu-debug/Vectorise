@@ -1045,6 +1045,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [enrollment, setEnrollment] = useState<ParticipantSprint | null>(() => {
     if (isPreview) {
       const stateSprint = location.state?.sprint;
+      const targetSprintId = previewSprintId || stateSprint?.id || "preview-sprint";
+
+      if (location.state?.enrollment) {
+        return location.state.enrollment;
+      }
+
+      try {
+        const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${targetSprintId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.progress)) {
+            return parsed;
+          }
+        }
+      } catch (e) {}
+
       const duration = stateSprint?.duration || stateSprint?.pendingChanges?.duration || 5;
       const progress = Array.from({ length: duration }, (_, i) => ({
         day: i + 1,
@@ -1054,7 +1070,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }));
       return {
         id: "preview-enrollment",
-        sprint_id: previewSprintId || stateSprint?.id || "preview-sprint",
+        sprint_id: targetSprintId,
         user_id: user?.id || "preview-user",
         status: "active",
         progress,
@@ -1129,14 +1145,41 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
   useEffect(() => {
     if (location.state?.resetPreview) {
+      const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
+      if (targetSprintId) {
+        try {
+          sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
+        } catch (e) {}
+      }
+      const duration = sprint?.duration || enrollment?.progress?.length || 5;
+      const freshProgress = Array.from({ length: duration }, (_, i) => ({
+        day: i + 1,
+        completed: false,
+        answers: [],
+        submission: "",
+      }));
+      setEnrollment((prev) => prev ? {
+        ...prev,
+        status: "active",
+        progress: freshProgress
+      } as any : null);
+
       setViewingDay(1);
       setActiveTaskIndex(0);
       setTaskInputs(["", "", ""]);
       setIsReflectionModalOpen(false);
       setIsDayCompletionModalOpen(false);
       setIsCompletionModalOpen(false);
+    } else if (location.state?.targetDay) {
+      const maxDay = sprint?.duration || enrollment?.progress?.length || 1;
+      const destDay = Math.min(location.state.targetDay, maxDay);
+      setViewingDay(destDay);
+      setActiveTaskIndex(0);
+      setIsReflectionModalOpen(false);
+      setIsDayCompletionModalOpen(false);
+      setIsCompletionModalOpen(false);
     }
-  }, [location.state]);
+  }, [location.state, sprint?.duration, previewSprintId, sprint?.id, enrollment?.progress?.length]);
 
   const isStepVisible = (stepIndex: number): boolean => {
     if (!dayContent) return true;
@@ -1345,7 +1388,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const lastSavedInputsRef = useRef<string>("");
 
   const saveParticipantInputImmediately = async (inputsToSave: string[]) => {
-    if (!enrollment || !inputsToSave || dayProgress?.completed) return;
+    if (!enrollment || !inputsToSave) return;
+    if (!isPreview && dayProgress?.completed) return;
     const currentInputsStr = JSON.stringify(inputsToSave);
     if (currentInputsStr === lastSavedInputsRef.current) return;
 
@@ -1362,10 +1406,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           }
           return p;
         });
-        return {
+        const updatedEnrollment = {
           ...prev,
           progress: updatedProgress,
         };
+        try {
+          sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, JSON.stringify(updatedEnrollment));
+        } catch (e) {}
+        return updatedEnrollment;
       });
       lastSavedInputsRef.current = currentInputsStr;
       return;
@@ -1917,7 +1965,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
   // Debounced autosave hook for participant inputs
   useEffect(() => {
-    if (!enrollment || !taskInputs || dayProgress?.completed) return;
+    if (!enrollment || !taskInputs) return;
+    if (!isPreview && dayProgress?.completed) return;
 
     const currentInputsStr = JSON.stringify(taskInputs);
     // If the inputs haven't actually changed from what is in the database or what we last saved, don't trigger save
@@ -1944,13 +1993,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             }
             return p;
           });
-          return {
+          const updatedEnrollment = {
             ...prev,
             progress: updatedProgress,
           };
+          try {
+            sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, JSON.stringify(updatedEnrollment));
+          } catch (e) {}
+          return updatedEnrollment;
         });
         lastSavedInputsRef.current = currentInputsStr;
-      }, 1500);
+      }, 500);
       return () => clearTimeout(timer);
     }
 
@@ -2255,11 +2308,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             : p,
         );
 
-        setEnrollment((prevMock) => prevMock ? {
-          ...prevMock,
+        const updatedEnrollment = {
+          ...enrollment,
           progress: updatedProgress,
           ...(isLastDay && updatedProgress.every((p) => p.completed) ? { completed_at: timestamp, status: 'completed' } : {})
-        } as any : null);
+        };
+
+        setEnrollment(updatedEnrollment as any);
+        try {
+          sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, JSON.stringify(updatedEnrollment));
+        } catch (e) {}
 
         if (soundEnabled) {
           try {
@@ -2284,6 +2342,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               bridgeNote: dayContent?.bridgeNote,
               sprintId: sprint?.id || previewSprintId,
               sprint: sprint,
+              enrollment: updatedEnrollment,
               isPreview: true,
               returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
             } 
@@ -2656,7 +2715,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   <button
                     key={day}
                     disabled={isDisabled}
-                    onClick={() => setViewingDay(day)}
+                    onClick={() => {
+                      saveParticipantInputImmediately(taskInputs);
+                      setViewingDay(day);
+                    }}
                     className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 active:scale-95 ${
                       isActive
                         ? "bg-[#0E7850] text-white shadow-xl shadow-primary/20 scale-105"
