@@ -659,7 +659,7 @@ const CoachParticipants: React.FC = () => {
                                                                                 tags.map((tag, tIdx) => (
                                                                                     <span 
                                                                                         key={tIdx} 
-                                                                                        className="inline-flex items-center px-3 py-1 rounded-xl text-[9px] font-bold bg-primary/10 text-primary border border-primary/20 shadow-sm animate-fade-in uppercase tracking-wider h-fit"
+                                                                                        className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary border border-primary/20 shadow-sm animate-fade-in normal-case tracking-normal h-fit max-w-full break-words whitespace-normal text-left"
                                                                                     >
                                                                                         {tag}
                                                                                     </span>

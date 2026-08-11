@@ -5829,7 +5829,7 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
           return (
             <div className="flex flex-wrap gap-2 mt-2">
               {tags.map((tag, i) => (
-                <span key={i} className="bg-indigo-50 text-indigo-800 border border-indigo-100 px-4 py-2 rounded-full font-black italic text-[10px] shadow-sm inline-block">
+                <span key={i} className="bg-indigo-50 text-indigo-800 border border-indigo-100 px-3.5 py-1.5 rounded-xl font-semibold text-xs shadow-sm inline-block normal-case tracking-normal max-w-full break-words whitespace-normal text-left">
                   {tag}
                 </span>
               ))}
