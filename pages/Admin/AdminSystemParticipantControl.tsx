@@ -160,8 +160,26 @@ export default function AdminSystemParticipantControl() {
                   </div>
                 </div>
 
-                {/* Delete Controls */}
+                {/* Delete Controls & Repair */}
                 <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-end flex-shrink-0">
+                  {/* Repair Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const panel = document.getElementById('repair-responses-btn');
+                      if (panel) {
+                        panel.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/60 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                    title="Audit and repair user response records using Repair Responses panel"
+                  >
+                    <svg className="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>Repair Responses</span>
+                  </button>
+
                   {/* Delete Button 1: Clear Auth */}
                   <button
                     type="button"

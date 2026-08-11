@@ -283,6 +283,7 @@ export interface DailyContent {
   lessonText: string;
   taskPrompt: string;
   taskPrompts?: string[];
+  taskStepIds?: string[];
   taskHints?: string[];
   taskInputTypes?: ('text' | 'tags' | 'poll' | 'note' | 'mark' | 'none')[];
   taskMultiTextLabels?: string[][];

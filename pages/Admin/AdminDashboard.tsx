@@ -22,6 +22,7 @@ import AdminUsers from './AdminUsers';
 import AdminTracks from './AdminTracks';
 import AdminNotifications from './AdminNotifications';
 import AdminSystemParticipantControl from './AdminSystemParticipantControl';
+import AdminRepairResponses from './AdminRepairResponses';
 import { adminCache, resetAdminCache } from './adminCache';
 import { SwitchModeModal } from '../../components/SwitchModeModal';
 
@@ -275,6 +276,9 @@ export default function AdminDashboard() {
 
                         {activeTab === 'roles' && (
                             <div id="admin-system-panel" className="animate-fade-in max-w-4xl mx-auto py-8 space-y-12">
+                                {/* 0. Debug & Audit Response Repair Tool */}
+                                <AdminRepairResponses />
+
                                 {/* 1. Participant Control (User Removal & Auth Clearing Panel) */}
                                 <AdminSystemParticipantControl />
 
