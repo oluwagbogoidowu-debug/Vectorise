@@ -1348,11 +1348,11 @@ const SprintPreview: React.FC = () => {
                                         })()}
 
                                         <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                            <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs)} />
+                                            <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent)} />
                                         </div>
                                         {day1Content?.taskFootnotes?.[i] && (
                                             <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
-                                                <FormattedText text={day1Content.taskFootnotes[i]} />
+                                                <FormattedText text={formatInterpolatedText(day1Content.taskFootnotes[i], day1Content, taskInputs, sprint?.dailyContent)} />
                                             </div>
                                         )}
                                         {day1Content?.taskHints?.[i] && (

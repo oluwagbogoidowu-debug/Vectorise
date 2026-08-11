@@ -2871,11 +2871,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               })()}
 
                               <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${dayContent?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                <FormattedText text={formatInterpolatedText(prompt, dayContent, taskInputs)} />
+                                <FormattedText text={formatInterpolatedText(prompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
                               {dayContent?.taskFootnotes?.[i] && (
                                 <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
-                                  <FormattedText text={dayContent.taskFootnotes[i]} />
+                                  <FormattedText text={formatInterpolatedText(dayContent.taskFootnotes[i], dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                                 </div>
                               )}
                               {dayContent.taskHints?.[i] && (

@@ -2975,7 +2975,7 @@ const EditSprint: React.FC = () => {
                             const isLinkedFromPrevious = 
                                 (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) ||
                                 (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
-                            const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || []);
+                            const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || [], currentContent.taskPollOptions, Number(currentContent.day || selectedDay || 1), sprint?.dailyContent);
                             return (
                                 <div key={index} className="group relative">
                                     <div className="absolute -left-10 top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all z-10">
@@ -4240,11 +4240,11 @@ const EditSprint: React.FC = () => {
                                     })()}
 
                                     <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${currentContent.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                        <FormattedText text={formatInterpolatedText(prompt || "Submit your progress for this step.", currentContent, {})} />
+                                        <FormattedText text={formatInterpolatedText(prompt || "Submit your progress for this step.", currentContent, {}, sprint?.dailyContent)} />
                                     </div>
                                     {currentContent.taskFootnotes?.[i] && (
                                         <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
-                                            <FormattedText text={currentContent.taskFootnotes[i]} />
+                                            <FormattedText text={formatInterpolatedText(currentContent.taskFootnotes[i], currentContent, {}, sprint?.dailyContent)} />
                                         </div>
                                     )}
                                     {currentContent.taskHints?.[i] && (

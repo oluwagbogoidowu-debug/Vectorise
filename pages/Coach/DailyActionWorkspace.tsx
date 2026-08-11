@@ -773,7 +773,7 @@ export default function DailyActionWorkspace({
                         title="Hold step number (1, 2, 3...) to drag and reorder"
                       >
                         {displayedIndices.map((stepIdx, slotIdx) => {
-                          const btnPlaceholderVal = validateStepPlaceholders(dayContent.taskPrompts?.[stepIdx] || '', stepIdx, dayContent.taskInputTypes || []);
+                          const btnPlaceholderVal = validateStepPlaceholders(dayContent.taskPrompts?.[stepIdx] || '', stepIdx, dayContent.taskInputTypes || [], dayContent.taskPollOptions, dayNum, sprint?.dailyContent);
                           const isBeingHeldOrDragged = isThisDayDragging && stepIdx === dragStepState.fromIndex;
                           const isCurrentActiveStep = activeIdx === stepIdx;
 
@@ -829,7 +829,7 @@ export default function DailyActionWorkspace({
                 </div>
 
                 {(() => {
-                  const currentPlaceholderVal = validateStepPlaceholders(prompt, activeIdx, dayContent.taskInputTypes || []);
+                  const currentPlaceholderVal = validateStepPlaceholders(prompt, activeIdx, dayContent.taskInputTypes || [], dayContent.taskPollOptions, dayNum, sprint?.dailyContent);
                   return (
                     /* Day Action Step edit Workspace inside card */
                     <div className="flex-grow flex flex-col space-y-4">

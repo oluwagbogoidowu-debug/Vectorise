@@ -1,6 +1,7 @@
 export type StepPlaceholderMode = 'normal' | 'list' | 'hide' | 'sentence';
 
 export interface StepPlaceholderDetail {
+  dayNum?: number;
   stepNum: number;
   opNum?: number;
   mode: StepPlaceholderMode;
@@ -31,29 +32,36 @@ export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
 }
 
 /**
- * Validates `{step N}`, `{Step N list}`, `{Step N normal}`, `{Step N h}`, `{Step N s}` or `{Step N OpM}` placeholders in prompt text.
- * Rule:
- * - Placeholders can be used on ANY step input type ('text', 'tags', 'poll', 'mark', 'note', 'none') to receive input from a preceding step.
- * - For option syntax `{Step N OpM}`, the target step MUST have inputType 'poll'.
- * - Placeholders must reference a preceding step (stepNum < current stepIndex + 1).
+ * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {D1 Step 3}, {D2 Step 4 Op1}, {Day 1 Step 3 list}, {d2 step 4 op 1 h}, etc.
+ */
+export const PLACEHOLDER_REGEX = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+
+/**
+ * Validates `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step N h}` etc. placeholders in prompt text.
+ * Rules:
+ * - Can reference steps on current day (must precede current step: stepNum < stepIndex + 1).
+ * - Can reference steps on previous days (D1, D2, Day 1, etc where targetDay <= currentDay).
+ * - For option syntax `{Step N OpM}` or `{D2 Step 4 Op1}`, the target step MUST have inputType 'poll'.
  */
 export function validateStepPlaceholders(
   prompt: string,
   stepIndex: number,
   taskInputTypes: string[],
-  taskTags?: string[][],
-  taskPollOptions?: string[][]
+  taskPollOptions?: string[],
+  currentDay: number = 1,
+  allDaysContent?: any[]
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
   let match: RegExpExecArray | null;
   const references: StepPlaceholderDetail[] = [];
 
   while ((match = regex.exec(prompt)) !== null) {
-    const stepNum = parseInt(match[1], 10);
-    const opNum = match[2] ? parseInt(match[2], 10) : undefined;
-    const modeStr = match[3];
+    const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
+    const stepNum = parseInt(match[2], 10);
+    const opNum = match[3] ? parseInt(match[3], 10) : undefined;
+    const modeStr = match[4];
     const mode = parsePlaceholderMode(modeStr);
 
     let modeSuffix = '';
@@ -61,11 +69,13 @@ export function validateStepPlaceholders(
     else if (mode === 'sentence') modeSuffix = ' s';
     else if (mode === 'list') modeSuffix = ' list';
 
-    const rawLabel = opNum !== undefined ? `${stepNum} Op${opNum}${modeSuffix}` : `${stepNum}${modeSuffix}`;
+    const dayPrefix = dayNum !== undefined ? `D${dayNum} ` : '';
+    const opPart = opNum !== undefined ? ` Op${opNum}` : '';
+    const rawLabel = `${dayPrefix}Step ${stepNum}${opPart}${modeSuffix}`.trim();
     const token = match[0];
 
     if (!references.some(r => r.token === token)) {
-      references.push({ stepNum, opNum, mode, rawLabel, token });
+      references.push({ dayNum, stepNum, opNum, mode, rawLabel, token });
     }
   }
 
@@ -82,27 +92,71 @@ export function validateStepPlaceholders(
   let invalidReason = '';
 
   for (const ref of references) {
-    const targetIndex = ref.stepNum - 1; // 1-based to 0-based
+    const targetDay = ref.dayNum !== undefined ? ref.dayNum : currentDay;
+    const targetStepIndex = ref.stepNum - 1; // 1-based to 0-based
 
-    // Check 1: Must precede current step
-    if (targetIndex < 0 || targetIndex >= stepIndex) {
+    // Rule 1: Cannot reference future day
+    if (targetDay > currentDay) {
       invalidStepRefs.push(ref.stepNum);
       invalidStepLabels.push(ref.rawLabel);
       if (!invalidReason) {
-        invalidReason = `Invalid placeholder {step ${ref.rawLabel}}: Step ${ref.stepNum} must precede Step ${stepIndex + 1}.`;
+        invalidReason = `Invalid placeholder {${ref.rawLabel}}: Cannot reference future Day ${targetDay} from Day ${currentDay}.`;
       }
       continue;
     }
 
-    const targetType = taskInputTypes?.[targetIndex];
-
-    // Check 2: Target step input type for option syntax
-    if (ref.opNum !== undefined) {
-      if (targetType !== 'poll') {
+    // Rule 2: Same day preceding rule
+    if (targetDay === currentDay) {
+      if (targetStepIndex < 0 || targetStepIndex >= stepIndex) {
         invalidStepRefs.push(ref.stepNum);
         invalidStepLabels.push(ref.rawLabel);
         if (!invalidReason) {
-          invalidReason = `Invalid placeholder {step ${ref.rawLabel}}: Option syntax (Op${ref.opNum}) can only be used on 'poll' steps. Step ${ref.stepNum} is set to '${targetType || 'text'}'.`;
+          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Step ${ref.stepNum} must precede Step ${stepIndex + 1} on Day ${currentDay}.`;
+        }
+        continue;
+      }
+    } else {
+      // Rule 3: Previous day step existence
+      if (targetDay < 1) {
+        invalidStepRefs.push(ref.stepNum);
+        invalidStepLabels.push(ref.rawLabel);
+        if (!invalidReason) {
+          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} must be at least Day 1.`;
+        }
+        continue;
+      }
+
+      if (allDaysContent && Array.isArray(allDaysContent)) {
+        const targetDayContent = allDaysContent.find(d => d && (Number(d.day) === targetDay));
+        if (targetDayContent) {
+          const maxStepsOnDay = targetDayContent.taskPrompts?.length || targetDayContent.taskInputTypes?.length || 0;
+          if (targetStepIndex < 0 || (maxStepsOnDay > 0 && targetStepIndex >= maxStepsOnDay)) {
+            invalidStepRefs.push(ref.stepNum);
+            invalidStepLabels.push(ref.rawLabel);
+            if (!invalidReason) {
+              invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} only has ${maxStepsOnDay} step(s). Step ${ref.stepNum} is out of bounds.`;
+            }
+            continue;
+          }
+        }
+      }
+    }
+
+    // Rule 4: Option syntax check
+    let targetType = taskInputTypes?.[targetStepIndex];
+    if (targetDay !== currentDay && allDaysContent && Array.isArray(allDaysContent)) {
+      const targetDayContent = allDaysContent.find(d => d && (Number(d.day) === targetDay));
+      if (targetDayContent?.taskInputTypes?.[targetStepIndex]) {
+        targetType = targetDayContent.taskInputTypes[targetStepIndex];
+      }
+    }
+
+    if (ref.opNum !== undefined) {
+      if (targetType && targetType !== 'poll') {
+        invalidStepRefs.push(ref.stepNum);
+        invalidStepLabels.push(ref.rawLabel);
+        if (!invalidReason) {
+          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Option syntax (Op${ref.opNum}) can only be used on 'poll' steps. Target step is '${targetType}'.`;
         }
         continue;
       }
@@ -124,7 +178,7 @@ export function validateStepPlaceholders(
       validStepLabels,
       invalidStepLabels,
       placeholderDetails,
-      errorMsg: invalidReason || `Invalid placeholder logic: ${invalidStepLabels.map(l => `{step ${l}}`).join(', ')}.`
+      errorMsg: invalidReason || `Invalid placeholder logic: ${invalidStepLabels.map(l => `{${l}}`).join(', ')}.`
     };
   }
 
@@ -141,23 +195,30 @@ export function validateStepPlaceholders(
 }
 
 /**
- * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence') of a {Step N} placeholder within a prompt string.
+ * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence') of a placeholder within a prompt string.
  */
 export function togglePlaceholderMode(
   prompt: string,
   targetStepNum: number,
-  targetMode: StepPlaceholderMode
+  targetMode: StepPlaceholderMode,
+  targetDayNum?: number
 ): string {
   if (!prompt) return prompt;
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
 
-  return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr) => {
+  return prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr) => {
     const stepNum = parseInt(stepNumStr, 10);
+    const dayNum = dayNumStr ? parseInt(dayNumStr, 10) : undefined;
+
     if (stepNum !== targetStepNum) {
       return fullMatch;
     }
+    if (targetDayNum !== undefined && dayNum !== undefined && dayNum !== targetDayNum) {
+      return fullMatch;
+    }
 
+    const dayPart = (dayNum !== undefined || targetDayNum !== undefined) ? `D${dayNum ?? targetDayNum} ` : '';
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
     let modePart = '';
@@ -165,51 +226,81 @@ export function togglePlaceholderMode(
     else if (targetMode === 'hide') modePart = ' h';
     else if (targetMode === 'sentence') modePart = ' s';
 
-    return `{Step ${stepNum}${opPart}${modePart}}`;
+    return `{${dayPart}Step ${stepNum}${opPart}${modePart}}`;
   });
 }
 
 /**
- * Replaces `{step N}` or `{Step N list}` or `{Step N h}` or `{Step N s}` or `{Step N OpM}` placeholders in prompt with user's choices from step N.
+ * Replaces `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}` etc. placeholders in prompt with user's choices.
  */
 export function formatInterpolatedText(
   prompt: string,
   dayContent?: any,
-  taskInputs?: any
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[] | Record<number, any>
 ): string {
   if (!prompt) return '';
 
-  const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
 
-  // First pass: identify explicitly called written option indices for each step across all step prompts in the day
-  const explicitlyCalledOptsMap = new Map<number, Set<number>>();
+  const currentDayNum = Number(dayContent?.day || 1);
 
-  const scanPromptForOpClaims = (pStr: string) => {
-    if (!pStr || typeof pStr !== 'string') return;
-    const scanRegex = /\{[sS]?tep\s*(\d+)\s*[oO][pP]\s*(\d+)(?:\s*(?:list|normal|hide|sentence|h|s|l|n))?\}/gi;
-    let m: RegExpExecArray | null;
-    while ((m = scanRegex.exec(pStr)) !== null) {
-      const sNum = parseInt(m[1], 10);
-      const oNum = parseInt(m[2], 10);
-      const sIdx = sNum - 1;
-      const oIdx = oNum - 1;
-      if (!explicitlyCalledOptsMap.has(sIdx)) {
-        explicitlyCalledOptsMap.set(sIdx, new Set());
-      }
-      explicitlyCalledOptsMap.get(sIdx)!.add(oIdx);
+  // Helper to resolve day content for any target day
+  const getDayContent = (targetDay: number) => {
+    if (targetDay === currentDayNum || !allDaysContent || !Array.isArray(allDaysContent)) {
+      return dayContent;
     }
+    const found = allDaysContent.find(dc => dc && Number(dc.day) === targetDay);
+    return found || dayContent;
   };
 
-  if (Array.isArray(dayContent?.taskPrompts)) {
-    dayContent.taskPrompts.forEach((p: string) => scanPromptForOpClaims(p));
-  }
-  scanPromptForOpClaims(prompt);
+  // Helper to resolve inputs for any target step on any target day
+  const getTargetInputValue = (targetDay: number, targetStepIdx: number) => {
+    if (targetDay === currentDayNum || targetDay === Number(dayContent?.day)) {
+      if (taskInputs) {
+        if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
+        if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
+      }
+    }
 
-  // Helper to get custom written poll options for a step (defined directly in setup)
-  const getWrittenPollOptions = (stepIndex: number): string[] => {
-    if (dayContent?.taskPollOptions?.[stepIndex]) {
+    if (allDaysInputs) {
+      if (Array.isArray(allDaysInputs)) {
+        // Check if items are enrollment progress objects e.g. { day: 1, answers: [...] }
+        const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+        if (prog) {
+          if (Array.isArray(prog.answers)) return prog.answers[targetStepIdx];
+          if (Array.isArray(prog.answersMap)) return prog.answersMap[targetStepIdx];
+        }
+        // Fallback: 0-indexed array of day inputs
+        const dayArr = allDaysInputs[targetDay - 1];
+        if (dayArr) {
+          if (Array.isArray(dayArr)) return dayArr[targetStepIdx];
+          if (typeof dayArr === 'object') return dayArr[targetStepIdx];
+        }
+      } else if (typeof allDaysInputs === 'object') {
+        const dayVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+        if (dayVal) {
+          if (Array.isArray(dayVal)) return dayVal[targetStepIdx];
+          if (typeof dayVal === 'object') return dayVal[targetStepIdx];
+        }
+      }
+    }
+
+    // Fallback if targetDay is current day
+    if (targetDay === currentDayNum && taskInputs) {
+      if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
+      if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
+    }
+
+    return undefined;
+  };
+
+  // Helper to get custom written poll options for a step
+  const getWrittenPollOptions = (targetDC: any, stepIndex: number): string[] => {
+    if (targetDC?.taskPollOptions?.[stepIndex]) {
       try {
-        const parsed = JSON.parse(dayContent.taskPollOptions[stepIndex]);
+        const parsed = JSON.parse(targetDC.taskPollOptions[stepIndex]);
         if (Array.isArray(parsed)) return parsed.map((s: any) => String(s).trim()).filter(Boolean);
       } catch (e) {}
     }
@@ -217,36 +308,50 @@ export function formatInterpolatedText(
   };
 
   // Helper to get all options for a poll step (combining linked sources + custom written poll options)
-  const getPollOptionsList = (stepIndex: number): string[] => {
-    const customOptions = getWrittenPollOptions(stepIndex);
+  const getPollOptionsList = (targetDC: any, stepIndex: number): string[] => {
+    const customOptions = getWrittenPollOptions(targetDC, stepIndex);
 
     let linkedItems: string[] = [];
-    if (Array.isArray(dayContent?.taskLinkedSources?.[stepIndex])) {
-      dayContent.taskLinkedSources[stepIndex].forEach((srcIdx: number) => {
-        if (srcIdx >= 0 && srcIdx < stepIndex) {
-          const val = taskInputs?.[srcIdx];
-          if (val) {
-            if (typeof val === 'string' && val.trim().startsWith('[')) {
+    if (Array.isArray(targetDC?.taskLinkedSources?.[stepIndex])) {
+      targetDC.taskLinkedSources[stepIndex].forEach((srcIdx: number) => {
+        let srcDay = targetDC?.day || currentDayNum;
+        let srcStepIdx = srcIdx;
+
+        if (srcIdx < 0) {
+          const absVal = Math.abs(srcIdx);
+          srcDay = Math.floor(absVal / 100);
+          srcStepIdx = absVal % 100;
+        }
+
+        const srcDC = getDayContent(srcDay);
+        const val = getTargetInputValue(srcDay, srcStepIdx);
+
+        if (val) {
+          if (typeof val === 'string' && val.trim().startsWith('[')) {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
+            } catch (e) {}
+          } else if (typeof val === 'string' && val.trim()) {
+            linkedItems.push(val.trim());
+          }
+        } else {
+          const srcType = srcDC?.taskInputTypes?.[srcStepIdx];
+          if (srcType === 'tags') {
+            const configuredPoll = srcDC?.taskPollOptions?.[srcStepIdx];
+            if (configuredPoll) {
               try {
-                const parsed = JSON.parse(val);
+                const parsed = JSON.parse(configuredPoll);
                 if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
               } catch (e) {}
-            } else if (typeof val === 'string' && val.trim()) {
-              linkedItems.push(val.trim());
             }
-          } else {
-            const srcType = dayContent?.taskInputTypes?.[srcIdx];
-            if (srcType === 'tags') {
-              const configuredTags = dayContent?.taskTags?.[srcIdx];
-              if (Array.isArray(configuredTags)) linkedItems.push(...configuredTags.filter(Boolean));
-            } else if (srcType === 'poll') {
-              const configuredPoll = dayContent?.taskPollOptions?.[srcIdx];
-              if (configuredPoll) {
-                try {
-                  const parsed = JSON.parse(configuredPoll);
-                  if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
-                } catch (e) {}
-              }
+          } else if (srcType === 'poll') {
+            const configuredPoll = srcDC?.taskPollOptions?.[srcStepIdx];
+            if (configuredPoll) {
+              try {
+                const parsed = JSON.parse(configuredPoll);
+                if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
+              } catch (e) {}
             }
           }
         }
@@ -258,13 +363,17 @@ export function formatInterpolatedText(
 
   regex.lastIndex = 0;
 
-  return prompt.replace(regex, (fullMatch, stepNumStr, opNumStr, modeStr) => {
+  return prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr, modeStr) => {
+    const targetDay = dayNumStr ? parseInt(dayNumStr, 10) : currentDayNum;
     const stepNum = parseInt(stepNumStr, 10);
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const mode = parsePlaceholderMode(modeStr);
     const stepIndex = stepNum - 1;
 
-    const inputType = dayContent?.taskInputTypes?.[stepIndex];
+    const targetDC = getDayContent(targetDay);
+    const inputType = targetDC?.taskInputTypes?.[stepIndex];
+
+    const dayPrefix = dayNumStr ? `D${targetDay} ` : '';
 
     const formatOutput = (rawList: string[]): string => {
       if (mode === 'hide') {
@@ -274,7 +383,7 @@ export function formatInterpolatedText(
       const cleaned = rawList.map((item) => item.trim()).filter(Boolean);
 
       if (cleaned.length === 0) {
-        return opNum !== undefined ? `[Step ${stepNum} Op${opNum}]` : `[Step ${stepNum}]`;
+        return opNum !== undefined ? `[${dayPrefix}Step ${stepNum} Op${opNum}]` : `[${dayPrefix}Step ${stepNum}]`;
       }
 
       if (mode === 'list') {
@@ -291,18 +400,18 @@ export function formatInterpolatedText(
       return cleaned.map(c => c.toLowerCase()).join(', ');
     };
 
-    // CASE 1: Explicit Option Reference e.g. {Step 6 Op1}
+    // CASE 1: Explicit Option Reference e.g. {D2 Step 4 Op1} or {Step 6 Op1}
     if (opNum !== undefined) {
       if (inputType !== 'poll') {
         return fullMatch;
       }
       const optIndex = opNum - 1;
-      const writtenOpts = getWrittenPollOptions(stepIndex);
+      const writtenOpts = getWrittenPollOptions(targetDC, stepIndex);
       if (optIndex >= 0 && optIndex < writtenOpts.length) {
         const targetWrittenText = writtenOpts[optIndex].trim();
-        if (!targetWrittenText) return `[Step ${stepNum} Op${opNum}]`;
+        if (!targetWrittenText) return `[${dayPrefix}Step ${stepNum} Op${opNum}]`;
 
-        const val = taskInputs?.[stepIndex];
+        const val = getTargetInputValue(targetDay, stepIndex);
         let userChoices: string[] = [];
         if (val && typeof val === 'string' && val.trim()) {
           try {
@@ -330,12 +439,12 @@ export function formatInterpolatedText(
 
         return formatOutput([targetWrittenText]);
       }
-      return `[Step ${stepNum} Op${opNum}]`;
+      return `[${dayPrefix}Step ${stepNum} Op${opNum}]`;
     }
 
-    // CASE 2: General Step Reference e.g. {Step 6}
+    // CASE 2: General Step Reference e.g. {D1 Step 3} or {Step 6}
     let items: string[] = [];
-    const val = taskInputs?.[stepIndex];
+    const val = getTargetInputValue(targetDay, stepIndex);
 
     if (val !== undefined && val !== null) {
       if (typeof val === 'boolean') {
@@ -361,35 +470,11 @@ export function formatInterpolatedText(
 
     // Fallback if no participant input yet
     if (items.length === 0) {
-      if (inputType === 'tags') {
-        const configuredTags = dayContent?.taskTags?.[stepIndex] || [];
-        if (Array.isArray(configuredTags) && configuredTags.length > 0) items = configuredTags;
-      } else if (inputType === 'poll') {
-        items = getPollOptionsList(stepIndex);
+      if (inputType === 'poll') {
+        items = getPollOptionsList(targetDC, stepIndex);
       } else if (inputType === 'text' || inputType === 'note') {
-        const promptText = dayContent?.taskPrompts?.[stepIndex];
+        const promptText = targetDC?.taskPrompts?.[stepIndex];
         if (promptText) items = [promptText];
-      }
-    }
-
-    // EXCLUSION RULE: If specific written options (e.g. Op1) for this step were explicitly called,
-    // exclude those written options from general {Step N} expansion!
-    if (inputType === 'poll' && explicitlyCalledOptsMap.has(stepIndex)) {
-      const excludedOptIndices = explicitlyCalledOptsMap.get(stepIndex)!;
-      const writtenOptsList = getWrittenPollOptions(stepIndex);
-      const excludedTexts = new Set<string>();
-
-      excludedOptIndices.forEach((idx) => {
-        if (idx >= 0 && idx < writtenOptsList.length) {
-          excludedTexts.add(writtenOptsList[idx].trim().toLowerCase());
-        }
-      });
-
-      if (excludedTexts.size > 0) {
-        const filteredItems = items.filter((item) => !excludedTexts.has(item.trim().toLowerCase()));
-        if (filteredItems.length > 0) {
-          items = filteredItems;
-        }
       }
     }
 
@@ -405,11 +490,12 @@ export function hasAnyInvalidPlaceholdersInContent(dailyContent: any[]): boolean
 
   for (const day of dailyContent) {
     if (!day || !Array.isArray(day.taskPrompts)) continue;
+    const dayNum = Number(day.day || 1);
     const inputTypes = day.taskInputTypes || Array(day.taskPrompts.length).fill('text');
     for (let i = 0; i < day.taskPrompts.length; i++) {
       const prompt = day.taskPrompts[i];
       if (!prompt) continue;
-      const val = validateStepPlaceholders(prompt, i, inputTypes);
+      const val = validateStepPlaceholders(prompt, i, inputTypes, day.taskPollOptions, dayNum, dailyContent);
       if (!val.isValid) {
         return true;
       }
