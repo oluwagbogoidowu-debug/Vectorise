@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, StepPlaceholderMode, parsePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -869,74 +869,101 @@ const SprintPreview: React.FC = () => {
             }
         }
 
-        // Implicit placeholder branch checking ({Step N OpM h}, {Step N OpM}, {Step N h}, {Step N list}, {Step N})
+        // Implicit placeholder branch checking ({Step N OpM h}, {Step N OpM d}, {Step N OpM}, {Step N h}, {Step N list}, {Step N})
         const prompt = day1Content.taskPrompts?.[stepIndex];
         if (prompt) {
-            const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|h|s|l|n))?\}/gi;
+            const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
             let match: RegExpExecArray | null;
 
+            const stepPlaceholders: { stepNum: number; opNum?: number; mode: string }[] = [];
             while ((match = regex.exec(prompt)) !== null) {
                 const stepNum = parseInt(match[1], 10);
                 const opNum = match[2] ? parseInt(match[2], 10) : undefined;
-                const targetIdx = stepNum - 1;
+                const mode = parsePlaceholderMode(match[3]);
+                stepPlaceholders.push({ stepNum, opNum, mode });
+            }
 
-                if (targetIdx >= 0 && targetIdx < stepIndex) {
-                    const val = taskInputs[targetIdx];
-                    if (!val || typeof val !== 'string' || !val.trim()) {
-                        return false;
-                    }
+            if (stepPlaceholders.length > 0) {
+                for (const placeholder of stepPlaceholders) {
+                    const { stepNum, opNum, mode } = placeholder;
+                    const targetIdx = stepNum - 1;
 
-                    if (day1Content.taskInputTypes?.[targetIdx] === 'poll') {
-                        let userChoices: string[] = [];
-                        try {
-                            if (val.trim().startsWith('[')) {
-                                userChoices = JSON.parse(val);
-                            } else if (val.trim().startsWith('{')) {
-                                userChoices = Object.values(JSON.parse(val));
-                            } else {
+                    if (targetIdx >= 0 && targetIdx < stepIndex) {
+                        const val = taskInputs[targetIdx];
+                        if (!val || typeof val !== 'string' || !val.trim()) {
+                            return false;
+                        }
+
+                        if (day1Content.taskInputTypes?.[targetIdx] === 'poll') {
+                            let userChoices: string[] = [];
+                            try {
+                                if (val.trim().startsWith('[')) {
+                                    userChoices = JSON.parse(val);
+                                } else if (val.trim().startsWith('{')) {
+                                    userChoices = Object.values(JSON.parse(val));
+                                } else {
+                                    userChoices = [val.trim()];
+                                }
+                            } catch (e) {
                                 userChoices = [val.trim()];
                             }
-                        } catch (e) {
-                            userChoices = [val.trim()];
-                        }
-                        userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
+                            userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
 
-                        let writtenOpts: string[] = [];
-                        if (day1Content.taskPollOptions?.[targetIdx]) {
-                            try {
-                                writtenOpts = JSON.parse(day1Content.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
-                            } catch (e) {}
-                        }
+                            let writtenOpts: string[] = [];
+                            if (day1Content.taskPollOptions?.[targetIdx]) {
+                                try {
+                                    writtenOpts = JSON.parse(day1Content.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
+                                } catch (e) {}
+                            }
 
-                        if (opNum !== undefined) {
-                            const optIndex = opNum - 1;
-                            const targetWrittenText = writtenOpts[optIndex];
-                            if (targetWrittenText) {
-                                const selectedMatch = userChoices.some(c => c.toLowerCase() === targetWrittenText.toLowerCase());
-                                if (!selectedMatch) {
+                            const isOptionSelected = (oNum: number) => {
+                                const optIndex = oNum - 1;
+                                const targetWrittenText = writtenOpts[optIndex];
+                                return userChoices.some(c => {
+                                    const lowerC = c.toLowerCase();
+                                    if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;
+                                    if (lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
+                                    return false;
+                                });
+                            };
+
+                            if (mode === 'disconnect' && opNum !== undefined) {
+                                if (isOptionSelected(opNum)) {
+                                    return false; // Disconnected option selected -> hide step
+                                }
+                            } else if (opNum !== undefined) {
+                                if (!isOptionSelected(opNum)) {
                                     return false;
                                 }
-                            }
-                        } else {
-                            const claimedWrittenOpts = new Set<string>();
-                            if (Array.isArray(day1Content.taskPrompts)) {
-                                day1Content.taskPrompts.forEach((otherP: string) => {
-                                    if (!otherP) return;
-                                    const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|h|s|l|n))?\\}`, 'gi');
-                                    let sm: RegExpExecArray | null;
-                                    while ((sm = subRegex.exec(otherP)) !== null) {
-                                        const oIdx = parseInt(sm[1], 10) - 1;
-                                        if (writtenOpts[oIdx]) {
-                                            claimedWrittenOpts.add(writtenOpts[oIdx].toLowerCase());
-                                        }
-                                    }
-                                });
-                            }
+                            } else {
+                                const disconnectedOps = stepPlaceholders
+                                    .filter(p => p.stepNum === stepNum && p.opNum !== undefined && p.mode === 'disconnect')
+                                    .map(p => p.opNum!);
 
-                            if (claimedWrittenOpts.size > 0 && userChoices.length > 0) {
-                                const unclaimedSelected = userChoices.filter(c => !claimedWrittenOpts.has(c.toLowerCase()));
-                                if (unclaimedSelected.length === 0) {
+                                if (disconnectedOps.some(dOp => isOptionSelected(dOp))) {
                                     return false;
+                                }
+
+                                const claimedWrittenOpts = new Set<string>();
+                                if (Array.isArray(day1Content.taskPrompts)) {
+                                    day1Content.taskPrompts.forEach((otherP: string) => {
+                                        if (!otherP) return;
+                                        const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\\}`, 'gi');
+                                        let sm: RegExpExecArray | null;
+                                        while ((sm = subRegex.exec(otherP)) !== null) {
+                                            const oIdx = parseInt(sm[1], 10) - 1;
+                                            if (writtenOpts[oIdx]) {
+                                                claimedWrittenOpts.add(writtenOpts[oIdx].toLowerCase());
+                                            }
+                                        }
+                                    });
+                                }
+
+                                if (claimedWrittenOpts.size > 0 && userChoices.length > 0) {
+                                    const unclaimedSelected = userChoices.filter(c => !claimedWrittenOpts.has(c.toLowerCase()));
+                                    if (unclaimedSelected.length === 0) {
+                                        return false;
+                                    }
                                 }
                             }
                         }

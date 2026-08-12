@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, StepPlaceholderMode, parsePlaceholderMode } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -1281,98 +1281,123 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }
     }
 
-    // Implicit placeholder branch checking ({Step N OpM}, {D1 Step N OpM}, {D2 Step N OpM}, etc.)
+    // Implicit placeholder branch checking ({Step N OpM}, {D1 Step N OpM}, {Step N OpM d}, {Step N OpM h}, {Step N})
     const prompt = dayContent.taskPrompts?.[stepIndex];
     if (prompt) {
-      const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|h|s|l|n))?\}/gi;
+      const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
       let match: RegExpExecArray | null;
 
+      const stepPlaceholders: { dayNum?: number; stepNum: number; opNum?: number; mode: StepPlaceholderMode }[] = [];
       while ((match = regex.exec(prompt)) !== null) {
         const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
         const stepNum = parseInt(match[2], 10);
         const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-        const targetIdx = stepNum - 1;
-        const targetDay = dayNum !== undefined ? dayNum : (dayContent.day || viewingDay);
+        const mode = parsePlaceholderMode(match[4]);
+        stepPlaceholders.push({ dayNum, stepNum, opNum, mode });
+      }
 
-        if (targetDay <= viewingDay) {
-          if (targetDay === viewingDay && targetIdx >= stepIndex) {
-            continue;
-          }
+      if (stepPlaceholders.length > 0) {
+        for (const placeholder of stepPlaceholders) {
+          const { dayNum, stepNum, opNum, mode } = placeholder;
+          const targetIdx = stepNum - 1;
+          const targetDay = dayNum !== undefined ? dayNum : (dayContent.day || viewingDay);
 
-          const targetDC = targetDay === viewingDay ? dayContent : (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => Number(dc.day) === targetDay) : undefined);
-          if (!targetDC) continue;
-
-          let val: string | undefined = undefined;
-          if (targetDay === viewingDay) {
-            val = taskInputs[targetIdx];
-          } else {
-            const prevProg = enrollment?.progress?.find(p => Number(p.day) === targetDay);
-            if (prevProg) {
-              if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
-              else if (prevProg.answersMap) val = (prevProg.answersMap as any)[targetIdx];
+          if (targetDay <= viewingDay) {
+            if (targetDay === viewingDay && targetIdx >= stepIndex) {
+              continue;
             }
-          }
 
-          if (!val || typeof val !== 'string' || !val.trim()) {
-            return false;
-          }
+            const targetDC = targetDay === viewingDay ? dayContent : (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => Number(dc.day) === targetDay) : undefined);
+            if (!targetDC) continue;
 
-          if (targetDC.taskInputTypes?.[targetIdx] === 'poll') {
-            let userChoices: string[] = [];
-            try {
-              if (val.trim().startsWith('[')) {
-                userChoices = JSON.parse(val);
-              } else if (val.trim().startsWith('{')) {
-                userChoices = Object.values(JSON.parse(val));
-              } else {
+            let val: string | undefined = undefined;
+            if (targetDay === viewingDay) {
+              val = taskInputs[targetIdx];
+            } else {
+              const prevProg = enrollment?.progress?.find(p => Number(p.day) === targetDay);
+              if (prevProg) {
+                if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
+                else if (prevProg.answersMap) val = (prevProg.answersMap as any)[targetIdx];
+              }
+            }
+
+            if (!val || typeof val !== 'string' || !val.trim()) {
+              return false;
+            }
+
+            if (targetDC.taskInputTypes?.[targetIdx] === 'poll') {
+              let userChoices: string[] = [];
+              try {
+                if (val.trim().startsWith('[')) {
+                  userChoices = JSON.parse(val);
+                } else if (val.trim().startsWith('{')) {
+                  userChoices = Object.values(JSON.parse(val));
+                } else {
+                  userChoices = [val.trim()];
+                }
+              } catch (e) {
                 userChoices = [val.trim()];
               }
-            } catch (e) {
-              userChoices = [val.trim()];
-            }
-            userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
+              userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
 
-            let writtenOpts: string[] = [];
-            if (targetDC.taskPollOptions?.[targetIdx]) {
-              try {
-                writtenOpts = JSON.parse(targetDC.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
-              } catch (e) {}
-            }
-
-            if (opNum !== undefined) {
-              const optIndex = opNum - 1;
-              const targetWrittenText = writtenOpts[optIndex];
-              const selectedMatch = userChoices.some(c => {
-                const lowerC = c.toLowerCase();
-                if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;
-                if (lowerC === `poll ${opNum}` || lowerC === `op ${opNum}` || lowerC === `op${opNum}` || lowerC === String(opNum)) return true;
-                return false;
-              });
-
-              if (!selectedMatch) {
-                return false;
-              }
-            } else {
-              const claimedWrittenOpts = new Set<string>();
-              if (Array.isArray(dayContent.taskPrompts)) {
-                dayContent.taskPrompts.forEach((otherP: string) => {
-                  if (!otherP) return;
-                  const dayPattern = targetDay !== viewingDay ? `(?:[dD](?:ay)?\\s*${targetDay}\\s+)?` : `(?:[dD](?:ay)?\\s*${viewingDay}\\s+)?`;
-                  const subRegex = new RegExp(`\\{${dayPattern}[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|h|s|l|n))?\\}`, 'gi');
-                  let sm: RegExpExecArray | null;
-                  while ((sm = subRegex.exec(otherP)) !== null) {
-                    const oIdx = parseInt(sm[1], 10) - 1;
-                    if (writtenOpts[oIdx]) {
-                      claimedWrittenOpts.add(writtenOpts[oIdx].toLowerCase());
-                    }
-                  }
-                });
+              let writtenOpts: string[] = [];
+              if (targetDC.taskPollOptions?.[targetIdx]) {
+                try {
+                  writtenOpts = JSON.parse(targetDC.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
+                } catch (e) {}
               }
 
-              if (claimedWrittenOpts.size > 0 && userChoices.length > 0) {
-                const unclaimedSelected = userChoices.filter(c => !claimedWrittenOpts.has(c.toLowerCase()));
-                if (unclaimedSelected.length === 0) {
+              const isOptionSelected = (oNum: number) => {
+                const optIndex = oNum - 1;
+                const targetWrittenText = writtenOpts[optIndex];
+                return userChoices.some(c => {
+                  const lowerC = c.toLowerCase();
+                  if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;
+                  if (lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
                   return false;
+                });
+              };
+
+              // Handle Disconnect mode 'd' / 'disconnect'
+              if (mode === 'disconnect' && opNum !== undefined) {
+                if (isOptionSelected(opNum)) {
+                  return false; // Disconnected option selected -> hide step
+                }
+              } else if (opNum !== undefined) {
+                if (!isOptionSelected(opNum)) {
+                  return false;
+                }
+              } else {
+                // Check if user selected an option explicitly marked as disconnected in this prompt
+                const disconnectedOps = stepPlaceholders
+                  .filter(p => p.stepNum === stepNum && (p.dayNum === dayNum || (p.dayNum === undefined && dayNum === undefined)) && p.opNum !== undefined && p.mode === 'disconnect')
+                  .map(p => p.opNum!);
+
+                if (disconnectedOps.some(dOp => isOptionSelected(dOp))) {
+                  return false;
+                }
+
+                const claimedWrittenOpts = new Set<string>();
+                if (Array.isArray(dayContent.taskPrompts)) {
+                  dayContent.taskPrompts.forEach((otherP: string) => {
+                    if (!otherP) return;
+                    const dayPattern = targetDay !== viewingDay ? `(?:[dD](?:ay)?\\s*${targetDay}\\s+)?` : `(?:[dD](?:ay)?\\s*${viewingDay}\\s+)?`;
+                    const subRegex = new RegExp(`\\{${dayPattern}[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\\}`, 'gi');
+                    let sm: RegExpExecArray | null;
+                    while ((sm = subRegex.exec(otherP)) !== null) {
+                      const oIdx = parseInt(sm[1], 10) - 1;
+                      if (writtenOpts[oIdx]) {
+                        claimedWrittenOpts.add(writtenOpts[oIdx].toLowerCase());
+                      }
+                    }
+                  });
+                }
+
+                if (claimedWrittenOpts.size > 0 && userChoices.length > 0) {
+                  const unclaimedSelected = userChoices.filter(c => !claimedWrittenOpts.has(c.toLowerCase()));
+                  if (unclaimedSelected.length === 0) {
+                    return false;
+                  }
                 }
               }
             }

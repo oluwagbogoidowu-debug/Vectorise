@@ -1,4 +1,4 @@
-export type StepPlaceholderMode = 'normal' | 'list' | 'hide' | 'sentence';
+export type StepPlaceholderMode = 'normal' | 'list' | 'hide' | 'sentence' | 'disconnect';
 
 export interface StepPlaceholderDetail {
   dayNum?: number;
@@ -25,6 +25,7 @@ export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
   if (!modeStr) return 'normal';
   const m = modeStr.toLowerCase().trim();
   if (m === 'h' || m === 'hide') return 'hide';
+  if (m === 'd' || m === 'disconnect') return 'disconnect';
   if (m === 's' || m === 'sentence') return 'sentence';
   if (m === 'list' || m === 'l') return 'list';
   if (m === 'normal' || m === 'n') return 'normal';
@@ -32,16 +33,12 @@ export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
 }
 
 /**
- * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {D1 Step 3}, {D2 Step 4 Op1}, {Day 1 Step 3 list}, {d2 step 4 op 1 h}, etc.
+ * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {D1 Step 3}, {D2 Step 4 Op1}, {Day 1 Step 3 list}, {d2 step 4 op 1 h}, {Step 1 Op 4 d}, etc.
  */
-export const PLACEHOLDER_REGEX = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+export const PLACEHOLDER_REGEX = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
 
 /**
- * Validates `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step N h}` etc. placeholders in prompt text.
- * Rules:
- * - Can reference steps on current day (must precede current step: stepNum < stepIndex + 1).
- * - Can reference steps on previous days (D1, D2, Day 1, etc where targetDay <= currentDay).
- * - For option syntax `{Step N OpM}` or `{D2 Step 4 Op1}`, the target step MUST have inputType 'poll'.
+ * Validates `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step N h}`, `{Step N Op 4 d}` etc. placeholders in prompt text.
  */
 export function validateStepPlaceholders(
   prompt: string,
@@ -53,7 +50,7 @@ export function validateStepPlaceholders(
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
   let match: RegExpExecArray | null;
   const references: StepPlaceholderDetail[] = [];
 
@@ -66,6 +63,7 @@ export function validateStepPlaceholders(
 
     let modeSuffix = '';
     if (mode === 'hide') modeSuffix = ' h';
+    else if (mode === 'disconnect') modeSuffix = ' d';
     else if (mode === 'sentence') modeSuffix = ' s';
     else if (mode === 'list') modeSuffix = ' list';
 
@@ -224,6 +222,7 @@ export function togglePlaceholderMode(
     let modePart = '';
     if (targetMode === 'list') modePart = ' list';
     else if (targetMode === 'hide') modePart = ' h';
+    else if (targetMode === 'disconnect') modePart = ' d';
     else if (targetMode === 'sentence') modePart = ' s';
 
     return `{${dayPart}Step ${stepNum}${opPart}${modePart}}`;
@@ -231,7 +230,7 @@ export function togglePlaceholderMode(
 }
 
 /**
- * Replaces `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}` etc. placeholders in prompt with user's choices.
+ * Replaces `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step 1 Op 4 d}` etc. placeholders in prompt with user's choices.
  */
 export function formatInterpolatedText(
   prompt: string,
@@ -242,7 +241,7 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
 
   const currentDayNum = Number(dayContent?.day || 1);
 
@@ -376,7 +375,7 @@ export function formatInterpolatedText(
     const dayPrefix = dayNumStr ? `D${targetDay} ` : '';
 
     const formatOutput = (rawList: string[]): string => {
-      if (mode === 'hide') {
+      if (mode === 'hide' || mode === 'disconnect') {
         return '';
       }
 
