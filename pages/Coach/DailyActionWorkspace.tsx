@@ -961,25 +961,7 @@ export default function DailyActionWorkspace({
                         className={smallEditorInputClasses + " p-3 !py-3 w-full font-medium text-sm"} 
                         placeholder={`Describe Action Step ${activeIdx + 1}...`} 
                       />
-                      {/* Code chips insertion helper */}
-                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                        <span className="text-[10px] font-bold text-gray-400 font-mono">{"{}"}</span>
-                        {getHintTokensForContent(dayContent, activeIdx, dayNum).map((t, tIdx) => (
-                          <button
-                            key={tIdx}
-                            type="button"
-                            onClick={() => {
-                              setSelectedDay(dayNum);
-                              const currentVal = getStepVersionValue(rawPrompt, activeVerIdx);
-                              const updated = currentVal && currentVal.trim() ? `${currentVal.trim()} ${t.token}` : t.token;
-                              handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updated));
-                            }}
-                            className="px-2 py-0.5 bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-purple-700 font-mono text-[10px] font-bold rounded-md border border-gray-200 transition-all cursor-pointer"
-                          >
-                            {t.token}
-                          </button>
-                        ))}
-                      </div>
+
                       {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
                         <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
                           <div className="flex items-center gap-2">
