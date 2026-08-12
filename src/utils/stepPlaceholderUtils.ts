@@ -521,6 +521,109 @@ export interface HintToken {
 }
 
 /**
+ * Parses raw taskHint value into an array of hint string versions.
+ */
+export function parseHintVersions(hintRaw?: string | null): string[] {
+  if (!hintRaw) return [''];
+  const trimmed = hintRaw.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr) && arr.length > 0) {
+        return arr.map(v => (v === null || v === undefined) ? '' : String(v));
+      }
+    } catch (e) {}
+  }
+  return [hintRaw];
+}
+
+/**
+ * Serializes an array of hint string versions back into a stored string.
+ */
+export function serializeHintVersions(versions: string[]): string {
+  if (!versions || versions.length === 0) return '';
+  if (versions.length === 1) return versions[0];
+  return JSON.stringify(versions);
+}
+
+/**
+ * Resolves the appropriate task hint version based on user selections and formats it.
+ */
+export function resolveTaskHintForUser(
+  hintRaw?: string | null,
+  stepIdx: number = 0,
+  dayContent?: any,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[]
+): string {
+  if (!hintRaw) return '';
+  const versions = parseHintVersions(hintRaw);
+  if (versions.length === 0) return '';
+  if (versions.length === 1) {
+    return formatInterpolatedText(versions[0], dayContent, taskInputs, allDaysContent, allDaysInputs);
+  }
+
+  // Determine user's selected poll option index (0, 1, 2...)
+  let selectedOptIdx = 0;
+
+  // 1. Check if current step is a poll step
+  const inputType = dayContent?.taskInputTypes?.[stepIdx];
+  if (inputType === 'poll') {
+    const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[stepIdx] : taskInputs[stepIdx]) : undefined;
+    if (val && dayContent?.taskPollOptions?.[stepIdx]) {
+      try {
+        const opts = JSON.parse(dayContent.taskPollOptions[stepIdx]);
+        if (Array.isArray(opts)) {
+          const matchIdx = opts.findIndex((o: string) => String(o).trim().toLowerCase() === String(val).trim().toLowerCase());
+          if (matchIdx >= 0) selectedOptIdx = matchIdx;
+        }
+      } catch (e) {}
+    }
+  } else {
+    // 2. Check if current step is linked to a preceding poll step
+    const pollLink = dayContent?.taskPollOptionLinks?.[stepIdx];
+    if (pollLink && typeof pollLink === 'object' && pollLink.targetPollIdx !== undefined) {
+      const targetPollIdx = pollLink.targetPollIdx;
+      const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[targetPollIdx] : taskInputs[targetPollIdx]) : undefined;
+      if (val && dayContent?.taskPollOptions?.[targetPollIdx]) {
+        try {
+          const opts = JSON.parse(dayContent.taskPollOptions[targetPollIdx]);
+          if (Array.isArray(opts)) {
+            const matchIdx = opts.findIndex((o: string) => String(o).trim().toLowerCase() === String(val).trim().toLowerCase());
+            if (matchIdx >= 0) selectedOptIdx = matchIdx;
+          }
+        } catch (e) {}
+      }
+    } else {
+      // 3. Fallback: check if any preceding step on current day was a poll step where user made a choice
+      if (dayContent?.taskInputTypes && Array.isArray(dayContent.taskInputTypes)) {
+        for (let p = stepIdx - 1; p >= 0; p--) {
+          if (dayContent.taskInputTypes[p] === 'poll') {
+            const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[p] : taskInputs[p]) : undefined;
+            if (val && dayContent?.taskPollOptions?.[p]) {
+              try {
+                const opts = JSON.parse(dayContent.taskPollOptions[p]);
+                if (Array.isArray(opts)) {
+                  const matchIdx = opts.findIndex((o: string) => String(o).trim().toLowerCase() === String(val).trim().toLowerCase());
+                  if (matchIdx >= 0) {
+                    selectedOptIdx = matchIdx;
+                    break;
+                  }
+                }
+              } catch (e) {}
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const chosenHint = versions[selectedOptIdx] !== undefined ? versions[selectedOptIdx] : (versions[0] || '');
+  return formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs);
+}
+
+/**
  * Returns helper tokens for Task Hints (e.g. {Step 1}, {Step 1 op 1}, {Step 1 op 2}, {Step 2}...)
  */
 export function getHintTokensForContent(dayContent: any, currentStepIdx: number, dayNum?: number): HintToken[] {

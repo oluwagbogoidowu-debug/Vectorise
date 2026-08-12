@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -1369,7 +1369,7 @@ const SprintPreview: React.FC = () => {
                                                 </button>
                                                 {revealedHints[i] && (
                                                     <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                                        <FormattedText text={formatInterpolatedText(day1Content.taskHints[i], day1Content, taskInputs, sprint?.dailyContent)} />
+                                                        <FormattedText text={resolveTaskHintForUser(day1Content.taskHints[i], i, day1Content, taskInputs, sprint?.dailyContent)} />
                                                     </div>
                                                 )}
                                             </div>

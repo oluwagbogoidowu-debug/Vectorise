@@ -20,7 +20,7 @@ import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -308,6 +308,7 @@ const EditSprint: React.FC = () => {
   const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
   const [collapsedBranchingPaths, setCollapsedBranchingPaths] = useState<Record<number, boolean>>({});
+  const [activeHintTabMap, setActiveHintTabMap] = useState<Record<number, number>>({});
 
   useEffect(() => {
     setPreviewTaskIndex(0);
@@ -3746,39 +3747,61 @@ const EditSprint: React.FC = () => {
                                                     <div className="flex justify-between items-center mb-1.5 flex-wrap gap-1">
                                                         <div className="flex items-center gap-1.5 flex-wrap">
                                                             <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handlePlusHintClick(
-                                                                    currentContent.taskHints[index] || '',
-                                                                    (val) => handleTaskHintChange(index, val),
-                                                                    currentContent,
-                                                                    index
-                                                                )}
-                                                                className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-md text-[10px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
-                                                                title="Click + to add Step/Option placeholders ({Step 1 op 1}, {Step 1 op 2}...)"
-                                                            >
-                                                                <Plus size={11} strokeWidth={3} />
-                                                                <span>Step</span>
-                                                            </button>
-                                                            {getHintTokensForContent(currentContent, index).map((tItem, tIdx) => (
-                                                                <button
-                                                                    key={tIdx}
-                                                                    type="button"
-                                                                    onClick={() => insertHintToken(
-                                                                        currentContent.taskHints[index] || '',
-                                                                        (val) => handleTaskHintChange(index, val),
-                                                                        tItem.token
-                                                                    )}
-                                                                    className={`px-1.5 py-0.5 rounded text-[9px] font-black transition-all cursor-pointer border ${
-                                                                        tItem.isOption 
-                                                                            ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200' 
-                                                                            : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-200'
-                                                                    }`}
-                                                                    title={`Insert ${tItem.token}`}
-                                                                >
-                                                                    {tItem.label}
-                                                                </button>
-                                                            ))}
+                                                            {(() => {
+                                                                const currentHintRaw = currentContent.taskHints[index] || '';
+                                                                const versions = parseHintVersions(currentHintRaw);
+                                                                const activeTab = Math.min(activeHintTabMap[index] || 0, Math.max(0, versions.length - 1));
+
+                                                                return (
+                                                                    <div className="flex items-center gap-1">
+                                                                        {versions.map((_, vIdx) => (
+                                                                            <button
+                                                                                key={vIdx}
+                                                                                type="button"
+                                                                                onClick={() => setActiveHintTabMap(prev => ({ ...prev, [index]: vIdx }))}
+                                                                                className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer border ${
+                                                                                    activeTab === vIdx
+                                                                                        ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                                                                                        : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                                                                                }`}
+                                                                                title={vIdx === 0 ? 'Hint 1 (Default / Option 1)' : `Hint ${vIdx + 1} (For Option ${vIdx + 1})`}
+                                                                            >
+                                                                                {vIdx + 1}
+                                                                            </button>
+                                                                        ))}
+
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newVersions = [...versions, ''];
+                                                                                const newActiveIdx = newVersions.length - 1;
+                                                                                setActiveHintTabMap(prev => ({ ...prev, [index]: newActiveIdx }));
+                                                                                handleTaskHintChange(index, serializeHintVersions(newVersions));
+                                                                            }}
+                                                                            className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-900 rounded-md text-[10px] font-black flex items-center gap-0.5 transition-all cursor-pointer border border-amber-300/60"
+                                                                            title="Add another Hint version for Option 2, 3..."
+                                                                        >
+                                                                            <Plus size={11} strokeWidth={3} />
+                                                                        </button>
+
+                                                                        {versions.length > 1 && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newVersions = versions.filter((_, idx) => idx !== activeTab);
+                                                                                    const newActiveIdx = Math.max(0, activeTab - 1);
+                                                                                    setActiveHintTabMap(prev => ({ ...prev, [index]: newActiveIdx }));
+                                                                                    handleTaskHintChange(index, serializeHintVersions(newVersions));
+                                                                                }}
+                                                                                className="p-1 text-gray-400 hover:text-red-500 transition-colors ml-0.5"
+                                                                                title="Remove this hint version"
+                                                                            >
+                                                                                <Trash2 size={11} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                         <button 
                                                             type="button" 
@@ -3792,13 +3815,29 @@ const EditSprint: React.FC = () => {
                                                             <X size={12} />
                                                         </button>
                                                     </div>
-                                                    <textarea 
-                                                        value={currentContent.taskHints[index] || ''} 
-                                                        onChange={e => handleTaskHintChange(index, e.target.value)} 
-                                                        rows={2} 
-                                                        className={hintInputClasses} 
-                                                        placeholder="Add a hint to help the participant (use {Step 1 op 1}, {Step 1 op 2} to adapt to choices)..." 
-                                                    />
+                                                    {(() => {
+                                                        const versions = parseHintVersions(currentContent.taskHints[index] || '');
+                                                        const activeTab = Math.min(activeHintTabMap[index] || 0, Math.max(0, versions.length - 1));
+                                                        const activeHintText = versions[activeTab] || '';
+
+                                                        return (
+                                                            <textarea 
+                                                                value={activeHintText} 
+                                                                onChange={e => {
+                                                                    const updatedVersions = [...versions];
+                                                                    updatedVersions[activeTab] = e.target.value;
+                                                                    handleTaskHintChange(index, serializeHintVersions(updatedVersions));
+                                                                }} 
+                                                                rows={2} 
+                                                                className={hintInputClasses} 
+                                                                placeholder={
+                                                                    versions.length > 1 
+                                                                        ? `Add hint for option ${activeTab + 1}...` 
+                                                                        : "Add a hint to help the participant..."
+                                                                } 
+                                                            />
+                                                        );
+                                                    })()}
                                                 </div>
                                             )}
                                             {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0 && (
@@ -4296,7 +4335,7 @@ const EditSprint: React.FC = () => {
                                             </button>
                                             {revealedHints[i] && (
                                                 <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                                    <FormattedText text={formatInterpolatedText(currentContent.taskHints[i], currentContent, {}, sprint?.dailyContent)} />
+                                                    <FormattedText text={resolveTaskHintForUser(currentContent.taskHints[i], i, currentContent, previewInputs, sprint?.dailyContent)} />
                                                 </div>
                                             )}
                                         </div>

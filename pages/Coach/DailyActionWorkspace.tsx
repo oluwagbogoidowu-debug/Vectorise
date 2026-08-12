@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -31,6 +31,7 @@ export default function DailyActionWorkspace({
   const [selectedPollTarget, setSelectedPollTarget] = useState<Record<number, number>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
+  const [activeHintTabMap, setActiveHintTabMap] = useState<Record<string, number>>({});
   const [showHelpSheet, setShowHelpSheet] = useState(false);
 
   // Long press drag reorder state for Action Steps (e.g. 1 2 3 4 5)
@@ -1624,48 +1625,67 @@ export default function DailyActionWorkspace({
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
                             
-                            {/* + Button in front of task hint */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                handlePlusHintClick(
-                                  dayContent.taskHints[activeIdx] || '',
-                                  (val) => handleTaskHintChange(dayNum, activeIdx, val),
-                                  dayContent,
-                                  activeIdx
-                                );
-                              }}
-                              className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-md text-[10px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
-                              title="Click + to add Step/Option placeholders ({Step 1 op 1}, {Step 1 op 2}...)"
-                            >
-                              <Plus size={11} strokeWidth={3} />
-                              <span>Step</span>
-                            </button>
+                            {(() => {
+                              const tabKey = `${dayNum}-${activeIdx}`;
+                              const currentHintRaw = dayContent.taskHints[activeIdx] || '';
+                              const versions = parseHintVersions(currentHintRaw);
+                              const activeTab = Math.min(activeHintTabMap[tabKey] || 0, Math.max(0, versions.length - 1));
 
-                            {/* Quick 1 2 3 ... & op 1 op 2 pills */}
-                            {getHintTokensForContent(dayContent, activeIdx).map((tItem, tIdx) => (
-                              <button
-                                key={tIdx}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDay(dayNum);
-                                  insertHintToken(
-                                    dayContent.taskHints[activeIdx] || '',
-                                    (val) => handleTaskHintChange(dayNum, activeIdx, val),
-                                    tItem.token
-                                  );
-                                }}
-                                className={`px-1.5 py-0.5 rounded text-[9px] font-black transition-all cursor-pointer border ${
-                                  tItem.isOption 
-                                    ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200' 
-                                    : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-200'
-                                }`}
-                                title={`Insert ${tItem.token}`}
-                              >
-                                {tItem.label}
-                              </button>
-                            ))}
+                              return (
+                                <div className="flex items-center gap-1">
+                                  {versions.map((_, vIdx) => (
+                                    <button
+                                      key={vIdx}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        setActiveHintTabMap(prev => ({ ...prev, [tabKey]: vIdx }));
+                                      }}
+                                      className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer border ${
+                                        activeTab === vIdx
+                                          ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                                          : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                                      }`}
+                                      title={vIdx === 0 ? 'Hint 1 (Default / Option 1)' : `Hint ${vIdx + 1} (For Option ${vIdx + 1})`}
+                                    >
+                                      {vIdx + 1}
+                                    </button>
+                                  ))}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDay(dayNum);
+                                      const newVersions = [...versions, ''];
+                                      const newActiveIdx = newVersions.length - 1;
+                                      setActiveHintTabMap(prev => ({ ...prev, [tabKey]: newActiveIdx }));
+                                      handleTaskHintChange(dayNum, activeIdx, serializeHintVersions(newVersions));
+                                    }}
+                                    className="px-2 py-0.5 bg-amber-100 hover:bg-amber-200 active:scale-95 text-amber-900 rounded-md text-[10px] font-black flex items-center gap-0.5 transition-all cursor-pointer border border-amber-300/60"
+                                    title="Add another Hint version for Option 2, 3..."
+                                  >
+                                    <Plus size={11} strokeWidth={3} />
+                                  </button>
+
+                                  {versions.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const newVersions = versions.filter((_, idx) => idx !== activeTab);
+                                        const newActiveIdx = Math.max(0, activeTab - 1);
+                                        setActiveHintTabMap(prev => ({ ...prev, [tabKey]: newActiveIdx }));
+                                        handleTaskHintChange(dayNum, activeIdx, serializeHintVersions(newVersions));
+                                      }}
+                                      className="p-1 text-gray-400 hover:text-red-500 transition-colors ml-0.5"
+                                      title="Remove this hint version"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div className="flex items-center gap-1.5 ml-auto">
@@ -1674,7 +1694,12 @@ export default function DailyActionWorkspace({
                                 type="button"
                                 onClick={() => {
                                   setSelectedDay(dayNum);
-                                  handleTaskHintChange(dayNum, activeIdx, selectedText);
+                                  const tabKey = `${dayNum}-${activeIdx}`;
+                                  const versions = parseHintVersions(dayContent.taskHints?.[activeIdx] || '');
+                                  const activeTab = Math.min(activeHintTabMap[tabKey] || 0, Math.max(0, versions.length - 1));
+                                  const updatedVersions = [...versions];
+                                  updatedVersions[activeTab] = selectedText;
+                                  handleTaskHintChange(dayNum, activeIdx, serializeHintVersions(updatedVersions));
                                   setLastAssignedField(`hint-${activeIdx}`);
                                   setTimeout(() => setLastAssignedField(null), 1500);
                                   setSelectedText('');
@@ -1690,22 +1715,39 @@ export default function DailyActionWorkspace({
                                 setSelectedDay(dayNum);
                                 handleTaskHintChange(dayNum, activeIdx, null as any);
                               }}
-                              className="text-gray-300 hover:text-red-500 transition-colors"
+                              className="text-gray-300 hover:text-red-500 transition-colors ml-1"
+                              title="Remove Task Hint completely"
                             >
                               <X size={12} />
                             </button>
                           </div>
                         </div>
-                        <textarea 
-                          value={dayContent.taskHints[activeIdx] || ''} 
-                          onChange={e => {
-                            setSelectedDay(dayNum);
-                            handleTaskHintChange(dayNum, activeIdx, e.target.value);
-                          }} 
-                          rows={2} 
-                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-medium text-sm"} 
-                          placeholder="Add a hint to help the participant (use {Step 1 op 1}, {Step 1 op 2} to adapt to choices)..." 
-                        />
+
+                        {(() => {
+                          const tabKey = `${dayNum}-${activeIdx}`;
+                          const versions = parseHintVersions(dayContent.taskHints[activeIdx] || '');
+                          const activeTab = Math.min(activeHintTabMap[tabKey] || 0, Math.max(0, versions.length - 1));
+                          const activeHintText = versions[activeTab] || '';
+
+                          return (
+                            <textarea 
+                              value={activeHintText} 
+                              onChange={e => {
+                                setSelectedDay(dayNum);
+                                const updatedVersions = [...versions];
+                                updatedVersions[activeTab] = e.target.value;
+                                handleTaskHintChange(dayNum, activeIdx, serializeHintVersions(updatedVersions));
+                              }} 
+                              rows={2} 
+                              className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-medium text-sm"} 
+                              placeholder={
+                                versions.length > 1 
+                                  ? `Add hint for option ${activeTab + 1}...` 
+                                  : "Add a hint to help the participant..."
+                              } 
+                            />
+                          );
+                        })()}
                       </div>
                     )}
 
