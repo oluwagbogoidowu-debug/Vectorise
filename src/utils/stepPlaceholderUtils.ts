@@ -150,7 +150,9 @@ export function validateStepPlaceholders(
     }
 
     if (ref.opNum !== undefined) {
-      if (targetType && targetType !== 'poll') {
+      const targetVersions = parseStepVersions(targetType);
+      const isTargetPoll = targetVersions.some(v => v && v.toLowerCase() === 'poll') || targetType === 'poll';
+      if (targetType && !isTargetPoll) {
         invalidStepRefs.push(ref.stepNum);
         invalidStepLabels.push(ref.rawLabel);
         if (!invalidReason) {
@@ -668,6 +670,65 @@ export function updateStepVersionValue(rawField: string | null | undefined, vers
   }
   versions[versionIdx] = newValue;
   return serializeStepVersions(versions);
+}
+
+export function getStepInputType(
+  dayContent: any,
+  stepIdx: number,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[]
+): string {
+  if (!dayContent) return 'text';
+  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const rawType = dayContent.taskInputTypes?.[stepIdx];
+  const typeVal = getStepVersionValue(rawType, verIdx, 'text');
+  return typeVal ? typeVal.trim().toLowerCase() : 'text';
+}
+
+export function getStepPollOptions(
+  dayContent: any,
+  stepIdx: number,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[]
+): string {
+  if (!dayContent) return '';
+  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const rawOpts = dayContent.taskPollOptions?.[stepIdx];
+  return getStepVersionValue(rawOpts, verIdx, '');
+}
+
+export function getStepMultiTextLabels(
+  dayContent: any,
+  stepIdx: number,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[]
+): string[] {
+  if (!dayContent) return [];
+  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const rawLabels = dayContent.taskMultiTextLabels?.[stepIdx];
+  let valStr = '';
+  if (typeof rawLabels === 'string') {
+    valStr = getStepVersionValue(rawLabels, verIdx, '');
+  } else if (Array.isArray(rawLabels)) {
+    if (rawLabels[verIdx] !== undefined) {
+      const item = rawLabels[verIdx];
+      if (Array.isArray(item)) return item;
+      if (typeof item === 'string') valStr = item;
+    } else if (rawLabels.length > 0) {
+      if (Array.isArray(rawLabels[0])) return rawLabels[0];
+      if (typeof rawLabels[0] === 'string') valStr = rawLabels[0];
+    }
+  }
+  if (valStr) {
+    try {
+      const parsed = JSON.parse(valStr);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (e) {}
+  }
+  return [];
 }
 
 /**
