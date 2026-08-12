@@ -511,3 +511,102 @@ export function hasAnyInvalidPlaceholdersInContent(dailyContent: any[]): boolean
 
   return false;
 }
+
+export interface HintToken {
+  token: string;
+  label: string;
+  isOption: boolean;
+  optNum?: number;
+  stepNum: number;
+}
+
+/**
+ * Returns helper tokens for Task Hints (e.g. {Step 1}, {Step 1 op 1}, {Step 1 op 2}, {Step 2}...)
+ */
+export function getHintTokensForContent(dayContent: any, currentStepIdx: number, dayNum?: number): HintToken[] {
+  const tokens: HintToken[] = [];
+  if (!dayContent) return tokens;
+
+  const promptsCount = Math.max(
+    dayContent.taskPrompts?.length || 0,
+    dayContent.taskInputTypes?.length || 0,
+    1
+  );
+
+  const dayPrefix = (dayNum !== undefined && dayContent.day && Number(dayContent.day) !== dayNum) ? `D${dayContent.day} ` : '';
+
+  for (let s = 0; s < promptsCount; s++) {
+    const stepNum = s + 1;
+    const inputType = dayContent.taskInputTypes?.[s] || 'text';
+
+    // Base step token
+    tokens.push({
+      token: `{${dayPrefix}Step ${stepNum}}`,
+      label: `${dayPrefix}Step ${stepNum}`,
+      isOption: false,
+      stepNum
+    });
+
+    // If step is poll, add option tokens e.g. {Step 1 op 1}, {Step 1 op 2}
+    if (inputType === 'poll') {
+      let options: string[] = [];
+      if (dayContent.taskPollOptions?.[s]) {
+        try {
+          const parsed = JSON.parse(dayContent.taskPollOptions[s]);
+          if (Array.isArray(parsed)) options = parsed.filter(Boolean);
+        } catch (e) {}
+      }
+
+      const optCount = Math.max(options.length, 2);
+      for (let o = 1; o <= optCount; o++) {
+        tokens.push({
+          token: `{${dayPrefix}Step ${stepNum} op ${o}}`,
+          label: `${dayPrefix}${stepNum} op ${o}`,
+          isOption: true,
+          optNum: o,
+          stepNum
+        });
+      }
+    }
+  }
+
+  return tokens;
+}
+
+/**
+ * Appends or inserts the next placeholder token when the + button on Task Hint is clicked
+ */
+export function handlePlusHintClick(
+  currentHint: string,
+  onChangeHint: (newVal: string) => void,
+  dayContent: any,
+  currentStepIdx: number,
+  dayNum?: number
+) {
+  const tokens = getHintTokensForContent(dayContent, currentStepIdx, dayNum);
+  if (tokens.length === 0) return;
+
+  const missingToken = tokens.find(t => !currentHint.includes(t.token));
+  let tokenToInsert = '';
+
+  if (missingToken) {
+    tokenToInsert = missingToken.token;
+  } else {
+    tokenToInsert = tokens[0].token;
+  }
+
+  const updatedHint = currentHint && currentHint.trim() ? `${currentHint.trim()} ${tokenToInsert}` : tokenToInsert;
+  onChangeHint(updatedHint);
+}
+
+/**
+ * Appends or inserts a specific placeholder token directly
+ */
+export function insertHintToken(
+  currentHint: string,
+  onChangeHint: (newVal: string) => void,
+  token: string
+) {
+  const updatedHint = currentHint && currentHint.trim() ? `${currentHint.trim()} ${token}` : token;
+  onChangeHint(updatedHint);
+}

@@ -20,7 +20,7 @@ import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -3743,8 +3743,43 @@ const EditSprint: React.FC = () => {
                                             )}
                                             {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
-                                                    <div className="flex justify-between items-center mb-1">
-                                                        <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
+                                                    <div className="flex justify-between items-center mb-1.5 flex-wrap gap-1">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handlePlusHintClick(
+                                                                    currentContent.taskHints[index] || '',
+                                                                    (val) => handleTaskHintChange(index, val),
+                                                                    currentContent,
+                                                                    index
+                                                                )}
+                                                                className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-md text-[10px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                                                                title="Click + to add Step/Option placeholders ({Step 1 op 1}, {Step 1 op 2}...)"
+                                                            >
+                                                                <Plus size={11} strokeWidth={3} />
+                                                                <span>Step</span>
+                                                            </button>
+                                                            {getHintTokensForContent(currentContent, index).map((tItem, tIdx) => (
+                                                                <button
+                                                                    key={tIdx}
+                                                                    type="button"
+                                                                    onClick={() => insertHintToken(
+                                                                        currentContent.taskHints[index] || '',
+                                                                        (val) => handleTaskHintChange(index, val),
+                                                                        tItem.token
+                                                                    )}
+                                                                    className={`px-1.5 py-0.5 rounded text-[9px] font-black transition-all cursor-pointer border ${
+                                                                        tItem.isOption 
+                                                                            ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200' 
+                                                                            : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-200'
+                                                                    }`}
+                                                                    title={`Insert ${tItem.token}`}
+                                                                >
+                                                                    {tItem.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                         <button 
                                                             type="button" 
                                                             onClick={() => {
@@ -3752,7 +3787,7 @@ const EditSprint: React.FC = () => {
                                                                 newHints[index] = null as any;
                                                                 handleContentChange('taskHints', newHints);
                                                             }}
-                                                            className="text-gray-300 hover:text-red-500 transition-colors"
+                                                            className="text-gray-300 hover:text-red-500 transition-colors ml-auto"
                                                         >
                                                             <X size={12} />
                                                         </button>
@@ -3762,7 +3797,7 @@ const EditSprint: React.FC = () => {
                                                         onChange={e => handleTaskHintChange(index, e.target.value)} 
                                                         rows={2} 
                                                         className={hintInputClasses} 
-                                                        placeholder="Add a hint to help the participant..." 
+                                                        placeholder="Add a hint to help the participant (use {Step 1 op 1}, {Step 1 op 2} to adapt to choices)..." 
                                                     />
                                                 </div>
                                             )}
@@ -4261,7 +4296,7 @@ const EditSprint: React.FC = () => {
                                             </button>
                                             {revealedHints[i] && (
                                                 <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                                    <FormattedText text={currentContent.taskHints[i]} />
+                                                    <FormattedText text={formatInterpolatedText(currentContent.taskHints[i], currentContent, {}, sprint?.dailyContent)} />
                                                 </div>
                                             )}
                                         </div>

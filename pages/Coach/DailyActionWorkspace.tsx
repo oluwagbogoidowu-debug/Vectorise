@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -1620,9 +1620,55 @@ export default function DailyActionWorkspace({
                     {/* Task Hint edit input */}
                     {dayContent.taskHints?.[activeIdx] !== undefined && dayContent.taskHints?.[activeIdx] !== null && (
                       <div className={`mt-2 animate-fade-in border border-amber-100 rounded-2xl p-3 bg-amber-50/5 ${isLastAssignedHint ? 'ring-2 ring-amber-500 ring-offset-2' : ''}`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
-                          <div className="flex items-center gap-1.5">
+                        <div className="flex justify-between items-center mb-1.5 flex-wrap gap-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <label className="text-[9px] font-black text-amber-500 uppercase tracking-widest px-1">Task Hint</label>
+                            
+                            {/* + Button in front of task hint */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                handlePlusHintClick(
+                                  dayContent.taskHints[activeIdx] || '',
+                                  (val) => handleTaskHintChange(dayNum, activeIdx, val),
+                                  dayContent,
+                                  activeIdx
+                                );
+                              }}
+                              className="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white rounded-md text-[10px] font-black flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                              title="Click + to add Step/Option placeholders ({Step 1 op 1}, {Step 1 op 2}...)"
+                            >
+                              <Plus size={11} strokeWidth={3} />
+                              <span>Step</span>
+                            </button>
+
+                            {/* Quick 1 2 3 ... & op 1 op 2 pills */}
+                            {getHintTokensForContent(dayContent, activeIdx).map((tItem, tIdx) => (
+                              <button
+                                key={tIdx}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  insertHintToken(
+                                    dayContent.taskHints[activeIdx] || '',
+                                    (val) => handleTaskHintChange(dayNum, activeIdx, val),
+                                    tItem.token
+                                  );
+                                }}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-black transition-all cursor-pointer border ${
+                                  tItem.isOption 
+                                    ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200' 
+                                    : 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-200'
+                                }`}
+                                title={`Insert ${tItem.token}`}
+                              >
+                                {tItem.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 ml-auto">
                             {selectedText && (
                               <button
                                 type="button"
@@ -1658,7 +1704,7 @@ export default function DailyActionWorkspace({
                           }} 
                           rows={2} 
                           className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-amber-100 bg-amber-50/20 text-gray-750 font-medium text-sm"} 
-                          placeholder="Add a hint..." 
+                          placeholder="Add a hint to help the participant (use {Step 1 op 1}, {Step 1 op 2} to adapt to choices)..." 
                         />
                       </div>
                     )}

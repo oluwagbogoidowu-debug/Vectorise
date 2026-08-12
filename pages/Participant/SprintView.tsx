@@ -3019,7 +3019,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   {revealedHints[i] && (
                                     <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
                                       <FormattedText
-                                        text={dayContent.taskHints[i]}
+                                        text={formatInterpolatedText(dayContent.taskHints[i], dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)}
                                       />
                                     </div>
                                   )}
@@ -3733,7 +3733,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </button>
                             {revealedHints[0] && (
                               <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                <FormattedText text={dayContent.taskHints[0]} />
+                                <FormattedText text={formatInterpolatedText(dayContent.taskHints[0], dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
                             )}
                           </div>
