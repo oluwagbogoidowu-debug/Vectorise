@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -20,7 +20,7 @@ import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -309,6 +309,7 @@ const EditSprint: React.FC = () => {
 
   const [collapsedBranchingPaths, setCollapsedBranchingPaths] = useState<Record<number, boolean>>({});
   const [activeHintTabMap, setActiveHintTabMap] = useState<Record<number, number>>({});
+  const [activeStepVersionMap, setActiveStepVersionMap] = useState<Record<number, number>>({});
 
   useEffect(() => {
     setPreviewTaskIndex(0);
@@ -2972,10 +2973,17 @@ const EditSprint: React.FC = () => {
                     )}
                     
                     <div className="space-y-4 relative">
-                        {(currentContent.taskPrompts || ['', '', '']).map((prompt, index) => {
+                        {(currentContent.taskPrompts || ['', '', '']).map((_promptItem, index) => {
                             const isLinkedFromPrevious = 
                                 (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) ||
                                 (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
+                            const rawPrompt = currentContent.taskPrompts?.[index] || '';
+                            const rawInputType = currentContent.taskInputTypes?.[index] || 'text';
+                            const rawPollOptions = currentContent.taskPollOptions?.[index] || '';
+                            const stepVersions = parseStepVersions(rawPrompt);
+                            const activeVerIdx = activeStepVersionMap[index] || 0;
+                            const prompt = getStepVersionValue(rawPrompt, activeVerIdx);
+
                             const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || [], currentContent.taskPollOptions, Number(currentContent.day || selectedDay || 1), sprint?.dailyContent);
                             return (
                                 <div key={index} className="group relative">
@@ -2987,35 +2995,57 @@ const EditSprint: React.FC = () => {
                                     </div>
                                     <div className="flex gap-2 items-start relative z-20">
                                         <div className="flex-1 space-y-2">
-                                            {/* Prominent numbering inline badge */}
+                                            {/* Prominent numbering inline badge with + 1 2 sub-context step versioning */}
                                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                 <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1">
                                                     Action Step {index + 1}
                                                 </span>
 
-                                                {/* + coach note button right in front of the tag */}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const currentNote = currentContent.taskNotes?.[index];
-                                                        if (typeof currentNote !== 'string') {
-                                                            handleTaskNoteChange(index, '');
-                                                        } else {
-                                                            const newNotes = [...(currentContent.taskNotes || [])];
-                                                            newNotes[index] = null as any;
-                                                            handleContentChange('taskNotes', newNotes);
-                                                        }
-                                                    }}
-                                                    className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                                                        typeof currentContent.taskNotes?.[index] === 'string'
-                                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100/50'
-                                                            : 'bg-white text-gray-500 hover:text-primary hover:bg-primary/5 hover:border-primary/20 border-gray-200'
-                                                    }`}
-                                                    title="Coach Note: Add guidance, background information, or resources that will appear immediately above this prompt for the participant."
-                                                >
-                                                    <Plus size={11} strokeWidth={2.5} className="shrink-0" />
-                                                    <span>Coach Note</span>
-                                                </button>
+                                                {/* Sub-context version tabs: + 1 2 3 */}
+                                                <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+                                                    {stepVersions.map((_, vIdx) => (
+                                                        <button
+                                                            key={vIdx}
+                                                            type="button"
+                                                            onClick={() => setActiveStepVersionMap(prev => ({ ...prev, [index]: vIdx }))}
+                                                            className={`px-2 py-0.5 text-[10px] font-black rounded transition-all ${
+                                                                activeVerIdx === vIdx
+                                                                    ? 'bg-primary text-white shadow-xs'
+                                                                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                                                            }`}
+                                                        >
+                                                            {vIdx + 1}
+                                                        </button>
+                                                    ))}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newVersions = [...stepVersions, ''];
+                                                            const newVerIdx = newVersions.length - 1;
+                                                            setActiveStepVersionMap(prev => ({ ...prev, [index]: newVerIdx }));
+                                                            handleTaskPromptChange(index, serializeStepVersions(newVersions));
+                                                        }}
+                                                        className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-primary hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
+                                                        title="Add sub-context version (e.g. version for Option 1, Option 2...)"
+                                                    >
+                                                        <Plus size={11} strokeWidth={3} />
+                                                    </button>
+                                                    {stepVersions.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                                                const newVerIdx = Math.max(0, activeVerIdx - 1);
+                                                                setActiveStepVersionMap(prev => ({ ...prev, [index]: newVerIdx }));
+                                                                handleTaskPromptChange(index, serializeStepVersions(newVersions));
+                                                            }}
+                                                            className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
+                                                            title="Remove current context version"
+                                                        >
+                                                            <Trash2 size={10} />
+                                                        </button>
+                                                    )}
+                                                </div>
 
                                                 {isLinkedFromPrevious && (
                                                     <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5">
@@ -3039,36 +3069,6 @@ const EditSprint: React.FC = () => {
                                                     </span>
                                                 )}
                                             </div>
-
-                                            {/* Note inputs BEFORE the question prompt */}
-                                            <div className="space-y-4 mb-3">
-                                                {(typeof currentContent.taskNotes?.[index] === 'string') && (
-                                                    <div className="animate-fade-in border border-emerald-100/70 rounded-2xl p-4 bg-emerald-50/5">
-                                                        <div className="flex justify-between items-center mb-1.5">
-                                                            <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
-                                                            <button 
-                                                                type="button" 
-                                                                onClick={() => {
-                                                                    const newNotes = [...(currentContent.taskNotes || [])];
-                                                                    newNotes[index] = null as any;
-                                                                    handleContentChange('taskNotes', newNotes);
-                                                                }}
-                                                                className="text-gray-300 hover:text-red-500 transition-colors"
-                                                            >
-                                                                <X size={12} />
-                                                            </button>
-                                                        </div>
-                                                        <textarea 
-                                                            value={currentContent.taskNotes[index] || ''} 
-                                                            onChange={e => handleTaskNoteChange(index, e.target.value)} 
-                                                            rows={2} 
-                                                            className={coachNoteInputClasses} 
-                                                            placeholder="Add a context note. This note will appear just before the question in the participant view." 
-                                                         />
-
-                                                     </div>
-
-                                                 )}
                                                                                               {isLinkedFromPrevious && (
                                                     <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in w-full">
                                                         <div className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-150">
@@ -3151,21 +3151,38 @@ const EditSprint: React.FC = () => {
                                                         )}
                                                     </div>
                                                 )}
-                                            </div>
 
                                             <textarea 
                                                 value={prompt} 
-                                                onChange={e => handleTaskPromptChange(index, e.target.value)} 
+                                                onChange={e => handleTaskPromptChange(index, updateStepVersionValue(rawPrompt, activeVerIdx, e.target.value))} 
                                                 rows={2} 
                                                 className={promptInputClasses} 
                                                 placeholder={`Action Step ${index + 1}...`} 
                                             />
+                                            {/* Code chips insertion helper */}
+                                            <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                                                <span className="text-[10px] font-bold text-gray-400 font-mono flex items-center gap-0.5"><Code size={11} /> {"{}"}</span>
+                                                {getHintTokensForContent(currentContent, index, Number(currentContent.day || selectedDay || 1)).map((t, tIdx) => (
+                                                    <button
+                                                        key={tIdx}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const currentVal = getStepVersionValue(rawPrompt, activeVerIdx);
+                                                            const updated = currentVal && currentVal.trim() ? `${currentVal.trim()} ${t.token}` : t.token;
+                                                            handleTaskPromptChange(index, updateStepVersionValue(rawPrompt, activeVerIdx, updated));
+                                                        }}
+                                                        className="px-2 py-0.5 bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-purple-700 font-mono text-[10px] font-bold rounded-md border border-gray-200 transition-all cursor-pointer"
+                                                    >
+                                                        {t.token}
+                                                    </button>
+                                                ))}
+                                            </div>
                                             {placeholderVal.hasPlaceholders && placeholderVal.isValid && (
                                                 <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
                                                     <div className="flex items-center gap-2">
                                                         <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
                                                         <span>
-                                                            <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(placeholderVal.validStepLabels || placeholderVal.validStepRefs.map(n => String(n))).map(s => `{step ${s}}`).join(', ')}</code> will expand into choice(s) collected from Step {placeholderVal.validStepLabels?.join(', ') || placeholderVal.validStepRefs.join(', ')}.
+                                                            <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(placeholderVal.validStepLabels || placeholderVal.validStepRefs.map(n => String(n))).map(s => "{step " + s + "}").join(', ')}</code> will expand into choice(s) collected from Step {placeholderVal.validStepLabels?.join(', ') || placeholderVal.validStepRefs.join(', ')}.
                                                         </span>
                                                     </div>
 
@@ -3189,7 +3206,7 @@ const EditSprint: React.FC = () => {
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'normal');
-                                                                                handleTaskPromptChange(index, newPrompt);
+                                                                                handleTaskPromptChange(index, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
                                                                             }}
                                                                             className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                                                                 detail.mode === 'normal'
@@ -3204,7 +3221,7 @@ const EditSprint: React.FC = () => {
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'sentence');
-                                                                                handleTaskPromptChange(index, newPrompt);
+                                                                                handleTaskPromptChange(index, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
                                                                             }}
                                                                             className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                                                                 detail.mode === 'sentence'
@@ -3219,7 +3236,7 @@ const EditSprint: React.FC = () => {
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'list');
-                                                                                handleTaskPromptChange(index, newPrompt);
+                                                                                handleTaskPromptChange(index, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
                                                                             }}
                                                                             className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                                                                 detail.mode === 'list'
@@ -3234,7 +3251,7 @@ const EditSprint: React.FC = () => {
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'hide');
-                                                                                handleTaskPromptChange(index, newPrompt);
+                                                                                handleTaskPromptChange(index, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
                                                                             }}
                                                                             className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                                                                 detail.mode === 'hide'
@@ -4149,7 +4166,7 @@ const EditSprint: React.FC = () => {
                                                                                 }}
                                                                                 className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                                                                             >
-                                                                                If Option {optIdx + 1}: "{opt}" {linkedStepIndex !== -1 ? `(Linked to Step ${linkedStepIndex + 1})` : ''}
+                                                                                If Option {optIdx + 1}: &quot;{opt}&quot; {linkedStepIndex !== -1 ? "(Linked to Step " + (linkedStepIndex + 1) + ")" : ""}
                                                                             </button>
                                                                         );
                                                                     })}

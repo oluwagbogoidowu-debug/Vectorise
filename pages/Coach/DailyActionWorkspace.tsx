@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -32,6 +32,7 @@ export default function DailyActionWorkspace({
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
   const [activeHintTabMap, setActiveHintTabMap] = useState<Record<string, number>>({});
+  const [activeStepVersionMap, setActiveStepVersionMap] = useState<Record<string, number>>({});
   const [showHelpSheet, setShowHelpSheet] = useState(false);
 
   // Long press drag reorder state for Action Steps (e.g. 1 2 3 4 5)
@@ -734,7 +735,13 @@ export default function DailyActionWorkspace({
               const totalSteps = dayContent.taskPrompts?.length || 0;
               const activeIdx = activeStepIdx < totalSteps ? activeStepIdx : 0;
 
-              const prompt = dayContent.taskPrompts?.[activeIdx] || '';
+              const rawPrompt = dayContent.taskPrompts?.[activeIdx] || '';
+              const rawInputType = dayContent.taskInputTypes?.[activeIdx] || 'text';
+              const rawPollOptions = dayContent.taskPollOptions?.[activeIdx] || '';
+              const stepVersions = parseStepVersions(rawPrompt);
+              const stepVerKey = `${dayNum}-${activeIdx}`;
+              const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
+              const prompt = getStepVersionValue(rawPrompt, activeVerIdx);
             const isLastAssignedPrompt = lastAssignedField === `prompt-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedNote = lastAssignedField === `note-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
@@ -834,12 +841,61 @@ export default function DailyActionWorkspace({
                   return (
                     /* Day Action Step edit Workspace inside card */
                     <div className="flex-grow flex flex-col space-y-4">
-                      {/* Step title & Coach Note Trigger */}
+                      {/* Step title & Sub-context step versioning */}
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-black bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1">
                             Action Step {activeIdx + 1}
                           </span>
+
+                          {/* Sub-context version tabs: + 1 2 3 */}
+                          <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+                            {stepVersions.map((_, vIdx) => (
+                              <button
+                                key={vIdx}
+                                type="button"
+                                onClick={() => setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: vIdx }))}
+                                className={`px-2 py-0.5 text-[10px] font-black rounded transition-all ${
+                                  activeVerIdx === vIdx
+                                    ? 'bg-purple-600 text-white shadow-xs'
+                                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                                }`}
+                              >
+                                {vIdx + 1}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                const newVersions = [...stepVersions, ''];
+                                const newVerIdx = newVersions.length - 1;
+                                setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
+                                handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+                              }}
+                              className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-purple-600 hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
+                              title="Add sub-context version (e.g. version for Option 1, Option 2...)"
+                            >
+                              <Plus size={11} strokeWidth={3} />
+                            </button>
+                            {stepVersions.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                  const newVerIdx = Math.max(0, activeVerIdx - 1);
+                                  setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
+                                  handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+                                }}
+                                className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
+                                title="Remove current context version"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            )}
+                          </div>
+
                           {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
                             <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={`Dynamic text logic linked to Step ${currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}`}>
                               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
@@ -854,95 +910,26 @@ export default function DailyActionWorkspace({
                           )}
                         </div>
 
-                      <div className="flex items-center gap-2">
-                        {/* Coach Note toggle */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            const currentNote = dayContent.taskNotes?.[activeIdx];
-                            if (typeof currentNote !== 'string') {
-                              handleTaskNoteChange(dayNum, activeIdx, '');
-                            } else {
-                              handleTaskNoteChange(dayNum, activeIdx, null as any);
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
-                            typeof dayContent.taskNotes?.[activeIdx] === 'string'
-                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100/50'
-                              : 'bg-white text-gray-500 hover:text-purple-600 hover:bg-purple-50 border-gray-205'
-                          }`}
-                          title="Coach Note: Add context note that appears before the prompt."
-                        >
-                          <Plus size={11} strokeWidth={2.5} className="shrink-0" />
-                          <span>Coach Note</span>
-                        </button>
-
-                        {/* Trash Step Button if total steps > 1 */}
-                        {totalSteps > 1 && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedDay(dayNum);
-                              if (window.confirm(`Are you sure you want to delete Action Step ${activeIdx + 1} for Day ${dayNum}?`)) {
-                                handleRemoveStepForDay(dayNum, activeIdx);
-                              }
-                            }}
-                            className="p-1 text-red-400 hover:text-red-605 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete this action step"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Coach Note Field if present */}
-                    {typeof dayContent.taskNotes?.[activeIdx] === 'string' && (
-                      <div className={`border border-emerald-100/70 rounded-2xl p-3 bg-emerald-50/5 ${isLastAssignedNote ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`}>
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="text-[9px] font-black text-emerald-600 uppercase tracking-widest px-1">Coach Note</label>
-                          <div className="flex items-center gap-1.5">
-                            {selectedText && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDay(dayNum);
-                                  handleTaskNoteChange(dayNum, activeIdx, selectedText);
-                                  setLastAssignedField(`note-${activeIdx}`);
-                                  setTimeout(() => setLastAssignedField(null), 1500);
-                                  setSelectedText('');
-                                }}
-                                className="px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[8px] font-bold rounded border border-emerald-200 flex items-center gap-0.5"
-                              >
-                                Assign Selected
-                              </button>
-                            )}
-                            <button 
-                              type="button" 
-                              onClick={() => {
+                        <div className="flex items-center gap-2">
+                          {/* Trash Step Button if total steps > 1 */}
+                          {totalSteps > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setSelectedDay(dayNum);
-                                handleTaskNoteChange(dayNum, activeIdx, null as any);
+                                if (window.confirm(`Are you sure you want to delete Action Step ${activeIdx + 1} for Day ${dayNum}?`)) {
+                                  handleRemoveStepForDay(dayNum, activeIdx);
+                                }
                               }}
-                              className="text-gray-300 hover:text-red-500 transition-colors"
+                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete this action step"
                             >
-                              <X size={12} />
+                              <Trash2 size={14} />
                             </button>
-                          </div>
+                          )}
                         </div>
-                        <textarea 
-                          value={dayContent.taskNotes[activeIdx] || ''} 
-                          onChange={e => {
-                            setSelectedDay(dayNum);
-                            handleTaskNoteChange(dayNum, activeIdx, e.target.value);
-                          }} 
-                          rows={2} 
-                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-emerald-105 bg-emerald-50/10 text-gray-700 font-medium text-sm"} 
-                          placeholder="Add a context note..." 
-                        />
                       </div>
-                    )}
 
                     {/* Prompt Input with direct selection assign */}
                     <div className={`space-y-1.5 ${isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 p-1 rounded-2xl' : ''}`}>
@@ -953,7 +940,7 @@ export default function DailyActionWorkspace({
                             type="button"
                             onClick={() => {
                               setSelectedDay(dayNum);
-                              handleTaskPromptChange(dayNum, activeIdx, selectedText);
+                              handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, selectedText));
                               setLastAssignedField(`prompt-${activeIdx}`);
                               setTimeout(() => setLastAssignedField(null), 1500);
                               setSelectedText('');
@@ -968,12 +955,31 @@ export default function DailyActionWorkspace({
                         value={prompt} 
                         onChange={e => {
                           setSelectedDay(dayNum);
-                          handleTaskPromptChange(dayNum, activeIdx, e.target.value);
+                          handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, e.target.value));
                         }} 
                         rows={2} 
                         className={smallEditorInputClasses + " p-3 !py-3 w-full font-medium text-sm"} 
                         placeholder={`Describe Action Step ${activeIdx + 1}...`} 
                       />
+                      {/* Code chips insertion helper */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        <span className="text-[10px] font-bold text-gray-400 font-mono">{"{}"}</span>
+                        {getHintTokensForContent(dayContent, activeIdx, dayNum).map((t, tIdx) => (
+                          <button
+                            key={tIdx}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              const currentVal = getStepVersionValue(rawPrompt, activeVerIdx);
+                              const updated = currentVal && currentVal.trim() ? `${currentVal.trim()} ${t.token}` : t.token;
+                              handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updated));
+                            }}
+                            className="px-2 py-0.5 bg-gray-100 hover:bg-purple-100 text-gray-600 hover:text-purple-700 font-mono text-[10px] font-bold rounded-md border border-gray-200 transition-all cursor-pointer"
+                          >
+                            {t.token}
+                          </button>
+                        ))}
+                      </div>
                       {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
                         <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
                           <div className="flex items-center gap-2">

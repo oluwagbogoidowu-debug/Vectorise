@@ -623,6 +623,92 @@ export function resolveTaskHintForUser(
   return formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs);
 }
 
+export function parseStepVersions(raw?: string | null): string[] {
+  if (!raw) return [''];
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr) && arr.length > 0) {
+        return arr.map(v => (v === null || v === undefined) ? '' : String(v));
+      }
+    } catch (e) {}
+  }
+  if (trimmed.includes('|||')) {
+    return trimmed.split('|||');
+  }
+  return [raw];
+}
+
+export function serializeStepVersions(versions: string[]): string {
+  if (!versions || versions.length === 0) return '';
+  if (versions.length === 1) return versions[0];
+  return JSON.stringify(versions);
+}
+
+export function getStepVersionValue(rawField?: string | null, versionIdx: number = 0, fallbackDefault: string = ''): string {
+  const versions = parseStepVersions(rawField);
+  if (versionIdx >= 0 && versionIdx < versions.length && versions[versionIdx] !== undefined) {
+    return versions[versionIdx];
+  }
+  return versions[0] ?? fallbackDefault;
+}
+
+export function updateStepVersionValue(rawField: string | null | undefined, versionIdx: number, newValue: string): string {
+  const versions = parseStepVersions(rawField);
+  while (versions.length <= versionIdx) {
+    versions.push('');
+  }
+  versions[versionIdx] = newValue;
+  return serializeStepVersions(versions);
+}
+
+export function resolveStepVersionIndex(
+  stepIdx: number = 0,
+  dayContent?: any,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[]
+): number {
+  if (!dayContent) return 0;
+  
+  if (dayContent?.taskInputTypes && Array.isArray(dayContent.taskInputTypes)) {
+    for (let p = stepIdx - 1; p >= 0; p--) {
+      if (dayContent.taskInputTypes[p] === 'poll') {
+        const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[p] : taskInputs[p]) : undefined;
+        if (val && dayContent?.taskPollOptions?.[p]) {
+          try {
+            const opts = JSON.parse(dayContent.taskPollOptions[p]);
+            if (Array.isArray(opts)) {
+              const matchIdx = opts.findIndex((o: string) => String(o).trim().toLowerCase() === String(val).trim().toLowerCase());
+              if (matchIdx >= 0) {
+                return matchIdx;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  }
+
+  const pollLink = dayContent?.taskPollOptionLinks?.[stepIdx];
+  if (pollLink && typeof pollLink === 'object' && pollLink.targetPollIdx !== undefined) {
+    const targetPollIdx = pollLink.targetPollIdx;
+    const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[targetPollIdx] : taskInputs[targetPollIdx]) : undefined;
+    if (val && dayContent?.taskPollOptions?.[targetPollIdx]) {
+      try {
+        const opts = JSON.parse(dayContent.taskPollOptions[targetPollIdx]);
+        if (Array.isArray(opts)) {
+          const matchIdx = opts.findIndex((o: string) => String(o).trim().toLowerCase() === String(val).trim().toLowerCase());
+          if (matchIdx >= 0) return matchIdx;
+        }
+      } catch (e) {}
+    }
+  }
+
+  return 0;
+}
+
 /**
  * Returns helper tokens for Task Hints (e.g. {Step 1}, {Step 1 op 1}, {Step 1 op 2}, {Step 2}...)
  */

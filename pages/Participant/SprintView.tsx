@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -2858,6 +2858,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             <AnimatePresence mode="wait">
                               {dayContent.taskPrompts.map((prompt, i) => {
                                 if (i !== activeTaskIndex) return null;
+                                const stepVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                                const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
+                                const effectiveInputType = getStepVersionValue(dayContent.taskInputTypes?.[i], stepVerIdx, 'text');
+                                const effectivePollOptions = getStepVersionValue(dayContent.taskPollOptions?.[i], stepVerIdx);
                                 return (
                                   <motion.div
                               key={i}
@@ -2890,12 +2894,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 <SectionHeading showDot={!dayProgress?.completed}>
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
-
-                              {dayContent?.taskNotes?.[i] && (
-                                <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
-                                  <FormattedText text={dayContent.taskNotes[i]} />
-                                </div>
-                              )}
 
                               {(() => {
                                 const dynamicNoteRaw = dayContent?.taskTagNotes?.[i] || '';
@@ -2982,7 +2980,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               })()}
 
                               <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${dayContent?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                <FormattedText text={formatInterpolatedText(prompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
                               {dayContent?.taskFootnotes?.[i] && (
                                 <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
@@ -3654,11 +3652,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               "Today's Action Steps"
                             )}
                           </SectionHeading>
-                        {dayContent?.taskNotes?.[0] && (
-                          <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
-                            <FormattedText text={dayContent.taskNotes[0]} />
-                          </div>
-                        )}
 
                         {(() => {
                           const dynamicNoteRaw = dayContent?.taskTagNotes?.[0] || '';

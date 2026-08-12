@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -1257,18 +1257,14 @@ const SprintPreview: React.FC = () => {
                                 );
                             }
                             
-                            const prompt = activePrompts[activeTaskIndex] || activePrompts[0] || "";
                             const i = activeTaskIndex;
+                            const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
+                            const rawPrompt = day1Content?.taskPrompts?.[i] || activePrompts[i] || activePrompts[0] || "";
+                            const prompt = getStepVersionValue(rawPrompt, stepVerIdx);
                             return (
                                 <>
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
                                         <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {getVisibleStepIndexOrder(i)} of {getTotalVisibleStepsCount()}</h2>
-                                        
-                                        {day1Content?.taskNotes?.[i] && (
-                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
-                                                <FormattedText text={day1Content.taskNotes[i]} />
-                                            </div>
-                                        )}
 
                                         {(() => {
                                             let notesMap: Record<string, string> = {};
