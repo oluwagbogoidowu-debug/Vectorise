@@ -214,6 +214,7 @@ export interface ParticipantSprint {
     submissionFileUrl?: string;
     proofSelection?: string;
     answers?: string[];
+    answersMap?: Record<string, string>;
   }[];
 }
 
@@ -269,12 +270,20 @@ export interface Sprint {
   isVersion?: boolean;
   versionNumber?: number;
   versionTag?: string;
-  contentType?: 'sprint' | 'blog' | 'ignite';
+  contentType?: 'sprint' | 'blog' | 'ignite' | 'challenge';
   blogBody?: string;
   blogImage?: string;
   igniteBody?: string;
   igniteBgColor?: string;
   igniteDate?: string; // Format: YYYY-MM-DD
+  challengeData?: {
+    name?: string;
+    whatToDo?: string;
+    howOften?: string;
+    howLong?: string;
+    completionCriteria?: string;
+    whyDoIt?: string;
+  };
   likes?: number;
 }
 

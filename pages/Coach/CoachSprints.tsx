@@ -5,9 +5,10 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles, Save, Share2 } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles, Save, Share2, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import CustomSelect from '../../components/CustomSelect';
+import CreateTypeModal from '../../components/CreateTypeModal';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -754,7 +755,16 @@ const CoachSprints: React.FC = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [orchestratedIds, setOrchestratedIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'rejected' | 'draft'>('all');
-  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite'>('sprint');
+  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite' | 'challenge'>('sprint');
+  const [isCreateTypeOpen, setIsCreateTypeOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab === 'sprint' || tab === 'blog' || tab === 'ignite' || tab === 'challenge') {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
@@ -969,15 +979,29 @@ const CoachSprints: React.FC = () => {
                 <Sparkles className="w-3 h-3" />
                 Ignite
             </button>
+            <button
+                type="button"
+                onClick={() => {
+                    setActiveTab('challenge');
+                    setFilter('all');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'challenge' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                }`}
+            >
+                <Trophy className="w-3 h-3" />
+                Challenge
+            </button>
         </div>
         {hasPermission('sprint:create') && (
-            <Link 
-                to={`/coach/sprint/new?tab=${activeTab}`} 
-                className="bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-xl w-9 h-9 flex items-center justify-center font-black text-sm shadow-md hover:scale-[1.05] active:scale-95 transition-all flex-shrink-0"
-                title="Create New"
+            <button 
+                type="button"
+                onClick={() => setIsCreateTypeOpen(true)} 
+                className="bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-xl w-9 h-9 flex items-center justify-center font-black text-sm shadow-md hover:scale-[1.05] active:scale-95 transition-all flex-shrink-0 cursor-pointer"
+                title="Create New Content"
             >
                 +
-            </Link>
+            </button>
         )}
       </div>
 
@@ -1125,6 +1149,26 @@ const CoachSprints: React.FC = () => {
                                         <Eye className="h-4 w-4" />
                                     </button>
                                 </div>
+                            ) : sprint.contentType === 'challenge' ? (
+                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    <Link to={`/coach/sprint/preview/${sprint.id}`} className="flex-1 sm:flex-none">
+                                        <button className="w-full sm:w-auto px-6 py-3 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer">
+                                            Preview Challenge
+                                        </button>
+                                    </Link>
+                                    <button 
+                                        onClick={() => {
+                                            const url = `${window.location.origin}/sprint/${sprint.id}`;
+                                            navigator.clipboard.writeText(url)
+                                                .then(() => toast.success("Challenge link copied!"))
+                                                .catch(() => toast.error("Could not copy link."));
+                                        }}
+                                        className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Share Challenge"
+                                    >
+                                        <Share2 className="h-4 w-4" />
+                                    </button>
+                                </div>
                             ) : (
                                 <div className="flex items-center gap-2 flex-1 sm:flex-none">
                                     <Link to={`/coach/sprint/edit/${sprint.id}`} className="flex-1 sm:flex-none">
@@ -1158,6 +1202,8 @@ const CoachSprints: React.FC = () => {
               <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">No cycles found in this registry view.</p>
           </div>
       )}
+
+      <CreateTypeModal isOpen={isCreateTypeOpen} onClose={() => setIsCreateTypeOpen(false)} />
     </div>
   );
 };

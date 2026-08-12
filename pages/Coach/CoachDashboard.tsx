@@ -7,6 +7,7 @@ import { notificationService } from '../../services/notificationService';
 import { userService } from '../../services/userService';
 import { Sprint, Notification, Review, UserRole } from '../../types';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
+import CreateTypeModal from '../../components/CreateTypeModal';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ const CoachDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatesExpanded, setIsUpdatesExpanded] = useState(false);
   const [totalStudentsCount, setTotalStudentsCount] = useState(0);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
       let unsubscribeNotifs = () => {};
@@ -260,9 +262,13 @@ const CoachDashboard: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Dashboard</h1>
             <p className="text-gray-500 font-medium text-xs sm:text-sm">Empowering growth through focused sprints.</p>
          </div>
-         <Link to="/coach/sprint/new" className="bg-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95">
+         <button 
+            type="button" 
+            onClick={() => setIsCreateModalOpen(true)} 
+            className="bg-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95 cursor-pointer"
+         >
             + New Sprint
-         </Link>
+         </button>
       </div>
 
       {/* Quick Stats Row */}
@@ -348,6 +354,8 @@ const CoachDashboard: React.FC = () => {
               <div className="absolute -right-4 -bottom-4 w-16 h-16 sm:w-24 sm:h-24 bg-primary/5 rounded-full blur-xl group-hover:bg-primary/10 transition-all"></div>
           </Link>
       </div>
+
+      <CreateTypeModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }

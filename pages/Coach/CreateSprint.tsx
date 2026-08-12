@@ -13,7 +13,7 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Flame, BookOpen, Sparkles } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Flame, BookOpen, Sparkles, Trophy } from 'lucide-react';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -246,10 +246,10 @@ const CreateSprint: React.FC = () => {
 
     const [previewType, setPreviewType] = useState<'card' | 'landing'>('card');
 
-    const [activeTab, setActiveTab ] = useState<'sprint' | 'blog' | 'ignite'>(() => {
+    const [activeTab, setActiveTab ] = useState<'sprint' | 'blog' | 'ignite' | 'challenge'>(() => {
         const params = new URLSearchParams(location.search);
         const tab = params.get('tab');
-        if (tab === 'blog' || tab === 'ignite' || tab === 'sprint') {
+        if (tab === 'blog' || tab === 'ignite' || tab === 'sprint' || tab === 'challenge') {
             return tab;
         }
         return 'sprint';
@@ -271,8 +271,77 @@ const CreateSprint: React.FC = () => {
     const [isPreviewingIgnite, setIsPreviewingIgnite] = useState(false);
     const [isSubmittingIgnite, setIsSubmittingIgnite] = useState(false);
 
+    // Challenge State
+    const [challengeName, setChallengeName] = useState('');
+    const [challengeWhatToDo, setChallengeWhatToDo] = useState('');
+    const [challengeHowOften, setChallengeHowOften] = useState('Daily');
+    const [customHowOften, setCustomHowOften] = useState('');
+    const [challengeHowLong, setChallengeHowLong] = useState('7 Days');
+    const [customHowLong, setCustomHowLong] = useState('');
+    const [challengeCompletionCriteria, setChallengeCompletionCriteria] = useState('');
+    const [challengeWhyDoIt, setChallengeWhyDoIt] = useState('');
+    const [challengeCategory, setChallengeCategory] = useState('Execution');
+    const [challengeCoverImage, setChallengeCoverImage] = useState('');
+    const [isSubmittingChallenge, setIsSubmittingChallenge] = useState(false);
+
     // Sprint State
     const [isPreviewingSprint, setIsPreviewingSprint] = useState(false);
+
+    const handleSaveChallenge = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!user) return;
+        if (!challengeName.trim()) {
+            alert('Please enter a challenge name');
+            return;
+        }
+        setIsSubmittingChallenge(true);
+        const challengeId = `challenge_${Date.now()}`;
+        const finalFrequency = challengeHowOften === 'Custom' ? (customHowOften.trim() || 'Custom') : challengeHowOften;
+        const finalDurationStr = challengeHowLong === 'Custom' ? (customHowLong.trim() || '7 Days') : challengeHowLong;
+        
+        const durationMatch = finalDurationStr.match(/\d+/);
+        const durationDays = durationMatch ? parseInt(durationMatch[0], 10) : 7;
+
+        const newChallenge: Sprint = {
+            id: challengeId,
+            coachId: user.id,
+            title: challengeName,
+            subtitle: `Frequency: ${finalFrequency} • Duration: ${finalDurationStr}`,
+            description: challengeWhyDoIt || challengeWhatToDo || 'Join this action challenge to transform your habits.',
+            contentType: 'challenge',
+            category: challengeCategory || 'Execution',
+            duration: durationDays,
+            price: 0,
+            currency: 'NGN',
+            coverImageUrl: challengeCoverImage || `https://images.unsplash.com/photo-1517649763962-0c623266010b?auto=format&fit=crop&w=800&q=80`,
+            published: true,
+            approvalStatus: 'approved',
+            dailyContent: Array.from({ length: durationDays }, (_, i) => ({
+                day: i + 1,
+                lessonText: challengeWhatToDo || 'Complete your daily action.',
+                taskPrompt: challengeWhatToDo || 'Log your progress for today.',
+                taskPrompts: [challengeWhatToDo || 'Log your progress for today.'],
+            })),
+            challengeData: {
+                name: challengeName,
+                whatToDo: challengeWhatToDo,
+                howOften: finalFrequency,
+                howLong: finalDurationStr,
+                completionCriteria: challengeCompletionCriteria,
+                whyDoIt: challengeWhyDoIt,
+            }
+        };
+
+        try {
+            await sprintService.createSprint(newChallenge);
+            navigate('/coach/sprints?tab=challenge');
+        } catch (error) {
+            console.error(error);
+            alert('Save challenge failed.');
+        } finally {
+            setIsSubmittingChallenge(false);
+        }
+    };
 
     const handleSaveBlog = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -576,6 +645,16 @@ const CreateSprint: React.FC = () => {
                         >
                             <Sparkles className="w-3 h-3" />
                             Ignite
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('challenge')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                activeTab === 'challenge' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                            }`}
+                        >
+                            <Trophy className="w-3 h-3" />
+                            Challenge
                         </button>
                     </div>
                 </div>
@@ -1039,6 +1118,162 @@ const CreateSprint: React.FC = () => {
                                     </button>
                                     <Button type="submit" isLoading={isSubmittingIgnite} className="px-10 py-3.5 rounded-[1.25rem] shadow-xl shadow-primary/20">
                                         Publish Ignite &rarr;
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'challenge' && (
+                    <div className="grid grid-cols-1 gap-10 max-w-4xl mx-auto">
+                        <div className="bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden p-8 md:p-12 animate-slide-up">
+                            <form onSubmit={handleSaveChallenge} className="space-y-8">
+                                <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                                    <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-lg shadow-purple-200">
+                                        <Trophy className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-gray-900 tracking-tight italic">Setup A Challenge</h2>
+                                        <p className="text-[10px] text-purple-600 font-black uppercase tracking-[0.2em]">Coach Action System</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {/* 1. Challenge name */}
+                                    <div>
+                                        <label className={labelClasses}>1. Challenge Name</label>
+                                        <input 
+                                            type="text" 
+                                            value={challengeName} 
+                                            onChange={(e) => setChallengeName(e.target.value)} 
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="e.g. 14-Day Morning Hydration & Focus Challenge" 
+                                            required 
+                                        />
+                                    </div>
+
+                                    {/* 2. What should participants do? */}
+                                    <div>
+                                        <label className={labelClasses}>2. What should participants do?</label>
+                                        <textarea 
+                                            value={challengeWhatToDo} 
+                                            onChange={(e) => setChallengeWhatToDo(e.target.value)} 
+                                            rows={3}
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="e.g. Drink 1 Liter of water immediately upon waking, then complete 10 minutes of uninterrupted planning." 
+                                            required 
+                                        />
+                                    </div>
+
+                                    {/* 3. How often? & 4. For how long? */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className={labelClasses}>3. How often?</label>
+                                            <select 
+                                                value={challengeHowOften} 
+                                                onChange={(e) => setChallengeHowOften(e.target.value)} 
+                                                className={inputClasses + " mt-2 cursor-pointer"} 
+                                            >
+                                                <option value="Daily">Daily</option>
+                                                <option value="3 times a week">3 times a week</option>
+                                                <option value="Weekdays only">Weekdays only</option>
+                                                <option value="Twice daily">Twice daily</option>
+                                                <option value="Custom">Custom schedule...</option>
+                                            </select>
+                                            {challengeHowOften === 'Custom' && (
+                                                <input 
+                                                    type="text" 
+                                                    value={customHowOften} 
+                                                    onChange={(e) => setCustomHowOften(e.target.value)} 
+                                                    className={inputClasses + " mt-2"} 
+                                                    placeholder="e.g. Every Monday & Thursday" 
+                                                />
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <label className={labelClasses}>4. For how long?</label>
+                                            <select 
+                                                value={challengeHowLong} 
+                                                onChange={(e) => setChallengeHowLong(e.target.value)} 
+                                                className={inputClasses + " mt-2 cursor-pointer"} 
+                                            >
+                                                <option value="7 Days">7 Days</option>
+                                                <option value="14 Days">14 Days</option>
+                                                <option value="21 Days">21 Days</option>
+                                                <option value="30 Days">30 Days</option>
+                                                <option value="Custom">Custom duration...</option>
+                                            </select>
+                                            {challengeHowLong === 'Custom' && (
+                                                <input 
+                                                    type="text" 
+                                                    value={customHowLong} 
+                                                    onChange={(e) => setCustomHowLong(e.target.value)} 
+                                                    className={inputClasses + " mt-2"} 
+                                                    placeholder="e.g. 10 Days" 
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* 5. What counts as completing it? */}
+                                    <div>
+                                        <label className={labelClasses}>5. What counts as completing it?</label>
+                                        <textarea 
+                                            value={challengeCompletionCriteria} 
+                                            onChange={(e) => setChallengeCompletionCriteria(e.target.value)} 
+                                            rows={3}
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="e.g. Submitting daily photo or text proof for at least 80% of challenge days." 
+                                            required 
+                                        />
+                                    </div>
+
+                                    {/* 6. Why should they do it? */}
+                                    <div>
+                                        <label className={labelClasses}>6. Why should they do it?</label>
+                                        <textarea 
+                                            value={challengeWhyDoIt} 
+                                            onChange={(e) => setChallengeWhyDoIt(e.target.value)} 
+                                            rows={3}
+                                            className={inputClasses + " mt-2"} 
+                                            placeholder="e.g. To eliminate morning brain fog, build compounding willpower, and gain daily momentum." 
+                                            required 
+                                        />
+                                    </div>
+
+                                    {/* Category & Cover Image */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
+                                        <div>
+                                            <label className={labelClasses}>Discovery Category</label>
+                                            <CustomSelect
+                                                options={ALL_CATEGORIES}
+                                                value={challengeCategory}
+                                                onChange={(val) => setChallengeCategory(String(val))}
+                                                className="mt-2"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={labelClasses}>Cover Image URL (Optional)</label>
+                                            <input 
+                                                type="url" 
+                                                value={challengeCoverImage} 
+                                                onChange={(e) => setChallengeCoverImage(e.target.value)} 
+                                                className={inputClasses + " mt-2"} 
+                                                placeholder="https://..." 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3 pt-6 border-t border-gray-50">
+                                    <Button 
+                                        type="submit" 
+                                        isLoading={isSubmittingChallenge} 
+                                        className="px-10 py-3.5 rounded-[1.25rem] bg-purple-600 hover:bg-purple-700 text-white shadow-xl shadow-purple-200 cursor-pointer"
+                                    >
+                                        Publish Challenge &rarr;
                                     </Button>
                                 </div>
                             </form>
