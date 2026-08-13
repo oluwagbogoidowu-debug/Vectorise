@@ -1392,7 +1392,7 @@ const SprintPreview: React.FC = () => {
                                                 </button>
                                                 {revealedHints[i] && (
                                                     <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                                        <FormattedText text={resolveTaskHintForUser(day1Content.taskHints[i], i, day1Content, taskInputs, sprint?.dailyContent)} />
+                                                        <FormattedText text={resolveTaskHintForUser(day1Content?.taskHints?.[i], i, day1Content, taskInputs, sprint?.dailyContent)} />
                                                     </div>
                                                 )}
                                             </div>
