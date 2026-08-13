@@ -240,7 +240,79 @@ export interface ProgressiveSelectionResult {
 }
 
 /**
+ * Returns list of explicitly linked steps for a given step based on:
+ * 1. taskPollOptionLinks (Branching path link e.g. "Step 1 Op 2")
+ * 2. taskLinkedSources
+ * 3. Explicit placeholder tokens {Step N}, {Step N op M}, {D1 Step N} in prompt, hint, footnote, or options.
+ */
+export function getExplicitLinkedSteps(
+  stepIdx: number,
+  dayContent?: any
+): { day: number; stepIdx: number }[] {
+  if (!dayContent) return [];
+  const currentDay = Number(dayContent.day || 1);
+  const links: { day: number; stepIdx: number }[] = [];
+
+  const addLink = (d: number, s: number) => {
+    if (s < 0 || (d === currentDay && s >= stepIdx)) return;
+    if (!links.some(l => l.day === d && l.stepIdx === s)) {
+      links.push({ day: d, stepIdx: s });
+    }
+  };
+
+  // 1. taskPollOptionLinks
+  const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIdx];
+  const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
+  if (pollLinkInfo && pollLinkInfo.targetPollIdx >= 0) {
+    addLink(currentDay, pollLinkInfo.targetPollIdx);
+  }
+
+  // 2. taskLinkedSources
+  if (Array.isArray(dayContent.taskLinkedSources?.[stepIdx])) {
+    for (const srcIdx of dayContent.taskLinkedSources[stepIdx]) {
+      if (typeof srcIdx === 'number') {
+        if (srcIdx < 0) {
+          const absVal = Math.abs(srcIdx);
+          const sDay = Math.floor(absVal / 100);
+          const sStep = absVal % 100;
+          addLink(sDay, sStep);
+        } else {
+          addLink(currentDay, srcIdx);
+        }
+      }
+    }
+  }
+
+  // 3. Scan placeholders in taskPrompts, taskHints, taskFootnotes, taskPollOptions
+  const textsToScan: string[] = [];
+  const promptVal = dayContent.taskPrompts?.[stepIdx];
+  if (typeof promptVal === 'string') textsToScan.push(promptVal);
+  const hintVal = dayContent.taskHints?.[stepIdx];
+  if (typeof hintVal === 'string') textsToScan.push(hintVal);
+  const footnoteVal = dayContent.taskFootnotes?.[stepIdx];
+  if (typeof footnoteVal === 'string') textsToScan.push(footnoteVal);
+  const optionsVal = dayContent.taskPollOptions?.[stepIdx];
+  if (typeof optionsVal === 'string') textsToScan.push(optionsVal);
+
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
+
+  for (const text of textsToScan) {
+    let match: RegExpExecArray | null;
+    regex.lastIndex = 0;
+    while ((match = regex.exec(text)) !== null) {
+      const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
+      const stepNum = parseInt(match[2], 10);
+      const targetStepIdx = stepNum - 1;
+      addLink(dayNum, targetStepIdx);
+    }
+  }
+
+  return links;
+}
+
+/**
  * Implements progressive step linking across the sprint:
+ * - Applie ONLY if explicitly linked by {Step N op M}, {Step N}, taskPollOptionLinks, or taskLinkedSources.
  * - Stores all selected options if a previous step allows multi-selections (e.g. Tags/Multi-Poll).
  * - Traces later steps to see if a subsequent step narrowed those selections down to a single choice.
  * - Once narrowed, the most recent single selection becomes the active selection that controls subsequent conditional content, versions, and hints.
@@ -260,6 +332,12 @@ export function resolveProgressiveStepSelections(
   };
 
   if (!dayContent) return defaultResult;
+
+  // Progressive linking ONLY applies if explicitly linked by {Step N op M}, {Step N}, taskPollOptionLinks, or taskLinkedSources.
+  const explicitLinks = getExplicitLinkedSteps(stepIdx, dayContent);
+  if (explicitLinks.length === 0) {
+    return defaultResult;
+  }
 
   const currentDayNum = Number(dayContent.day || 1);
 
@@ -341,52 +419,8 @@ export function resolveProgressiveStepSelections(
     return -1;
   };
 
-  let primarySourceStep = -1;
-  let primarySourceDay = currentDayNum;
-
-  const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIdx];
-  const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
-  if (pollLinkInfo) {
-    primarySourceStep = pollLinkInfo.targetPollIdx;
-  }
-
-  if (primarySourceStep < 0 && Array.isArray(dayContent.taskLinkedSources?.[stepIdx]) && dayContent.taskLinkedSources[stepIdx].length > 0) {
-    const srcIdx = dayContent.taskLinkedSources[stepIdx][0];
-    if (srcIdx < 0) {
-      const absVal = Math.abs(srcIdx);
-      primarySourceDay = Math.floor(absVal / 100);
-      primarySourceStep = absVal % 100;
-    } else {
-      primarySourceStep = srcIdx;
-    }
-  }
-
-  if (primarySourceStep < 0) {
-    for (let p = stepIdx - 1; p >= 0; p--) {
-      const pType = dayContent.taskInputTypes?.[p];
-      if (pType === 'poll' || pType === 'tags') {
-        primarySourceStep = p;
-        break;
-      }
-    }
-  }
-
-  if (primarySourceStep < 0) {
-    const currentVal = getInputValue(currentDayNum, stepIdx);
-    const parsedCurrent = parseAnswers(currentVal);
-    if (parsedCurrent.length > 0) {
-      const opts = getStepConfiguredOptions(dayContent, stepIdx);
-      const optIdx = findOptionIndex(opts, parsedCurrent[0]);
-      return {
-        activeSelection: parsedCurrent[0],
-        activeOptionIndex: optIdx >= 0 ? optIdx : 0,
-        allSelections: parsedCurrent,
-        isNarrowed: parsedCurrent.length === 1,
-        sourceStepIdx: stepIdx
-      };
-    }
-    return defaultResult;
-  }
+  const primarySourceDay = explicitLinks[0].day;
+  const primarySourceStep = explicitLinks[0].stepIdx;
 
   const primaryDC = (primarySourceDay === currentDayNum || !allDaysContent)
     ? dayContent
@@ -432,6 +466,9 @@ export function resolveProgressiveStepSelections(
       sourceStepIdx: primarySourceStep
     };
   }
+
+  const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIdx];
+  const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
 
   if (pollLinkInfo && pollLinkInfo.optNum !== undefined && pollLinkInfo.optNum > 0) {
     const optIdx = pollLinkInfo.optNum - 1;
