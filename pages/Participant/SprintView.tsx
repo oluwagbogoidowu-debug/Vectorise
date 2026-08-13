@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, StepPlaceholderMode, parsePlaceholderMode } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -1592,6 +1592,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
   const getLinkedTagsForStep = (stepIndex: number): string[] => {
     if (!dayContent) return [];
+
+    // Progressive step linking check
+    const progRes = resolveProgressiveStepSelections(
+      stepIndex,
+      dayContent,
+      taskInputs,
+      sprint?.dailyContent,
+      enrollment?.progress
+    );
+    if (progRes.allSelections.length > 0) {
+      return progRes.allSelections;
+    }
 
     // 1. Check if taskLinkedSources tells us which steps are linked
     if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {

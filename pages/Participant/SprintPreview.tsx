@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, StepPlaceholderMode, parsePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -1042,6 +1042,18 @@ const SprintPreview: React.FC = () => {
 
     const getLinkedTagsForStep = (stepIndex: number): string[] => {
         if (!day1Content) return [];
+
+        // Progressive step linking check
+        const progRes = resolveProgressiveStepSelections(
+            stepIndex,
+            day1Content,
+            taskInputs,
+            sprint?.dailyContent,
+            (sprint as any)?.enrollment?.progress
+        );
+        if (progRes.allSelections.length > 0) {
+            return progRes.allSelections;
+        }
 
         // 1. Check if the new taskLinkedSources tells us which steps are linked
         if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex])) {

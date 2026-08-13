@@ -231,6 +231,233 @@ export function togglePlaceholderMode(
   });
 }
 
+export interface ProgressiveSelectionResult {
+  activeSelection?: string;
+  activeOptionIndex: number;
+  allSelections: string[];
+  isNarrowed: boolean;
+  sourceStepIdx: number;
+}
+
+/**
+ * Implements progressive step linking across the sprint:
+ * - Stores all selected options if a previous step allows multi-selections (e.g. Tags/Multi-Poll).
+ * - Traces later steps to see if a subsequent step narrowed those selections down to a single choice.
+ * - Once narrowed, the most recent single selection becomes the active selection that controls subsequent conditional content, versions, and hints.
+ */
+export function resolveProgressiveStepSelections(
+  stepIdx: number = 0,
+  dayContent?: any,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[] | Record<number, any>
+): ProgressiveSelectionResult {
+  const defaultResult: ProgressiveSelectionResult = {
+    activeOptionIndex: 0,
+    allSelections: [],
+    isNarrowed: false,
+    sourceStepIdx: stepIdx
+  };
+
+  if (!dayContent) return defaultResult;
+
+  const currentDayNum = Number(dayContent.day || 1);
+
+  const getInputValue = (targetDay: number, targetStepIdx: number) => {
+    if (targetDay === currentDayNum || targetDay === Number(dayContent.day)) {
+      if (taskInputs) {
+        if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
+        if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
+      }
+    }
+    if (allDaysInputs) {
+      if (Array.isArray(allDaysInputs)) {
+        const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+        if (prog) {
+          if (Array.isArray(prog.answers)) return prog.answers[targetStepIdx];
+          if (Array.isArray(prog.answersMap)) return prog.answersMap[targetStepIdx];
+        }
+        const dayArr = allDaysInputs[targetDay - 1];
+        if (dayArr) {
+          if (Array.isArray(dayArr)) return dayArr[targetStepIdx];
+          if (typeof dayArr === 'object') return dayArr[targetStepIdx];
+        }
+      } else if (typeof allDaysInputs === 'object') {
+        const dayVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+        if (dayVal) {
+          if (Array.isArray(dayVal)) return dayVal[targetStepIdx];
+          if (typeof dayVal === 'object') return dayVal[targetStepIdx];
+        }
+      }
+    }
+    return undefined;
+  };
+
+  const parseAnswers = (val: any): string[] => {
+    if (val === undefined || val === null) return [];
+    if (typeof val === 'boolean') return val ? ['Completed'] : [];
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.map(s => String(s).trim()).filter(Boolean);
+        } catch (e) {}
+      }
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          return Object.values(parsed).map(s => String(s).trim()).filter(Boolean);
+        } catch (e) {}
+      }
+      return [trimmed];
+    }
+    if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+    return [];
+  };
+
+  const getStepConfiguredOptions = (targetDC: any, sIdx: number): string[] => {
+    if (targetDC?.taskPollOptions?.[sIdx]) {
+      try {
+        const parsed = JSON.parse(targetDC.taskPollOptions[sIdx]);
+        if (Array.isArray(parsed)) return parsed.map(s => String(s).trim()).filter(Boolean);
+      } catch (e) {}
+    }
+    return [];
+  };
+
+  const findOptionIndex = (options: string[], ansStr: string): number => {
+    if (!ansStr || options.length === 0) return -1;
+    const lowerAns = ansStr.toLowerCase();
+    const idx = options.findIndex(o => o.toLowerCase() === lowerAns);
+    if (idx >= 0) return idx;
+
+    const opMatch = ansStr.match(/^(?:poll|op)\s*(\d+)$/i);
+    if (opMatch) {
+      const oNum = parseInt(opMatch[1], 10) - 1;
+      if (oNum >= 0 && oNum < options.length) return oNum;
+    }
+    return -1;
+  };
+
+  let primarySourceStep = -1;
+  let primarySourceDay = currentDayNum;
+
+  const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIdx];
+  const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
+  if (pollLinkInfo) {
+    primarySourceStep = pollLinkInfo.targetPollIdx;
+  }
+
+  if (primarySourceStep < 0 && Array.isArray(dayContent.taskLinkedSources?.[stepIdx]) && dayContent.taskLinkedSources[stepIdx].length > 0) {
+    const srcIdx = dayContent.taskLinkedSources[stepIdx][0];
+    if (srcIdx < 0) {
+      const absVal = Math.abs(srcIdx);
+      primarySourceDay = Math.floor(absVal / 100);
+      primarySourceStep = absVal % 100;
+    } else {
+      primarySourceStep = srcIdx;
+    }
+  }
+
+  if (primarySourceStep < 0) {
+    for (let p = stepIdx - 1; p >= 0; p--) {
+      const pType = dayContent.taskInputTypes?.[p];
+      if (pType === 'poll' || pType === 'tags') {
+        primarySourceStep = p;
+        break;
+      }
+    }
+  }
+
+  if (primarySourceStep < 0) {
+    const currentVal = getInputValue(currentDayNum, stepIdx);
+    const parsedCurrent = parseAnswers(currentVal);
+    if (parsedCurrent.length > 0) {
+      const opts = getStepConfiguredOptions(dayContent, stepIdx);
+      const optIdx = findOptionIndex(opts, parsedCurrent[0]);
+      return {
+        activeSelection: parsedCurrent[0],
+        activeOptionIndex: optIdx >= 0 ? optIdx : 0,
+        allSelections: parsedCurrent,
+        isNarrowed: parsedCurrent.length === 1,
+        sourceStepIdx: stepIdx
+      };
+    }
+    return defaultResult;
+  }
+
+  const primaryDC = (primarySourceDay === currentDayNum || !allDaysContent)
+    ? dayContent
+    : (allDaysContent.find(d => Number(d.day) === primarySourceDay) || dayContent);
+
+  const primaryConfiguredOpts = getStepConfiguredOptions(primaryDC, primarySourceStep);
+
+  // Progressive search: Search from stepIdx - 1 down to primarySourceStep for the MOST RECENT SINGLE SELECTION
+  for (let k = stepIdx - 1; k >= primarySourceStep; k--) {
+    const val = getInputValue(currentDayNum, k);
+    const answers = parseAnswers(val);
+
+    if (answers.length === 1) {
+      const singleChoice = answers[0];
+      let matchedOptIdx = findOptionIndex(primaryConfiguredOpts, singleChoice);
+
+      if (matchedOptIdx < 0) {
+        const kOpts = getStepConfiguredOptions(dayContent, k);
+        matchedOptIdx = findOptionIndex(kOpts, singleChoice);
+      }
+
+      return {
+        activeSelection: singleChoice,
+        activeOptionIndex: matchedOptIdx >= 0 ? matchedOptIdx : 0,
+        allSelections: [singleChoice],
+        isNarrowed: true,
+        sourceStepIdx: k
+      };
+    }
+  }
+
+  // Fallback to primarySourceStep itself if no step between primarySourceStep and stepIdx - 1 narrowed it down
+  const primaryVal = getInputValue(primarySourceDay, primarySourceStep);
+  const primaryAnswers = parseAnswers(primaryVal);
+
+  if (primaryAnswers.length > 0) {
+    const optIdx = findOptionIndex(primaryConfiguredOpts, primaryAnswers[0]);
+    return {
+      activeSelection: primaryAnswers[0],
+      activeOptionIndex: optIdx >= 0 ? optIdx : 0,
+      allSelections: primaryAnswers,
+      isNarrowed: primaryAnswers.length === 1,
+      sourceStepIdx: primarySourceStep
+    };
+  }
+
+  if (pollLinkInfo && pollLinkInfo.optNum !== undefined && pollLinkInfo.optNum > 0) {
+    const optIdx = pollLinkInfo.optNum - 1;
+    const optText = primaryConfiguredOpts[optIdx] || `Option ${pollLinkInfo.optNum}`;
+    return {
+      activeSelection: optText,
+      activeOptionIndex: optIdx,
+      allSelections: primaryConfiguredOpts.length > 0 ? primaryConfiguredOpts : [optText],
+      isNarrowed: true,
+      sourceStepIdx: primarySourceStep
+    };
+  }
+
+  if (primaryConfiguredOpts.length > 0) {
+    return {
+      activeSelection: primaryConfiguredOpts[0],
+      activeOptionIndex: 0,
+      allSelections: primaryConfiguredOpts,
+      isNarrowed: false,
+      sourceStepIdx: primarySourceStep
+    };
+  }
+
+  return defaultResult;
+}
+
 /**
  * Replaces `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step 1 Op 4 d}` etc. placeholders in prompt with user's choices.
  */
@@ -267,13 +494,11 @@ export function formatInterpolatedText(
 
     if (allDaysInputs) {
       if (Array.isArray(allDaysInputs)) {
-        // Check if items are enrollment progress objects e.g. { day: 1, answers: [...] }
         const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
         if (prog) {
           if (Array.isArray(prog.answers)) return prog.answers[targetStepIdx];
           if (Array.isArray(prog.answersMap)) return prog.answersMap[targetStepIdx];
         }
-        // Fallback: 0-indexed array of day inputs
         const dayArr = allDaysInputs[targetDay - 1];
         if (dayArr) {
           if (Array.isArray(dayArr)) return dayArr[targetStepIdx];
@@ -288,7 +513,6 @@ export function formatInterpolatedText(
       }
     }
 
-    // Fallback if targetDay is current day
     if (targetDay === currentDayNum && taskInputs) {
       if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
       if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
@@ -297,7 +521,6 @@ export function formatInterpolatedText(
     return undefined;
   };
 
-  // Helper to get custom written poll options for a step
   const getWrittenPollOptions = (targetDC: any, stepIndex: number): string[] => {
     if (targetDC?.taskPollOptions?.[stepIndex]) {
       try {
@@ -308,7 +531,6 @@ export function formatInterpolatedText(
     return [];
   };
 
-  // Helper to get all options for a poll step (combining linked sources + custom written poll options)
   const getPollOptionsList = (targetDC: any, stepIndex: number): string[] => {
     const customOptions = getWrittenPollOptions(targetDC, stepIndex);
 
@@ -338,15 +560,7 @@ export function formatInterpolatedText(
           }
         } else {
           const srcType = srcDC?.taskInputTypes?.[srcStepIdx];
-          if (srcType === 'tags') {
-            const configuredPoll = srcDC?.taskPollOptions?.[srcStepIdx];
-            if (configuredPoll) {
-              try {
-                const parsed = JSON.parse(configuredPoll);
-                if (Array.isArray(parsed)) linkedItems.push(...parsed.filter(Boolean));
-              } catch (e) {}
-            }
-          } else if (srcType === 'poll') {
+          if (srcType === 'tags' || srcType === 'poll') {
             const configuredPoll = srcDC?.taskPollOptions?.[srcStepIdx];
             if (configuredPoll) {
               try {
@@ -406,7 +620,6 @@ export function formatInterpolatedText(
       let activeDC = targetDC;
       let activeStepIndex = stepIndex;
 
-      // If target step is not a poll directly, check if it's linked to a poll step (e.g. Step 6 linked to Step 1)
       if (inputType !== 'poll') {
         const pollLinkRaw = targetDC?.taskPollOptionLinks?.[stepIndex];
         const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
@@ -420,7 +633,6 @@ export function formatInterpolatedText(
       const optIndex = opNum - 1;
       const writtenOpts = getWrittenPollOptions(activeDC, activeStepIndex);
 
-      // Check if there is a task hint specifically for this option (optIndex)
       let optionHintText = '';
       if (activeDC?.taskHints?.[activeStepIndex]) {
         const hVersions = parseHintVersions(activeDC.taskHints[activeStepIndex]);
@@ -431,7 +643,6 @@ export function formatInterpolatedText(
         }
       }
 
-      // Check if there is a task prompt specifically for this option
       let optionPromptText = '';
       if (activeDC?.taskPrompts?.[activeStepIndex]) {
         const pVersions = parseStepVersions(activeDC.taskPrompts[activeStepIndex]);
@@ -440,7 +651,6 @@ export function formatInterpolatedText(
         }
       }
 
-      // Check for user input for this step/option
       const val = getTargetInputValue(targetDay, activeStepIndex);
       let userChoiceText = '';
       if (val !== undefined && val !== null) {
@@ -503,51 +713,56 @@ export function formatInterpolatedText(
 
     // CASE 2: General Step Reference e.g. {D1 Step 3} or {Step 6}
     let items: string[] = [];
-    let val = getTargetInputValue(targetDay, stepIndex);
 
-    // If step 6 has no input yet, check if it's linked to an original poll step (e.g. Step 1)
-    if (val === undefined || val === null || val === '') {
-      const pollLinkRaw = targetDC?.taskPollOptionLinks?.[stepIndex];
-      const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
-      if (pollLinkInfo) {
-        const origVal = getTargetInputValue(targetDay, pollLinkInfo.targetPollIdx);
-        if (origVal) val = origVal;
-      } else if (Array.isArray(targetDC?.taskLinkedSources?.[stepIndex]) && targetDC.taskLinkedSources[stepIndex].length > 0) {
-        const srcStepIdx = targetDC.taskLinkedSources[stepIndex][0];
-        const origVal = getTargetInputValue(targetDay, srcStepIdx);
-        if (origVal) val = origVal;
+    // Progressive step linking check
+    const progRes = resolveProgressiveStepSelections(stepIndex, targetDC, taskInputs, allDaysContent, allDaysInputs);
+    if (progRes.isNarrowed && progRes.allSelections.length > 0) {
+      items = progRes.allSelections;
+    } else {
+      let val = getTargetInputValue(targetDay, stepIndex);
+
+      if (val === undefined || val === null || val === '') {
+        const pollLinkRaw = targetDC?.taskPollOptionLinks?.[stepIndex];
+        const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
+        if (pollLinkInfo) {
+          const origVal = getTargetInputValue(targetDay, pollLinkInfo.targetPollIdx);
+          if (origVal) val = origVal;
+        } else if (Array.isArray(targetDC?.taskLinkedSources?.[stepIndex]) && targetDC.taskLinkedSources[stepIndex].length > 0) {
+          const srcStepIdx = targetDC.taskLinkedSources[stepIndex][0];
+          const origVal = getTargetInputValue(targetDay, srcStepIdx);
+          if (origVal) val = origVal;
+        }
       }
-    }
 
-    if (val !== undefined && val !== null) {
-      if (typeof val === 'boolean') {
-        if (val) items = ['Completed'];
-      } else if (typeof val === 'string' && val.trim()) {
-        try {
-          if (val.trim().startsWith('[')) {
-            const parsed = JSON.parse(val);
-            if (Array.isArray(parsed)) items = parsed.filter(Boolean);
-          } else if (val.trim().startsWith('{')) {
-            const parsed = JSON.parse(val);
-            items = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
-          } else {
+      if (val !== undefined && val !== null) {
+        if (typeof val === 'boolean') {
+          if (val) items = ['Completed'];
+        } else if (typeof val === 'string' && val.trim()) {
+          try {
+            if (val.trim().startsWith('[')) {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) items = parsed.filter(Boolean);
+            } else if (val.trim().startsWith('{')) {
+              const parsed = JSON.parse(val);
+              items = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
+            } else {
+              items = [val.trim()];
+            }
+          } catch (e) {
             items = [val.trim()];
           }
-        } catch (e) {
-          items = [val.trim()];
+        } else if (Array.isArray(val)) {
+          items = val.map((v) => String(v).trim()).filter(Boolean);
         }
-      } else if (Array.isArray(val)) {
-        items = val.map((v) => String(v).trim()).filter(Boolean);
       }
-    }
 
-    // Fallback if no participant input yet
-    if (items.length === 0) {
-      if (inputType === 'poll') {
-        items = getPollOptionsList(targetDC, stepIndex);
-      } else if (inputType === 'text' || inputType === 'note') {
-        const promptText = targetDC?.taskPrompts?.[stepIndex];
-        if (promptText) items = [promptText];
+      if (items.length === 0) {
+        if (inputType === 'poll') {
+          items = getPollOptionsList(targetDC, stepIndex);
+        } else if (inputType === 'text' || inputType === 'note') {
+          const promptText = targetDC?.taskPrompts?.[stepIndex];
+          if (promptText) items = [promptText];
+        }
       }
     }
 
@@ -884,107 +1099,28 @@ export function resolveStepVersionIndex(
 ): number {
   if (!dayContent) return 0;
 
-  // Helper to extract user input value for a specific step index
-  const getInputValueForStep = (sIdx: number) => {
-    if (taskInputs) {
-      if (Array.isArray(taskInputs)) return taskInputs[sIdx];
-      if (typeof taskInputs === 'object') return taskInputs[sIdx];
-    }
-    return undefined;
-  };
-
-  // Helper to match user answer string to poll options list and return 0-based index
-  const matchOptionIndex = (pollDC: any, pIdx: number, userAns: any): number => {
-    if (!userAns || !pollDC) return -1;
-    let options: string[] = [];
-    if (pollDC?.taskPollOptions?.[pIdx]) {
-      try {
-        const parsed = JSON.parse(pollDC.taskPollOptions[pIdx]);
-        if (Array.isArray(parsed)) options = parsed.map(o => String(o).trim());
-      } catch (e) {}
-    }
-    if (options.length === 0) return -1;
-
-    let ansStr = String(userAns).trim();
-    if (ansStr.startsWith('[')) {
-      try {
-        const arr = JSON.parse(ansStr);
-        if (Array.isArray(arr) && arr.length > 0) ansStr = String(arr[0]).trim();
-      } catch (e) {}
-    }
-
-    const foundIdx = options.findIndex(o => o.toLowerCase() === ansStr.toLowerCase());
-    if (foundIdx >= 0) return foundIdx;
-
-    // Check if user answer is "poll N" or "op N" or "N"
-    const opMatch = ansStr.match(/^(?:poll|op)\s*(\d+)$/i);
-    if (opMatch) {
-      const idx = parseInt(opMatch[1], 10) - 1;
-      if (idx >= 0 && idx < options.length) return idx;
-    }
-
-    return -1;
-  };
-
-  // 1. Direct poll input on current step
+  // Direct poll input on current step (if participant is actively answering current step poll)
   const currentType = dayContent?.taskInputTypes?.[stepIdx];
   if (currentType === 'poll') {
-    const val = getInputValueForStep(stepIdx);
+    const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[stepIdx] : taskInputs[stepIdx]) : undefined;
     if (val) {
-      const matchedIdx = matchOptionIndex(dayContent, stepIdx, val);
-      if (matchedIdx >= 0) return matchedIdx;
-    }
-  }
-
-  // 2. Branching Path Link (taskPollOptionLinks)
-  const pollLinkRaw = dayContent?.taskPollOptionLinks?.[stepIdx];
-  const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
-  if (pollLinkInfo) {
-    const targetPollIdx = pollLinkInfo.targetPollIdx;
-    const targetVal = getInputValueForStep(targetPollIdx);
-    if (targetVal) {
-      const matchedIdx = matchOptionIndex(dayContent, targetPollIdx, targetVal);
-      if (matchedIdx >= 0) return matchedIdx;
-    }
-    if (pollLinkInfo.optNum !== undefined && pollLinkInfo.optNum > 0) {
-      return pollLinkInfo.optNum - 1;
-    }
-  }
-
-  // 3. Linked Sources (taskLinkedSources)
-  const linkedSources = dayContent?.taskLinkedSources?.[stepIdx];
-  if (Array.isArray(linkedSources) && linkedSources.length > 0) {
-    for (const srcIdx of linkedSources) {
-      let sDay = Number(dayContent?.day || 1);
-      let sStep = srcIdx;
-      if (srcIdx < 0) {
-        const absVal = Math.abs(srcIdx);
-        sDay = Math.floor(absVal / 100);
-        sStep = absVal % 100;
+      let options: string[] = [];
+      if (dayContent?.taskPollOptions?.[stepIdx]) {
+        try {
+          const parsed = JSON.parse(dayContent.taskPollOptions[stepIdx]);
+          if (Array.isArray(parsed)) options = parsed.map((o: any) => String(o).trim());
+        } catch (e) {}
       }
-      const targetDC = (sDay === Number(dayContent?.day || 1)) ? dayContent : (allDaysContent?.find(d => Number(d.day) === sDay) || dayContent);
-      const val = (sDay === Number(dayContent?.day || 1)) ? getInputValueForStep(sStep) : undefined;
-      if (val) {
-        const matchedIdx = matchOptionIndex(targetDC, sStep, val);
-        if (matchedIdx >= 0) return matchedIdx;
+      if (options.length > 0) {
+        const valStr = String(val).trim().toLowerCase();
+        const idx = options.findIndex(o => o.toLowerCase() === valStr);
+        if (idx >= 0) return idx;
       }
     }
   }
 
-  // 4. Preceding poll step on current day
-  if (dayContent?.taskInputTypes && Array.isArray(dayContent.taskInputTypes)) {
-    for (let p = stepIdx - 1; p >= 0; p--) {
-      if (dayContent.taskInputTypes[p] === 'poll') {
-        const val = getInputValueForStep(p);
-        if (val) {
-          const matchedIdx = matchOptionIndex(dayContent, p, val);
-          if (matchedIdx >= 0) return matchedIdx;
-        }
-      }
-    }
-  }
-
-  return 0;
+  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  return progRes.activeOptionIndex;
 }
 
 /**
