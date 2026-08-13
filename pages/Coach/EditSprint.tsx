@@ -4386,7 +4386,7 @@ const EditSprint: React.FC = () => {
                                             <FormattedText text={formatInterpolatedText(currentContent.taskFootnotes[i], currentContent, {}, sprint?.dailyContent)} />
                                         </div>
                                     )}
-                                    {currentContent.taskHints?.[i] && (
+                                    {(currentContent.taskHints?.[i] || currentContent.taskPollOptionLinks?.[i] || currentContent.taskLinkedSources?.[i]) && (
                                         <div className="mb-4">
                                             <button
                                                 type="button"

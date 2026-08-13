@@ -1378,7 +1378,7 @@ const SprintPreview: React.FC = () => {
                                                 <FormattedText text={formatInterpolatedText(day1Content.taskFootnotes[i], day1Content, taskInputs, sprint?.dailyContent)} />
                                             </div>
                                         )}
-                                        {day1Content?.taskHints?.[i] && (
+                                        {(day1Content?.taskHints?.[i] || day1Content?.taskPollOptionLinks?.[i] || day1Content?.taskLinkedSources?.[i]) && (
                                             <div className="mb-4">
                                                 <button 
                                                     type="button"

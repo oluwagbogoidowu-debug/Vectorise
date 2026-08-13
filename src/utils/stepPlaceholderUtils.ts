@@ -419,45 +419,85 @@ export function formatInterpolatedText(
 
       const optIndex = opNum - 1;
       const writtenOpts = getWrittenPollOptions(activeDC, activeStepIndex);
-      if (optIndex >= 0 && optIndex < writtenOpts.length) {
-        const targetWrittenText = writtenOpts[optIndex].trim();
-        if (!targetWrittenText) return `[${dayPrefix}Step ${stepNum} Op${opNum}]`;
 
-        const val = getTargetInputValue(targetDay, activeStepIndex);
-        let userChoices: string[] = [];
-        if (val && typeof val === 'string' && val.trim()) {
+      // Check if there is a task hint specifically for this option (optIndex)
+      let optionHintText = '';
+      if (activeDC?.taskHints?.[activeStepIndex]) {
+        const hVersions = parseHintVersions(activeDC.taskHints[activeStepIndex]);
+        if (hVersions[optIndex] !== undefined) {
+          optionHintText = hVersions[optIndex].trim();
+        } else if (hVersions[0] !== undefined) {
+          optionHintText = hVersions[0].trim();
+        }
+      }
+
+      // Check if there is a task prompt specifically for this option
+      let optionPromptText = '';
+      if (activeDC?.taskPrompts?.[activeStepIndex]) {
+        const pVersions = parseStepVersions(activeDC.taskPrompts[activeStepIndex]);
+        if (pVersions[optIndex] !== undefined && pVersions.length > 1) {
+          optionPromptText = pVersions[optIndex].trim();
+        }
+      }
+
+      // Check for user input for this step/option
+      const val = getTargetInputValue(targetDay, activeStepIndex);
+      let userChoiceText = '';
+      if (val !== undefined && val !== null) {
+        if (typeof val === 'string' && val.trim()) {
           try {
             if (val.trim().startsWith('[')) {
               const parsed = JSON.parse(val);
-              if (Array.isArray(parsed)) userChoices = parsed.filter(Boolean);
+              if (Array.isArray(parsed) && parsed[optIndex]) userChoiceText = String(parsed[optIndex]).trim();
             } else if (val.trim().startsWith('{')) {
               const parsed = JSON.parse(val);
-              userChoices = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
+              const vals = Object.values(parsed);
+              if (vals[optIndex]) userChoiceText = String(vals[optIndex]).trim();
             } else {
-              userChoices = [val.trim()];
+              userChoiceText = val.trim();
             }
           } catch (e) {
-            userChoices = [val.trim()];
+            userChoiceText = val.trim();
           }
         }
-        userChoices = userChoices.map((c) => String(c).trim()).filter(Boolean);
-
-        if (userChoices.length > 0) {
-          const matchChoice = userChoices.find((c) => {
-            const lowerC = c.toLowerCase();
-            return lowerC === targetWrittenText.toLowerCase() ||
-                   lowerC === `poll ${opNum}` ||
-                   lowerC === `op ${opNum}` ||
-                   lowerC === `op${opNum}` ||
-                   lowerC === String(opNum);
-          });
-          if (matchChoice) {
-            return formatOutput([targetWrittenText]);
-          }
-        }
-
-        return formatOutput([targetWrittenText]);
       }
+
+      const targetWrittenText = (optIndex >= 0 && optIndex < writtenOpts.length) ? writtenOpts[optIndex].trim() : '';
+
+      let displayText = '';
+
+      if (userChoiceText &&
+          userChoiceText.toLowerCase() !== targetWrittenText.toLowerCase() &&
+          !userChoiceText.toLowerCase().match(/^(?:poll|op)\s*\d+$/i)) {
+        displayText = userChoiceText;
+      }
+
+      if (!displayText && optionHintText) {
+        const cleanedHint = optionHintText.replace(/\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?(?:\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi, '').trim();
+        if (cleanedHint) {
+          if (targetWrittenText &&
+              !targetWrittenText.toLowerCase().startsWith('option') &&
+              !targetWrittenText.toLowerCase().startsWith('op') &&
+              !targetWrittenText.toLowerCase().startsWith('poll')) {
+            displayText = `${targetWrittenText}: ${cleanedHint}`;
+          } else {
+            displayText = cleanedHint;
+          }
+        }
+      }
+
+      if (!displayText && optionPromptText) {
+        displayText = optionPromptText;
+      }
+
+      if (!displayText && targetWrittenText) {
+        displayText = targetWrittenText;
+      }
+
+      if (displayText) {
+        return formatOutput([displayText]);
+      }
+
       return `[${dayPrefix}Step ${stepNum} Op${opNum}]`;
     }
 
@@ -619,14 +659,39 @@ export function resolveTaskHintForUser(
   allDaysContent?: any[],
   allDaysInputs?: any[]
 ): string {
-  if (!hintRaw) return '';
-  const versions = parseHintVersions(hintRaw);
+  let effectiveHintRaw = hintRaw;
+
+  if (!effectiveHintRaw || !effectiveHintRaw.trim()) {
+    if (dayContent?.taskPollOptionLinks?.[stepIdx]) {
+      const pollLinkInfo = parsePollLinkInfo(dayContent.taskPollOptionLinks[stepIdx]);
+      if (pollLinkInfo) {
+        const originStepIdx = pollLinkInfo.targetPollIdx;
+        const originHintRaw = dayContent?.taskHints?.[originStepIdx];
+        if (originHintRaw) {
+          const originVersions = parseHintVersions(originHintRaw);
+          const optIdx = (pollLinkInfo.optNum !== undefined && pollLinkInfo.optNum > 0) ? pollLinkInfo.optNum - 1 : 0;
+          effectiveHintRaw = originVersions[optIdx] !== undefined ? originVersions[optIdx] : originVersions[0];
+        }
+      }
+    } else if (Array.isArray(dayContent?.taskLinkedSources?.[stepIdx]) && dayContent.taskLinkedSources[stepIdx].length > 0) {
+      const originStepIdx = dayContent.taskLinkedSources[stepIdx][0];
+      const originHintRaw = dayContent?.taskHints?.[originStepIdx];
+      if (originHintRaw) {
+        effectiveHintRaw = originHintRaw;
+      }
+    }
+  }
+
+  if (!effectiveHintRaw || !effectiveHintRaw.trim()) return '';
+
+  const versions = parseHintVersions(effectiveHintRaw);
   if (versions.length === 0) return '';
+
+  const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+
   if (versions.length === 1) {
     return formatInterpolatedText(versions[0], dayContent, taskInputs, allDaysContent, allDaysInputs);
   }
-
-  const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
 
   const chosenHint = versions[selectedOptIdx] !== undefined ? versions[selectedOptIdx] : (versions[0] || '');
   return formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs);

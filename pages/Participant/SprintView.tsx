@@ -3012,7 +3012,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   <FormattedText text={formatInterpolatedText(dayContent.taskFootnotes[i], dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                                 </div>
                               )}
-                              {dayContent.taskHints?.[i] && (
+                              {(dayContent.taskHints?.[i] || dayContent.taskPollOptionLinks?.[i] || dayContent.taskLinkedSources?.[i]) && (
                                 <div className="mb-4">
                                   <button
                                     type="button"
@@ -3722,7 +3722,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             <FormattedText text={dayContent.taskFootnotes[0]} />
                           </div>
                         )}
-                        {dayContent?.taskHints?.[0] && (
+                        {(dayContent?.taskHints?.[0] || dayContent?.taskPollOptionLinks?.[0] || dayContent?.taskLinkedSources?.[0]) && (
                           <div className="mb-4">
                             <button
                               type="button"
