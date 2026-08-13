@@ -1284,7 +1284,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     // Implicit placeholder branch checking ({Step N OpM}, {D1 Step N OpM}, {Step N OpM d}, {Step N OpM h}, {Step N})
     const prompt = dayContent.taskPrompts?.[stepIndex];
     if (prompt) {
-      const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
+      const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
       let match: RegExpExecArray | null;
 
       const stepPlaceholders: { dayNum?: number; stepNum: number; opNum?: number; mode: StepPlaceholderMode }[] = [];

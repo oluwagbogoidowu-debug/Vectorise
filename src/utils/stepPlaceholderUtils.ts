@@ -1,4 +1,4 @@
-export type StepPlaceholderMode = 'normal' | 'list' | 'hide' | 'sentence' | 'disconnect';
+export type StepPlaceholderMode = 'normal' | 'list' | 'hide' | 'sentence' | 'disconnect' | 'main';
 
 export interface StepPlaceholderDetail {
   dayNum?: number;
@@ -24,6 +24,7 @@ export interface StepPlaceholderValidation {
 export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
   if (!modeStr) return 'normal';
   const m = modeStr.toLowerCase().trim();
+  if (m === 'm' || m === 'main') return 'main';
   if (m === 'h' || m === 'hide') return 'hide';
   if (m === 'd' || m === 'disconnect') return 'disconnect';
   if (m === 's' || m === 'sentence') return 'sentence';
@@ -33,12 +34,12 @@ export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
 }
 
 /**
- * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {D1 Step 3}, {D2 Step 4 Op1}, {Day 1 Step 3 list}, {d2 step 4 op 1 h}, {Step 1 Op 4 d}, etc.
+ * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {D1 Step 3}, {D2 Step 4 Op1 m}, {Day 1 Step 3 list}, {d2 step 4 op 1 h}, {Step 1 Op 4 d}, etc.
  */
-export const PLACEHOLDER_REGEX = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
+export const PLACEHOLDER_REGEX = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
 /**
- * Validates `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step N h}`, `{Step N Op 4 d}` etc. placeholders in prompt text.
+ * Validates `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step N h}`, `{Step N Op 4 d}`, `{Step 1 Op 2 m}` etc. placeholders in prompt text.
  */
 export function validateStepPlaceholders(
   prompt: string,
@@ -50,7 +51,7 @@ export function validateStepPlaceholders(
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
   let match: RegExpExecArray | null;
   const references: StepPlaceholderDetail[] = [];
 
@@ -66,6 +67,7 @@ export function validateStepPlaceholders(
     else if (mode === 'disconnect') modeSuffix = ' d';
     else if (mode === 'sentence') modeSuffix = ' s';
     else if (mode === 'list') modeSuffix = ' list';
+    else if (mode === 'main') modeSuffix = ' m';
 
     const dayPrefix = dayNum !== undefined ? `D${dayNum} ` : '';
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
@@ -92,6 +94,16 @@ export function validateStepPlaceholders(
   for (const ref of references) {
     const targetDay = ref.dayNum !== undefined ? ref.dayNum : currentDay;
     const targetStepIndex = ref.stepNum - 1; // 1-based to 0-based
+
+    // Rule: Every 'main' (m) mode MUST have op M
+    if (ref.mode === 'main' && ref.opNum === undefined) {
+      invalidStepRefs.push(ref.stepNum);
+      invalidStepLabels.push(ref.rawLabel);
+      if (!invalidReason) {
+        invalidReason = `Invalid placeholder {${ref.rawLabel}}: 'main' (m) mode requires an option number (e.g. {Step ${ref.stepNum} Op1 m}).`;
+      }
+      continue;
+    }
 
     // Rule 1: Cannot reference future day
     if (targetDay > currentDay) {
@@ -195,7 +207,7 @@ export function validateStepPlaceholders(
 }
 
 /**
- * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence') of a placeholder within a prompt string.
+ * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence' | 'disconnect' | 'main') of a placeholder within a prompt string.
  */
 export function togglePlaceholderMode(
   prompt: string,
@@ -205,7 +217,7 @@ export function togglePlaceholderMode(
 ): string {
   if (!prompt) return prompt;
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|h|s|l|n))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   return prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr) => {
     const stepNum = parseInt(stepNumStr, 10);
@@ -226,6 +238,7 @@ export function togglePlaceholderMode(
     else if (targetMode === 'hide') modePart = ' h';
     else if (targetMode === 'disconnect') modePart = ' d';
     else if (targetMode === 'sentence') modePart = ' s';
+    else if (targetMode === 'main') modePart = ' m';
 
     return `{${dayPart}Step ${stepNum}${opPart}${modePart}}`;
   });
@@ -243,20 +256,21 @@ export interface ProgressiveSelectionResult {
  * Returns list of explicitly linked steps for a given step based on:
  * 1. taskPollOptionLinks (Branching path link e.g. "Step 1 Op 2")
  * 2. taskLinkedSources
- * 3. Explicit placeholder tokens {Step N}, {Step N op M}, {D1 Step N} in prompt, hint, footnote, or options.
+ * 3. Explicit placeholder tokens {Step N}, {Step N op M}, {Step N op M m}, {D1 Step N} in prompt, hint, footnote, or options.
  */
 export function getExplicitLinkedSteps(
   stepIdx: number,
   dayContent?: any
-): { day: number; stepIdx: number }[] {
+): { day: number; stepIdx: number; opNum?: number; mode?: StepPlaceholderMode }[] {
   if (!dayContent) return [];
   const currentDay = Number(dayContent.day || 1);
-  const links: { day: number; stepIdx: number }[] = [];
+  const links: { day: number; stepIdx: number; opNum?: number; mode?: StepPlaceholderMode }[] = [];
 
-  const addLink = (d: number, s: number) => {
+  const addLink = (d: number, s: number, opNum?: number, mode?: StepPlaceholderMode) => {
     if (s < 0 || (d === currentDay && s >= stepIdx)) return;
+    if (mode === 'disconnect') return; // 'd' means disconnect only this
     if (!links.some(l => l.day === d && l.stepIdx === s)) {
-      links.push({ day: d, stepIdx: s });
+      links.push({ day: d, stepIdx: s, opNum, mode });
     }
   };
 
@@ -264,7 +278,7 @@ export function getExplicitLinkedSteps(
   const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIdx];
   const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
   if (pollLinkInfo && pollLinkInfo.targetPollIdx >= 0) {
-    addLink(currentDay, pollLinkInfo.targetPollIdx);
+    addLink(currentDay, pollLinkInfo.targetPollIdx, pollLinkInfo.optNum);
   }
 
   // 2. taskLinkedSources
@@ -294,7 +308,7 @@ export function getExplicitLinkedSteps(
   const optionsVal = dayContent.taskPollOptions?.[stepIdx];
   if (typeof optionsVal === 'string') textsToScan.push(optionsVal);
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   for (const text of textsToScan) {
     let match: RegExpExecArray | null;
@@ -302,8 +316,10 @@ export function getExplicitLinkedSteps(
     while ((match = regex.exec(text)) !== null) {
       const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
       const stepNum = parseInt(match[2], 10);
+      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
+      const mode = parsePlaceholderMode(match[4]);
       const targetStepIdx = stepNum - 1;
-      addLink(dayNum, targetStepIdx);
+      addLink(dayNum, targetStepIdx, opNum, mode);
     }
   }
 
@@ -507,7 +523,7 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
+  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   const currentDayNum = Number(dayContent?.day || 1);
 
@@ -628,7 +644,7 @@ export function formatInterpolatedText(
     const dayPrefix = dayNumStr ? `D${targetDay} ` : '';
 
     const formatOutput = (rawList: string[]): string => {
-      if (mode === 'hide' || mode === 'disconnect') {
+      if (mode === 'hide' || mode === 'disconnect' || mode === 'main') {
         return '';
       }
 
