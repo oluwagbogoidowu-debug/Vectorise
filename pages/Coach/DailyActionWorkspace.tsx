@@ -412,7 +412,10 @@ export default function DailyActionWorkspace({
     const dayContent = getDailyContentForDay(dayNum);
     const types = [...(dayContent.taskInputTypes || [])];
     while (types.length <= index) types.push('text');
-    types[index] = value;
+    const stepVerKey = `${dayNum}-${index}`;
+    const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
+    const rawType = types[index] || 'text';
+    types[index] = updateStepVersionValue(rawType, activeVerIdx, value) as any;
     updateFieldForDay(dayNum, 'taskInputTypes', types);
   };
 
@@ -450,17 +453,21 @@ export default function DailyActionWorkspace({
     const pollOptionsList = lines.length > 0 ? lines : [textToAssign.trim()];
 
     const dayContent = getDailyContentForDay(dayNum);
+    const stepVerKey = `${dayNum}-${index}`;
+    const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
     
-    // Set input type to 'poll' for this step if not already
+    // Set input type to 'poll' for this version if not already
     const types = [...(dayContent.taskInputTypes || [])];
     while (types.length <= index) types.push('text');
-    types[index] = 'poll';
+    const rawType = types[index] || 'text';
+    types[index] = updateStepVersionValue(rawType, activeVerIdx, 'poll') as any;
     updateFieldForDay(dayNum, 'taskInputTypes', types);
 
-    // Set poll options for this step
+    // Set poll options for this version
     const options = [...(dayContent.taskPollOptions || [])];
     while (options.length <= index) options.push('[]');
-    options[index] = JSON.stringify(pollOptionsList);
+    const rawOpts = options[index] || '[]';
+    options[index] = updateStepVersionValue(rawOpts, activeVerIdx, JSON.stringify(pollOptionsList));
     updateFieldForDay(dayNum, 'taskPollOptions', options);
 
     setLastAssignedField(`poll-${index}`);
@@ -470,34 +477,46 @@ export default function DailyActionWorkspace({
 
   const handleTaskPollOptionChange = (dayNum: number, index: number, optIndex: number, value: string) => {
     const dayContent = getDailyContentForDay(dayNum);
+    const stepVerKey = `${dayNum}-${index}`;
+    const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
+
     const options = [...(dayContent.taskPollOptions || [])];
     while (options.length <= index) options.push('[]');
     
+    const rawOpts = options[index] || '[]';
+    const activeVerOptsStr = getStepVersionValue(rawOpts, activeVerIdx, '[]');
+
     let currentOptionsList: string[] = [];
     try {
-      currentOptionsList = JSON.parse(options[index] || '[]');
+      currentOptionsList = JSON.parse(activeVerOptsStr || '[]');
     } catch (e) {}
     
     while (currentOptionsList.length <= optIndex) currentOptionsList.push('');
     currentOptionsList[optIndex] = value;
-    options[index] = JSON.stringify(currentOptionsList);
+    options[index] = updateStepVersionValue(rawOpts, activeVerIdx, JSON.stringify(currentOptionsList));
     updateFieldForDay(dayNum, 'taskPollOptions', options);
   };
 
   const removeTaskPollOption = (dayNum: number, index: number, optIndex: number) => {
     const dayContent = getDailyContentForDay(dayNum);
+    const stepVerKey = `${dayNum}-${index}`;
+    const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
+
     const options = [...(dayContent.taskPollOptions || [])];
     while (options.length <= index) options.push('[]');
     
+    const rawOpts = options[index] || '[]';
+    const activeVerOptsStr = getStepVersionValue(rawOpts, activeVerIdx, '[]');
+
     let currentOptionsList: string[] = [];
     try {
-      currentOptionsList = JSON.parse(options[index] || '[]');
+      currentOptionsList = JSON.parse(activeVerOptsStr || '[]');
     } catch (e) {}
     
     if (currentOptionsList.length > optIndex) {
       currentOptionsList.splice(optIndex, 1);
     }
-    options[index] = JSON.stringify(currentOptionsList);
+    options[index] = updateStepVersionValue(rawOpts, activeVerIdx, JSON.stringify(currentOptionsList));
     updateFieldForDay(dayNum, 'taskPollOptions', options);
   };
 
@@ -742,6 +761,7 @@ export default function DailyActionWorkspace({
               const stepVerKey = `${dayNum}-${activeIdx}`;
               const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
               const prompt = getStepVersionValue(rawPrompt, activeVerIdx);
+              const activeInputType = getStepVersionValue(rawInputType, activeVerIdx, 'text');
             const isLastAssignedPrompt = lastAssignedField === `prompt-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedNote = lastAssignedField === `note-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
@@ -872,6 +892,13 @@ export default function DailyActionWorkspace({
                                 const newVerIdx = newVersions.length - 1;
                                 setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
                                 handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+
+                                // Also initialize/sync taskInputTypes for new version index
+                                const types = [...(dayContent.taskInputTypes || [])];
+                                while (types.length <= activeIdx) types.push('text');
+                                const rawType = types[activeIdx] || 'text';
+                                types[activeIdx] = updateStepVersionValue(rawType, newVerIdx, 'text') as any;
+                                updateFieldForDay(dayNum, 'taskInputTypes', types);
                               }}
                               className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-purple-600 hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
                               title="Add sub-context version (e.g. version for Option 1, Option 2...)"
@@ -883,10 +910,29 @@ export default function DailyActionWorkspace({
                                 type="button"
                                 onClick={() => {
                                   setSelectedDay(dayNum);
+                                  const removeVerFromRaw = (rawStr?: string | null) => {
+                                    const vers = parseStepVersions(rawStr);
+                                    if (vers.length <= 1) return vers[0] || '';
+                                    const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                    return serializeStepVersions(filtered);
+                                  };
+
                                   const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
                                   const newVerIdx = Math.max(0, activeVerIdx - 1);
                                   setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
                                   handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+
+                                  const types = [...(dayContent.taskInputTypes || [])];
+                                  if (types[activeIdx] !== undefined) {
+                                    types[activeIdx] = removeVerFromRaw(types[activeIdx]) as any;
+                                    updateFieldForDay(dayNum, 'taskInputTypes', types);
+                                  }
+
+                                  const opts = [...(dayContent.taskPollOptions || [])];
+                                  if (opts[activeIdx] !== undefined) {
+                                    opts[activeIdx] = removeVerFromRaw(opts[activeIdx]);
+                                    updateFieldForDay(dayNum, 'taskPollOptions', opts);
+                                  }
                                 }}
                                 className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
                                 title="Remove current context version"
@@ -1072,7 +1118,7 @@ export default function DailyActionWorkspace({
                         <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
                         <div className="flex p-0.5 bg-gray-100 rounded-lg">
                           {(['text', 'tags', 'poll', 'mark', 'none'] as const).map((type) => {
-                            const isSelected = (!dayContent.taskInputTypes?.[activeIdx] && type === 'text') || dayContent.taskInputTypes?.[activeIdx] === type;
+                            const isSelected = (!activeInputType && type === 'text') || activeInputType === type;
                             return (
                               <button 
                                 key={type}
@@ -1740,7 +1786,7 @@ export default function DailyActionWorkspace({
                     )}
 
                     {/* Multi Text label configuration */}
-                    {(!dayContent.taskInputTypes?.[activeIdx] || dayContent.taskInputTypes[activeIdx] === 'text') && dayContent.taskMultiTextLabels?.[activeIdx] && dayContent.taskMultiTextLabels[activeIdx].length > 0 && (
+                    {(!activeInputType || activeInputType === 'text') && dayContent.taskMultiTextLabels?.[activeIdx] && dayContent.taskMultiTextLabels[activeIdx].length > 0 && (
                       <div className="mt-2 pl-2 border-l-2 border-purple-200/50 space-y-2 animate-fade-in text-[11px]">
                         <p className="font-semibold text-purple-600">Labels for Multi-Text Fields:</p>
                         <div className="space-y-1.5">
@@ -1789,7 +1835,7 @@ export default function DailyActionWorkspace({
                     )}
 
                     {/* Poll option configuration */}
-                    {dayContent.taskInputTypes?.[activeIdx] === 'poll' && (
+                    {activeInputType === 'poll' && (
                       <div className={`mt-2 pl-2 border-l-2 border-purple-200/50 space-y-2 text-[11px] transition-all ${isLastAssignedPoll ? 'ring-2 ring-purple-500 ring-offset-2 p-2 rounded-xl bg-purple-50/20' : ''}`}>
                         {selectedText && (
                           <div className="flex items-center justify-between p-2 bg-purple-50/80 rounded-xl border border-purple-200">
@@ -1827,8 +1873,9 @@ export default function DailyActionWorkspace({
                         <div className="space-y-1.5">
                           {(() => {
                             let opts: string[] = [];
-                            if (dayContent.taskPollOptions?.[activeIdx]) {
-                              try { opts = JSON.parse(dayContent.taskPollOptions[activeIdx]); } catch(e) {}
+                            const activeVerOptsStr = getStepVersionValue(dayContent.taskPollOptions?.[activeIdx], activeVerIdx, '[]');
+                            if (activeVerOptsStr) {
+                              try { opts = JSON.parse(activeVerOptsStr); } catch(e) {}
                             }
                             const isDynamicPoll = isLinkedFromPrevious && !dayContent.taskTagNoteActive?.[activeIdx];
                             if (isDynamicPoll) {

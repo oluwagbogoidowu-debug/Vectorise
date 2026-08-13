@@ -1176,6 +1176,30 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
+  const updateCurrentContentField = (fieldName: keyof DailyContent, value: any) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        if (existingContentIndex >= 0) {
+            updatedDailyContent[existingContentIndex] = {
+                ...updatedDailyContent[existingContentIndex],
+                [fieldName]: value
+            };
+        } else {
+            updatedDailyContent.push({
+                day: selectedDay,
+                lessonText: '',
+                taskPrompt: '',
+                taskPrompts: ['', '', ''],
+                [fieldName]: value
+            } as any);
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
   const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll' | 'note' | 'mark' | 'none') => {
     setSprint(prev => {
         if (!prev) return null;
@@ -1187,14 +1211,17 @@ const EditSprint: React.FC = () => {
             : ['text', 'text', 'text'];
         
         while (currentTypes.length <= index) currentTypes.push('text');
-        currentTypes[index] = type;
+        
+        const activeVerIdx = activeStepVersionMap[index] || 0;
+        const rawType = currentTypes[index] || 'text';
+        currentTypes[index] = updateStepVersionValue(rawType, activeVerIdx, type) as any;
         
         let currentOptions = existingContentIndex >= 0 
             ? [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])] 
             : [];
             
         if (type === 'poll') {
-            const currentOptsStr = currentOptions[index];
+            const currentOptsStr = getStepVersionValue(currentOptions[index], activeVerIdx, '[]');
             let currentOptsArr: string[] = [];
             if (currentOptsStr) {
                 try { currentOptsArr = JSON.parse(currentOptsStr); } catch (e) {}
@@ -1213,7 +1240,8 @@ const EditSprint: React.FC = () => {
                 }
             }
             while (currentOptions.length <= index) currentOptions.push('[]');
-            currentOptions[index] = JSON.stringify(currentOptsArr);
+            const rawOpts = currentOptions[index] || '[]';
+            currentOptions[index] = updateStepVersionValue(rawOpts, activeVerIdx, JSON.stringify(currentOptsArr));
         }
 
         // Clean up connections if any step was removed from 'tags'
@@ -1238,7 +1266,8 @@ const EditSprint: React.FC = () => {
         }
 
         for (let i = 0; i < currentTypes.length; i++) {
-            if (currentTypes[i] !== 'tags') {
+            const effType = getStepVersionValue(currentTypes[i], activeVerIdx, 'text');
+            if (effType !== 'tags') {
                 if (currentLinked.length > i) {
                     currentLinked[i] = false;
                 }
@@ -1286,12 +1315,16 @@ const EditSprint: React.FC = () => {
         let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
         
         while (currentOptions.length <= promptIndex) currentOptions.push('[]');
+        const activeVerIdx = activeStepVersionMap[promptIndex] || 0;
+        const rawOpts = currentOptions[promptIndex] || '[]';
+        const activeVerOptsStr = getStepVersionValue(rawOpts, activeVerIdx, '[]');
+
         let optionsForPrompt: string[] = [];
-        try { optionsForPrompt = JSON.parse(currentOptions[promptIndex] || '[]'); } catch (e) {}
+        try { optionsForPrompt = JSON.parse(activeVerOptsStr || '[]'); } catch (e) {}
         while (optionsForPrompt.length <= optionIndex) optionsForPrompt.push('');
         
         optionsForPrompt[optionIndex] = value;
-        currentOptions[promptIndex] = JSON.stringify(optionsForPrompt);
+        currentOptions[promptIndex] = updateStepVersionValue(rawOpts, activeVerIdx, JSON.stringify(optionsForPrompt));
         
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
@@ -1312,11 +1345,15 @@ const EditSprint: React.FC = () => {
         let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
         if (!currentOptions[promptIndex]) return prev;
         
+        const activeVerIdx = activeStepVersionMap[promptIndex] || 0;
+        const rawOpts = currentOptions[promptIndex] || '[]';
+        const activeVerOptsStr = getStepVersionValue(rawOpts, activeVerIdx, '[]');
+
         let optionsForPrompt: string[] = [];
-        try { optionsForPrompt = JSON.parse(currentOptions[promptIndex]); } catch (e) {}
+        try { optionsForPrompt = JSON.parse(activeVerOptsStr); } catch (e) {}
         
         optionsForPrompt.splice(optionIndex, 1);
-        currentOptions[promptIndex] = JSON.stringify(optionsForPrompt);
+        currentOptions[promptIndex] = updateStepVersionValue(rawOpts, activeVerIdx, JSON.stringify(optionsForPrompt));
         
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
@@ -2983,6 +3020,7 @@ const EditSprint: React.FC = () => {
                             const stepVersions = parseStepVersions(rawPrompt);
                             const activeVerIdx = activeStepVersionMap[index] || 0;
                             const prompt = getStepVersionValue(rawPrompt, activeVerIdx);
+                            const activeInputType = getStepVersionValue(rawInputType, activeVerIdx, 'text');
 
                             const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || [], currentContent.taskPollOptions, Number(currentContent.day || selectedDay || 1), sprint?.dailyContent);
                             return (
@@ -3024,6 +3062,13 @@ const EditSprint: React.FC = () => {
                                                             const newVerIdx = newVersions.length - 1;
                                                             setActiveStepVersionMap(prev => ({ ...prev, [index]: newVerIdx }));
                                                             handleTaskPromptChange(index, serializeStepVersions(newVersions));
+
+                                                            // Also initialize/sync taskInputTypes for new version index
+                                                            const types = [...(currentContent.taskInputTypes || [])];
+                                                            while (types.length <= index) types.push('text');
+                                                            const rawType = types[index] || 'text';
+                                                            types[index] = updateStepVersionValue(rawType, newVerIdx, 'text') as any;
+                                                            updateCurrentContentField('taskInputTypes', types);
                                                         }}
                                                         className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-primary hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
                                                         title="Add sub-context version (e.g. version for Option 1, Option 2...)"
@@ -3034,10 +3079,29 @@ const EditSprint: React.FC = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => {
+                                                                const removeVerFromRaw = (rawStr?: string | null) => {
+                                                                    const vers = parseStepVersions(rawStr);
+                                                                    if (vers.length <= 1) return vers[0] || '';
+                                                                    const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                                                    return serializeStepVersions(filtered);
+                                                                };
+
                                                                 const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
                                                                 const newVerIdx = Math.max(0, activeVerIdx - 1);
                                                                 setActiveStepVersionMap(prev => ({ ...prev, [index]: newVerIdx }));
                                                                 handleTaskPromptChange(index, serializeStepVersions(newVersions));
+
+                                                                const types = [...(currentContent.taskInputTypes || [])];
+                                                                if (types[index] !== undefined) {
+                                                                    types[index] = removeVerFromRaw(types[index]) as any;
+                                                                    updateCurrentContentField('taskInputTypes', types);
+                                                                }
+
+                                                                const opts = [...(currentContent.taskPollOptions || [])];
+                                                                if (opts[index] !== undefined) {
+                                                                    opts[index] = removeVerFromRaw(opts[index]);
+                                                                    updateCurrentContentField('taskPollOptions', opts);
+                                                                }
                                                             }}
                                                             className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
                                                             title="Remove current context version"
@@ -3266,7 +3330,7 @@ const EditSprint: React.FC = () => {
                                                             <button 
                                                                 type="button"
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'text')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!activeInputType || activeInputType === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                                 title="Text Input: Instructs the participant to enter a freeform text response or reflection."
                                                             >
                                                                 Text
@@ -3275,7 +3339,7 @@ const EditSprint: React.FC = () => {
                                                                 type="button"
                                                                 disabled={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index]}
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'tags')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? 'opacity-40 cursor-not-allowed text-gray-350' : currentContent.taskInputTypes?.[index] === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? 'opacity-40 cursor-not-allowed text-gray-350' : activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                                 title={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? "Locked: This step is a linked follow-up and cannot be Tag-labeled unless Tag Note mode is turned ON." : "Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."}
                                                             >
                                                                 Tags
@@ -3283,7 +3347,7 @@ const EditSprint: React.FC = () => {
                                                             <button 
                                                                 type="button"
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'poll')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                                 title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
                                                             >
                                                                 Poll
@@ -3291,7 +3355,7 @@ const EditSprint: React.FC = () => {
                                                             <button 
                                                                 type="button"
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'mark')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                                 title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
                                                             >
                                                                 Mark
@@ -3299,7 +3363,7 @@ const EditSprint: React.FC = () => {
                                                             <button 
                                                                 type="button"
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'none')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${currentContent.taskInputTypes?.[index] === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                                                                 title="None: Action step with no input field — participants simply read and press next."
                                                             >
                                                                 None
@@ -3840,7 +3904,7 @@ const EditSprint: React.FC = () => {
                                                     })()}
                                                 </div>
                                             )}
-                                            {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0 && (
+                                            {(!activeInputType || activeInputType === 'text') && currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0 && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2 animate-fade-in text-left">
                                                     <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 mb-2">
                                                         <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
@@ -3893,7 +3957,7 @@ const EditSprint: React.FC = () => {
                                                     </div>
                                                 </div>
                                             )}
-                                            {currentContent.taskInputTypes?.[index] === 'poll' && (
+                                            {activeInputType === 'poll' && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
                                                     <div className="flex items-center gap-2 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                                                         <button
@@ -3931,7 +3995,8 @@ const EditSprint: React.FC = () => {
                                                             {(() => {
                                                                 let opts: string[] = [];
                                                                 if (currentContent.taskPollOptions?.[index]) {
-                                                                    try { opts = JSON.parse(currentContent.taskPollOptions[index]); } catch(e) {}
+                                                                    const verOptsStr = getStepVersionValue(currentContent.taskPollOptions[index], activeVerIdx, '[]');
+                                                                    try { opts = JSON.parse(verOptsStr); } catch(e) {}
                                                                 }
                                                                 const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
                                                                 if (isDynamicPoll) {

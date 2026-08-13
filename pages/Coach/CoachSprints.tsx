@@ -939,19 +939,19 @@ const CoachSprints: React.FC = () => {
 
 
       <div className="flex items-center justify-between gap-3 mb-8 w-full">
-        <div className="inline-flex bg-gray-100 p-0.5 rounded-xl">
+        <div className="inline-flex bg-gray-100 p-1 rounded-2xl gap-0.5">
             <button
                 type="button"
                 onClick={() => {
                     setActiveTab('sprint');
                     setFilter('all');
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Flame className="w-3 h-3" />
-                Sprint
+                <Flame className="w-3.5 h-3.5" />
+                <span>Sprint</span>
             </button>
             <button
                 type="button"
@@ -959,12 +959,12 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('blog');
                     setFilter('all');
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <BookOpen className="w-3 h-3" />
-                RiseBlog
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>RiseBlog</span>
             </button>
             <button
                 type="button"
@@ -972,12 +972,12 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('ignite');
                     setFilter('all');
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Sparkles className="w-3 h-3" />
-                Ignite
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Ignite</span>
             </button>
             <button
                 type="button"
@@ -985,12 +985,12 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('challenge');
                     setFilter('all');
                 }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'challenge' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Trophy className="w-3 h-3" />
-                Challenge
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Challenge</span>
             </button>
         </div>
         {hasPermission('sprint:create') && (
