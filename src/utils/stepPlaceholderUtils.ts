@@ -635,17 +635,34 @@ export function resolveTaskHintForUser(
 export function parseStepVersions(raw?: string | null): string[] {
   if (!raw) return [''];
   const trimmed = raw.trim();
+  if (!trimmed) return [''];
+
+  if (trimmed.includes('|||')) {
+    return trimmed.split('|||');
+  }
+
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
       const arr = JSON.parse(trimmed);
       if (Array.isArray(arr) && arr.length > 0) {
-        return arr.map(v => (v === null || v === undefined) ? '' : String(v));
+        // Check if element 0 is a serialized JSON array string (starts with '[')
+        if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
+          return arr.map(v => (v === null || v === undefined) ? '' : String(v));
+        }
+
+        // Check if arr is a list of input types (e.g. ['text', 'poll'])
+        const validTypes = new Set(['text', 'tags', 'poll', 'mark', 'none', 'note']);
+        if (arr.every(item => typeof item === 'string' && validTypes.has(item.trim().toLowerCase()))) {
+          return arr.map(v => String(v));
+        }
+
+        // If arr is an array of plain strings (e.g. ['Option 1', 'Option 2']), this is a single version's poll option JSON array string.
+        // Return [raw] so '["Option 1", "Option 2"]' stays intact as version 0.
+        return [raw];
       }
     } catch (e) {}
   }
-  if (trimmed.includes('|||')) {
-    return trimmed.split('|||');
-  }
+
   return [raw];
 }
 
@@ -656,6 +673,38 @@ export function serializeStepVersions(versions: string[]): string {
 }
 
 export function getStepVersionValue(rawField?: string | null, versionIdx: number = 0, fallbackDefault: string = ''): string {
+  if (!rawField) return fallbackDefault;
+  const trimmed = rawField.trim();
+  if (!trimmed) return fallbackDefault;
+
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const arr = JSON.parse(trimmed);
+      if (Array.isArray(arr)) {
+        if (trimmed.includes('|||')) {
+          const vers = trimmed.split('|||');
+          return vers[versionIdx] !== undefined ? vers[versionIdx] : vers[0];
+        }
+
+        // Versioned poll options array (e.g. ['["Opt 1", "Opt 2"]', '["Opt 3"]'])
+        if (arr.length > 0 && typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
+          const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
+          return val ?? fallbackDefault;
+        }
+
+        // Single version poll options array (e.g. ['Option 1', 'Option 2'])
+        const firstItem = arr[0] ? String(arr[0]).trim().toLowerCase() : '';
+        const isInputTypeArr = ['text', 'tags', 'poll', 'mark', 'none', 'note'].includes(firstItem) && arr.every(item => ['text', 'tags', 'poll', 'mark', 'none', 'note'].includes(String(item).trim().toLowerCase()));
+
+        if (!isInputTypeArr) {
+          if (fallbackDefault === '[]' || fallbackDefault === '' || typeof arr[0] === 'string') {
+            return trimmed;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
   const versions = parseStepVersions(rawField);
   if (versionIdx >= 0 && versionIdx < versions.length && versions[versionIdx] !== undefined) {
     return versions[versionIdx];
@@ -693,10 +742,10 @@ export function getStepPollOptions(
   allDaysContent?: any[],
   allDaysInputs?: any[]
 ): string {
-  if (!dayContent) return '';
+  if (!dayContent) return '[]';
   const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
   const rawOpts = dayContent.taskPollOptions?.[stepIdx];
-  return getStepVersionValue(rawOpts, verIdx, '');
+  return getStepVersionValue(rawOpts, verIdx, '[]');
 }
 
 export function getStepMultiTextLabels(
