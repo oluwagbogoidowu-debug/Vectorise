@@ -38,7 +38,7 @@ const queueNotification = (type: 'success' | 'info' | 'error', message: string, 
 
 /**
  * Hardened utility to deeply clean objects for Firestore safety and JSON serialization.
- * Specifically targets minified Firestore internal classes (Q$1, Sa, etc.) 
+ * Specifically targets minified Firestore internal classes (Q$1, Sa, Y2, Ka, etc.) 
  * and breaks circular references to prevent "Converting circular structure to JSON" errors.
  */
 export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any => {
@@ -51,7 +51,7 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     if (typeof val !== 'object' && typeof val !== 'function') return val;
     if (typeof val === 'function') return undefined;
 
-    // 2. Break circular references immediately - CRITICAL for Y2/Ka/src circularity
+    // 2. Break circular references immediately - CRITICAL for circularity prevention
     if (seen.has(val)) return undefined;
     seen.add(val);
     
@@ -69,11 +69,11 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
         }
     }
 
-    // 4. Detect and Strip Firestore/Firebase internal classes and DOM elements
+    // 4. Detect and Strip Firestore/Firebase internal classes, DOM elements, and minified SDK objects
     const constructorName = val.constructor?.name || '';
     const isFirebaseInternal = 
         /^[A-Z][a-z0-9]$|^[A-Z]\$[0-9]$/.test(constructorName) || 
-        ['Y2', 'Ka', 'Sa', 'Q$1', 't', 'Reference', 'Query', 'Snapshot'].includes(constructorName) ||
+        ['Y2', 'Ka', 'Sa', 'Q$1', 't', 'Reference', 'Query', 'Snapshot', 'Firestore', 'FirebaseApp'].includes(constructorName) ||
         constructorName.includes('Firebase') || 
         constructorName.includes('Firestore') ||
         constructorName.includes('Transaction');
@@ -85,12 +85,14 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
         val.firestore || 
         val._database ||
         val._path ||
-        (val.i && typeof val.i === 'object' && (val.src || (val.i && val.i.src))) ||
-        (val.src && typeof val.src === 'object' && (val.src.i || val.src.src)) ||
+        val._delegate ||
+        val._query ||
+        (val.i && typeof val.i === 'object') ||
+        (val.src && typeof val.src === 'object') ||
         (val.type === 'document' && val.path && val.id)
     );
 
-    if (isFirebaseInternal || hasSDKMarkers || val instanceof Element || (val.i && val.src && !val.constructor)) {
+    if (isFirebaseInternal || hasSDKMarkers || (typeof Element !== 'undefined' && val instanceof Element)) {
         return undefined;
     }
 
@@ -139,9 +141,9 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
 export const safeJSONStringify = (val: any): string => {
     try {
         const cleaned = sanitizeData(val);
+        if (cleaned === undefined) return '{}';
         return JSON.stringify(cleaned);
     } catch (err) {
-        console.warn("[safeJSONStringify] Primary sanitize failed, using replacer fallback:", err);
         try {
             const seen = new WeakSet();
             return JSON.stringify(val, (_key, value) => {
@@ -157,10 +159,11 @@ export const safeJSONStringify = (val: any): string => {
                     ) {
                         return undefined;
                     }
-                    if (value.i && value.src) return undefined;
+                    if (value.i && typeof value.i === 'object') return undefined;
+                    if (value.src && typeof value.src === 'object') return undefined;
                 }
                 return value;
-            });
+            }) || '{}';
         } catch (e) {
             return '{}';
         }

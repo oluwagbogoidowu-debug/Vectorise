@@ -745,10 +745,80 @@ export const sprintService = {
             callback([]);
             return () => {};
         }
-        const q = query(collectionGroup(db, 'reviews'), where("sprintId", "in", sprintIds.slice(0, 10)));
-        return onSnapshot(q, (snapshot) => {
-            callback(snapshot.docs.map(doc => sanitizeData(doc.data()) as Review));
+
+        const validSprintIds = sprintIds.filter(id => !!id && typeof id === 'string' && id.trim() !== '');
+        if (!validSprintIds.length) {
+            callback([]);
+            return () => {};
+        }
+
+        const targetSprintIdSet = new Set(validSprintIds);
+        const unsubs: (() => void)[] = [];
+        const reviewsBySprint: Record<string, Review[]> = {};
+
+        const emitAll = () => {
+            const all = Object.values(reviewsBySprint).flat();
+            callback(all);
+        };
+
+        // 1. Subscribe to each sprint's subcollection directly: sprints/{sprintId}/reviews
+        // This does NOT require any collectionGroup index and works immediately out of the box
+        validSprintIds.slice(0, 10).forEach((sprintId) => {
+            try {
+                const subReviewsCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
+                const unsub = onSnapshot(
+                    subReviewsCol,
+                    (snapshot) => {
+                        reviewsBySprint[sprintId] = snapshot.docs.map(doc => ({
+                            ...sanitizeData(doc.data()),
+                            id: doc.id,
+                            sprintId
+                        }) as Review);
+                        emitAll();
+                    },
+                    (err) => {
+                        console.warn(`[subscribeToReviewsForSprints] Subcollection reviews listener error for sprint ${sprintId}:`, err);
+                    }
+                );
+                unsubs.push(unsub);
+            } catch (e) {
+                console.warn(`[subscribeToReviewsForSprints] Could not listen to reviews for ${sprintId}:`, e);
+            }
         });
+
+        // 2. Also try root reviews collection fallback: collection(db, 'reviews')
+        try {
+            const rootReviewsCol = collection(db, 'reviews');
+            const qRoot = query(rootReviewsCol, where("sprintId", "in", validSprintIds.slice(0, 10)));
+            const rootUnsub = onSnapshot(
+                qRoot,
+                (snapshot) => {
+                    const rootReviews = snapshot.docs.map(doc => ({
+                        ...sanitizeData(doc.data()),
+                        id: doc.id
+                    }) as Review);
+                    if (rootReviews.length > 0) {
+                        reviewsBySprint['__root__'] = rootReviews;
+                        emitAll();
+                    }
+                },
+                (err) => {
+                    // Suppress if root collection index or query isn't configured
+                    console.warn('[subscribeToReviewsForSprints] Root reviews query error:', err);
+                }
+            );
+            unsubs.push(rootUnsub);
+        } catch (e) {
+            // Ignore root fallback error
+        }
+
+        return () => {
+            unsubs.forEach(u => {
+                try {
+                    u();
+                } catch (e) {}
+            });
+        };
     },
 
     saveOrchestration: async (assignments: Record<string, LifecycleSlotAssignment>) => {
