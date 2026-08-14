@@ -1074,19 +1074,22 @@ const SprintPreview: React.FC = () => {
             const allTags: string[] = [];
             sources.forEach(srcIndex => {
                 if (srcIndex >= 0) {
-                    if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
-                        try {
-                            const val = taskInputs[srcIndex];
-                            const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
-                            if (val.startsWith("[")) {
-                                allTags.push(...JSON.parse(val));
-                            } else if (srcType === "poll") {
-                                allTags.push(val);
-                            } else {
-                                allTags.push(...val.split(",").filter(Boolean));
+                    const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
+                    // Strictly only poll to poll and tag to poll
+                    if (srcType === "poll" || srcType === "tags") {
+                        if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
+                            try {
+                                const val = taskInputs[srcIndex];
+                                if (val.startsWith("[")) {
+                                    allTags.push(...JSON.parse(val));
+                                } else if (srcType === "poll") {
+                                    allTags.push(val);
+                                } else {
+                                    allTags.push(...val.split(",").filter(Boolean));
+                                }
+                            } catch (e) {
+                                console.error("Error parsing tags for source in preview", srcIndex, e);
                             }
-                        } catch (e) {
-                            console.error("Error parsing tags for source in preview", srcIndex, e);
                         }
                     }
                 } else {
@@ -1101,19 +1104,22 @@ const SprintPreview: React.FC = () => {
                         : undefined;
                         
                     if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
-                        const val = targetProgress.answers[targetStepIdx];
-                        if (val) {
-                            try {
-                                const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
-                                if (val.startsWith("[")) {
-                                    allTags.push(...JSON.parse(val));
-                                } else if (srcType === "poll") {
-                                    allTags.push(val);
-                                } else {
-                                    allTags.push(...val.split(",").filter(Boolean));
+                        const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
+                        // Strictly only poll to poll and tag to poll
+                        if (srcType === "poll" || srcType === "tags") {
+                            const val = targetProgress.answers[targetStepIdx];
+                            if (val) {
+                                try {
+                                    if (val.startsWith("[")) {
+                                        allTags.push(...JSON.parse(val));
+                                    } else if (srcType === "poll") {
+                                        allTags.push(val);
+                                    } else {
+                                        allTags.push(...val.split(",").filter(Boolean));
+                                    }
+                                } catch (e) {
+                                    console.error("Error parsing cross-day tags for source", srcIndex, e);
                                 }
-                            } catch (e) {
-                                console.error("Error parsing cross-day tags for source", srcIndex, e);
                             }
                         }
                     }

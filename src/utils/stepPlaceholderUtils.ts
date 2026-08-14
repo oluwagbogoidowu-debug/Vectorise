@@ -297,7 +297,8 @@ export function getExplicitLinkedSteps(
     }
   }
 
-  // 3. Scan placeholders in taskPrompts, taskHints, taskFootnotes, taskPollOptions
+  // 3. Scan explicit main links or option placeholders ONLY (e.g. {Step M Op N m}, {Step M Op N})
+  // Plain {Step 3} in prompt / hint / footnote is text interpolation only and does not create a poll option link!
   const textsToScan: string[] = [];
   const promptVal = dayContent.taskPrompts?.[stepIdx];
   if (typeof promptVal === 'string') textsToScan.push(promptVal);
@@ -319,7 +320,11 @@ export function getExplicitLinkedSteps(
       const opNum = match[3] ? parseInt(match[3], 10) : undefined;
       const mode = parsePlaceholderMode(match[4]);
       const targetStepIdx = stepNum - 1;
-      addLink(dayNum, targetStepIdx, opNum, mode);
+      
+      // ONLY include if it's an explicit main link ({Step M Op N m}) or explicit option reference ({Step M Op N})
+      if (mode === 'main' || opNum !== undefined) {
+        addLink(dayNum, targetStepIdx, opNum, mode);
+      }
     }
   }
 
@@ -446,6 +451,11 @@ export function resolveProgressiveStepSelections(
       ? dayContent
       : (allDaysContent.find(d => Number(d.day) === targetDay) || dayContent);
 
+    const targetType = String(targetDC?.taskInputTypes?.[targetStep] || "").trim().toLowerCase();
+    if (targetType !== "poll" && targetType !== "tags") {
+      return defaultResult;
+    }
+
     const configuredOpts = getStepConfiguredOptions(targetDC, targetStep);
     const targetOptIndex = targetOpNum - 1;
     const targetOptText = configuredOpts[targetOptIndex] || `Option ${targetOpNum}`;
@@ -489,6 +499,12 @@ export function resolveProgressiveStepSelections(
   const primaryDC = (primarySourceDay === currentDayNum || !allDaysContent)
     ? dayContent
     : (allDaysContent.find(d => Number(d.day) === primarySourceDay) || dayContent);
+
+  const primaryType = String(primaryDC?.taskInputTypes?.[primarySourceStep] || "").trim().toLowerCase();
+  // Strictly only poll to poll and tag to poll
+  if (primaryType !== "poll" && primaryType !== "tags") {
+    return defaultResult;
+  }
 
   const primaryConfiguredOpts = getStepConfiguredOptions(primaryDC, primarySourceStep);
 
