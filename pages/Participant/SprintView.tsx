@@ -1181,6 +1181,20 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
   }, [location.state, sprint?.duration, previewSprintId, sprint?.id, enrollment?.progress?.length]);
 
+  // Clean up preview session storage when unmounting preview
+  useEffect(() => {
+    return () => {
+      if (isPreview) {
+        const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
+        if (targetSprintId) {
+          try {
+            sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
+          } catch (e) {}
+        }
+      }
+    };
+  }, [isPreview, previewSprintId, sprint?.id, location.state?.sprint?.id]);
+
   const isStepVisible = (stepIndex: number): boolean => {
     if (!dayContent) return true;
     
@@ -1382,7 +1396,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   dayContent.taskPrompts.forEach((otherP: string) => {
                     if (!otherP) return;
                     const dayPattern = targetDay !== viewingDay ? `(?:[dD](?:ay)?\\s*${targetDay}\\s+)?` : `(?:[dD](?:ay)?\\s*${viewingDay}\\s+)?`;
-                    const subRegex = new RegExp(`\\{${dayPattern}[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\\}`, 'gi');
+                    const subRegex = new RegExp(`\\{${dayPattern}[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\\}`, 'gi');
                     let sm: RegExpExecArray | null;
                     while ((sm = subRegex.exec(otherP)) !== null) {
                       const oIdx = parseInt(sm[1], 10) - 1;
@@ -2739,7 +2753,19 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => isPreview ? navigate(-1) : navigate("/dashboard")}
+              onClick={() => {
+                if (isPreview) {
+                  const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
+                  if (targetSprintId) {
+                    try {
+                      sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
+                    } catch (e) {}
+                  }
+                  navigate(-1);
+                } else {
+                  navigate("/dashboard");
+                }
+              }}
               className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
             >
               <svg

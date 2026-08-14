@@ -435,6 +435,53 @@ export function resolveProgressiveStepSelections(
     return -1;
   };
 
+  // Check if there is an explicit Main Linking placeholder {Step M Op N m} / {Step M Op N main}
+  const mainLink = explicitLinks.find(l => l.mode === 'main' && l.opNum !== undefined);
+  if (mainLink) {
+    const targetDay = mainLink.day;
+    const targetStep = mainLink.stepIdx;
+    const targetOpNum = mainLink.opNum!;
+
+    const targetDC = (targetDay === currentDayNum || !allDaysContent)
+      ? dayContent
+      : (allDaysContent.find(d => Number(d.day) === targetDay) || dayContent);
+
+    const configuredOpts = getStepConfiguredOptions(targetDC, targetStep);
+    const targetOptIndex = targetOpNum - 1;
+    const targetOptText = configuredOpts[targetOptIndex] || `Option ${targetOpNum}`;
+
+    const rawVal = getInputValue(targetDay, targetStep);
+    const answers = parseAnswers(rawVal);
+
+    // Is target option selected by the user in Step M?
+    const isSelected = answers.some(ans => {
+      const lowerAns = ans.toLowerCase();
+      if (lowerAns === targetOptText.toLowerCase()) return true;
+      if (lowerAns === `poll ${targetOpNum}` || lowerAns === `op ${targetOpNum}` || lowerAns === `op${targetOpNum}` || lowerAns === String(targetOpNum)) return true;
+      return false;
+    });
+
+    if (isSelected) {
+      // Connected! Draw the narrowed option
+      return {
+        activeSelection: targetOptText,
+        activeOptionIndex: targetOptIndex,
+        allSelections: [targetOptText],
+        isNarrowed: true,
+        sourceStepIdx: targetStep
+      };
+    } else {
+      // Not connected! "If it's not connected don't draw the option."
+      return {
+        activeSelection: undefined,
+        activeOptionIndex: 0,
+        allSelections: [],
+        isNarrowed: false,
+        sourceStepIdx: targetStep
+      };
+    }
+  }
+
   const primarySourceDay = explicitLinks[0].day;
   const primarySourceStep = explicitLinks[0].stepIdx;
 

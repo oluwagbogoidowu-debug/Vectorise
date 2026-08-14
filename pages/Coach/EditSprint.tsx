@@ -312,6 +312,14 @@ const EditSprint: React.FC = () => {
   const [activeStepVersionMap, setActiveStepVersionMap] = useState<Record<number, number>>({});
 
   useEffect(() => {
+    if (sprintId) {
+      try {
+        sessionStorage.removeItem(`vectorise_preview_enrollment_${sprintId}`);
+      } catch (e) {}
+    }
+  }, [sprintId]);
+
+  useEffect(() => {
     setPreviewTaskIndex(0);
     setConfirmDeleteIndex(null);
     setSetupView('action');
@@ -2613,7 +2621,7 @@ const EditSprint: React.FC = () => {
               </button>
             )}
             <button 
-              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`, { state: { sprint: sprint } })} 
+              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`, { state: { sprint: sprint, resetPreview: true } })} 
               title="Sprint Stimulation"
               className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-primary transition-all shadow-sm cursor-pointer shrink-0"
             >

@@ -869,10 +869,10 @@ const SprintPreview: React.FC = () => {
             }
         }
 
-        // Implicit placeholder branch checking ({Step N OpM h}, {Step N OpM d}, {Step N OpM}, {Step N h}, {Step N list}, {Step N})
+        // Implicit placeholder branch checking ({Step N OpM h}, {Step N OpM d}, {Step N OpM m}, {Step N OpM}, {Step N h}, {Step N list}, {Step N})
         const prompt = day1Content.taskPrompts?.[stepIndex];
         if (prompt) {
-            const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi;
+            const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
             let match: RegExpExecArray | null;
 
             const stepPlaceholders: { stepNum: number; opNum?: number; mode: string }[] = [];
@@ -948,7 +948,7 @@ const SprintPreview: React.FC = () => {
                                 if (Array.isArray(day1Content.taskPrompts)) {
                                     day1Content.taskPrompts.forEach((otherP: string) => {
                                         if (!otherP) return;
-                                        const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\\}`, 'gi');
+                                        const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\\}`, 'gi');
                                         let sm: RegExpExecArray | null;
                                         while ((sm = subRegex.exec(otherP)) !== null) {
                                             const oIdx = parseInt(sm[1], 10) - 1;
