@@ -857,9 +857,16 @@ const SprintPreview: React.FC = () => {
                     selectedOptions = [selection];
                 }
 
+                const prog = resolveProgressiveStepSelections(stepIndex, day1Content, taskInputs, sprint?.dailyContent);
+
                 const match = pollOptions.some((opt, optIndex) => {
                     const tag = `poll ${optIndex + 1}`;
                     if (tag === targetLinkTag) {
+                        if (prog.isNarrowed) {
+                            if (prog.activeOptionIndex === optIndex) return true;
+                            if (prog.activeSelection && opt && prog.activeSelection.toLowerCase().trim() === opt.toLowerCase().trim()) return true;
+                            return false;
+                        }
                         return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
                     }
                     return false;
@@ -919,6 +926,12 @@ const SprintPreview: React.FC = () => {
                             const isOptionSelected = (oNum: number) => {
                                 const optIndex = oNum - 1;
                                 const targetWrittenText = writtenOpts[optIndex];
+                                const prog = resolveProgressiveStepSelections(stepIndex, day1Content, taskInputs, sprint?.dailyContent);
+                                if (prog.isNarrowed) {
+                                    if (prog.activeOptionIndex === optIndex) return true;
+                                    if (prog.activeSelection && targetWrittenText && prog.activeSelection.toLowerCase().trim() === targetWrittenText.toLowerCase().trim()) return true;
+                                    return false;
+                                }
                                 return userChoices.some(c => {
                                     const lowerC = c.toLowerCase();
                                     if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;

@@ -1279,10 +1279,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           selectedOptions = [selection];
         }
 
+        const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, Array.isArray(sprint?.dailyContent) ? sprint.dailyContent : undefined, enrollment?.progress);
+
         const normTarget = targetLinkTag.toLowerCase().trim();
         const match = pollOptions.some((opt, optIndex) => {
           const tag = `poll ${optIndex + 1}`;
           if (tag === normTarget || normTarget === `op ${optIndex + 1}` || normTarget === `op${optIndex + 1}`) {
+            if (prog.isNarrowed) {
+              if (prog.activeOptionIndex === optIndex) return true;
+              if (prog.activeSelection && opt && prog.activeSelection.toLowerCase().trim() === opt.toLowerCase().trim()) return true;
+              return false;
+            }
             return selectedOptions.some(s => {
               const lowerS = String(s).toLowerCase().trim();
               return lowerS === opt.toLowerCase().trim() || lowerS === tag || lowerS === String(optIndex + 1) || lowerS === `op ${optIndex + 1}` || lowerS === `op${optIndex + 1}`;
@@ -1364,6 +1371,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               const isOptionSelected = (oNum: number) => {
                 const optIndex = oNum - 1;
                 const targetWrittenText = writtenOpts[optIndex];
+                const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, Array.isArray(sprint?.dailyContent) ? sprint.dailyContent : undefined, enrollment?.progress);
+                if (prog.isNarrowed) {
+                  if (prog.activeOptionIndex === optIndex) return true;
+                  if (prog.activeSelection && targetWrittenText && prog.activeSelection.toLowerCase().trim() === targetWrittenText.toLowerCase().trim()) return true;
+                  return false;
+                }
                 return userChoices.some(c => {
                   const lowerC = c.toLowerCase();
                   if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;

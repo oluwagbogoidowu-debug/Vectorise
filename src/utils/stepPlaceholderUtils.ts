@@ -481,7 +481,44 @@ export function resolveProgressiveStepSelections(
       // Picks the single option at that stage as the active one based on what was clicked on Step M
       if (answers.length > 0) {
         const chosen = answers[0];
-        const optIdx = findOptionIndex(configuredOpts, chosen);
+        let optIdx = findOptionIndex(configuredOpts, chosen);
+
+        // If not found in target step's configured options, trace back through targetStep's links or previous steps
+        if (optIdx < 0) {
+          const targetStepLinks = getExplicitLinkedSteps(targetStep, targetDC);
+          for (const parentLink of targetStepLinks) {
+            const pDay = parentLink.day;
+            const pStep = parentLink.stepIdx;
+            const pDC = (pDay === currentDayNum || !allDaysContent)
+              ? dayContent
+              : (allDaysContent.find(d => Number(d.day) === pDay) || dayContent);
+            const parentOpts = getStepConfiguredOptions(pDC, pStep);
+            const pOptIdx = findOptionIndex(parentOpts, chosen);
+            if (pOptIdx >= 0) {
+              optIdx = pOptIdx;
+              break;
+            }
+          }
+        }
+
+        // If still not found, scan other steps in targetDC / dayContent for the option position
+        if (optIdx < 0) {
+          const daysToScan = [targetDC, dayContent].filter(Boolean);
+          for (const dc of daysToScan) {
+            const promptsLen = dc?.taskPrompts?.length || dc?.taskInputTypes?.length || 0;
+            for (let s = 0; s < promptsLen; s++) {
+              if (s === targetStep) continue;
+              const sOpts = getStepConfiguredOptions(dc, s);
+              const sOptIdx = findOptionIndex(sOpts, chosen);
+              if (sOptIdx >= 0) {
+                optIdx = sOptIdx;
+                break;
+              }
+            }
+            if (optIdx >= 0) break;
+          }
+        }
+
         return {
           activeSelection: chosen,
           activeOptionIndex: optIdx >= 0 ? optIdx : 0,
@@ -692,7 +729,7 @@ export function formatInterpolatedText(
     const dayPrefix = dayNumStr ? `D${targetDay} ` : '';
 
     const formatOutput = (rawList: string[]): string => {
-      if (mode === 'hide' || mode === 'disconnect') {
+      if (mode === 'hide' || mode === 'disconnect' || mode === 'main') {
         return '';
       }
 
@@ -700,10 +737,6 @@ export function formatInterpolatedText(
 
       if (cleaned.length === 0) {
         return opNum !== undefined ? `[${dayPrefix}Step ${stepNum} Op${opNum}]` : `[${dayPrefix}Step ${stepNum}]`;
-      }
-
-      if (mode === 'main') {
-        return cleaned[0] || '';
       }
 
       if (mode === 'list') {
