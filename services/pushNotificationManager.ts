@@ -378,7 +378,25 @@ export const pushNotificationManager = {
           
           if (notification.isRead) continue;
 
-          const nextRetryAt = notification.nextRetryAt ? notification.nextRetryAt.toDate() : null;
+          let nextRetryAt: Date | null = null;
+          if (notification.nextRetryAt) {
+            if (typeof notification.nextRetryAt.toDate === 'function') {
+              try {
+                nextRetryAt = notification.nextRetryAt.toDate();
+              } catch (e) {
+                nextRetryAt = null;
+              }
+            } else if (notification.nextRetryAt instanceof Date) {
+              nextRetryAt = isNaN(notification.nextRetryAt.getTime()) ? null : notification.nextRetryAt;
+            } else if (typeof notification.nextRetryAt === 'number' || typeof notification.nextRetryAt === 'string') {
+              const d = new Date(notification.nextRetryAt);
+              nextRetryAt = isNaN(d.getTime()) ? null : d;
+            } else if (typeof notification.nextRetryAt.seconds === 'number') {
+              nextRetryAt = new Date(notification.nextRetryAt.seconds * 1000);
+            } else if (typeof notification.nextRetryAt._seconds === 'number') {
+              nextRetryAt = new Date(notification.nextRetryAt._seconds * 1000);
+            }
+          }
           if (nextRetryAt && nextRetryAt <= now) {
             console.log(`[PushManager] Re-transmitting FCM notification ${notification.id} for user ${userId} (Attempt #${notification.retryCount + 1})...`);
             

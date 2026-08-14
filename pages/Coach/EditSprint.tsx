@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach, DynamicSection } from '../../types';
 import { sprintService } from '../../services/sprintService';
-import { sanitizeData } from '../../services/userService';
+import { sanitizeData, safeClone } from '../../services/userService';
 import Button from '../../components/Button';
 import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtils';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1817,7 +1817,7 @@ const EditSprint: React.FC = () => {
       await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
       
       setSprint(updatedSprintData);
-      setOriginalSprint(JSON.parse(JSON.stringify(updatedSprintData)));
+      setOriginalSprint(safeClone(updatedSprintData));
 
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -1848,7 +1848,7 @@ const EditSprint: React.FC = () => {
 
           await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
           setSprint(updatedSprintData);
-          setOriginalSprint(JSON.parse(JSON.stringify(updatedSprintData)));
+          setOriginalSprint(safeClone(updatedSprintData));
           alert("Sprint submitted for admin approval.");
       } catch (err) {
           alert("Submission failed. Please check your connection.");
@@ -1871,7 +1871,7 @@ const EditSprint: React.FC = () => {
 
           await sprintService.approveSprint(sprintId, approvedSprint);
           setSprint(approvedSprint);
-          setOriginalSprint(JSON.parse(JSON.stringify(approvedSprint)));
+          setOriginalSprint(safeClone(approvedSprint));
           alert("Sprint approved and live!");
           navigate('/dashboard');
       } catch (err: any) {
@@ -1895,7 +1895,7 @@ const EditSprint: React.FC = () => {
 
           await sprintService.updateSprint(sprintId, updated);
           setSprint(updated);
-          setOriginalSprint(JSON.parse(JSON.stringify(updated)));
+          setOriginalSprint(safeClone(updated));
           alert("Amendments sent to coach.");
           navigate('/dashboard');
       } catch (err) { setApprovalStatus('idle'); }
@@ -1994,7 +1994,7 @@ const EditSprint: React.FC = () => {
         });
         
         await sprintService.updateSprint(sprint.id, updatedLocalSprint, isAdmin);
-        setOriginalSprint(JSON.parse(JSON.stringify(updatedLocalSprint)));
+        setOriginalSprint(safeClone(updatedLocalSprint));
 
         setSettingsSaveStatus('saved');
         setTimeout(() => {

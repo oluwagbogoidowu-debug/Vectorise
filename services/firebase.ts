@@ -84,7 +84,20 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('[Firestore Context]:', errInfo);
 
   // CRITICAL: Must be a JSON string for the system to diagnose security rule issues properly
-  throw new Error(JSON.stringify(errInfo));
+  let serializedErr = '{}';
+  try {
+    const seen = new WeakSet();
+    serializedErr = JSON.stringify(errInfo, (_key, val) => {
+      if (typeof val === 'object' && val !== null) {
+        if (seen.has(val)) return undefined;
+        seen.add(val);
+      }
+      return val;
+    });
+  } catch (e) {
+    serializedErr = JSON.stringify({ error: errorMessage, operationType, path });
+  }
+  throw new Error(serializedErr);
 }
 
 // Enable persistence for offline capability with more robust error checking

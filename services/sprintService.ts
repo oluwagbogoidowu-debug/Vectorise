@@ -33,7 +33,7 @@ export const serializeSprint = (sprint: any): any => {
             if (Array.isArray(dayClone.taskLinkedSources)) {
                 dayClone.taskLinkedSources = dayClone.taskLinkedSources.map((item: any) => {
                     if (Array.isArray(item)) {
-                        return JSON.stringify(item);
+                        return safeJSONStringify(item);
                     }
                     if (typeof item === 'string') {
                         return item;
@@ -44,7 +44,7 @@ export const serializeSprint = (sprint: any): any => {
             if (Array.isArray(dayClone.taskMultiTextLabels)) {
                 dayClone.taskMultiTextLabels = dayClone.taskMultiTextLabels.map((item: any) => {
                     if (Array.isArray(item)) {
-                        return JSON.stringify(item);
+                        return safeJSONStringify(item);
                     }
                     if (typeof item === 'string') {
                         return item;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../../services/firebase';
 import { collection, doc, getDocs, updateDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
-import { userService } from '../../services/userService';
+import { userService, safeClone } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint, DailyContent } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -338,7 +338,7 @@ export default function AdminRepairResponses({ initialUserId }: AdminRepairRespo
         if (!enrollment || !enrollment.progress) continue;
 
         const enrollmentRepairs = repairsByEnrollment[enrollmentId];
-        const updatedProgress = JSON.parse(JSON.stringify(enrollment.progress));
+        const updatedProgress = safeClone(enrollment.progress);
 
         for (const item of enrollmentRepairs) {
           const progIndex = updatedProgress.findIndex((p: any) => p.day === item.day);

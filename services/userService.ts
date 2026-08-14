@@ -170,6 +170,24 @@ export const safeJSONStringify = (val: any): string => {
     }
 };
 
+/**
+ * Deep clone an object safely without throwing circular reference errors.
+ */
+export const safeClone = <T>(val: T): T => {
+    if (val === null || typeof val !== 'object') return val;
+    try {
+        const cleaned = sanitizeData(val);
+        if (cleaned === undefined) return val;
+        return JSON.parse(JSON.stringify(cleaned)) as T;
+    } catch (e) {
+        try {
+            return JSON.parse(safeJSONStringify(val)) as T;
+        } catch (err) {
+            return val;
+        }
+    }
+};
+
 export const userService = {
   queueNotification,
   createUserDocument: async (uid: string, data: Partial<User | Participant | Coach>) => {

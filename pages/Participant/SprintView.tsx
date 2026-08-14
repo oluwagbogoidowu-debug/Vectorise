@@ -12,7 +12,7 @@ import {
 } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
 import { sprintService } from "../../services/sprintService";
-import { userService } from "../../services/userService";
+import { userService, safeJSONStringify } from "../../services/userService";
 import { analyticsService } from "../../services/analyticsService";
 import { analyticsTracker } from "../../services/analyticsTracker";
 import { chatService } from "../../services/chatService";
@@ -1512,7 +1512,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           progress: updatedProgress,
         };
         try {
-          sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, JSON.stringify(updatedEnrollment));
+          sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, safeJSONStringify(updatedEnrollment));
         } catch (e) {}
         return updatedEnrollment;
       });
@@ -2086,7 +2086,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             progress: updatedProgress,
           };
           try {
-            sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, JSON.stringify(updatedEnrollment));
+            sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, safeJSONStringify(updatedEnrollment));
           } catch (e) {}
           return updatedEnrollment;
         });
@@ -2404,7 +2404,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
         setEnrollment(updatedEnrollment as any);
         try {
-          sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, JSON.stringify(updatedEnrollment));
+          sessionStorage.setItem(`vectorise_preview_enrollment_${previewSprintId || sprint?.id}`, safeJSONStringify(updatedEnrollment));
         } catch (e) {}
 
         if (soundEnabled) {
