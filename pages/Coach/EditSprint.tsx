@@ -3237,7 +3237,7 @@ const EditSprint: React.FC = () => {
                                                     <div className="flex items-center gap-2">
                                                         <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
                                                         <span>
-                                                            <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(placeholderVal.validStepLabels || placeholderVal.validStepRefs.map(n => String(n))).map(s => "{step " + s + "}").join(', ')}</code> will expand into choice(s) collected from Step {placeholderVal.validStepLabels?.join(', ') || placeholderVal.validStepRefs.join(', ')}.
+                                                            <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(placeholderVal.validStepLabels || placeholderVal.validStepRefs.map(n => `Step ${n}`)).map(s => `{${s}}`).join(', ')}</code> will expand into choice(s) collected from Step {placeholderVal.validStepLabels?.map(l => l.replace(/^(?:D\d+\s+)?Step\s*/i, '')).join(', ') || placeholderVal.validStepRefs.join(', ')}.
                                                         </span>
                                                     </div>
 
@@ -3253,6 +3253,8 @@ const EditSprint: React.FC = () => {
                                                                                 ? 'Hide mode: logic linked, input hidden' 
                                                                                 : detail.mode === 'sentence' 
                                                                                 ? 'Sentence mode: starts input with sentence case' 
+                                                                                : detail.mode === 'main'
+                                                                                ? 'Main mode: second level single active connection'
                                                                                 : 'Normal mode: inline lowercase text'})
                                                                         </span>
                                                                     </div>
@@ -3301,6 +3303,21 @@ const EditSprint: React.FC = () => {
                                                                             title="List Tag: Separates data into a bulleted list"
                                                                         >
                                                                             List
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'main');
+                                                                                handleTaskPromptChange(index, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                                                            }}
+                                                                            className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                                                                detail.mode === 'main'
+                                                                                    ? 'bg-red-600 text-white shadow-xs'
+                                                                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                                                            }`}
+                                                                            title="Main Tag: Second layer connection narrowing multi-select to single active choice"
+                                                                        >
+                                                                            Main
                                                                         </button>
                                                                         <button
                                                                             type="button"

@@ -67,7 +67,7 @@ export function validateStepPlaceholders(
     else if (mode === 'disconnect') modeSuffix = ' d';
     else if (mode === 'sentence') modeSuffix = ' s';
     else if (mode === 'list') modeSuffix = ' list';
-    else if (mode === 'main') modeSuffix = ' m';
+    else if (mode === 'main') modeSuffix = ' main';
 
     const dayPrefix = dayNum !== undefined ? `D${dayNum} ` : '';
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
@@ -94,16 +94,6 @@ export function validateStepPlaceholders(
   for (const ref of references) {
     const targetDay = ref.dayNum !== undefined ? ref.dayNum : currentDay;
     const targetStepIndex = ref.stepNum - 1; // 1-based to 0-based
-
-    // Rule: Every 'main' (m) mode MUST have op M
-    if (ref.mode === 'main' && ref.opNum === undefined) {
-      invalidStepRefs.push(ref.stepNum);
-      invalidStepLabels.push(ref.rawLabel);
-      if (!invalidReason) {
-        invalidReason = `Invalid placeholder {${ref.rawLabel}}: 'main' (m) mode requires an option number (e.g. {Step ${ref.stepNum} Op1 m}).`;
-      }
-      continue;
-    }
 
     // Rule 1: Cannot reference future day
     if (targetDay > currentDay) {
@@ -238,7 +228,7 @@ export function togglePlaceholderMode(
     else if (targetMode === 'hide') modePart = ' h';
     else if (targetMode === 'disconnect') modePart = ' d';
     else if (targetMode === 'sentence') modePart = ' s';
-    else if (targetMode === 'main') modePart = ' m';
+    else if (targetMode === 'main') modePart = ' main';
 
     return `{${dayPart}Step ${stepNum}${opPart}${modePart}}`;
   });
@@ -256,7 +246,7 @@ export interface ProgressiveSelectionResult {
  * Returns list of explicitly linked steps for a given step based on:
  * 1. taskPollOptionLinks (Branching path link e.g. "Step 1 Op 2")
  * 2. taskLinkedSources
- * 3. Explicit placeholder tokens {Step N}, {Step N op M}, {Step N op M m}, {D1 Step N} in prompt, hint, footnote, or options.
+ * 3. Explicit placeholder tokens {Step N}, {Step N op M}, {Step N op M m}, {Step N main}, {D1 Step N} in prompt, hint, footnote, or options.
  */
 export function getExplicitLinkedSteps(
   stepIdx: number,
@@ -297,7 +287,7 @@ export function getExplicitLinkedSteps(
     }
   }
 
-  // 3. Scan explicit main links or option placeholders ONLY (e.g. {Step M Op N m}, {Step M Op N})
+  // 3. Scan explicit main links or option placeholders ONLY (e.g. {Step M Op N m}, {Step M main}, {Step M Op N})
   // Plain {Step 3} in prompt / hint / footnote is text interpolation only and does not create a poll option link!
   const textsToScan: string[] = [];
   const promptVal = dayContent.taskPrompts?.[stepIdx];
@@ -321,7 +311,7 @@ export function getExplicitLinkedSteps(
       const mode = parsePlaceholderMode(match[4]);
       const targetStepIdx = stepNum - 1;
       
-      // ONLY include if it's an explicit main link ({Step M Op N m}) or explicit option reference ({Step M Op N})
+      // ONLY include if it's an explicit main link ({Step M Op N m}, {Step M main}) or explicit option reference ({Step M Op N})
       if (mode === 'main' || opNum !== undefined) {
         addLink(dayNum, targetStepIdx, opNum, mode);
       }
@@ -333,10 +323,10 @@ export function getExplicitLinkedSteps(
 
 /**
  * Implements progressive step linking across the sprint:
- * - Applie ONLY if explicitly linked by {Step N op M}, {Step N}, taskPollOptionLinks, or taskLinkedSources.
+ * - Applied when explicitly linked by {Step N main}, {Step N op M}, taskPollOptionLinks, or taskLinkedSources.
  * - Stores all selected options if a previous step allows multi-selections (e.g. Tags/Multi-Poll).
  * - Traces later steps to see if a subsequent step narrowed those selections down to a single choice.
- * - Once narrowed, the most recent single selection becomes the active selection that controls subsequent conditional content, versions, and hints.
+ * - When linked via 'main' (e.g. {Step 2 main}), connects to that step as a second-layer connection and vets/picks the single option at that stage as the active one.
  */
 export function resolveProgressiveStepSelections(
   stepIdx: number = 0,
@@ -354,7 +344,7 @@ export function resolveProgressiveStepSelections(
 
   if (!dayContent) return defaultResult;
 
-  // Progressive linking ONLY applies if explicitly linked by {Step N op M}, {Step N}, taskPollOptionLinks, or taskLinkedSources.
+  // Progressive linking ONLY applies if explicitly linked by {Step N main}, {Step N op M}, {Step N}, taskPollOptionLinks, or taskLinkedSources.
   const explicitLinks = getExplicitLinkedSteps(stepIdx, dayContent);
   if (explicitLinks.length === 0) {
     return defaultResult;
@@ -440,55 +430,74 @@ export function resolveProgressiveStepSelections(
     return -1;
   };
 
-  // 1. Check if there is an explicit Main Linking placeholder {Step M Op N m} / {Step M Op N main}
-  const mainLink = explicitLinks.find(l => l.mode === 'main' && l.opNum !== undefined);
+  // 1. Check if there is an explicit Main Linking placeholder {Step M main} or {Step M Op N main}
+  const mainLink = explicitLinks.find(l => l.mode === 'main');
   if (mainLink) {
     const targetDay = mainLink.day;
     const targetStep = mainLink.stepIdx;
-    const targetOpNum = mainLink.opNum!;
+    const targetOpNum = mainLink.opNum;
 
     const targetDC = (targetDay === currentDayNum || !allDaysContent)
       ? dayContent
       : (allDaysContent.find(d => Number(d.day) === targetDay) || dayContent);
 
-    const targetType = String(targetDC?.taskInputTypes?.[targetStep] || "").trim().toLowerCase();
-    if (targetType !== "poll" && targetType !== "tags") {
-      return defaultResult;
-    }
-
     const configuredOpts = getStepConfiguredOptions(targetDC, targetStep);
-    const targetOptIndex = targetOpNum - 1;
-    const targetOptText = configuredOpts[targetOptIndex] || `Option ${targetOpNum}`;
-
     const rawVal = getInputValue(targetDay, targetStep);
     const answers = parseAnswers(rawVal);
 
-    // Is target option selected by the user in Step M?
-    const isSelected = answers.some(ans => {
-      const lowerAns = ans.toLowerCase();
-      if (lowerAns === targetOptText.toLowerCase()) return true;
-      if (lowerAns === `poll ${targetOpNum}` || lowerAns === `op ${targetOpNum}` || lowerAns === `op${targetOpNum}` || lowerAns === String(targetOpNum)) return true;
-      return false;
-    });
+    if (targetOpNum !== undefined) {
+      const targetOptIndex = targetOpNum - 1;
+      const targetOptText = configuredOpts[targetOptIndex] || `Option ${targetOpNum}`;
 
-    if (isSelected) {
-      // Connected! Draw the narrowed option
-      return {
-        activeSelection: targetOptText,
-        activeOptionIndex: targetOptIndex,
-        allSelections: [targetOptText],
-        isNarrowed: true,
-        sourceStepIdx: targetStep
-      };
+      // Is target option selected by the user in Step M?
+      const isSelected = answers.some(ans => {
+        const lowerAns = ans.toLowerCase();
+        if (lowerAns === targetOptText.toLowerCase()) return true;
+        if (lowerAns === `poll ${targetOpNum}` || lowerAns === `op ${targetOpNum}` || lowerAns === `op${targetOpNum}` || lowerAns === String(targetOpNum)) return true;
+        return false;
+      });
+
+      if (isSelected) {
+        // Connected! Draw the narrowed option
+        return {
+          activeSelection: targetOptText,
+          activeOptionIndex: targetOptIndex,
+          allSelections: [targetOptText],
+          isNarrowed: true,
+          sourceStepIdx: targetStep
+        };
+      } else {
+        // Not connected! Don't draw the option.
+        return {
+          activeSelection: undefined,
+          activeOptionIndex: 0,
+          allSelections: [],
+          isNarrowed: false,
+          sourceStepIdx: targetStep
+        };
+      }
     } else {
-      // Not connected! Don't draw the option.
-      return {
-        activeSelection: undefined,
-        activeOptionIndex: 0,
-        allSelections: [],
-        isNarrowed: false,
-        sourceStepIdx: targetStep
-      };
+      // Second layer connection: {Step M main}
+      // Picks the single option at that stage as the active one based on what was clicked on Step M
+      if (answers.length > 0) {
+        const chosen = answers[0];
+        const optIdx = findOptionIndex(configuredOpts, chosen);
+        return {
+          activeSelection: chosen,
+          activeOptionIndex: optIdx >= 0 ? optIdx : 0,
+          allSelections: [chosen],
+          isNarrowed: true,
+          sourceStepIdx: targetStep
+        };
+      } else if (configuredOpts.length > 0) {
+        return {
+          activeSelection: configuredOpts[0],
+          activeOptionIndex: 0,
+          allSelections: configuredOpts,
+          isNarrowed: false,
+          sourceStepIdx: targetStep
+        };
+      }
     }
   }
 
@@ -683,7 +692,7 @@ export function formatInterpolatedText(
     const dayPrefix = dayNumStr ? `D${targetDay} ` : '';
 
     const formatOutput = (rawList: string[]): string => {
-      if (mode === 'hide' || mode === 'disconnect' || mode === 'main') {
+      if (mode === 'hide' || mode === 'disconnect') {
         return '';
       }
 
@@ -691,6 +700,10 @@ export function formatInterpolatedText(
 
       if (cleaned.length === 0) {
         return opNum !== undefined ? `[${dayPrefix}Step ${stepNum} Op${opNum}]` : `[${dayPrefix}Step ${stepNum}]`;
+      }
+
+      if (mode === 'main') {
+        return cleaned[0] || '';
       }
 
       if (mode === 'list') {
