@@ -3025,42 +3025,46 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   <FormattedText text={formatInterpolatedText(dayContent.taskFootnotes[i], dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                                 </div>
                               )}
-                              {(dayContent.taskHints?.[i] || dayContent.taskPollOptionLinks?.[i] || dayContent.taskLinkedSources?.[i]) && (
-                                <div className="mb-4">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setRevealedHints((prev) => ({
-                                        ...prev,
-                                        [i]: !prev[i],
-                                      }))
-                                    }
-                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
-                                  >
-                                    <svg
-                                      className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
+                              {(() => {
+                                const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[i], i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                                if (!resolvedHint) return null;
+                                return (
+                                  <div className="mb-4">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setRevealedHints((prev) => ({
+                                          ...prev,
+                                          [i]: !prev[i],
+                                        }))
+                                      }
+                                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                                     >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={3}
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                      />
-                                    </svg>
-                                    <span>Hint</span>
-                                  </button>
-                                  {revealedHints[i] && (
-                                    <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                      <FormattedText
-                                        text={resolveTaskHintForUser(dayContent?.taskHints?.[i], i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                      <svg
+                                        className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={3}
+                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        />
+                                      </svg>
+                                      <span>Hint</span>
+                                    </button>
+                                    {revealedHints[i] && (
+                                      <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                        <FormattedText
+                                          text={resolvedHint}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                               {!dayProgress?.completed &&
                                 (dayContent.taskInputTypes?.[i] === "tags" ? (
                                   <div className="space-y-3">
@@ -3735,40 +3739,44 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             <FormattedText text={dayContent.taskFootnotes[0]} />
                           </div>
                         )}
-                        {(dayContent?.taskHints?.[0] || dayContent?.taskPollOptionLinks?.[0] || dayContent?.taskLinkedSources?.[0]) && (
-                          <div className="mb-4">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setRevealedHints((prev) => ({
-                                  ...prev,
-                                  0: !prev[0],
-                                }))
-                              }
-                              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
-                            >
-                              <svg
-                                className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
+                        {(() => {
+                          const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[0], 0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                          if (!resolvedHint) return null;
+                          return (
+                            <div className="mb-4">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRevealedHints((prev) => ({
+                                    ...prev,
+                                    0: !prev[0],
+                                  }))
+                                }
+                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={3}
-                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                              <span>Hint</span>
-                            </button>
-                            {revealedHints[0] && (
-                              <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                <FormattedText text={resolveTaskHintForUser(dayContent?.taskHints?.[0], 0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
-                              </div>
-                            )}
-                          </div>
-                        )}
+                                <svg
+                                  className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                </svg>
+                                <span>Hint</span>
+                              </button>
+                              {revealedHints[0] && (
+                                <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                  <FormattedText text={resolvedHint} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {!dayProgress?.completed &&
                           (dayContent?.taskInputTypes?.[0] === "tags" ? (
                             <TagInput

@@ -966,42 +966,21 @@ export function resolveTaskHintForUser(
   allDaysContent?: any[],
   allDaysInputs?: any[]
 ): string {
-  let effectiveHintRaw = hintRaw;
+  if (!hintRaw || !hintRaw.trim()) return '';
 
-  if (!effectiveHintRaw || !effectiveHintRaw.trim()) {
-    if (dayContent?.taskPollOptionLinks?.[stepIdx]) {
-      const pollLinkInfo = parsePollLinkInfo(dayContent.taskPollOptionLinks[stepIdx]);
-      if (pollLinkInfo) {
-        const originStepIdx = pollLinkInfo.targetPollIdx;
-        const originHintRaw = dayContent?.taskHints?.[originStepIdx];
-        if (originHintRaw) {
-          const originVersions = parseHintVersions(originHintRaw);
-          const optIdx = (pollLinkInfo.optNum !== undefined && pollLinkInfo.optNum > 0) ? pollLinkInfo.optNum - 1 : 0;
-          effectiveHintRaw = originVersions[optIdx] !== undefined ? originVersions[optIdx] : originVersions[0];
-        }
-      }
-    } else if (Array.isArray(dayContent?.taskLinkedSources?.[stepIdx]) && dayContent.taskLinkedSources[stepIdx].length > 0) {
-      const originStepIdx = dayContent.taskLinkedSources[stepIdx][0];
-      const originHintRaw = dayContent?.taskHints?.[originStepIdx];
-      if (originHintRaw) {
-        effectiveHintRaw = originHintRaw;
-      }
-    }
-  }
-
-  if (!effectiveHintRaw || !effectiveHintRaw.trim()) return '';
-
-  const versions = parseHintVersions(effectiveHintRaw);
+  const versions = parseHintVersions(hintRaw);
   if (versions.length === 0) return '';
 
   const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
 
   if (versions.length === 1) {
-    return formatInterpolatedText(versions[0], dayContent, taskInputs, allDaysContent, allDaysInputs);
+    const text = formatInterpolatedText(versions[0], dayContent, taskInputs, allDaysContent, allDaysInputs);
+    return text ? text.trim() : '';
   }
 
   const chosenHint = versions[selectedOptIdx] !== undefined ? versions[selectedOptIdx] : (versions[0] || '');
-  return formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const text = formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  return text ? text.trim() : '';
 }
 
 export function parseStepVersions(raw?: string | null, isPollOptions: boolean = false): string[] {

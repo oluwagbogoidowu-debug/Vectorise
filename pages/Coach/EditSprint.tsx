@@ -4394,25 +4394,29 @@ const EditSprint: React.FC = () => {
                                             <FormattedText text={formatInterpolatedText(currentContent.taskFootnotes[i], currentContent, {}, sprint?.dailyContent)} />
                                         </div>
                                     )}
-                                    {(currentContent.taskHints?.[i] || currentContent.taskPollOptionLinks?.[i] || currentContent.taskLinkedSources?.[i]) && (
-                                        <div className="mb-4">
-                                            <button
-                                                type="button"
-                                                onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
-                                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                            >
-                                                <svg className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                                <span>Hint</span>
-                                            </button>
-                                            {revealedHints[i] && (
-                                                <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                                    <FormattedText text={resolveTaskHintForUser(currentContent.taskHints?.[i], i, currentContent, previewInputs, sprint?.dailyContent)} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        const resolvedHint = resolveTaskHintForUser(currentContent.taskHints?.[i], i, currentContent, previewInputs, sprint?.dailyContent);
+                                        if (!resolvedHint) return null;
+                                        return (
+                                            <div className="mb-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setRevealedHints(prev => ({ ...prev, [i]: !prev[i] }))}
+                                                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                >
+                                                    <svg className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span>Hint</span>
+                                                </button>
+                                                {revealedHints[i] && (
+                                                    <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                                        <FormattedText text={resolvedHint} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     {(() => {
                                         const type = currentContent.taskInputTypes?.[i] || 'text';
                                         const isLinked = isStepLinked(i);
