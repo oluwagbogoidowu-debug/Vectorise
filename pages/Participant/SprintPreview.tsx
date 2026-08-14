@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -1043,7 +1043,13 @@ const SprintPreview: React.FC = () => {
     const getLinkedTagsForStep = (stepIndex: number): string[] => {
         if (!day1Content) return [];
 
-        // Progressive step linking check
+        // Strictly no step with no linking should send or receive poll or poll option or action steps
+        const explicitLinks = getExplicitLinkedSteps(stepIndex, day1Content);
+        if (explicitLinks.length === 0) {
+            return [];
+        }
+
+        // Check step linking resolution
         const progRes = resolveProgressiveStepSelections(
             stepIndex,
             day1Content,
@@ -1055,7 +1061,13 @@ const SprintPreview: React.FC = () => {
             return progRes.allSelections;
         }
 
-        // 1. Check if the new taskLinkedSources tells us which steps are linked
+        // If mainLink is present and not connected, return empty (don't draw options)
+        const hasMainLink = explicitLinks.some(l => l.mode === 'main' && l.opNum !== undefined);
+        if (hasMainLink) {
+            return [];
+        }
+
+        // Check if the new taskLinkedSources tells us which steps are explicitly linked
         if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex])) {
             const sources = day1Content.taskLinkedSources[stepIndex];
             if (sources.length === 0) return [];
@@ -1110,49 +1122,6 @@ const SprintPreview: React.FC = () => {
             return Array.from(new Set(allTags)).filter(Boolean);
         }
 
-        // 2. Check if step has its own custom poll options
-        let customOptions: string[] = [];
-        if (day1Content.taskPollOptions?.[stepIndex]) {
-            try {
-                customOptions = JSON.parse(day1Content.taskPollOptions[stepIndex]).filter(Boolean);
-            } catch (e) {}
-        }
-        if (customOptions.length > 0) {
-            return [];
-        }
-
-        // Fallback to legacy structure only if taskLinkedToNext is true
-        let linkedSourceIndex = -1;
-        for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
-            const isLinked = 
-                day1Content.taskLinkedToNext?.[prevIndex] === true ||
-                (day1Content.taskLinkedToNext?.[prevIndex] as any) === "true";
-            if (isLinked) {
-                const inputType = String(
-                    day1Content.taskInputTypes?.[prevIndex] || ""
-                ).trim().toLowerCase();
-                if (inputType === "tags" || inputType === "poll") {
-                    linkedSourceIndex = prevIndex;
-                    break;
-                }
-            }
-        }
-
-        if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
-            try {
-                const val = taskInputs[linkedSourceIndex];
-                const srcType = String(day1Content.taskInputTypes?.[linkedSourceIndex] || "").trim().toLowerCase();
-                if (val.startsWith("[")) {
-                    return JSON.parse(val);
-                } else if (srcType === "poll") {
-                    return [val];
-                } else {
-                    return val.split(",").filter(Boolean);
-                }
-            } catch (e) {
-                return [];
-            }
-        }
         return [];
     };
 

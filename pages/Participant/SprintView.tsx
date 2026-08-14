@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -1607,7 +1607,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getLinkedTagsForStep = (stepIndex: number): string[] => {
     if (!dayContent) return [];
 
-    // Progressive step linking check
+    // Strictly no step with no linking should send or receive poll or poll option or action steps
+    const explicitLinks = getExplicitLinkedSteps(stepIndex, dayContent);
+    if (explicitLinks.length === 0) {
+      return [];
+    }
+
+    // Check step linking resolution
     const progRes = resolveProgressiveStepSelections(
       stepIndex,
       dayContent,
@@ -1619,7 +1625,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       return progRes.allSelections;
     }
 
-    // 1. Check if taskLinkedSources tells us which steps are linked
+    // If mainLink is present and not connected, return empty (don't draw options)
+    const hasMainLink = explicitLinks.some(l => l.mode === 'main' && l.opNum !== undefined);
+    if (hasMainLink) {
+      return [];
+    }
+
+    // Check if taskLinkedSources tells us which steps are explicitly linked
     if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {
       const sources = dayContent.taskLinkedSources[stepIndex];
       if (sources.length === 0) return [];
@@ -1674,49 +1686,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       return Array.from(new Set(allTags)).filter(Boolean);
     }
 
-    // 2. If taskLinkedSources is not set at all, check if step has its own custom poll options
-    let customOptions: string[] = [];
-    if (dayContent.taskPollOptions?.[stepIndex]) {
-      try {
-        customOptions = JSON.parse(dayContent.taskPollOptions[stepIndex]).filter(Boolean);
-      } catch (e) {}
-    }
-    if (customOptions.length > 0) {
-      return [];
-    }
-
-    // Fallback to legacy structure only if taskLinkedToNext is true
-    let linkedSourceIndex = -1;
-    for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
-      const isLinked = 
-        dayContent.taskLinkedToNext?.[prevIndex] === true ||
-        (dayContent.taskLinkedToNext?.[prevIndex] as any) === "true";
-      if (isLinked) {
-        const inputType = String(
-          dayContent.taskInputTypes?.[prevIndex] || ""
-        ).trim().toLowerCase();
-        if (inputType === "tags" || inputType === "poll") {
-          linkedSourceIndex = prevIndex;
-          break;
-        }
-      }
-    }
-
-    if (linkedSourceIndex !== -1 && taskInputs[linkedSourceIndex]) {
-      try {
-        const val = taskInputs[linkedSourceIndex];
-        const srcType = String(dayContent.taskInputTypes?.[linkedSourceIndex] || "").trim().toLowerCase();
-        if (val.startsWith("[")) {
-          return JSON.parse(val);
-        } else if (srcType === "poll") {
-          return [val];
-        } else {
-          return val.split(",").filter(Boolean);
-        }
-      } catch (e) {
-        return [];
-      }
-    }
     return [];
   };
 

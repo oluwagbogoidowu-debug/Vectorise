@@ -435,7 +435,7 @@ export function resolveProgressiveStepSelections(
     return -1;
   };
 
-  // Check if there is an explicit Main Linking placeholder {Step M Op N m} / {Step M Op N main}
+  // 1. Check if there is an explicit Main Linking placeholder {Step M Op N m} / {Step M Op N main}
   const mainLink = explicitLinks.find(l => l.mode === 'main' && l.opNum !== undefined);
   if (mainLink) {
     const targetDay = mainLink.day;
@@ -471,7 +471,7 @@ export function resolveProgressiveStepSelections(
         sourceStepIdx: targetStep
       };
     } else {
-      // Not connected! "If it's not connected don't draw the option."
+      // Not connected! Don't draw the option.
       return {
         activeSelection: undefined,
         activeOptionIndex: 0,
@@ -482,6 +482,7 @@ export function resolveProgressiveStepSelections(
     }
   }
 
+  // 2. Explicit poll-to-poll / step link to source step
   const primarySourceDay = explicitLinks[0].day;
   const primarySourceStep = explicitLinks[0].stepIdx;
 
@@ -491,31 +492,6 @@ export function resolveProgressiveStepSelections(
 
   const primaryConfiguredOpts = getStepConfiguredOptions(primaryDC, primarySourceStep);
 
-  // Progressive search: Search from stepIdx - 1 down to primarySourceStep for the MOST RECENT SINGLE SELECTION
-  for (let k = stepIdx - 1; k >= primarySourceStep; k--) {
-    const val = getInputValue(currentDayNum, k);
-    const answers = parseAnswers(val);
-
-    if (answers.length === 1) {
-      const singleChoice = answers[0];
-      let matchedOptIdx = findOptionIndex(primaryConfiguredOpts, singleChoice);
-
-      if (matchedOptIdx < 0) {
-        const kOpts = getStepConfiguredOptions(dayContent, k);
-        matchedOptIdx = findOptionIndex(kOpts, singleChoice);
-      }
-
-      return {
-        activeSelection: singleChoice,
-        activeOptionIndex: matchedOptIdx >= 0 ? matchedOptIdx : 0,
-        allSelections: [singleChoice],
-        isNarrowed: true,
-        sourceStepIdx: k
-      };
-    }
-  }
-
-  // Fallback to primarySourceStep itself if no step between primarySourceStep and stepIdx - 1 narrowed it down
   const primaryVal = getInputValue(primarySourceDay, primarySourceStep);
   const primaryAnswers = parseAnswers(primaryVal);
 
