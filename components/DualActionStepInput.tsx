@@ -384,42 +384,6 @@ export const DualActionStepInput: React.FC<DualActionStepInputProps> = ({
             <p className="text-xs text-emerald-700 font-medium">Review the prompt above and complete the action input below.</p>
           </div>
         </div>
-      ) : pollOptions.length > 0 ? (
-        <div className="space-y-2 p-3.5 bg-primary/5 rounded-2xl border border-primary/10">
-          <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-1.5 flex items-center gap-1.5">
-            <span>🔘 Connected Choices (Select one or more):</span>
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {pollOptions.map((opt: string, optIndex: number) => {
-              const isSel = dualState.selectedChoices.includes(opt) || dualState.choice === opt;
-              return (
-                <button
-                  key={optIndex}
-                  type="button"
-                  onClick={() => {
-                    let newChoices: string[];
-                    if (isSel) {
-                      newChoices = dualState.selectedChoices.filter((c) => c !== opt);
-                    } else {
-                      newChoices = [...dualState.selectedChoices, opt];
-                    }
-                    handleDualUpdate({
-                      choice: newChoices[0] || "",
-                      selectedChoices: newChoices,
-                    });
-                  }}
-                  className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
-                    isSel
-                      ? "bg-primary text-white border-primary shadow-md"
-                      : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
-                >
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-        </div>
       ) : null}
 
       {/* 2. BOTTOM SECTION: Action Step Input Textarea (Always rendered in Main mode) */}
