@@ -1,7 +1,4 @@
-import admin from '../lib/firebaseAdmin.js';
-
-const db = admin.firestore();
-const auth = admin.auth();
+import admin, { db } from '../lib/firebaseAdmin.js';
 
 export default async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,6 +9,8 @@ export default async (req: any, res: any) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
+    const auth = admin.apps.length ? admin.auth() : null;
+
     const { userId, action } = req.body; // action: 'clear_auth' | 'delete_db' | 'delete_both'
 
     if (!userId || typeof userId !== 'string') {
@@ -27,19 +26,23 @@ export default async (req: any, res: any) => {
 
     // 1. Clear Auth credentials
     if (action === 'clear_auth' || action === 'delete_both') {
-      try {
-        await auth.deleteUser(userId);
-        authCleared = true;
-      } catch (authErr: any) {
-        if (authErr.code === 'auth/user-not-found') {
-          console.warn(`[Admin Delete User] Auth account ${userId} not found.`);
+      if (auth) {
+        try {
+          await auth.deleteUser(userId);
           authCleared = true;
-        } else {
-          console.error(`[Admin Delete User] Failed to clear auth for ${userId}:`, authErr);
-          if (action === 'clear_auth') {
-            return res.status(500).json({ error: `Auth deletion failed: ${authErr.message || authErr}` });
+        } catch (authErr: any) {
+          if (authErr.code === 'auth/user-not-found') {
+            console.warn(`[Admin Delete User] Auth account ${userId} not found.`);
+            authCleared = true;
+          } else {
+            console.error(`[Admin Delete User] Failed to clear auth for ${userId}:`, authErr);
+            if (action === 'clear_auth') {
+              return res.status(500).json({ error: `Auth deletion failed: ${authErr.message || authErr}` });
+            }
           }
         }
+      } else {
+        console.warn(`[Admin Delete User] Firebase Admin Auth not initialized for deleting user ${userId}`);
       }
     }
 

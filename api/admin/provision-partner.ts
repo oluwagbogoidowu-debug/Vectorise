@@ -1,7 +1,4 @@
-import admin from '../lib/firebaseAdmin.js';
-
-const db = admin.firestore();
-const auth = admin.auth();
+import admin, { db } from '../lib/firebaseAdmin.js';
 
 export default async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,6 +9,11 @@ export default async (req: any, res: any) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
+    if (!admin.apps.length) {
+      return res.status(500).json({ error: "Firebase Admin is not configured with valid service account credentials." });
+    }
+    const auth = admin.auth();
+
     const { email, password, fullName, country, primaryPlatform } = req.body;
 
     if (!email || !password || !fullName) {

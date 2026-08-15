@@ -9,6 +9,115 @@ export interface StepPlaceholderDetail {
   token: string;
 }
 
+export interface DualInputState {
+  choice: string;
+  selectedChoices: string[];
+  text: string;
+}
+
+export function parseDualInputState(rawVal?: string | null): DualInputState {
+  if (!rawVal || typeof rawVal !== 'string') {
+    return { choice: '', selectedChoices: [], text: '' };
+  }
+  const trimmed = rawVal.trim();
+  if (!trimmed) {
+    return { choice: '', selectedChoices: [], text: '' };
+  }
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const choice = typeof parsed.choice === 'string' ? parsed.choice : (typeof parsed.selection === 'string' ? parsed.selection : '');
+        let selectedChoices: string[] = [];
+        if (Array.isArray(parsed.choices)) {
+          selectedChoices = parsed.choices.map((c: any) => String(c).trim()).filter(Boolean);
+        } else if (Array.isArray(parsed.selectedChoices)) {
+          selectedChoices = parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean);
+        } else if (choice) {
+          selectedChoices = [choice];
+        }
+        const text = typeof parsed.text === 'string' ? parsed.text : (typeof parsed.answer === 'string' ? parsed.answer : '');
+        return { choice, selectedChoices, text };
+      }
+    } catch (e) {}
+  }
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        const selectedChoices = parsed.map(c => String(c).trim()).filter(Boolean);
+        return { choice: selectedChoices[0] || '', selectedChoices, text: '' };
+      }
+    } catch (e) {}
+  }
+  return { choice: trimmed, selectedChoices: [trimmed], text: trimmed };
+}
+
+export function serializeDualInputState(state: { choice?: string; selectedChoices?: string[]; text?: string }): string {
+  const choice = state.choice || (state.selectedChoices && state.selectedChoices.length > 0 ? state.selectedChoices[0] : '');
+  const selectedChoices = state.selectedChoices || (choice ? [choice] : []);
+  const text = (state.text !== undefined && state.text !== null) ? state.text : '';
+  
+  if (!choice && selectedChoices.length === 0 && !text) {
+    return '';
+  }
+  // If only text is provided and no choice
+  if (!choice && selectedChoices.length === 0 && text) {
+    return text;
+  }
+  // If only choice is provided and no text
+  if ((choice || selectedChoices.length > 0) && !text) {
+    if (selectedChoices.length > 1) {
+      return JSON.stringify(selectedChoices);
+    }
+    return choice;
+  }
+  // If both choice and text are provided
+  return JSON.stringify({
+    choice,
+    choices: selectedChoices,
+    text
+  });
+}
+
+/**
+ * Checks if 'main' mode is active for a specific action step.
+ * Main is active if ANY version/prompt of this step contains a placeholder in 'main' mode
+ * (e.g. {D1 Step 7 main}, {Step 1 main}, {D1 Step 1 Op1 m}, etc.).
+ * When active, this applies to the action step and all its substeps (1, 2, 3, 4 versions under it),
+ * without leaking to other action steps.
+ */
+export function isMainActiveForStep(
+  stepIdx: number,
+  dayContent?: any
+): boolean {
+  if (!dayContent) return false;
+
+  const rawPrompt = dayContent.taskPrompts?.[stepIdx];
+  if (typeof rawPrompt === 'string') {
+    const versions = parseStepVersions(rawPrompt);
+    for (const v of versions) {
+      if (!v) continue;
+      const regex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
+      if (regex.test(v)) return true;
+    }
+  }
+
+  const rawHint = dayContent.taskHints?.[stepIdx];
+  if (typeof rawHint === 'string') {
+    const regex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
+    if (regex.test(rawHint)) return true;
+  }
+
+  const rawFootnote = dayContent.taskFootnotes?.[stepIdx];
+  if (typeof rawFootnote === 'string') {
+    const regex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
+    if (regex.test(rawFootnote)) return true;
+  }
+
+  return false;
+}
+
 export interface StepPlaceholderValidation {
   isValid: boolean;
   hasPlaceholders: boolean;
@@ -397,7 +506,18 @@ export function resolveProgressiveStepSelections(
       if (trimmed.startsWith('{')) {
         try {
           const parsed = JSON.parse(trimmed);
-          return Object.values(parsed).map(s => String(s).trim()).filter(Boolean);
+          if (parsed && typeof parsed === 'object') {
+            const list: string[] = [];
+            if (typeof parsed.choice === 'string' && parsed.choice) list.push(parsed.choice);
+            if (Array.isArray(parsed.choices)) list.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+            if (Array.isArray(parsed.selectedChoices)) list.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+            if (typeof parsed.text === 'string' && parsed.text) list.push(parsed.text);
+            if (typeof parsed.answer === 'string' && parsed.answer) list.push(parsed.answer);
+            if (list.length > 0) {
+              return Array.from(new Set(list));
+            }
+            return Object.values(parsed).map(s => String(s).trim()).filter(Boolean);
+          }
         } catch (e) {}
       }
       return [trimmed];

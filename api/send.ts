@@ -10,13 +10,13 @@ export default async function handler(req: Request, res: Response) {
       return res.status(200).json({ message: 'No subscribers found' });
     }
 
-    const subs = snapshot.docs.map(doc => ({
+    const subs = snapshot.docs.map((doc: any) => ({
       ref: doc.ref,
       ...doc.data() as any
     }));
 
     const results = await Promise.allSettled(
-      subs.map(async (sub) => {
+      subs.map(async (sub: any) => {
         const fcmToken = sub.fcmToken;
         if (!fcmToken) {
           console.warn(`[API Send] Skipping subscription doc without fcmToken`);

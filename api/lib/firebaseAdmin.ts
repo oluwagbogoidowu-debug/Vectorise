@@ -136,9 +136,62 @@ if (!admin.apps.length) {
   }
 }
 
-const firestore = admin.firestore();
-firestore.settings({ ignoreUndefinedProperties: true });
+let firestoreInstance: admin.firestore.Firestore | null = null;
 
-export const db = firestore;
+try {
+  if (admin.apps.length > 0) {
+    firestoreInstance = admin.firestore();
+    firestoreInstance.settings({ ignoreUndefinedProperties: true });
+  }
+} catch (e: any) {
+  console.warn("[FirebaseAdmin] Failed to initialize default Firestore instance:", e.message);
+}
+
+// Proxy wrapper for db to guarantee safe module evaluation and runtime fallback
+const dbProxy: any = new Proxy({}, {
+  get: (_target, prop) => {
+    if (admin.apps.length > 0) {
+      if (!firestoreInstance) {
+        try {
+          firestoreInstance = admin.firestore();
+          firestoreInstance.settings({ ignoreUndefinedProperties: true });
+        } catch (e: any) {
+          console.warn("[FirebaseAdmin] Lazy Firestore init error:", e.message);
+        }
+      }
+      if (firestoreInstance) {
+        const val = (firestoreInstance as any)[prop];
+        if (typeof val === 'function') {
+          return val.bind(firestoreInstance);
+        }
+        return val;
+      }
+    }
+    
+    // Graceful fallback dummy implementation when no Firebase Admin app exists
+    return (..._args: any[]) => {
+      console.warn(`[FirebaseAdmin] Firestore.${String(prop)} called without initialized Firebase Admin.`);
+      return {
+        get: async () => ({ docs: [], empty: true, exists: false, data: () => null }),
+        doc: () => ({
+          get: async () => ({ exists: false, data: () => null }),
+          set: async () => {},
+          update: async () => {},
+          delete: async () => {},
+          collection: () => dbProxy.collection(),
+        }),
+        collection: () => dbProxy.collection(),
+        where: () => dbProxy,
+        limit: () => dbProxy,
+        orderBy: () => dbProxy,
+        onSnapshot: () => () => {},
+        add: async () => ({ id: 'fallback_id' }),
+      };
+    };
+  }
+});
+
+export const db = dbProxy;
 export default admin;
+
 

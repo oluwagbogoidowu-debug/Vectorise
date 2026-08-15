@@ -1,8 +1,8 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { User, Coach, Participant, Admin, Permission, UserRole } from '../types';
 import { MOCK_USERS, MOCK_ROLES } from '../services/mockData';
 import { auth } from '../services/firebase';
-import { onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
+import { onIdTokenChanged, onAuthStateChanged, signOut, deleteUser as firebaseDeleteUser, sendPasswordResetEmail } from 'firebase/auth';
 import { onSnapshot, doc, updateDoc, getDocFromServer } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { userService, sanitizeData } from '../services/userService';
@@ -68,20 +68,178 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsDeferred(false);
   };
 
-  // Listen for Firebase Auth changes
+  // Token Keep-Alive & Auto-Refresh mechanism to prevent sudden logout after 1 hour of inactivity
+  useEffect(() => {
+    const keepTokenAlive = async () => {
+      if (auth.currentUser) {
+        try {
+          // Force silent token check / renewal so token never reaches 1-hour expiry unnoticed
+          await auth.currentUser.getIdToken(false);
+        } catch (err) {
+          console.warn("[AuthContext] Token keep-alive verification:", err);
+        }
+      }
+    };
+
+    // Check token every 10 minutes
+    const keepAliveInterval = setInterval(keepTokenAlive, 10 * 60 * 1000);
+
+    // Refresh immediately when user returns to tab or comes back online
+    const handleVisibilityOrOnline = () => {
+      if (document.visibilityState === 'visible' || navigator.onLine) {
+        keepTokenAlive();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrOnline);
+    window.addEventListener('online', handleVisibilityOrOnline);
+    window.addEventListener('focus', handleVisibilityOrOnline);
+
+    return () => {
+      clearInterval(keepAliveInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityOrOnline);
+      window.removeEventListener('online', handleVisibilityOrOnline);
+      window.removeEventListener('focus', handleVisibilityOrOnline);
+    };
+  }, []);
+
+  // Listen for Firebase Auth & ID Token changes
   useEffect(() => {
     let unsubscribeSnapshot: (() => void) | null = null;
+    let snapshotRetryTimer: any = null;
     let hasFetchedFromServer = false;
+    let isSubscribed = true;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    const setupUserSnapshot = (firebaseUser: any) => {
       if (unsubscribeSnapshot) {
         unsubscribeSnapshot();
         unsubscribeSnapshot = null;
       }
+      if (snapshotRetryTimer) {
+        clearTimeout(snapshotRetryTimer);
+        snapshotRetryTimer = null;
+      }
+
+      if (!isSubscribed || !firebaseUser) return;
+
+      const userRef = doc(db, 'users', firebaseUser.uid);
+
+      unsubscribeSnapshot = onSnapshot(userRef, { includeMetadataChanges: true }, async (docSnap) => {
+        if (!isSubscribed) return;
+        try {
+          if (docSnap.exists()) {
+            if (docSnap.metadata.fromCache && hasFetchedFromServer) {
+              return;
+            }
+
+            let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
+
+            const isGoogle = firebaseUser.providerData?.some((p: any) => p.providerId === 'google.com');
+            const isDbVerified = docSnap.data()?.emailVerifiedConfirmed || docSnap.data()?.emailVerifiedOverride;
+
+            if (isGoogle || isDbVerified) {
+              setActualMustVerifyEmail(false);
+            } else {
+              setActualMustVerifyEmail(true);
+            }
+
+            // Automatic Role Healing/Recovery for the owner/admin
+            if (dbUser.email && dbUser.email.toLowerCase().trim() === 'vectorise.io@gmail.com' && dbUser.role !== UserRole.ADMIN) {
+              console.log("Root Cause Corrected: Healing Admin account role in the database.");
+              dbUser.role = UserRole.ADMIN;
+              await userService.updateUserDocument(dbUser.id, { role: UserRole.ADMIN });
+            }
+
+            setUser(dbUser);
+            try {
+              localStorage.setItem('vectorise_cached_user', JSON.stringify(dbUser));
+            } catch (err) {
+              console.error("Failed to cache user", err);
+            }
+            
+            if (!docSnap.metadata.fromCache) {
+              hasFetchedFromServer = true;
+            }
+            
+            // Determine active role
+            const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
+            const dbRole = dbUser.role as UserRole;
+            
+            const isCoachApproved = dbRole === UserRole.COACH && (
+                (dbUser as any).coachApplicationApproved === true || 
+                (dbUser as any).approved === true
+            );
+            
+            let roleToSet = dbRole;
+            if (dbRole === UserRole.COACH && !isCoachApproved) {
+                roleToSet = UserRole.PARTICIPANT;
+            } else if (storedRole) {
+                const isCoach = ((dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH) && isCoachApproved;
+                const isAdmin = dbRole === UserRole.ADMIN;
+                
+                if (storedRole === dbRole) {
+                    roleToSet = (dbRole === UserRole.COACH && !isCoachApproved) ? UserRole.PARTICIPANT : storedRole;
+                } else if (storedRole === UserRole.COACH && isCoach) {
+                    roleToSet = UserRole.COACH;
+                } else if (isAdmin) {
+                    roleToSet = storedRole;
+                }
+            }
+            
+            setActiveRole(roleToSet);
+            localStorage.setItem('vectorise_active_role', roleToSet);
+          } else {
+            if (!hasFetchedFromServer) {
+              const newUserProfile: Partial<Participant> = {
+                  id: firebaseUser.uid,
+                  name: firebaseUser.displayName || 'User',
+                  email: firebaseUser.email || '',
+                  role: UserRole.PARTICIPANT,
+                  profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
+                  bio: "Ready to grow.",
+                  followers: 0,
+                  following: 0,
+                  savedSprintIds: [],
+                  enrolledSprintIds: [],
+                  wishlistSprintIds: [],
+                  shinePostIds: [],
+                  shineCommentIds: [],
+                  referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
+                  impactStats: { peopleHelped: 0, streak: 0 },
+              };
+              
+              await userService.createUserDocument(firebaseUser.uid, newUserProfile);
+              hasFetchedFromServer = true;
+            }
+          }
+        } catch (err) {
+          console.error("[AuthContext] Real-time state processor error:", err);
+        } finally {
+          if (isSubscribed) setLoading(false);
+        }
+      }, (error) => {
+        console.warn("[AuthContext] User snapshot encountered error (will auto-reconnect):", error);
+        if (isSubscribed) {
+          setLoading(false);
+          // Auto-reconnect snapshot listener if user is still logged in
+          if (auth.currentUser && auth.currentUser.uid === firebaseUser.uid) {
+            snapshotRetryTimer = setTimeout(() => {
+              if (isSubscribed && auth.currentUser?.uid === firebaseUser.uid) {
+                console.log("[AuthContext] Re-attaching user document listener after snapshot error...");
+                setupUserSnapshot(auth.currentUser);
+              }
+            }, 3000);
+          }
+        }
+      });
+    };
+
+    const handleAuthStateChange = async (firebaseUser: any) => {
+      if (!isSubscribed) return;
 
       if (firebaseUser) {
         // Expose emailVerified status helper
-        const isGoogleUser = firebaseUser.providerData.some(p => p.providerId === 'google.com');
+        const isGoogleUser = firebaseUser.providerData?.some((p: any) => p.providerId === 'google.com');
         setActualMustVerifyEmail(!isGoogleUser && !firebaseUser.emailVerified);
 
         const hasCache = !!localStorage.getItem('vectorise_cached_user');
@@ -92,8 +250,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // Core Requirement: Every time the app loads, fetch user data from Firestore server directly as primary source of truth
         try {
-          console.log("[AuthContext] Primary Action: Fetching fresh user document directly from Firestore server...");
-          
           const fetchPromise = getDocFromServer(userRef);
           const timeoutPromise = new Promise<never>((_, reject) => 
             setTimeout(() => reject(new Error("Server fetch timeout")), 2500)
@@ -104,10 +260,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             timeoutPromise
           ]);
 
-          if (serverSnap.exists()) {
+          if (serverSnap.exists() && isSubscribed) {
             let dbUser = sanitizeData(serverSnap.data()) as User | Participant | Coach;
 
-            const isGoogle = firebaseUser.providerData.some(p => p.providerId === 'google.com');
+            const isGoogle = firebaseUser.providerData?.some((p: any) => p.providerId === 'google.com');
             const isDbVerified = serverSnap.data()?.emailVerifiedConfirmed || serverSnap.data()?.emailVerifiedOverride;
 
             if (isGoogle || isDbVerified) {
@@ -123,7 +279,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 await userService.updateUserDocument(dbUser.id, { role: UserRole.ADMIN });
             }
 
-            console.log("[AuthContext] Firestore server fetch succeeded. Storing in state.");
             setUser(dbUser);
             try {
               localStorage.setItem('vectorise_cached_user', JSON.stringify(dbUser));
@@ -158,146 +313,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             
             setActiveRole(roleToSet);
             localStorage.setItem('vectorise_active_role', roleToSet);
-          } else {
-            // Document doesn't exist yet, create it on the server
-            console.log("[AuthContext] User document does not exist. Creating default profile...");
-            const newUserProfile: Partial<Participant> = {
-                id: firebaseUser.uid,
-                name: firebaseUser.displayName || 'User',
-                email: firebaseUser.email || '',
-                role: UserRole.PARTICIPANT,
-                profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
-                bio: "Ready to grow.",
-                followers: 0,
-                following: 0,
-                savedSprintIds: [],
-                enrolledSprintIds: [],
-                wishlistSprintIds: [],
-                shinePostIds: [],
-                shineCommentIds: [],
-                referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
-                impactStats: { peopleHelped: 0, streak: 0 },
-            };
-            
-            await userService.createUserDocument(firebaseUser.uid, newUserProfile);
-            hasFetchedFromServer = true;
           }
         } catch (serverErr) {
           console.warn("[AuthContext] Primary server fetch failed or user is offline. Relying on cache/real-time sync as secondary.", serverErr);
         }
 
-        // Subscribe to real-time changes, with includeMetadataChanges to track cache vs server transitions
-        unsubscribeSnapshot = onSnapshot(userRef, { includeMetadataChanges: true }, async (docSnap) => {
-          try {
-            if (docSnap.exists()) {
-              // Rule: If we already have a successful server-verified fetch, ignore any cached snapshots to prevent state rollback/regression
-              if (docSnap.metadata.fromCache && hasFetchedFromServer) {
-                console.log("[AuthContext] Ignored cached real-time snapshot because fresh server data was already loaded.");
-                return;
-              }
-
-              let dbUser = sanitizeData(docSnap.data()) as User | Participant | Coach;
-
-              const isGoogle = firebaseUser.providerData.some(p => p.providerId === 'google.com');
-              const isDbVerified = docSnap.data()?.emailVerifiedConfirmed || docSnap.data()?.emailVerifiedOverride;
-
-              if (isGoogle || isDbVerified) {
-                setActualMustVerifyEmail(false);
-              } else {
-                setActualMustVerifyEmail(true);
-              }
-
-              // Automatic Role Healing/Recovery for the owner/admin
-              if (dbUser.email && dbUser.email.toLowerCase().trim() === 'vectorise.io@gmail.com' && dbUser.role !== UserRole.ADMIN) {
-                  console.log("Root Cause Corrected: Healing Admin account role in the database.");
-                  dbUser.role = UserRole.ADMIN;
-                  await userService.updateUserDocument(dbUser.id, { role: UserRole.ADMIN });
-              }
-
-              console.log(`[AuthContext] User document updated from snapshot. fromCache: ${docSnap.metadata.fromCache}`);
-              setUser(dbUser);
-              try {
-                localStorage.setItem('vectorise_cached_user', JSON.stringify(dbUser));
-              } catch (err) {
-                console.error("Failed to cache user", err);
-              }
-              
-              if (!docSnap.metadata.fromCache) {
-                hasFetchedFromServer = true;
-              }
-              
-              // Determine active role
-              const storedRole = localStorage.getItem('vectorise_active_role') as UserRole;
-              const dbRole = dbUser.role as UserRole;
-              
-              const isCoachApproved = dbRole === UserRole.COACH && (
-                  (dbUser as any).coachApplicationApproved === true || 
-                  (dbUser as any).approved === true
-              );
-              
-              let roleToSet = dbRole;
-              if (dbRole === UserRole.COACH && !isCoachApproved) {
-                  // Unapproved coach must default to Participant mode
-                  roleToSet = UserRole.PARTICIPANT;
-              } else if (storedRole) {
-                  const isCoach = ((dbUser as Coach).hasCoachProfile || dbRole === UserRole.COACH) && isCoachApproved;
-                  const isAdmin = dbRole === UserRole.ADMIN;
-                  
-                  if (storedRole === dbRole) {
-                      roleToSet = (dbRole === UserRole.COACH && !isCoachApproved) ? UserRole.PARTICIPANT : storedRole;
-                  } else if (storedRole === UserRole.COACH && isCoach) {
-                      roleToSet = UserRole.COACH;
-                  } else if (isAdmin) {
-                      roleToSet = storedRole;
-                  }
-              }
-              
-              setActiveRole(roleToSet);
-              localStorage.setItem('vectorise_active_role', roleToSet);
-            } else {
-              // Creating user doc if snapshot tells us it completely doesn't exist anywhere
-              if (!hasFetchedFromServer) {
-                const newUserProfile: Partial<Participant> = {
-                    id: firebaseUser.uid,
-                    name: firebaseUser.displayName || 'User',
-                    email: firebaseUser.email || '',
-                    role: UserRole.PARTICIPANT,
-                    profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.displayName || 'User'}&background=0E7850&color=fff`,
-                    bio: "Ready to grow.",
-                    followers: 0,
-                    following: 0,
-                    savedSprintIds: [],
-                    enrolledSprintIds: [],
-                    wishlistSprintIds: [],
-                    shinePostIds: [],
-                    shineCommentIds: [],
-                    referralCode: (firebaseUser.uid || '').substring(0, 8).toUpperCase(),
-                    impactStats: { peopleHelped: 0, streak: 0 },
-                };
-                
-                await userService.createUserDocument(firebaseUser.uid, newUserProfile);
-                hasFetchedFromServer = true;
-              }
-            }
-          } catch (err) {
-            console.error("[AuthContext] Real-time state processor error:", err);
-          } finally {
-            setLoading(false);
-          }
-        }, (error) => {
-          console.error("Snapshot Error", error);
-          setLoading(false);
-        });
+        // Connect real-time snapshot
+        setupUserSnapshot(firebaseUser);
       } else {
-        hasFetchedFromServer = false;
-        setUser(null);
-        setLoading(false);
+        // If firebaseUser is null, double check if auth is truly signed out
+        if (!auth.currentUser) {
+          hasFetchedFromServer = false;
+          if (unsubscribeSnapshot) {
+            unsubscribeSnapshot();
+            unsubscribeSnapshot = null;
+          }
+          if (snapshotRetryTimer) {
+            clearTimeout(snapshotRetryTimer);
+            snapshotRetryTimer = null;
+          }
+          setUser(null);
+          setLoading(false);
+        }
       }
-    });
+    };
+
+    // onIdTokenChanged listens to sign-in, sign-out, AND every ID token refresh event
+    const unsubscribeToken = onIdTokenChanged(auth, handleAuthStateChange);
 
     return () => {
-      unsubscribeAuth();
+      isSubscribed = false;
+      unsubscribeToken();
       if (unsubscribeSnapshot) unsubscribeSnapshot();
+      if (snapshotRetryTimer) clearTimeout(snapshotRetryTimer);
     };
   }, [forceTrigger]);
 

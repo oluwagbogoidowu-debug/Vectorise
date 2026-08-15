@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore, enableIndexedDbPersistence, terminate } from "firebase/firestore";
 import { getMessaging, isSupported } from "firebase/messaging";
 
@@ -22,6 +22,14 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
 export const auth = getAuth(app);
+
+// Explicitly set persistent local auth storage so sessions persist reliably across tab lifecycles and background sleep
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn("[Auth] Failed to set browserLocalPersistence:", err);
+  });
+}
+
 const analytics = getAnalytics(app);
 
 export const getFirebaseMessaging = async () => {

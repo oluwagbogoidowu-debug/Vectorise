@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -2676,6 +2676,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       const val = taskInputs[i];
       if (!val) return false;
 
+      if (isMainActiveForStep(i, dayContent)) {
+        const parsed = parseDualInputState(val);
+        return Boolean(parsed.choice || (parsed.selectedChoices && parsed.selectedChoices.length > 0) || (parsed.text && parsed.text.trim().length > 0) || val.trim().length > 0);
+      }
+
       if (type === "mark") {
         return val === "Completed" || val === "Skipped";
       }
@@ -3565,7 +3570,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         
                                         const isNone = dayContent.taskInputTypes?.[i] === "none";
                                         let stepCompleted = isNote || isNone;
-                                        if (isMark) {
+                                        if (isMainActiveForStep(i, dayContent)) {
+                                          const parsed = parseDualInputState(val);
+                                          stepCompleted = Boolean(parsed.choice || (parsed.selectedChoices && parsed.selectedChoices.length > 0) || (parsed.text && parsed.text.trim().length > 0) || (val && val.trim().length > 0));
+                                        } else if (isMark) {
                                           stepCompleted = val === "Completed" || val === "Skipped";
                                         } else if (!isNote && !!val) {
                                           if (isTags || (dayContent.taskInputTypes?.[i] === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {

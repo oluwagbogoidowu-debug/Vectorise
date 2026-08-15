@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -1401,7 +1401,89 @@ const SprintPreview: React.FC = () => {
                                                 </div>
                                             );
                                         })()}
-                                        {day1Content?.taskInputTypes?.[i] === "tags" ? (
+                                        {isMainActiveForStep(i, day1Content) ? (() => {
+                                            const dualState = parseDualInputState(taskInputs[i]);
+                                            const inputType = day1Content?.taskInputTypes?.[i] || "text";
+                                            const handleDualUpdate = (updates: Partial<DualInputState>) => {
+                                                const nextState = { ...dualState, ...updates };
+                                                const serialized = serializeDualInputState(nextState);
+                                                const newInputs = [...taskInputs];
+                                                newInputs[i] = serialized;
+                                                setTaskInputs(newInputs);
+                                            };
+                                            const linkedTags = getLinkedTagsForStep(i);
+                                            let pollOptions: string[] = [];
+                                            let customOptions: string[] = [];
+                                            if (day1Content?.taskPollOptions?.[i]) {
+                                                try {
+                                                    customOptions = JSON.parse(day1Content.taskPollOptions[i]);
+                                                } catch (e) {}
+                                            }
+                                            customOptions = customOptions.filter(Boolean);
+                                            pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+
+                                            const isMultiSelect = inputType === "tags" || !!day1Content?.taskPollMultiSelect?.[i];
+
+                                            return (
+                                                <div className="space-y-4 mb-4 animate-fade-in text-left">
+                                                    {pollOptions.length > 0 && (
+                                                        <div className="space-y-2 p-3.5 bg-primary/5 rounded-2xl border border-primary/10">
+                                                            <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-1.5 flex items-center gap-1.5">
+                                                                <span>{isMultiSelect ? "☑️ Connected Choices (Select one or more):" : "🔘 Connected Choice (Select one):"}</span>
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                {pollOptions.map((opt: string, optIndex: number) => {
+                                                                    const isSel = dualState.selectedChoices.includes(opt);
+                                                                    return (
+                                                                        <button
+                                                                            key={optIndex}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                let newChoices: string[];
+                                                                                if (isMultiSelect) {
+                                                                                    if (isSel) {
+                                                                                        newChoices = dualState.selectedChoices.filter((c) => c !== opt);
+                                                                                    } else {
+                                                                                        newChoices = [...dualState.selectedChoices, opt];
+                                                                                    }
+                                                                                } else {
+                                                                                    newChoices = isSel ? [] : [opt];
+                                                                                }
+                                                                                handleDualUpdate({
+                                                                                    choice: newChoices[0] || "",
+                                                                                    selectedChoices: newChoices,
+                                                                                });
+                                                                            }}
+                                                                            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                                                                isSel
+                                                                                    ? "bg-primary text-white border-primary shadow-md"
+                                                                                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                                            }`}
+                                                                        >
+                                                                            {opt}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest pl-1">
+                                                            Action Step Input:
+                                                        </label>
+                                                        <AutoGrowingTextarea
+                                                            value={dualState.text}
+                                                            onChange={(val) => {
+                                                                handleDualUpdate({ text: val });
+                                                            }}
+                                                            placeholder="What's on your mind..."
+                                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })() : day1Content?.taskInputTypes?.[i] === "tags" ? (
                                             <div className="space-y-3 mb-4">
                                                 <TagInput
                                                     value={taskInputs[i] || ""}
@@ -1798,10 +1880,14 @@ const SprintPreview: React.FC = () => {
                                                 const isNote = day1Content?.taskInputTypes?.[i] === "note";
                                                 const isMark = day1Content?.taskInputTypes?.[i] === "mark";
                                                 const isNone = day1Content?.taskInputTypes?.[i] === "none";
+                                                const isMain = isMainActiveForStep(i, day1Content);
                                                 const val = taskInputs[i];
                                                 let stepCompleted = isNote || isNone;
                                                 if (isMark) {
                                                     stepCompleted = val === "Completed" || val === "Skipped";
+                                                } else if (isMain) {
+                                                    const dualState = parseDualInputState(val);
+                                                    stepCompleted = dualState.text.trim().length > 0;
                                                 } else if (!isNote && !isNone && val) {
                                                     if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
                                                         stepCompleted = val !== "[]" && val !== "";
