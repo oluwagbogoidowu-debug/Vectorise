@@ -121,6 +121,13 @@ export function isMainActiveForStep(
     return true;
   }
 
+  if (allDaysContent && Array.isArray(allDaysContent)) {
+    const explicitLinks = getExplicitLinkedSteps(stepIdx, dayContent, allDaysContent);
+    if (explicitLinks.some(l => l.mode === 'main')) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -374,7 +381,8 @@ export interface ProgressiveSelectionResult {
  */
 export function getExplicitLinkedSteps(
   stepIdx: number,
-  dayContent?: any
+  dayContent?: any,
+  allDaysContent?: any[]
 ): { day: number; stepIdx: number; opNum?: number; mode?: StepPlaceholderMode }[] {
   if (!dayContent) return [];
   const currentDay = Number(dayContent.day || 1);
@@ -383,8 +391,12 @@ export function getExplicitLinkedSteps(
   const addLink = (d: number, s: number, opNum?: number, mode?: StepPlaceholderMode) => {
     if (s < 0 || (d === currentDay && s >= stepIdx)) return;
     if (mode === 'disconnect') return; // 'd' means disconnect only this
-    if (!links.some(l => l.day === d && l.stepIdx === s)) {
+    const existing = links.find(l => l.day === d && l.stepIdx === s);
+    if (!existing) {
       links.push({ day: d, stepIdx: s, opNum, mode });
+    } else {
+      if (existing.mode === undefined && mode !== undefined) existing.mode = mode;
+      if (existing.opNum === undefined && opNum !== undefined) existing.opNum = opNum;
     }
   };
 
@@ -416,10 +428,13 @@ export function getExplicitLinkedSteps(
   const textsToScan: string[] = [];
   const promptVal = dayContent.taskPrompts?.[stepIdx];
   if (typeof promptVal === 'string') textsToScan.push(promptVal);
+  else if (stepIdx === 0 && typeof dayContent.taskPrompt === 'string') textsToScan.push(dayContent.taskPrompt);
   const hintVal = dayContent.taskHints?.[stepIdx];
   if (typeof hintVal === 'string') textsToScan.push(hintVal);
   const footnoteVal = dayContent.taskFootnotes?.[stepIdx];
   if (typeof footnoteVal === 'string') textsToScan.push(footnoteVal);
+  const tagNoteVal = dayContent.taskTagNotes?.[stepIdx];
+  if (typeof tagNoteVal === 'string') textsToScan.push(tagNoteVal);
   const optionsVal = dayContent.taskPollOptions?.[stepIdx];
   if (typeof optionsVal === 'string') textsToScan.push(optionsVal);
 
@@ -438,6 +453,93 @@ export function getExplicitLinkedSteps(
       // ONLY include if it's an explicit main link ({Step M Op N m}, {Step M main}) or explicit option reference ({Step M Op N})
       if (mode === 'main' || opNum !== undefined) {
         addLink(dayNum, targetStepIdx, opNum, mode);
+      } else if (allDaysContent && Array.isArray(allDaysContent)) {
+        // If placeholder references another day (or target step) that itself declared 'main' or an option link on that day
+        const targetDC = allDaysContent.find(d => d && Number(d.day) === dayNum);
+        if (targetDC) {
+          const targetIsMain = isMainActiveForStep(targetStepIdx, targetDC);
+          const targetPollLink = parsePollLinkInfo(targetDC.taskPollOptionLinks?.[targetStepIdx]);
+          if (targetIsMain) {
+            addLink(dayNum, targetStepIdx, opNum, 'main');
+          } else if (targetPollLink) {
+            addLink(dayNum, targetStepIdx, targetPollLink.optNum);
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Scan allDaysContent to discover links declared in other days
+  if (allDaysContent && Array.isArray(allDaysContent)) {
+    for (const otherDC of allDaysContent) {
+      if (!otherDC) continue;
+      const otherDayNum = Number(otherDC.day || 1);
+
+      // Check taskPollOptionLinks pointing to this step
+      if (Array.isArray(otherDC.taskPollOptionLinks)) {
+        otherDC.taskPollOptionLinks.forEach((link: any, sIdx: number) => {
+          const pInfo = parsePollLinkInfo(link);
+          if (pInfo && pInfo.targetPollIdx === stepIdx && otherDayNum === currentDay) {
+            addLink(otherDayNum, sIdx, pInfo.optNum);
+          }
+        });
+      }
+
+      // Check taskLinkedSources pointing to this step
+      if (Array.isArray(otherDC.taskLinkedSources)) {
+        otherDC.taskLinkedSources.forEach((sources: any, sIdx: number) => {
+          if (Array.isArray(sources)) {
+            for (const src of sources) {
+              if (typeof src === 'number') {
+                if (src < 0) {
+                  const absVal = Math.abs(src);
+                  const sDay = Math.floor(absVal / 100);
+                  const sStep = absVal % 100;
+                  if (sDay === currentDay && sStep === stepIdx) {
+                    addLink(otherDayNum, sIdx);
+                  }
+                } else if (otherDayNum === currentDay && src === stepIdx) {
+                  addLink(otherDayNum, sIdx);
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Check placeholders in otherDC that reference current step
+      const otherPromptsLen = Math.max(
+        otherDC.taskPrompts?.length || 0,
+        otherDC.taskInputTypes?.length || 0,
+        otherDC.taskHints?.length || 0,
+        0
+      );
+
+      for (let s = 0; s < otherPromptsLen; s++) {
+        const otherTexts: string[] = [];
+        if (typeof otherDC.taskPrompts?.[s] === 'string') otherTexts.push(otherDC.taskPrompts[s]);
+        if (typeof otherDC.taskHints?.[s] === 'string') otherTexts.push(otherDC.taskHints[s]);
+        if (typeof otherDC.taskFootnotes?.[s] === 'string') otherTexts.push(otherDC.taskFootnotes[s]);
+        if (typeof otherDC.taskTagNotes?.[s] === 'string') otherTexts.push(otherDC.taskTagNotes[s]);
+        if (typeof otherDC.taskPollOptions?.[s] === 'string') otherTexts.push(otherDC.taskPollOptions[s]);
+
+        for (const t of otherTexts) {
+          let match: RegExpExecArray | null;
+          regex.lastIndex = 0;
+          while ((match = regex.exec(t)) !== null) {
+            const dayNum = match[1] ? parseInt(match[1], 10) : otherDayNum;
+            const stepNum = parseInt(match[2], 10);
+            const opNum = match[3] ? parseInt(match[3], 10) : undefined;
+            const mode = parsePlaceholderMode(match[4]);
+            const targetStepIdx = stepNum - 1;
+
+            if (dayNum === currentDay && targetStepIdx === stepIdx) {
+              if (mode === 'main' || opNum !== undefined) {
+                addLink(otherDayNum, s, opNum, mode);
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -469,7 +571,7 @@ export function resolveProgressiveStepSelections(
   if (!dayContent) return defaultResult;
 
   // Progressive linking ONLY applies if explicitly linked by {Step N main}, {Step N op M}, {Step N}, taskPollOptionLinks, or taskLinkedSources.
-  const explicitLinks = getExplicitLinkedSteps(stepIdx, dayContent);
+  const explicitLinks = getExplicitLinkedSteps(stepIdx, dayContent, allDaysContent);
   if (explicitLinks.length === 0) {
     return defaultResult;
   }
@@ -620,7 +722,7 @@ export function resolveProgressiveStepSelections(
 
         // If not found in target step's configured options, trace back through targetStep's links or previous steps
         if (optIdx < 0) {
-          const targetStepLinks = getExplicitLinkedSteps(targetStep, targetDC);
+          const targetStepLinks = getExplicitLinkedSteps(targetStep, targetDC, allDaysContent);
           for (const parentLink of targetStepLinks) {
             const pDay = parentLink.day;
             const pStep = parentLink.stepIdx;
@@ -987,25 +1089,15 @@ export function formatInterpolatedText(
     // CASE 2: General Step Reference e.g. {D1 Step 3} or {Step 6}
     let items: string[] = [];
 
-    // Progressive step linking check
-    const progRes = resolveProgressiveStepSelections(stepIndex, targetDC, taskInputs, allDaysContent, allDaysInputs);
-    if (progRes.isNarrowed && progRes.allSelections.length > 0) {
-      items = progRes.allSelections;
-    } else {
-      let val = getTargetInputValue(targetDay, stepIndex);
-
-      if (val === undefined || val === null || val === '') {
-        const pollLinkRaw = targetDC?.taskPollOptionLinks?.[stepIndex];
-        const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
-        if (pollLinkInfo) {
-          const origVal = getTargetInputValue(targetDay, pollLinkInfo.targetPollIdx);
-          if (origVal) val = origVal;
-        } else if (Array.isArray(targetDC?.taskLinkedSources?.[stepIndex]) && targetDC.taskLinkedSources[stepIndex].length > 0) {
-          const srcStepIdx = targetDC.taskLinkedSources[stepIndex][0];
-          const origVal = getTargetInputValue(targetDay, srcStepIdx);
-          if (origVal) val = origVal;
-        }
+    // Only run progressive/main linking when the placeholder explicitly requests it (mode === 'main')
+    if (mode === 'main') {
+      const progRes = resolveProgressiveStepSelections(stepIndex, targetDC, taskInputs, allDaysContent, allDaysInputs);
+      if (progRes.isNarrowed && progRes.allSelections.length > 0) {
+        items = progRes.allSelections;
       }
+    } else {
+      // Normal placeholders: return the target step's direct value (or its configured poll options) and skip resolveProgressiveStepSelections
+      let val = getTargetInputValue(targetDay, stepIndex);
 
       if (val !== undefined && val !== null) {
         if (typeof val === 'boolean') {
@@ -1017,7 +1109,18 @@ export function formatInterpolatedText(
               if (Array.isArray(parsed)) items = parsed.filter(Boolean);
             } else if (val.trim().startsWith('{')) {
               const parsed = JSON.parse(val);
-              items = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
+              if (parsed && typeof parsed === 'object') {
+                const list: string[] = [];
+                if (typeof parsed.text === 'string' && parsed.text.trim()) list.push(parsed.text.trim());
+                if (typeof parsed.choice === 'string' && parsed.choice.trim()) list.push(parsed.choice.trim());
+                if (Array.isArray(parsed.choices)) list.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+                if (Array.isArray(parsed.selectedChoices)) list.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+                if (list.length > 0) {
+                  items = Array.from(new Set(list));
+                } else {
+                  items = Object.values(parsed).filter((v): v is string => typeof v === 'string' && Boolean(v));
+                }
+              }
             } else {
               items = [val.trim()];
             }
