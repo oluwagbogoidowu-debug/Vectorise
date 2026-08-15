@@ -23,11 +23,11 @@ export function parseDualInputState(rawVal?: string | null): DualInputState {
   if (!trimmed) {
     return { choice: '', selectedChoices: [], text: '' };
   }
-  if (trimmed.startsWith('{')) {
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
     try {
       const parsed = JSON.parse(trimmed);
       if (typeof parsed === 'object' && parsed !== null) {
-        const choice = typeof parsed.choice === 'string' ? parsed.choice : (typeof parsed.selection === 'string' ? parsed.selection : '');
+        const choice = typeof parsed.choice === 'string' ? parsed.choice.trim() : (typeof parsed.selection === 'string' ? parsed.selection.trim() : '');
         let selectedChoices: string[] = [];
         if (Array.isArray(parsed.choices)) {
           selectedChoices = parsed.choices.map((c: any) => String(c).trim()).filter(Boolean);
@@ -37,11 +37,11 @@ export function parseDualInputState(rawVal?: string | null): DualInputState {
           selectedChoices = [choice];
         }
         const text = typeof parsed.text === 'string' ? parsed.text : (typeof parsed.answer === 'string' ? parsed.answer : '');
-        return { choice, selectedChoices, text };
+        return { choice: choice || (selectedChoices[0] || ''), selectedChoices, text };
       }
     } catch (e) {}
   }
-  if (trimmed.startsWith('[')) {
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) {
@@ -61,21 +61,11 @@ export function serializeDualInputState(state: { choice?: string; selectedChoice
   if (!choice && selectedChoices.length === 0 && !text) {
     return '';
   }
-  // If only text is provided and no choice
-  if (!choice && selectedChoices.length === 0 && text) {
-    return text;
-  }
-  // If only choice is provided and no text
-  if ((choice || selectedChoices.length > 0) && !text) {
-    if (selectedChoices.length > 1) {
-      return JSON.stringify(selectedChoices);
-    }
-    return choice;
-  }
-  // If both choice and text are provided
+  
   return JSON.stringify({
     choice,
     choices: selectedChoices,
+    selectedChoices,
     text
   });
 }
@@ -89,30 +79,46 @@ export function serializeDualInputState(state: { choice?: string; selectedChoice
  */
 export function isMainActiveForStep(
   stepIdx: number,
-  dayContent?: any
+  dayContent?: any,
+  allDaysContent?: any[]
 ): boolean {
   if (!dayContent) return false;
+
+  const mainRegex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
 
   const rawPrompt = dayContent.taskPrompts?.[stepIdx];
   if (typeof rawPrompt === 'string') {
     const versions = parseStepVersions(rawPrompt);
     for (const v of versions) {
       if (!v) continue;
-      const regex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
-      if (regex.test(v)) return true;
+      if (mainRegex.test(v)) return true;
+    }
+  } else if (stepIdx === 0 && typeof dayContent.taskPrompt === 'string') {
+    const versions = parseStepVersions(dayContent.taskPrompt);
+    for (const v of versions) {
+      if (!v) continue;
+      if (mainRegex.test(v)) return true;
     }
   }
 
   const rawHint = dayContent.taskHints?.[stepIdx];
-  if (typeof rawHint === 'string') {
-    const regex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
-    if (regex.test(rawHint)) return true;
+  if (typeof rawHint === 'string' && mainRegex.test(rawHint)) {
+    return true;
   }
 
   const rawFootnote = dayContent.taskFootnotes?.[stepIdx];
-  if (typeof rawFootnote === 'string') {
-    const regex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
-    if (regex.test(rawFootnote)) return true;
+  if (typeof rawFootnote === 'string' && mainRegex.test(rawFootnote)) {
+    return true;
+  }
+
+  const rawTagNote = dayContent.taskTagNotes?.[stepIdx];
+  if (typeof rawTagNote === 'string' && mainRegex.test(rawTagNote)) {
+    return true;
+  }
+
+  const rawPollOption = dayContent.taskPollOptions?.[stepIdx];
+  if (typeof rawPollOption === 'string' && mainRegex.test(rawPollOption)) {
+    return true;
   }
 
   return false;
@@ -204,8 +210,26 @@ export function validateStepPlaceholders(
     const targetDay = ref.dayNum !== undefined ? ref.dayNum : currentDay;
     const targetStepIndex = ref.stepNum - 1; // 1-based to 0-based
 
-    // Rule 1: Cannot reference future day
-    if (targetDay > currentDay) {
+    // Rule 1: Day range check
+    if (targetDay < 1) {
+      invalidStepRefs.push(ref.stepNum);
+      invalidStepLabels.push(ref.rawLabel);
+      if (!invalidReason) {
+        invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} must be at least Day 1.`;
+      }
+      continue;
+    }
+
+    if (allDaysContent && Array.isArray(allDaysContent) && allDaysContent.length > 0) {
+      if (targetDay > allDaysContent.length) {
+        invalidStepRefs.push(ref.stepNum);
+        invalidStepLabels.push(ref.rawLabel);
+        if (!invalidReason) {
+          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} exceeds the sprint duration (${allDaysContent.length} days).`;
+        }
+        continue;
+      }
+    } else if (targetDay > currentDay) {
       invalidStepRefs.push(ref.stepNum);
       invalidStepLabels.push(ref.rawLabel);
       if (!invalidReason) {
@@ -225,16 +249,7 @@ export function validateStepPlaceholders(
         continue;
       }
     } else {
-      // Rule 3: Previous day step existence
-      if (targetDay < 1) {
-        invalidStepRefs.push(ref.stepNum);
-        invalidStepLabels.push(ref.rawLabel);
-        if (!invalidReason) {
-          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} must be at least Day 1.`;
-        }
-        continue;
-      }
-
+      // Rule 3: Cross-day step existence
       if (allDaysContent && Array.isArray(allDaysContent)) {
         const targetDayContent = allDaysContent.find(d => d && (Number(d.day) === targetDay));
         if (targetDayContent) {
