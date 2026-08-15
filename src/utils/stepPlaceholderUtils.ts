@@ -1240,7 +1240,8 @@ export function parsePollLinkInfo(link: any): { targetPollIdx: number; tag?: str
 
 /**
  * Resolves the appropriate task hint version based on user selections and formats it.
- * Accurately tracks original poll step option selection through linked steps (poll-to-poll / step links).
+ * Accurately tracks original poll step option selection through linked steps (poll-to-poll / step links)
+ * and 'main' decision routing without requiring the step to receive/display poll options.
  */
 export function resolveTaskHintForUser(
   hintRaw?: string | null,
@@ -1255,14 +1256,28 @@ export function resolveTaskHintForUser(
   const versions = parseHintVersions(hintRaw);
   if (versions.length === 0) return '';
 
-  const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
-
   if (versions.length === 1) {
     const text = formatInterpolatedText(versions[0], dayContent, taskInputs, allDaysContent, allDaysInputs);
     return text ? text.trim() : '';
   }
 
-  const chosenHint = versions[selectedOptIdx] !== undefined ? versions[selectedOptIdx] : (versions[0] || '');
+  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+
+  // Check if any hint version explicitly contains a matching {Step N Op M} or {Dx Step N Op M} token
+  let matchingVerIdx = -1;
+  const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : selectedOptIdx) + 1;
+  const opTokenRegex = new RegExp(`\\{(?:[dD](?:ay)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
+
+  for (let vIdx = 0; vIdx < versions.length; vIdx++) {
+    if (opTokenRegex.test(versions[vIdx])) {
+      matchingVerIdx = vIdx;
+      break;
+    }
+  }
+
+  const chosenVerIdx = matchingVerIdx >= 0 ? matchingVerIdx : (versions[selectedOptIdx] !== undefined ? selectedOptIdx : 0);
+  const chosenHint = versions[chosenVerIdx] || versions[0] || '';
   const text = formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs);
   return text ? text.trim() : '';
 }
@@ -1443,7 +1458,7 @@ export function getStepMultiTextLabels(
 /**
  * Resolves the active sub-context version index (0, 1, 2...) for a step.
  * Tracks connected poll steps, option links, and linked sources so that an option selected in Step 1
- * determines the path & version active in a linked step (e.g. Step 6).
+ * determines the path & version active in a linked step (e.g. Step 6) or downstream action steps (Step 1.1, 1.2...).
  */
 export function resolveStepVersionIndex(
   stepIdx: number = 0,
@@ -1475,6 +1490,27 @@ export function resolveStepVersionIndex(
   }
 
   const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+
+  // If prompt has multiple versions (e.g. Step 1.1, 1.2, 1.3, 1.4...)
+  const rawPrompt = dayContent?.taskPrompts?.[stepIdx] || (stepIdx === 0 ? dayContent?.taskPrompt : undefined);
+  if (rawPrompt) {
+    const promptVersions = parseStepVersions(rawPrompt);
+    if (promptVersions.length > 1) {
+      const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : 0) + 1;
+      const opTokenRegex = new RegExp(`\\{(?:[dD](?:ay)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
+      
+      for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
+        if (opTokenRegex.test(promptVersions[vIdx])) {
+          return vIdx;
+        }
+      }
+
+      if (progRes.activeOptionIndex < promptVersions.length) {
+        return progRes.activeOptionIndex;
+      }
+    }
+  }
+
   return progRes.activeOptionIndex;
 }
 

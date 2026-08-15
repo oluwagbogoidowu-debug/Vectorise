@@ -22,7 +22,6 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import DualActionStepInput from "../../components/DualActionStepInput";
 import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
@@ -2677,11 +2676,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       const val = taskInputs[i];
       if (!val) return false;
 
-      if (isMainActiveForStep(i, dayContent, sprint?.dailyContent)) {
-        const parsed = parseDualInputState(val);
-        return Boolean(parsed.choice || (parsed.selectedChoices && parsed.selectedChoices.length > 0) || (parsed.text && parsed.text.trim().length > 0) || val.trim().length > 0);
-      }
-
       if (type === "mark") {
         return val === "Completed" || val === "Skipped";
       }
@@ -3085,30 +3079,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 );
                               })()}
                               {!dayProgress?.completed &&
-                                (isMainActiveForStep(i, dayContent, sprint?.dailyContent) ? (
-                                  <DualActionStepInput
-                                    stepIdx={i}
-                                    dayContent={dayContent}
-                                    taskInputValue={taskInputs[i] || ""}
-                                    onInputChange={(val) => {
-                                      const newInputs = [...taskInputs];
-                                      newInputs[i] = val;
-                                      setTaskInputs(newInputs);
-                                    }}
-                                    linkedTags={getLinkedTagsForStep(i)}
-                                    onNext={() => {
-                                      const dual = parseDualInputState(taskInputs[i]);
-                                      if (dual.text?.trim() || dual.choice || dual.selectedChoices.length > 0) {
-                                        if (getNextVisibleStepIndex(i) !== -1) {
-                                          saveParticipantInputImmediately(taskInputs);
-                                          setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                        } else if (isProofMet) {
-                                          handleFinishDay();
-                                        }
-                                      }
-                                    }}
-                                  />
-                                ) : dayContent.taskInputTypes?.[i] === "tags" ? (
+                                (dayContent.taskInputTypes?.[i] === "tags" ? (
                                   <div className="space-y-3">
                                     <TagInput
                                       value={taskInputs[i]}
@@ -3494,32 +3465,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       clipRule="evenodd"
                                     />
                                   </svg>
-                                  {isMainActiveForStep(i, dayContent, sprint?.dailyContent) ? (() => {
-                                    const dual = parseDualInputState(taskInputs[i]);
-                                    return (
-                                      <div className="space-y-2 w-full text-left font-medium animate-fade-in">
-                                        {dual.selectedChoices && dual.selectedChoices.length > 0 && (
-                                          <div className="flex flex-wrap gap-1.5 items-center">
-                                            {dual.selectedChoices.map((tag: string, tIndex: number) => (
-                                              <span
-                                                key={tIndex}
-                                                className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider"
-                                              >
-                                                {tag}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                        {dual.text ? (
-                                          <p className="text-gray-800 font-medium text-sm pl-0.5 whitespace-pre-wrap">
-                                            {dual.text}
-                                          </p>
-                                        ) : !dual.choice && (!dual.selectedChoices || dual.selectedChoices.length === 0) ? (
-                                          <span>Completed</span>
-                                        ) : null}
-                                      </div>
-                                    );
-                                  })() : dayContent.taskInputTypes?.[i] === "tags" || dayContent.taskInputTypes?.[i] === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]"))
+                                  {dayContent.taskInputTypes?.[i] === "tags" || dayContent.taskInputTypes?.[i] === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]"))
                                     ? (() => {
                                         let tags: string[] = [];
                                         const cleanVal = taskInputs[i] ? taskInputs[i].trim() : "";

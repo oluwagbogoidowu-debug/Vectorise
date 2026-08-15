@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import DualActionStepInput from '../../components/DualActionStepInput';
 import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1402,39 +1401,7 @@ const SprintPreview: React.FC = () => {
                                                 </div>
                                             );
                                         })()}
-                                        {isMainActiveForStep(i, day1Content, sprint?.dailyContent) ? (
-                                            <DualActionStepInput
-                                                stepIdx={i}
-                                                dayContent={day1Content}
-                                                taskInputValue={taskInputs[i] || ""}
-                                                onInputChange={(val) => {
-                                                    const newInputs = [...taskInputs];
-                                                    newInputs[i] = val;
-                                                    setTaskInputs(newInputs);
-                                                }}
-                                                linkedTags={getLinkedTagsForStep(i)}
-                                                onNext={() => {
-                                                    const dual = parseDualInputState(taskInputs[i]);
-                                                    if (dual.text?.trim() || dual.choice || dual.selectedChoices.length > 0) {
-                                                        if (getNextVisibleStepIndex(i) !== -1) {
-                                                            setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                        } else if (user || location.pathname.startsWith('/coach/sprint/preview')) {
-                                                            handleCompletePreviewDay();
-                                                        } else {
-                                                            const pendingObj = {
-                                                                sprintId: sprint.id,
-                                                                pricingType: sprint.pricingType || 'cash',
-                                                                firstActionInput: taskInputs[0],
-                                                                taskInputs: taskInputs,
-                                                                prefilledEmail: prefilledEmail || ''
-                                                            };
-                                                            localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-                                                            setShowLockModal(true);
-                                                        }
-                                                    }
-                                                }}
-                                            />
-                                        ) : day1Content?.taskInputTypes?.[i] === "tags" ? (
+                                        {day1Content?.taskInputTypes?.[i] === "tags" ? (
                                             <div className="space-y-3 mb-4">
                                                 <TagInput
                                                     value={taskInputs[i] || ""}
@@ -1831,14 +1798,10 @@ const SprintPreview: React.FC = () => {
                                                 const isNote = day1Content?.taskInputTypes?.[i] === "note";
                                                 const isMark = day1Content?.taskInputTypes?.[i] === "mark";
                                                 const isNone = day1Content?.taskInputTypes?.[i] === "none";
-                                                const isMain = isMainActiveForStep(i, day1Content, sprint?.dailyContent);
                                                 const val = taskInputs[i];
                                                 let stepCompleted = isNote || isNone;
                                                 if (isMark) {
                                                     stepCompleted = val === "Completed" || val === "Skipped";
-                                                } else if (isMain) {
-                                                    const dualState = parseDualInputState(val);
-                                                    stepCompleted = Boolean(dualState.choice || (dualState.selectedChoices && dualState.selectedChoices.length > 0) || (dualState.text && dualState.text.trim().length > 0) || (val && val.trim().length > 0));
                                                 } else if (!isNote && !isNone && val) {
                                                     if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
                                                         stepCompleted = val !== "[]" && val !== "";
