@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -795,197 +795,14 @@ const SprintPreview: React.FC = () => {
     const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
 
     const isStepVisible = (stepIndex: number): boolean => {
-        if (!day1Content) return true;
-        
-        const pollLink = day1Content.taskPollOptionLinks?.[stepIndex];
-        if (pollLink && pollLink !== 'none' && pollLink !== 'null') {
-            let pollIdx = -1;
-            let targetLinkTag = pollLink;
-
-            if (pollLink.includes(":")) {
-                const parts = pollLink.split(":");
-                const stepPart = parts[0].replace("step", "");
-                pollIdx = parseInt(stepPart, 10);
-                targetLinkTag = parts[1];
-            } else {
-                if (day1Content.taskInputTypes) {
-                    for (let i = stepIndex - 1; i >= 0; i--) {
-                        if (day1Content.taskInputTypes[i] === 'poll') {
-                            pollIdx = i;
-                            break;
-                        }
-                    }
-                }
-
-                if (pollIdx === -1) {
-                    if (!day1Content.taskInputTypes || day1Content.taskInputTypes.length === 0 || day1Content.taskInputTypes[0] === 'poll') {
-                        pollIdx = 0;
-                    } else {
-                        return true;
-                    }
-                }
-            }
-
-            if (pollIdx >= 0) {
-                const selection = taskInputs[pollIdx];
-                if (!selection) {
-                    return false;
-                }
-
-                let customOptions: string[] = [];
-                if (day1Content.taskPollOptions?.[pollIdx]) {
-                    try {
-                        customOptions = JSON.parse(day1Content.taskPollOptions[pollIdx]);
-                    } catch (e) {}
-                }
-                customOptions = customOptions.filter(Boolean);
-
-                let linkedTags: string[] = [];
-                if (pollIdx > 0) {
-                    linkedTags = getLinkedTagsForStep(pollIdx);
-                }
-                const pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
-
-                let selectedOptions: string[] = [];
-                try {
-                    if (selection.startsWith("[")) {
-                        selectedOptions = JSON.parse(selection);
-                    } else {
-                        selectedOptions = [selection];
-                    }
-                } catch (e) {
-                    selectedOptions = [selection];
-                }
-
-                const prog = resolveProgressiveStepSelections(stepIndex, day1Content, taskInputs, sprint?.dailyContent);
-
-                const match = pollOptions.some((opt, optIndex) => {
-                    const tag = `poll ${optIndex + 1}`;
-                    if (tag === targetLinkTag) {
-                        if (prog.isNarrowed) {
-                            if (prog.activeOptionIndex === optIndex) return true;
-                            if (prog.activeSelection && opt && prog.activeSelection.toLowerCase().trim() === opt.toLowerCase().trim()) return true;
-                            return false;
-                        }
-                        return selectedOptions.includes(opt) || selectedOptions.includes(tag) || selectedOptions.includes(String(optIndex + 1));
-                    }
-                    return false;
-                });
-
-                if (!match) return false;
-            }
-        }
-
-        // Implicit placeholder branch checking ({Step N OpM h}, {Step N OpM d}, {Step N OpM m}, {Step N OpM}, {Step N h}, {Step N list}, {Step N})
-        const prompt = day1Content.taskPrompts?.[stepIndex];
-        if (prompt) {
-            const regex = /\{[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
-            let match: RegExpExecArray | null;
-
-            const stepPlaceholders: { stepNum: number; opNum?: number; mode: string }[] = [];
-            while ((match = regex.exec(prompt)) !== null) {
-                const stepNum = parseInt(match[1], 10);
-                const opNum = match[2] ? parseInt(match[2], 10) : undefined;
-                const mode = parsePlaceholderMode(match[3]);
-                stepPlaceholders.push({ stepNum, opNum, mode });
-            }
-
-            if (stepPlaceholders.length > 0) {
-                for (const placeholder of stepPlaceholders) {
-                    const { stepNum, opNum, mode } = placeholder;
-                    const targetIdx = stepNum - 1;
-
-                    if (targetIdx >= 0 && targetIdx < stepIndex) {
-                        const val = taskInputs[targetIdx];
-                        if (!val || typeof val !== 'string' || !val.trim()) {
-                            return false;
-                        }
-
-                        if (day1Content.taskInputTypes?.[targetIdx] === 'poll') {
-                            let userChoices: string[] = [];
-                            try {
-                                if (val.trim().startsWith('[')) {
-                                    userChoices = JSON.parse(val);
-                                } else if (val.trim().startsWith('{')) {
-                                    userChoices = Object.values(JSON.parse(val));
-                                } else {
-                                    userChoices = [val.trim()];
-                                }
-                            } catch (e) {
-                                userChoices = [val.trim()];
-                            }
-                            userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
-
-                            let writtenOpts: string[] = [];
-                            if (day1Content.taskPollOptions?.[targetIdx]) {
-                                try {
-                                    writtenOpts = JSON.parse(day1Content.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
-                                } catch (e) {}
-                            }
-
-                            const isOptionSelected = (oNum: number) => {
-                                const optIndex = oNum - 1;
-                                const targetWrittenText = writtenOpts[optIndex];
-                                const prog = resolveProgressiveStepSelections(stepIndex, day1Content, taskInputs, sprint?.dailyContent);
-                                if (prog.isNarrowed) {
-                                    if (prog.activeOptionIndex === optIndex) return true;
-                                    if (prog.activeSelection && targetWrittenText && prog.activeSelection.toLowerCase().trim() === targetWrittenText.toLowerCase().trim()) return true;
-                                    return false;
-                                }
-                                return userChoices.some(c => {
-                                    const lowerC = c.toLowerCase();
-                                    if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;
-                                    if (lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
-                                    return false;
-                                });
-                            };
-
-                            if (mode === 'disconnect' && opNum !== undefined) {
-                                if (isOptionSelected(opNum)) {
-                                    return false; // Disconnected option selected -> hide step
-                                }
-                            } else if (opNum !== undefined) {
-                                if (!isOptionSelected(opNum)) {
-                                    return false;
-                                }
-                            } else {
-                                const disconnectedOps = stepPlaceholders
-                                    .filter(p => p.stepNum === stepNum && p.opNum !== undefined && p.mode === 'disconnect')
-                                    .map(p => p.opNum!);
-
-                                if (disconnectedOps.some(dOp => isOptionSelected(dOp))) {
-                                    return false;
-                                }
-
-                                const claimedWrittenOpts = new Set<string>();
-                                if (Array.isArray(day1Content.taskPrompts)) {
-                                    day1Content.taskPrompts.forEach((otherP: string) => {
-                                        if (!otherP) return;
-                                        const subRegex = new RegExp(`\\{[sS]?tep\\s*${stepNum}\\s*[oO][pP]\\s*(\\d+)(?:\\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\\}`, 'gi');
-                                        let sm: RegExpExecArray | null;
-                                        while ((sm = subRegex.exec(otherP)) !== null) {
-                                            const oIdx = parseInt(sm[1], 10) - 1;
-                                            if (writtenOpts[oIdx]) {
-                                                claimedWrittenOpts.add(writtenOpts[oIdx].toLowerCase());
-                                            }
-                                        }
-                                    });
-                                }
-
-                                if (claimedWrittenOpts.size > 0 && userChoices.length > 0) {
-                                    const unclaimedSelected = userChoices.filter(c => !claimedWrittenOpts.has(c.toLowerCase()));
-                                    if (unclaimedSelected.length === 0) {
-                                        return false;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return true;
+        return isStepVisibleForSprint(
+            stepIndex,
+            day1Content,
+            taskInputs,
+            Array.isArray(sprint?.dailyContent) ? sprint.dailyContent : undefined,
+            undefined,
+            sprint?.id
+        );
     };
 
     const getNextVisibleStepIndex = (currentIndex: number): number => {

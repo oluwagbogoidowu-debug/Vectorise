@@ -590,18 +590,22 @@ export function resolveProgressiveStepSelections(
         const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
         if (prog) {
           if (Array.isArray(prog.answers)) return prog.answers[targetStepIdx];
-          if (Array.isArray(prog.answersMap)) return prog.answersMap[targetStepIdx];
+          if (prog.answersMap && typeof prog.answersMap === 'object') return (prog.answersMap as any)[targetStepIdx];
+          if (typeof prog.submission === 'string' && prog.submission.includes(' | ')) {
+            const parts = prog.submission.split(' | ');
+            if (parts[targetStepIdx] !== undefined) return parts[targetStepIdx];
+          }
         }
         const dayArr = allDaysInputs[targetDay - 1];
         if (dayArr) {
           if (Array.isArray(dayArr)) return dayArr[targetStepIdx];
-          if (typeof dayArr === 'object') return dayArr[targetStepIdx];
+          if (typeof dayArr === 'object') return (dayArr as any)[targetStepIdx];
         }
       } else if (typeof allDaysInputs === 'object') {
         const dayVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
         if (dayVal) {
           if (Array.isArray(dayVal)) return dayVal[targetStepIdx];
-          if (typeof dayVal === 'object') return dayVal[targetStepIdx];
+          if (typeof dayVal === 'object') return (dayVal as any)[targetStepIdx];
         }
       }
     }
@@ -775,56 +779,112 @@ export function resolveProgressiveStepSelections(
     }
   }
 
-  // 2. Explicit poll-to-poll / step link to source step
-  const primarySourceDay = explicitLinks[0].day;
-  const primarySourceStep = explicitLinks[0].stepIdx;
+  // 2. Explicit poll-to-poll / step links to source step(s)
+  // When multiple tag or poll steps are connected, collect from each and every one of them to turn all tags into polls
+  const validExplicitLinks = explicitLinks.filter(link => {
+    const sDay = link.day;
+    const sStep = link.stepIdx;
+    const sDC = (sDay === currentDayNum || !allDaysContent)
+      ? dayContent
+      : (allDaysContent.find(d => Number(d.day) === sDay) || dayContent);
+    const sType = String(sDC?.taskInputTypes?.[sStep] || "").trim().toLowerCase();
+    return sType === "poll" || sType === "tags";
+  });
 
+  if (validExplicitLinks.length === 0) {
+    return defaultResult;
+  }
+
+  const primarySourceDay = validExplicitLinks[0].day;
+  const primarySourceStep = validExplicitLinks[0].stepIdx;
   const primaryDC = (primarySourceDay === currentDayNum || !allDaysContent)
     ? dayContent
     : (allDaysContent.find(d => Number(d.day) === primarySourceDay) || dayContent);
 
-  const primaryType = String(primaryDC?.taskInputTypes?.[primarySourceStep] || "").trim().toLowerCase();
-  // Strictly only poll to poll and tag to poll
-  if (primaryType !== "poll" && primaryType !== "tags") {
+  // If only 1 source step is connected, preserve existing single-step behavior
+  if (validExplicitLinks.length === 1) {
+    const primaryConfiguredOpts = getStepConfiguredOptions(primaryDC, primarySourceStep);
+    const primaryVal = getInputValue(primarySourceDay, primarySourceStep);
+    const primaryAnswers = parseAnswers(primaryVal);
+
+    if (primaryAnswers.length > 0) {
+      const optIdx = findOptionIndex(primaryConfiguredOpts, primaryAnswers[0]);
+      return {
+        activeSelection: primaryAnswers[0],
+        activeOptionIndex: optIdx >= 0 ? optIdx : 0,
+        allSelections: primaryAnswers,
+        isNarrowed: primaryAnswers.length === 1,
+        sourceStepIdx: primarySourceStep
+      };
+    }
+
+    const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIdx];
+    const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
+
+    if (pollLinkInfo && pollLinkInfo.optNum !== undefined && pollLinkInfo.optNum > 0) {
+      const optIdx = pollLinkInfo.optNum - 1;
+      const optText = primaryConfiguredOpts[optIdx] || `Option ${pollLinkInfo.optNum}`;
+      return {
+        activeSelection: optText,
+        activeOptionIndex: optIdx,
+        allSelections: primaryConfiguredOpts.length > 0 ? primaryConfiguredOpts : [optText],
+        isNarrowed: true,
+        sourceStepIdx: primarySourceStep
+      };
+    }
+
+    if (primaryConfiguredOpts.length > 0) {
+      return {
+        activeSelection: primaryConfiguredOpts[0],
+        activeOptionIndex: 0,
+        allSelections: primaryConfiguredOpts,
+        isNarrowed: false,
+        sourceStepIdx: primarySourceStep
+      };
+    }
+
     return defaultResult;
   }
 
-  const primaryConfiguredOpts = getStepConfiguredOptions(primaryDC, primarySourceStep);
+  // When MORE THAN 1 tag / poll step is connected:
+  // Gather from each and every connected source step so all tags turn into polls
+  const combinedAnswers: string[] = [];
+  const combinedConfiguredOpts: string[] = [];
 
-  const primaryVal = getInputValue(primarySourceDay, primarySourceStep);
-  const primaryAnswers = parseAnswers(primaryVal);
+  validExplicitLinks.forEach(link => {
+    const sDay = link.day;
+    const sStep = link.stepIdx;
+    const sDC = (sDay === currentDayNum || !allDaysContent)
+      ? dayContent
+      : (allDaysContent.find(d => Number(d.day) === sDay) || dayContent);
 
-  if (primaryAnswers.length > 0) {
-    const optIdx = findOptionIndex(primaryConfiguredOpts, primaryAnswers[0]);
+    const sOpts = getStepConfiguredOptions(sDC, sStep);
+    combinedConfiguredOpts.push(...sOpts);
+
+    const sVal = getInputValue(sDay, sStep);
+    const sAnswers = parseAnswers(sVal);
+    combinedAnswers.push(...sAnswers);
+  });
+
+  const uniqueAnswers = Array.from(new Set(combinedAnswers)).filter(Boolean);
+  const uniqueConfigured = Array.from(new Set(combinedConfiguredOpts)).filter(Boolean);
+
+  if (uniqueAnswers.length > 0) {
+    const optIdx = findOptionIndex(uniqueConfigured, uniqueAnswers[0]);
     return {
-      activeSelection: primaryAnswers[0],
+      activeSelection: uniqueAnswers[0],
       activeOptionIndex: optIdx >= 0 ? optIdx : 0,
-      allSelections: primaryAnswers,
-      isNarrowed: primaryAnswers.length === 1,
+      allSelections: uniqueAnswers,
+      isNarrowed: uniqueAnswers.length === 1,
       sourceStepIdx: primarySourceStep
     };
   }
 
-  const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIdx];
-  const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
-
-  if (pollLinkInfo && pollLinkInfo.optNum !== undefined && pollLinkInfo.optNum > 0) {
-    const optIdx = pollLinkInfo.optNum - 1;
-    const optText = primaryConfiguredOpts[optIdx] || `Option ${pollLinkInfo.optNum}`;
+  if (uniqueConfigured.length > 0) {
     return {
-      activeSelection: optText,
-      activeOptionIndex: optIdx,
-      allSelections: primaryConfiguredOpts.length > 0 ? primaryConfiguredOpts : [optText],
-      isNarrowed: true,
-      sourceStepIdx: primarySourceStep
-    };
-  }
-
-  if (primaryConfiguredOpts.length > 0) {
-    return {
-      activeSelection: primaryConfiguredOpts[0],
+      activeSelection: uniqueConfigured[0],
       activeOptionIndex: 0,
-      allSelections: primaryConfiguredOpts,
+      allSelections: uniqueConfigured,
       isNarrowed: false,
       sourceStepIdx: primarySourceStep
     };
@@ -1465,7 +1525,7 @@ export function resolveStepVersionIndex(
   dayContent?: any,
   taskInputs?: any,
   allDaysContent?: any[],
-  allDaysInputs?: any[]
+  allDaysInputs?: any[] | Record<number, any>
 ): number {
   if (!dayContent) return 0;
 
@@ -1505,13 +1565,325 @@ export function resolveStepVersionIndex(
         }
       }
 
-      if (progRes.activeOptionIndex < promptVersions.length) {
+      // Check if any version matches an explicit option token for the source step
+      if (progRes.activeSelection) {
+        const lowerSel = progRes.activeSelection.toLowerCase().trim();
+        for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
+          const vText = promptVersions[vIdx];
+          const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+          let m: RegExpExecArray | null;
+          while ((m = regex.exec(vText)) !== null) {
+            const vDay = m[1] ? parseInt(m[1], 10) : Number(dayContent.day || 1);
+            const vStep = parseInt(m[2], 10) - 1;
+            const vOp = m[3] ? parseInt(m[3], 10) : undefined;
+            if (vOp !== undefined) {
+              const vDC = (allDaysContent && Array.isArray(allDaysContent))
+                ? (allDaysContent.find(d => Number(d.day) === vDay) || dayContent)
+                : dayContent;
+              let vOpts: string[] = [];
+              if (vDC?.taskPollOptions?.[vStep]) {
+                try {
+                  const parsed = JSON.parse(vDC.taskPollOptions[vStep]);
+                  if (Array.isArray(parsed)) vOpts = parsed.map((o: any) => String(o).trim());
+                } catch (e) {}
+              }
+              const optText = vOpts[vOp - 1];
+              if (optText && optText.toLowerCase().trim() === lowerSel) {
+                return vIdx;
+              }
+            }
+          }
+        }
+      }
+
+      if (progRes.activeOptionIndex < promptVersions.length && progRes.activeOptionIndex >= 0) {
         return progRes.activeOptionIndex;
       }
     }
   }
 
-  return progRes.activeOptionIndex;
+  return progRes.activeOptionIndex >= 0 ? progRes.activeOptionIndex : 0;
+}
+
+/**
+ * Universal Step Visibility Engine for Participant SprintView, SprintPreview, and Coach Workspaces.
+ * Correctly evaluates multi-version sub-step branches, cross-day D1/D2 connections, and poll option conditions
+ * without hiding versioned action steps that have matching selections.
+ */
+export function isStepVisibleForSprint(
+  stepIndex: number,
+  dayContent: any,
+  taskInputs: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[] | Record<number, any>,
+  previewSprintId?: string
+): boolean {
+  if (!dayContent) return true;
+  const viewingDay = Number(dayContent.day || 1);
+
+  // 1. Explicit poll-to-poll / step link
+  const pollLink = dayContent.taskPollOptionLinks?.[stepIndex];
+  if (pollLink && pollLink !== 'none' && pollLink !== 'null') {
+    let pollIdx = -1;
+    let targetLinkTag = pollLink;
+    let targetPollDay = viewingDay;
+
+    if (pollLink.includes(":")) {
+      const parts = pollLink.split(":");
+      if (parts.length === 3) {
+        const dayPart = parts[0].replace(/day|d/gi, "");
+        targetPollDay = parseInt(dayPart, 10) || viewingDay;
+        const stepPart = parts[1].replace("step", "");
+        pollIdx = parseInt(stepPart, 10);
+        targetLinkTag = parts[2];
+      } else {
+        const stepPart = parts[0].replace("step", "");
+        pollIdx = parseInt(stepPart, 10);
+        targetLinkTag = parts[1];
+      }
+    } else {
+      if (dayContent.taskInputTypes) {
+        for (let i = stepIndex - 1; i >= 0; i--) {
+          if (dayContent.taskInputTypes[i] === 'poll') {
+            pollIdx = i;
+            break;
+          }
+        }
+      }
+      if (pollIdx === -1) {
+        if (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || dayContent.taskInputTypes[0] === 'poll') {
+          pollIdx = 0;
+        } else {
+          return true;
+        }
+      }
+    }
+
+    if (pollIdx >= 0) {
+      const pollDC = targetPollDay === viewingDay ? dayContent : (Array.isArray(allDaysContent) ? allDaysContent.find(dc => Number(dc.day) === targetPollDay) : undefined);
+      let selection: string | undefined = undefined;
+      if (targetPollDay === viewingDay) {
+        selection = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[pollIdx] : taskInputs[pollIdx]) : undefined;
+      } else {
+        if (allDaysInputs) {
+          if (Array.isArray(allDaysInputs)) {
+            const prevProg = allDaysInputs.find((p: any) => p && Number(p.day) === targetPollDay);
+            if (prevProg) {
+              if (Array.isArray(prevProg.answers)) selection = prevProg.answers[pollIdx];
+              else if (prevProg.answersMap && typeof prevProg.answersMap === 'object') selection = (prevProg.answersMap as any)[pollIdx];
+              else if (typeof prevProg.submission === 'string') selection = prevProg.submission.split(' | ')[pollIdx];
+            }
+          } else if (typeof allDaysInputs === 'object') {
+            const dVal = (allDaysInputs as any)[targetPollDay] || (allDaysInputs as any)[targetPollDay - 1];
+            if (dVal) selection = Array.isArray(dVal) ? dVal[pollIdx] : (dVal as any)[pollIdx];
+          }
+        }
+        if (!selection && typeof sessionStorage !== 'undefined' && previewSprintId) {
+          try {
+            const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${previewSprintId}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              const prevProg = parsed?.progress?.find((p: any) => p && Number(p.day) === targetPollDay);
+              if (prevProg) {
+                if (Array.isArray(prevProg.answers)) selection = prevProg.answers[pollIdx];
+                else if (prevProg.answersMap) selection = (prevProg.answersMap as any)[pollIdx];
+                else if (typeof prevProg.submission === 'string') selection = prevProg.submission.split(' | ')[pollIdx];
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (!selection) return false;
+
+      let customOptions: string[] = [];
+      if (pollDC?.taskPollOptions?.[pollIdx]) {
+        try {
+          customOptions = JSON.parse(pollDC.taskPollOptions[pollIdx]);
+        } catch (e) {}
+      }
+      customOptions = customOptions.filter(Boolean);
+
+      const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
+      const pollOptions = customOptions;
+
+      let selectedOptions: string[] = [];
+      try {
+        if (typeof selection === 'string' && selection.startsWith("[")) {
+          selectedOptions = JSON.parse(selection);
+        } else {
+          selectedOptions = [String(selection)];
+        }
+      } catch (e) {
+        selectedOptions = [String(selection)];
+      }
+
+      const normTarget = targetLinkTag.toLowerCase().trim();
+      const match = pollOptions.some((opt, optIndex) => {
+        const tag = `poll ${optIndex + 1}`;
+        if (tag === normTarget || normTarget === `op ${optIndex + 1}` || normTarget === `op${optIndex + 1}`) {
+          if (prog.isNarrowed) {
+            if (prog.activeOptionIndex === optIndex) return true;
+            if (prog.activeSelection && opt && prog.activeSelection.toLowerCase().trim() === opt.toLowerCase().trim()) return true;
+            return false;
+          }
+          return selectedOptions.some(s => {
+            const lowerS = String(s).toLowerCase().trim();
+            return lowerS === opt.toLowerCase().trim() || lowerS === tag || lowerS === String(optIndex + 1) || lowerS === `op ${optIndex + 1}` || lowerS === `op${optIndex + 1}`;
+          });
+        }
+        return false;
+      });
+
+      if (!match) return false;
+    }
+  }
+
+  // 2. Implicit placeholder branch checking
+  const rawPrompt = dayContent.taskPrompts?.[stepIndex] || (stepIndex === 0 ? dayContent.taskPrompt : undefined);
+  if (!rawPrompt) return true;
+
+  const promptVersions = parseStepVersions(rawPrompt);
+  const activeVerIdx = promptVersions.length > 1
+    ? resolveStepVersionIndex(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs)
+    : 0;
+
+  const checkPromptVisibility = (promptText: string): boolean => {
+    if (!promptText) return true;
+    const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+    let match: RegExpExecArray | null;
+
+    const stepPlaceholders: { dayNum?: number; stepNum: number; opNum?: number; mode: StepPlaceholderMode }[] = [];
+    while ((match = regex.exec(promptText)) !== null) {
+      const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
+      const stepNum = parseInt(match[2], 10);
+      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
+      const mode = parsePlaceholderMode(match[4]);
+      stepPlaceholders.push({ dayNum, stepNum, opNum, mode });
+    }
+
+    if (stepPlaceholders.length === 0) return true;
+
+    for (const placeholder of stepPlaceholders) {
+      const { dayNum, stepNum, opNum, mode } = placeholder;
+      const targetIdx = stepNum - 1;
+      const targetDay = dayNum !== undefined ? dayNum : viewingDay;
+
+      if (targetDay <= viewingDay) {
+        if (targetDay === viewingDay && targetIdx >= stepIndex) {
+          continue;
+        }
+
+        const targetDC = targetDay === viewingDay ? dayContent : (Array.isArray(allDaysContent) ? allDaysContent.find(dc => Number(dc.day) === targetDay) : undefined);
+        if (!targetDC) continue;
+
+        let val: any = undefined;
+        if (targetDay === viewingDay) {
+          val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[targetIdx] : taskInputs[targetIdx]) : undefined;
+        } else {
+          if (allDaysInputs) {
+            if (Array.isArray(allDaysInputs)) {
+              const prevProg = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+              if (prevProg) {
+                if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
+                else if (prevProg.answersMap && typeof prevProg.answersMap === 'object') val = (prevProg.answersMap as any)[targetIdx];
+                else if (typeof prevProg.submission === 'string') val = prevProg.submission.split(' | ')[targetIdx];
+              }
+            } else if (typeof allDaysInputs === 'object') {
+              const dVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+              if (dVal) val = Array.isArray(dVal) ? dVal[targetIdx] : (dVal as any)[targetIdx];
+            }
+          }
+          if (!val && typeof sessionStorage !== 'undefined' && previewSprintId) {
+            try {
+              const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${previewSprintId}`);
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                const prevProg = parsed?.progress?.find((p: any) => p && Number(p.day) === targetDay);
+                if (prevProg) {
+                  if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
+                  else if (prevProg.answersMap) val = (prevProg.answersMap as any)[targetIdx];
+                  else if (typeof prevProg.submission === 'string') val = prevProg.submission.split(' | ')[targetIdx];
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
+        // If mode is 'main' and no opNum is specified (e.g. {D1 Step 7 main}), it is an active progressive connector
+        if (mode === 'main' && opNum === undefined) {
+          continue;
+        }
+
+        if (!val || (typeof val === 'string' && !val.trim())) {
+          return false;
+        }
+
+        if (targetDC.taskInputTypes?.[targetIdx] === 'poll' || targetDC.taskInputTypes?.[targetIdx] === 'tags') {
+          let userChoices: string[] = [];
+          try {
+            const strVal = String(val).trim();
+            if (strVal.startsWith('[')) {
+              userChoices = JSON.parse(strVal);
+            } else if (strVal.startsWith('{')) {
+              userChoices = Object.values(JSON.parse(strVal));
+            } else {
+              userChoices = [strVal];
+            }
+          } catch (e) {
+            userChoices = [String(val).trim()];
+          }
+          userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
+
+          let writtenOpts: string[] = [];
+          if (targetDC.taskPollOptions?.[targetIdx]) {
+            try {
+              writtenOpts = JSON.parse(targetDC.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
+            } catch (e) {}
+          }
+
+          const isOptionSelected = (oNum: number) => {
+            const optIndex = oNum - 1;
+            const targetWrittenText = writtenOpts[optIndex];
+            const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
+            if (prog.isNarrowed && prog.sourceStepIdx === targetIdx) {
+              if (prog.activeOptionIndex === optIndex) return true;
+              if (prog.activeSelection && targetWrittenText && prog.activeSelection.toLowerCase().trim() === targetWrittenText.toLowerCase().trim()) return true;
+              return false;
+            }
+            return userChoices.some(c => {
+              const lowerC = c.toLowerCase();
+              if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;
+              if (lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
+              return false;
+            });
+          };
+
+          if (mode === 'disconnect' && opNum !== undefined) {
+            if (isOptionSelected(opNum)) {
+              return false; // Disconnected option selected -> hide step
+            }
+          } else if (opNum !== undefined) {
+            if (!isOptionSelected(opNum)) {
+              return false;
+            }
+          }
+        }
+      }
+    }
+
+    return true;
+  };
+
+  if (promptVersions.length > 1) {
+    const activeVersionPrompt = promptVersions[activeVerIdx] || promptVersions[0];
+    if (checkPromptVisibility(activeVersionPrompt)) {
+      return true;
+    }
+    return promptVersions.some(vPrompt => checkPromptVisibility(vPrompt));
+  } else {
+    return checkPromptVisibility(rawPrompt);
+  }
 }
 
 /**
