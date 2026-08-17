@@ -1102,11 +1102,9 @@ const SprintPreview: React.FC = () => {
                             }
                             
                             const i = activeTaskIndex;
-                            const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id);
+                            const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
                             const rawPrompt = day1Content?.taskPrompts?.[i] || activePrompts[i] || activePrompts[0] || "";
                             const prompt = getStepVersionValue(rawPrompt, stepVerIdx);
-                            const effectiveInputType = getStepVersionValue(day1Content?.taskInputTypes?.[i], stepVerIdx, 'text');
-                            const effectivePollOptions = getStepVersionValue(day1Content?.taskPollOptions?.[i], stepVerIdx);
                             return (
                                 <>
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
@@ -1190,15 +1188,15 @@ const SprintPreview: React.FC = () => {
                                         })()}
 
                                         <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                            <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id)} />
+                                            <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent)} />
                                         </div>
                                         {day1Content?.taskFootnotes?.[i] && (
                                             <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
-                                                <FormattedText text={formatInterpolatedText(day1Content.taskFootnotes[i], day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id)} />
+                                                <FormattedText text={formatInterpolatedText(day1Content.taskFootnotes[i], day1Content, taskInputs, sprint?.dailyContent)} />
                                             </div>
                                         )}
                                         {(() => {
-                                            const resolvedHint = resolveTaskHintForUser(day1Content?.taskHints?.[i], i, day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id);
+                                            const resolvedHint = resolveTaskHintForUser(day1Content?.taskHints?.[i], i, day1Content, taskInputs, sprint?.dailyContent);
                                             if (!resolvedHint) return null;
                                             return (
                                                 <div className="mb-4">
@@ -1220,7 +1218,7 @@ const SprintPreview: React.FC = () => {
                                                 </div>
                                             );
                                         })()}
-                                        {effectiveInputType === "tags" ? (
+                                        {day1Content?.taskInputTypes?.[i] === "tags" ? (
                                             <div className="space-y-3 mb-4">
                                                 <TagInput
                                                     value={taskInputs[i] || ""}
@@ -1303,7 +1301,7 @@ const SprintPreview: React.FC = () => {
                                                     );
                                                 })()}
                                             </div>
-                                        ) : effectiveInputType === "note" ? (
+                                        ) : day1Content?.taskInputTypes?.[i] === "note" ? (
                                             <div className="space-y-4 animate-fade-in text-left mb-4">
                                                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
@@ -1315,15 +1313,15 @@ const SprintPreview: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : effectiveInputType === "poll" ? (
+                                        ) : day1Content?.taskInputTypes?.[i] === "poll" ? (
                                             <div className="space-y-2 mb-4">
                                                 {(() => {
                                                     let pollOptions: string[] = [];
                                                     let customOptions: string[] = [];
-                                                    if (effectivePollOptions) {
+                                                    if (day1Content.taskPollOptions?.[i]) {
                                                         try {
                                                             customOptions = JSON.parse(
-                                                                effectivePollOptions,
+                                                                day1Content.taskPollOptions[i],
                                                             );
                                                         } catch (e) {}
                                                     }
@@ -1334,7 +1332,7 @@ const SprintPreview: React.FC = () => {
                                                     const linkedTags = getLinkedTagsForStep(i);
                                                     pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
 
-                                                    const isMultiSelect = !!day1Content?.taskPollMultiSelect?.[i];
+                                                    const isMultiSelect = !!day1Content.taskPollMultiSelect?.[i];
                                                     let selectedOpts: string[] = [];
                                                     try {
                                                         if (taskInputs[i] && taskInputs[i].startsWith("[")) {
@@ -1478,7 +1476,7 @@ const SprintPreview: React.FC = () => {
                                                         );
                                                 })()}
                                             </div>
-                                        ) : effectiveInputType === "mark" ? (
+                                        ) : day1Content?.taskInputTypes?.[i] === "mark" ? (
                                             <div className="space-y-4 animate-fade-in text-left mb-4">
                                                 <button
                                                     type="button"
@@ -1512,7 +1510,7 @@ const SprintPreview: React.FC = () => {
                                                     )}
                                                 </button>
                                             </div>
-                                        ) : effectiveInputType === "none" ? null : (
+                                        ) : day1Content?.taskInputTypes?.[i] === "none" ? null : (
                                             isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                                  <div className="space-y-4 animate-fade-in text-left mb-4">
                                                      {getLinkedTagsForStep(i).map((tag, tagIndex) => {
@@ -1613,16 +1611,16 @@ const SprintPreview: React.FC = () => {
                                             ) : <div />}
                                             
                                             {(() => {
-                                                const isTags = effectiveInputType === "tags";
-                                                const isNote = effectiveInputType === "note";
-                                                const isMark = effectiveInputType === "mark";
-                                                const isNone = effectiveInputType === "none";
+                                                const isTags = day1Content?.taskInputTypes?.[i] === "tags";
+                                                const isNote = day1Content?.taskInputTypes?.[i] === "note";
+                                                const isMark = day1Content?.taskInputTypes?.[i] === "mark";
+                                                const isNone = day1Content?.taskInputTypes?.[i] === "none";
                                                 const val = taskInputs[i];
                                                 let stepCompleted = isNote || isNone;
                                                 if (isMark) {
                                                     stepCompleted = val === "Completed" || val === "Skipped";
                                                 } else if (!isNote && !isNone && val) {
-                                                    if (isTags || (effectiveInputType === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
+                                                    if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
                                                         stepCompleted = val !== "[]" && val !== "";
                                                     } else if (isLinkedTextStep(i)) {
                                                         const tags = getLinkedTagsForStep(i);

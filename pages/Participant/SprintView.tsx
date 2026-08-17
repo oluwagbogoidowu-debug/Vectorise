@@ -2440,8 +2440,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return activePrompts.every((_, i) => {
       if (!isStepVisible(i)) return true;
 
-      const stepVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, sprint?.id);
-      const type = getStepVersionValue(dayContent.taskInputTypes?.[i], stepVerIdx, 'text');
+      const type = dayContent.taskInputTypes?.[i] || "text";
       if (type === "note" || type === "none") return true;
 
       const val = taskInputs[i];
@@ -2850,7 +2849,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 );
                               })()}
                               {!dayProgress?.completed &&
-                                (effectiveInputType === "tags" ? (
+                                (dayContent.taskInputTypes?.[i] === "tags" ? (
                                   <div className="space-y-3">
                                     <TagInput
                                       value={taskInputs[i]}
@@ -2924,7 +2923,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       );
                                     })()}
                                   </div>
-                                ) : effectiveInputType === "note" ? (
+                                ) : dayContent.taskInputTypes?.[i] === "note" ? (
                                   <div className="space-y-4 animate-fade-in text-left">
                                     <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
                                       <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
@@ -2936,16 +2935,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       </div>
                                     </div>
                                   </div>
-                                ) : effectiveInputType ===
+                                ) : dayContent.taskInputTypes?.[i] ===
                                   "poll" ? (
                                   <div className="space-y-2">
                                     {(() => {
                                       let pollOptions: string[] = [];
                                       let customOptions: string[] = [];
-                                      if (effectivePollOptions) {
+                                      if (dayContent.taskPollOptions?.[i]) {
                                         try {
                                           customOptions = JSON.parse(
-                                            effectivePollOptions,
+                                            dayContent.taskPollOptions[i],
                                           );
                                         } catch (e) {}
                                       }
@@ -3101,7 +3100,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         );
                                     })()}
                                   </div>
-                                  ) : effectiveInputType === "mark" ? (
+                                  ) : dayContent.taskInputTypes?.[i] === "mark" ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       <button
                                         type="button"
@@ -3135,7 +3134,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         )}
                                       </button>
                                     </div>
-                                  ) : effectiveInputType === "none" ? null : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                  ) : dayContent.taskInputTypes?.[i] === "none" ? null : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       {getLinkedTagsForStep(i).map((tag, tagIndex) => {
                                         let currentAnswers: Record<string, string> = {};
@@ -3236,7 +3235,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       clipRule="evenodd"
                                     />
                                   </svg>
-                                  {effectiveInputType === "tags" || effectiveInputType === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]"))
+                                  {dayContent.taskInputTypes?.[i] === "tags" || dayContent.taskInputTypes?.[i] === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]"))
                                     ? (() => {
                                         let tags: string[] = [];
                                         const cleanVal = taskInputs[i] ? taskInputs[i].trim() : "";
@@ -3325,16 +3324,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       (() => {
                                         const val = taskInputs[i];
                                         const isTags =
-                                          effectiveInputType ===
+                                          dayContent.taskInputTypes?.[i] ===
                                           "tags";
                                         const isNote =
-                                          effectiveInputType ===
+                                          dayContent.taskInputTypes?.[i] ===
                                           "note";
                                         const isMark =
-                                          effectiveInputType ===
+                                          dayContent.taskInputTypes?.[i] ===
                                           "mark";
                                         
-                                        const isNone = effectiveInputType === "none";
+                                        const isNone = dayContent.taskInputTypes?.[i] === "none";
                                         let stepCompleted = isNote || isNone;
                                         if (isMainActiveForStep(i, dayContent, sprint?.dailyContent)) {
                                           const parsed = parseDualInputState(val);
@@ -3342,7 +3341,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         } else if (isMark) {
                                           stepCompleted = val === "Completed" || val === "Skipped";
                                         } else if (!isNote && !!val) {
-                                          if (isTags || (effectiveInputType === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
+                                          if (isTags || (dayContent.taskInputTypes?.[i] === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
                                             stepCompleted = val !== "[]" && val !== "";
                                           } else if (isLinkedTextStep(i)) {
                                             const tags = getLinkedTagsForStep(i);
@@ -3564,324 +3563,313 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </div>
                           );
                         })()}
-                        {(() => {
-                          const vIdx0 = resolveStepVersionIndex(0, dayContent, sprint?.dailyContent, taskInputs, participantInputsHistory, currentDayIndex);
-                          const effectiveInputType0 = getStepVersionValue(0, "taskInputTypes", dayContent, vIdx0) || dayContent?.taskInputTypes?.[0];
-                          const effectivePollOptions0 = getStepVersionValue(0, "taskPollOptions", dayContent, vIdx0) || dayContent?.taskPollOptions?.[0];
-                          const effectivePollMultiSelect0 = getStepVersionValue(0, "taskPollMultiSelect", dayContent, vIdx0) ?? dayContent?.taskPollMultiSelect?.[0];
+                        {!dayProgress?.completed &&
+                          (dayContent?.taskInputTypes?.[0] === "tags" ? (
+                            <TagInput
+                              value={taskInputs[0]}
+                              onChange={(newVal) => {
+                                const newInputs = [...taskInputs];
+                                newInputs[0] = newVal;
+                                setTaskInputs(newInputs);
+                              }}
+                              onNext={() => {
+                                const tagsVal = taskInputs[0];
+                                const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
+                                if (isValid && isProofMet) {
+                                  handleFinishDay();
+                                }
+                              }}
+                              placeholder="Type and press Enter to add tags..."
+                            />
+                          ) : dayContent?.taskInputTypes?.[0] === "poll" ? (
+                            <div className="space-y-2">
+                              {(() => {
+                                let pollOpts: string[] = [];
+                                try {
+                                  pollOpts = JSON.parse(
+                                    dayContent.taskPollOptions?.[0] || "[]",
+                                  );
+                                } catch (e) {}
+                                const isMultiSelect = !!dayContent?.taskPollMultiSelect?.[0];
+                                let selectedOpts: string[] = [];
+                                try {
+                                  if (taskInputs[0] && taskInputs[0].startsWith("[")) {
+                                    selectedOpts = JSON.parse(taskInputs[0]);
+                                  } else if (taskInputs[0]) {
+                                    selectedOpts = [taskInputs[0]];
+                                  }
+                                } catch (e) {}
 
-                          return (
-                            <>
-                              {!dayProgress?.completed &&
-                                (effectiveInputType0 === "tags" ? (
-                                  <TagInput
-                                    value={taskInputs[0]}
-                                    onChange={(newVal) => {
-                                      const newInputs = [...taskInputs];
-                                      newInputs[0] = newVal;
-                                      setTaskInputs(newInputs);
-                                    }}
-                                    onNext={() => {
-                                      const tagsVal = taskInputs[0];
-                                      const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
-                                      if (isValid && isProofMet) {
-                                        handleFinishDay();
-                                      }
-                                    }}
-                                    placeholder="Type and press Enter to add tags..."
-                                  />
-                                ) : effectiveInputType0 === "poll" ? (
-                                  <div className="space-y-2">
-                                    {(() => {
-                                      let pollOpts: string[] = [];
-                                      try {
-                                        pollOpts = JSON.parse(
-                                          effectivePollOptions0 || "[]",
-                                        );
-                                      } catch (e) {}
-                                      const isMultiSelect = !!effectivePollMultiSelect0;
-                                      let selectedOpts: string[] = [];
-                                      try {
-                                        if (taskInputs[0] && taskInputs[0].startsWith("[")) {
-                                          selectedOpts = JSON.parse(taskInputs[0]);
-                                        } else if (taskInputs[0]) {
-                                          selectedOpts = [taskInputs[0]];
-                                        }
-                                      } catch (e) {}
+                                if (pollOpts.length > 6) {
+                                  if (isMultiSelect) {
+                                    return (
+                                      <>
+                                        <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
+                                          <span>☑️ Select one or more:</span>
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5 w-full">
+                                          {pollOpts
+                                            .filter(Boolean)
+                                            .map((opt, optIndex) => {
+                                              const isSel = selectedOpts.includes(opt);
+                                              return (
+                                                <button
+                                                  key={optIndex}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const newInputs = [...taskInputs];
+                                                    const indexInSel = selectedOpts.indexOf(opt);
+                                                    let newSelected: string[];
+                                                    if (indexInSel !== -1) {
+                                                      newSelected = selectedOpts.filter(o => o !== opt);
+                                                    } else {
+                                                      newSelected = [...selectedOpts, opt];
+                                                    }
+                                                    newInputs[0] = JSON.stringify(newSelected);
+                                                    setTaskInputs(newInputs);
+                                                  }}
+                                                  className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                >
+                                                  {opt}
+                                                </button>
+                                              );
+                                            })}
+                                        </div>
+                                      </>
+                                    );
+                                  }
 
-                                      if (pollOpts.length > 6) {
-                                        if (isMultiSelect) {
-                                          return (
-                                            <>
-                                              <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
-                                                <span>☑️ Select one or more:</span>
-                                              </p>
-                                              <div className="flex flex-wrap gap-1.5 w-full">
-                                                {pollOpts
-                                                  .filter(Boolean)
-                                                  .map((opt, optIndex) => {
-                                                    const isSel = selectedOpts.includes(opt);
-                                                    return (
-                                                      <button
-                                                        key={optIndex}
-                                                        type="button"
-                                                        onClick={() => {
-                                                          const newInputs = [...taskInputs];
-                                                          const indexInSel = selectedOpts.indexOf(opt);
-                                                          let newSelected: string[];
-                                                          if (indexInSel !== -1) {
-                                                            newSelected = selectedOpts.filter(o => o !== opt);
-                                                          } else {
-                                                            newSelected = [...selectedOpts, opt];
-                                                          }
-                                                          newInputs[0] = JSON.stringify(newSelected);
-                                                          setTaskInputs(newInputs);
-                                                        }}
-                                                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
-                                                      >
-                                                        {opt}
-                                                      </button>
-                                                    );
-                                                  })}
-                                              </div>
-                                            </>
-                                          );
-                                        }
-
-                                        return (
-                                          <div className="flex flex-wrap gap-1.5 w-full">
-                                            {pollOpts
-                                              .filter(Boolean)
-                                              .map((opt, optIndex) => {
-                                                const isSel = taskInputs[0] === opt;
-                                                return (
-                                                  <button
-                                                    key={optIndex}
-                                                    type="button"
-                                                    onClick={() => {
-                                                      const newInputs = [...taskInputs];
-                                                      newInputs[0] = opt;
-                                                      setTaskInputs(newInputs);
-                                                    }}
-                                                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
-                                                  >
-                                                    {opt}
-                                                  </button>
-                                                );
-                                              })}
-                                          </div>
-                                        );
-                                      }
-
-                                      if (isMultiSelect) {
-                                        return (
-                                          <>
-                                            <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
-                                              <span>☑️ Select one or more:</span>
-                                            </p>
-                                            <div className="space-y-2 w-full">
-                                              {pollOpts
-                                                .filter(Boolean)
-                                                .map((opt, optIndex) => {
-                                                  const isSel = selectedOpts.includes(opt);
-                                                  return (
-                                                    <button
-                                                      key={optIndex}
-                                                      type="button"
-                                                      onClick={() => {
-                                                        const newInputs = [...taskInputs];
-                                                        const indexInSel = selectedOpts.indexOf(opt);
-                                                        let newSelected: string[];
-                                                        if (indexInSel !== -1) {
-                                                          newSelected = selectedOpts.filter(o => o !== opt);
-                                                        } else {
-                                                          newSelected = [...selectedOpts, opt];
-                                                        }
-                                                        newInputs[0] = JSON.stringify(newSelected);
-                                                        setTaskInputs(newInputs);
-                                                      }}
-                                                      className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
-                                                    >
-                                                      <span>
-                                                        {String.fromCharCode(65 + optIndex)}. {opt}
-                                                      </span>
-                                                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
-                                                        {isSel && (
-                                                          <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                                        )}
-                                                      </div>
-                                                    </button>
-                                                  );
-                                                })}
-                                            </div>
-                                          </>
-                                        );
-                                      }
-
-                                      return pollOpts
+                                  return (
+                                    <div className="flex flex-wrap gap-1.5 w-full">
+                                      {pollOpts
                                         .filter(Boolean)
-                                        .map((opt, optIndex) => (
-                                          <button
-                                            key={optIndex}
-                                            type="button"
-                                            onClick={() => {
-                                              const newInputs = [...taskInputs];
-                                              newInputs[0] = opt;
-                                              setTaskInputs(newInputs);
-                                            }}
-                                            className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
-                                          >
-                                            {String.fromCharCode(65 + optIndex)}.{" "}
-                                            {opt}
-                                          </button>
-                                        ));
-                                    })()}
-                                  </div>
-                                ) : effectiveInputType0 === "mark" ? (
-                                  <div className="space-y-4 animate-fade-in text-left">
+                                        .map((opt, optIndex) => {
+                                          const isSel = taskInputs[0] === opt;
+                                          return (
+                                            <button
+                                              key={optIndex}
+                                              type="button"
+                                              onClick={() => {
+                                                const newInputs = [...taskInputs];
+                                                newInputs[0] = opt;
+                                                setTaskInputs(newInputs);
+                                              }}
+                                              className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                            >
+                                              {opt}
+                                            </button>
+                                          );
+                                        })}
+                                    </div>
+                                  );
+                                }
+
+                                if (isMultiSelect) {
+                                  return (
+                                    <>
+                                      <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
+                                        <span>☑️ Select one or more:</span>
+                                      </p>
+                                      <div className="space-y-2 w-full">
+                                        {pollOpts
+                                          .filter(Boolean)
+                                          .map((opt, optIndex) => {
+                                            const isSel = selectedOpts.includes(opt);
+                                            return (
+                                              <button
+                                                key={optIndex}
+                                                type="button"
+                                                onClick={() => {
+                                                  const newInputs = [...taskInputs];
+                                                  const indexInSel = selectedOpts.indexOf(opt);
+                                                  let newSelected: string[];
+                                                  if (indexInSel !== -1) {
+                                                    newSelected = selectedOpts.filter(o => o !== opt);
+                                                  } else {
+                                                    newSelected = [...selectedOpts, opt];
+                                                  }
+                                                  newInputs[0] = JSON.stringify(newSelected);
+                                                  setTaskInputs(newInputs);
+                                                }}
+                                                className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                              >
+                                                <span>
+                                                  {String.fromCharCode(65 + optIndex)}. {opt}
+                                                </span>
+                                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
+                                                  {isSel && (
+                                                    <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                  )}
+                                                </div>
+                                              </button>
+                                            );
+                                          })}
+                                      </div>
+                                    </>
+                                  );
+                                }
+
+                                return pollOpts
+                                  .filter(Boolean)
+                                  .map((opt, optIndex) => (
                                     <button
+                                      key={optIndex}
                                       type="button"
                                       onClick={() => {
-                                        if (taskInputs[0] === "Completed") {
-                                          const newInputs = [...taskInputs];
-                                          newInputs[0] = "";
-                                          setTaskInputs(newInputs);
-                                        } else {
-                                          setConfirmMarkStepIndex(0);
-                                        }
+                                        const newInputs = [...taskInputs];
+                                        newInputs[0] = opt;
+                                        setTaskInputs(newInputs);
                                       }}
-                                      className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[0] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
+                                      className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
                                     >
-                                      <div className="flex items-center gap-3">
-                                        <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${taskInputs[0] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
-                                          {taskInputs[0] === "Completed" && (
-                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
-                                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                            </svg>
-                                          )}
-                                        </div>
-                                        <span className="text-sm font-bold tracking-wide">
-                                          {taskInputs[0] === "Completed" ? "Completed & Verified!" : "Mark as Completed"}
-                                        </span>
-                                      </div>
-                                      {taskInputs[0] === "Completed" && (
-                                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">
-                                          DONE
-                                        </span>
-                                      )}
+                                      {String.fromCharCode(65 + optIndex)}.{" "}
+                                      {opt}
                                     </button>
+                                  ));
+                              })()}
+                            </div>
+                          ) : dayContent?.taskInputTypes?.[0] === "mark" ? (
+                            <div className="space-y-4 animate-fade-in text-left">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (taskInputs[0] === "Completed") {
+                                    const newInputs = [...taskInputs];
+                                    newInputs[0] = "";
+                                    setTaskInputs(newInputs);
+                                  } else {
+                                    setConfirmMarkStepIndex(0);
+                                  }
+                                }}
+                                className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[0] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${taskInputs[0] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
+                                    {taskInputs[0] === "Completed" && (
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
                                   </div>
-                                ) : effectiveInputType0 === "none" ? null : isMultiTextStep(0) ? (
-                                  <div className="space-y-4 animate-fade-in text-left">
-                                    {(dayContent?.taskMultiTextLabels?.[0] || []).map((lbl, lblIndex) => {
-                                      let currentAnswers: Record<string, string> = {};
-                                      if (taskInputs[0]) {
-                                        try {
-                                          if (taskInputs[0].startsWith("{")) {
-                                            currentAnswers = JSON.parse(taskInputs[0]);
-                                          } else {
-                                            currentAnswers = { [(dayContent?.taskMultiTextLabels?.[0] || [])[0] || "default"]: taskInputs[0] };
-                                          }
-                                        } catch (e) {
-                                          currentAnswers = {};
-                                        }
-                                      }
-                                      const labelVal = currentAnswers[lbl] || "";
-                                      return (
-                                        <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
-                                          <div className="flex items-center">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
-                                              📝 {lbl}
-                                            </span>
-                                          </div>
-                                          <AutoGrowingTextarea
-                                            value={labelVal}
-                                            onChange={(val) => {
-                                              const newAnswers = { ...currentAnswers, [lbl]: val };
-                                              const newInputs = [...taskInputs];
-                                              newInputs[0] = JSON.stringify(newAnswers);
-                                              setTaskInputs(newInputs);
-                                            }}
-                                            placeholder={`Your answer for ${lbl}...`}
-                                            className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
-                                          />
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <AutoGrowingTextarea
-                                    value={taskInputs[0] || ""}
-                                    onChange={(val) => {
-                                      const newInputs = [...taskInputs];
-                                      newInputs[0] = val;
-                                      setTaskInputs(newInputs);
-                                    }}
-                                    placeholder="What's on your mind..."
-                                    className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
-                                  />
-                                ))}
-                              {dayProgress?.completed && (
-                                <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
-                                  <svg
-                                    className="w-4 h-4 shrink-0"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                  {effectiveInputType0 === "tags" || effectiveInputType0 === "poll" || (taskInputs[0] && taskInputs[0].trim().startsWith("[") && taskInputs[0].trim().endsWith("]"))
-                                    ? (() => {
-                                        let tags: string[] = [];
-                                        const cleanVal = taskInputs[0] ? taskInputs[0].trim() : "";
-                                        if (cleanVal.startsWith("[") && cleanVal.endsWith("]")) {
-                                          try {
-                                            tags = JSON.parse(cleanVal);
-                                          } catch (e) {
-                                            tags = [taskInputs[0]];
-                                          }
-                                        } else if (cleanVal) {
-                                          tags = [cleanVal];
-                                        }
-                                        return tags.map((tag: string, tIndex: number) => (
-                                          <span
-                                            key={tIndex}
-                                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider"
-                                          >
-                                            {tag}
-                                          </span>
-                                        ));
-                                      })()
-                                    : isMultiTextStep(0) && taskInputs[0]?.startsWith("{") ? (
-                                      <div className="space-y-2 w-full text-left font-medium animate-fade-in">
-                                        {(() => {
-                                          try {
-                                            const parsed = JSON.parse(taskInputs[0]);
-                                            return Object.entries(parsed).map(([lbl, ans], idx) => (
-                                              <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0 text-left">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
-                                                  📝 {lbl}
-                                                </span>
-                                                <p className="text-gray-700 font-medium text-xs pl-1">
-                                                  {ans as string}
-                                                </p>
-                                              </div>
-                                            ));
-                                          } catch (e) {
-                                            return taskInputs[0];
-                                          }
-                                        })()}
-                                      </div>
-                                    ) : taskInputs[0] || "Completed"}
+                                  <span className="text-sm font-bold tracking-wide">
+                                    {taskInputs[0] === "Completed" ? "Completed & Verified!" : "Mark as Completed"}
+                                  </span>
                                 </div>
-                              )}
-                            </>
-                          );
-                        })()}
+                                {taskInputs[0] === "Completed" && (
+                                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                    DONE
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+                          ) : dayContent?.taskInputTypes?.[0] === "none" ? null : isMultiTextStep(0) ? (
+                            <div className="space-y-4 animate-fade-in text-left">
+                              {(dayContent?.taskMultiTextLabels?.[0] || []).map((lbl, lblIndex) => {
+                                let currentAnswers: Record<string, string> = {};
+                                if (taskInputs[0]) {
+                                  try {
+                                    if (taskInputs[0].startsWith("{")) {
+                                      currentAnswers = JSON.parse(taskInputs[0]);
+                                    } else {
+                                      currentAnswers = { [(dayContent?.taskMultiTextLabels?.[0] || [])[0] || "default"]: taskInputs[0] };
+                                    }
+                                  } catch (e) {
+                                    currentAnswers = {};
+                                  }
+                                }
+                                const labelVal = currentAnswers[lbl] || "";
+                                return (
+                                  <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                    <div className="flex items-center">
+                                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                        📝 {lbl}
+                                      </span>
+                                    </div>
+                                    <AutoGrowingTextarea
+                                      value={labelVal}
+                                      onChange={(val) => {
+                                        const newAnswers = { ...currentAnswers, [lbl]: val };
+                                        const newInputs = [...taskInputs];
+                                        newInputs[0] = JSON.stringify(newAnswers);
+                                        setTaskInputs(newInputs);
+                                      }}
+                                      placeholder={`Your answer for ${lbl}...`}
+                                      className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <AutoGrowingTextarea
+                              value={taskInputs[0] || ""}
+                              onChange={(val) => {
+                                const newInputs = [...taskInputs];
+                                newInputs[0] = val;
+                                setTaskInputs(newInputs);
+                              }}
+                              placeholder="What's on your mind..."
+                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
+                            />
+                          ))}
+                        {dayProgress?.completed && (
+                          <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                            <svg
+                              className="w-4 h-4 shrink-0"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {dayContent?.taskInputTypes?.[0] === "tags" || dayContent?.taskInputTypes?.[0] === "poll" || (taskInputs[0] && taskInputs[0].trim().startsWith("[") && taskInputs[0].trim().endsWith("]"))
+                              ? (() => {
+                                  let tags: string[] = [];
+                                  const cleanVal = taskInputs[0] ? taskInputs[0].trim() : "";
+                                  if (cleanVal.startsWith("[") && cleanVal.endsWith("]")) {
+                                    try {
+                                      tags = JSON.parse(cleanVal);
+                                    } catch (e) {
+                                      tags = [taskInputs[0]];
+                                    }
+                                  } else if (cleanVal) {
+                                    tags = [cleanVal];
+                                  }
+                                  return tags.map((tag: string, tIndex: number) => (
+                                    <span
+                                      key={tIndex}
+                                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ));
+                                })()
+                              : isMultiTextStep(0) && taskInputs[0]?.startsWith("{") ? (
+                                <div className="space-y-2 w-full text-left font-medium animate-fade-in">
+                                  {(() => {
+                                    try {
+                                      const parsed = JSON.parse(taskInputs[0]);
+                                      return Object.entries(parsed).map(([lbl, ans], idx) => (
+                                        <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0 text-left">
+                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                            📝 {lbl}
+                                          </span>
+                                          <p className="text-gray-700 font-medium text-xs pl-1">
+                                            {ans as string}
+                                          </p>
+                                        </div>
+                                      ));
+                                    } catch (e) {
+                                      return taskInputs[0];
+                                    }
+                                  })()}
+                                </div>
+                              ) : taskInputs[0] || "Completed"}
+                          </div>
+                        )}
                         {/* Removed absolute green dot and old bottom progress bar */}
                         {isFullBleed && (
                           <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">

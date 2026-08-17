@@ -548,98 +548,6 @@ export function getExplicitLinkedSteps(
 }
 
 /**
- * Universal helper to retrieve stored participant input/answer for any Day and Step.
- * Searches currentTaskInputs, allDaysInputs (arrays/objects/progress), and preview sessionStorage.
- */
-export function getCrossDayStoredAnswer(
-  targetDay: number,
-  targetStepIdx: number,
-  viewingDay: number,
-  currentTaskInputs?: any,
-  allDaysContent?: any[],
-  allDaysInputs?: any[] | Record<number, any>,
-  previewSprintId?: string
-): any {
-  if (targetDay === viewingDay) {
-    if (currentTaskInputs) {
-      if (Array.isArray(currentTaskInputs)) {
-        if (currentTaskInputs[targetStepIdx] !== undefined) return currentTaskInputs[targetStepIdx];
-      } else if (typeof currentTaskInputs === 'object') {
-        if ((currentTaskInputs as any)[targetStepIdx] !== undefined) return (currentTaskInputs as any)[targetStepIdx];
-      }
-    }
-  }
-
-  if (allDaysInputs) {
-    if (Array.isArray(allDaysInputs)) {
-      const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
-      if (prog) {
-        if (Array.isArray(prog.answers) && prog.answers[targetStepIdx] !== undefined) return prog.answers[targetStepIdx];
-        if (prog.answersMap && typeof prog.answersMap === 'object' && (prog.answersMap as any)[targetStepIdx] !== undefined) return (prog.answersMap as any)[targetStepIdx];
-        if (typeof prog.submission === 'string') {
-          if (prog.submission.includes(' | ')) {
-            const parts = prog.submission.split(' | ');
-            if (parts[targetStepIdx] !== undefined) return parts[targetStepIdx];
-          } else if (targetStepIdx === 0) {
-            return prog.submission;
-          }
-        }
-      }
-      const dayArr = allDaysInputs[targetDay - 1];
-      if (dayArr && typeof dayArr === 'object' && !('day' in dayArr)) {
-        if (Array.isArray(dayArr) && dayArr[targetStepIdx] !== undefined) return dayArr[targetStepIdx];
-        if ((dayArr as any)[targetStepIdx] !== undefined) return (dayArr as any)[targetStepIdx];
-      }
-    } else if (typeof allDaysInputs === 'object') {
-      const dayVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
-      if (dayVal) {
-        if (Array.isArray(dayVal) && dayVal[targetStepIdx] !== undefined) return dayVal[targetStepIdx];
-        if (typeof dayVal === 'object' && (dayVal as any)[targetStepIdx] !== undefined) return (dayVal as any)[targetStepIdx];
-      }
-    }
-  }
-
-  if (typeof sessionStorage !== 'undefined') {
-    const keysToCheck: string[] = [];
-    if (previewSprintId) {
-      keysToCheck.push(`vectorise_preview_enrollment_${previewSprintId}`);
-    }
-    try {
-      for (let k = 0; k < sessionStorage.length; k++) {
-        const key = sessionStorage.key(k);
-        if (key && key.startsWith('vectorise_preview_enrollment_') && !keysToCheck.includes(key)) {
-          keysToCheck.push(key);
-        }
-      }
-    } catch (e) {}
-
-    for (const key of keysToCheck) {
-      try {
-        const saved = sessionStorage.getItem(key);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const prog = parsed?.progress?.find((p: any) => p && Number(p.day) === targetDay);
-          if (prog) {
-            if (Array.isArray(prog.answers) && prog.answers[targetStepIdx] !== undefined) return prog.answers[targetStepIdx];
-            if (prog.answersMap && typeof prog.answersMap === 'object' && (prog.answersMap as any)[targetStepIdx] !== undefined) return (prog.answersMap as any)[targetStepIdx];
-            if (typeof prog.submission === 'string') {
-              if (prog.submission.includes(' | ')) {
-                const parts = prog.submission.split(' | ');
-                if (parts[targetStepIdx] !== undefined) return parts[targetStepIdx];
-              } else if (targetStepIdx === 0) {
-                return prog.submission;
-              }
-            }
-          }
-        }
-      } catch (e) {}
-    }
-  }
-
-  return undefined;
-}
-
-/**
  * Implements progressive step linking across the sprint:
  * - Applied when explicitly linked by {Step N main}, {Step N op M}, taskPollOptionLinks, or taskLinkedSources.
  * - Stores all selected options if a previous step allows multi-selections (e.g. Tags/Multi-Poll).
@@ -651,8 +559,7 @@ export function resolveProgressiveStepSelections(
   dayContent?: any,
   taskInputs?: any,
   allDaysContent?: any[],
-  allDaysInputs?: any[] | Record<number, any>,
-  previewSprintId?: string
+  allDaysInputs?: any[] | Record<number, any>
 ): ProgressiveSelectionResult {
   const defaultResult: ProgressiveSelectionResult = {
     activeOptionIndex: 0,
@@ -672,7 +579,37 @@ export function resolveProgressiveStepSelections(
   const currentDayNum = Number(dayContent.day || 1);
 
   const getInputValue = (targetDay: number, targetStepIdx: number) => {
-    return getCrossDayStoredAnswer(targetDay, targetStepIdx, currentDayNum, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+    if (targetDay === currentDayNum || targetDay === Number(dayContent.day)) {
+      if (taskInputs) {
+        if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
+        if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
+      }
+    }
+    if (allDaysInputs) {
+      if (Array.isArray(allDaysInputs)) {
+        const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+        if (prog) {
+          if (Array.isArray(prog.answers)) return prog.answers[targetStepIdx];
+          if (prog.answersMap && typeof prog.answersMap === 'object') return (prog.answersMap as any)[targetStepIdx];
+          if (typeof prog.submission === 'string' && prog.submission.includes(' | ')) {
+            const parts = prog.submission.split(' | ');
+            if (parts[targetStepIdx] !== undefined) return parts[targetStepIdx];
+          }
+        }
+        const dayArr = allDaysInputs[targetDay - 1];
+        if (dayArr) {
+          if (Array.isArray(dayArr)) return dayArr[targetStepIdx];
+          if (typeof dayArr === 'object') return (dayArr as any)[targetStepIdx];
+        }
+      } else if (typeof allDaysInputs === 'object') {
+        const dayVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+        if (dayVal) {
+          if (Array.isArray(dayVal)) return dayVal[targetStepIdx];
+          if (typeof dayVal === 'object') return (dayVal as any)[targetStepIdx];
+        }
+      }
+    }
+    return undefined;
   };
 
   const parseAnswers = (val: any): string[] => {
@@ -964,8 +901,7 @@ export function formatInterpolatedText(
   dayContent?: any,
   taskInputs?: any,
   allDaysContent?: any[],
-  allDaysInputs?: any[] | Record<number, any>,
-  previewSprintId?: string
+  allDaysInputs?: any[] | Record<number, any>
 ): string {
   if (!prompt) return '';
 
@@ -984,7 +920,40 @@ export function formatInterpolatedText(
 
   // Helper to resolve inputs for any target step on any target day
   const getTargetInputValue = (targetDay: number, targetStepIdx: number) => {
-    return getCrossDayStoredAnswer(targetDay, targetStepIdx, currentDayNum, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+    if (targetDay === currentDayNum || targetDay === Number(dayContent?.day)) {
+      if (taskInputs) {
+        if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
+        if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
+      }
+    }
+
+    if (allDaysInputs) {
+      if (Array.isArray(allDaysInputs)) {
+        const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+        if (prog) {
+          if (Array.isArray(prog.answers)) return prog.answers[targetStepIdx];
+          if (Array.isArray(prog.answersMap)) return prog.answersMap[targetStepIdx];
+        }
+        const dayArr = allDaysInputs[targetDay - 1];
+        if (dayArr) {
+          if (Array.isArray(dayArr)) return dayArr[targetStepIdx];
+          if (typeof dayArr === 'object') return dayArr[targetStepIdx];
+        }
+      } else if (typeof allDaysInputs === 'object') {
+        const dayVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+        if (dayVal) {
+          if (Array.isArray(dayVal)) return dayVal[targetStepIdx];
+          if (typeof dayVal === 'object') return dayVal[targetStepIdx];
+        }
+      }
+    }
+
+    if (targetDay === currentDayNum && taskInputs) {
+      if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
+      if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
+    }
+
+    return undefined;
   };
 
   const getWrittenPollOptions = (targetDC: any, stepIndex: number): string[] => {
@@ -1057,7 +1026,7 @@ export function formatInterpolatedText(
     const dayPrefix = dayNumStr ? `D${targetDay} ` : '';
 
     const formatOutput = (rawList: string[]): string => {
-      if (mode === 'hide' || mode === 'disconnect') {
+      if (mode === 'hide' || mode === 'disconnect' || mode === 'main') {
         return '';
       }
 
@@ -1182,14 +1151,9 @@ export function formatInterpolatedText(
 
     // Only run progressive/main linking when the placeholder explicitly requests it (mode === 'main')
     if (mode === 'main') {
-      const progRes = resolveProgressiveStepSelections(stepIndex, targetDC, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
-      if (progRes.allSelections.length > 0) {
+      const progRes = resolveProgressiveStepSelections(stepIndex, targetDC, taskInputs, allDaysContent, allDaysInputs);
+      if (progRes.isNarrowed && progRes.allSelections.length > 0) {
         items = progRes.allSelections;
-      } else {
-        const val = getTargetInputValue(targetDay, stepIndex);
-        if (val !== undefined && val !== null && String(val).trim()) {
-          items = [String(val).trim()];
-        }
       }
     } else {
       // Normal placeholders: return the target step's direct value (or its configured poll options) and skip resolveProgressiveStepSelections
@@ -1345,8 +1309,7 @@ export function resolveTaskHintForUser(
   dayContent?: any,
   taskInputs?: any,
   allDaysContent?: any[],
-  allDaysInputs?: any[],
-  previewSprintId?: string
+  allDaysInputs?: any[]
 ): string {
   if (!hintRaw || !hintRaw.trim()) return '';
 
@@ -1354,13 +1317,28 @@ export function resolveTaskHintForUser(
   if (versions.length === 0) return '';
 
   if (versions.length === 1) {
-    const text = formatInterpolatedText(versions[0], dayContent, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+    const text = formatInterpolatedText(versions[0], dayContent, taskInputs, allDaysContent, allDaysInputs);
     return text ? text.trim() : '';
   }
 
-  const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
-  const chosenHint = versions[selectedOptIdx] !== undefined ? versions[selectedOptIdx] : (versions[0] || '');
-  const text = formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+
+  // Check if any hint version explicitly contains a matching {Step N Op M} or {Dx Step N Op M} token
+  let matchingVerIdx = -1;
+  const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : selectedOptIdx) + 1;
+  const opTokenRegex = new RegExp(`\\{(?:[dD](?:ay)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
+
+  for (let vIdx = 0; vIdx < versions.length; vIdx++) {
+    if (opTokenRegex.test(versions[vIdx])) {
+      matchingVerIdx = vIdx;
+      break;
+    }
+  }
+
+  const chosenVerIdx = matchingVerIdx >= 0 ? matchingVerIdx : (versions[selectedOptIdx] !== undefined ? selectedOptIdx : 0);
+  const chosenHint = versions[chosenVerIdx] || versions[0] || '';
+  const text = formatInterpolatedText(chosenHint, dayContent, taskInputs, allDaysContent, allDaysInputs);
   return text ? text.trim() : '';
 }
 
@@ -1547,11 +1525,9 @@ export function resolveStepVersionIndex(
   dayContent?: any,
   taskInputs?: any,
   allDaysContent?: any[],
-  allDaysInputs?: any[] | Record<number, any>,
-  previewSprintId?: string
+  allDaysInputs?: any[] | Record<number, any>
 ): number {
   if (!dayContent) return 0;
-  const viewingDay = Number(dayContent.day || 1);
 
   // Direct poll input on current step (if participant is actively answering current step poll)
   const currentType = dayContent?.taskInputTypes?.[stepIdx];
@@ -1573,148 +1549,60 @@ export function resolveStepVersionIndex(
     }
   }
 
+  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+
+  // If prompt has multiple versions (e.g. Step 1.1, 1.2, 1.3, 1.4...)
   const rawPrompt = dayContent?.taskPrompts?.[stepIdx] || (stepIdx === 0 ? dayContent?.taskPrompt : undefined);
-  const promptVersions = parseStepVersions(rawPrompt);
-  const rawHint = dayContent?.taskHints?.[stepIdx];
-  const hintVersions = parseHintVersions(rawHint);
-  const totalVersions = Math.max(promptVersions.length, hintVersions.length);
+  if (rawPrompt) {
+    const promptVersions = parseStepVersions(rawPrompt);
+    if (promptVersions.length > 1) {
+      const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : 0) + 1;
+      const opTokenRegex = new RegExp(`\\{(?:[dD](?:ay)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
+      
+      for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
+        if (opTokenRegex.test(promptVersions[vIdx])) {
+          return vIdx;
+        }
+      }
 
-  if (totalVersions <= 1) {
-    return 0;
-  }
-
-  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
-
-  // Helper to test if a version string (prompt or hint) matches participant's stored answers/selections
-  const testVersionMatch = (vIdx: number): boolean => {
-    const pText = promptVersions[vIdx] || '';
-    const hText = hintVersions[vIdx] || '';
-    const combinedText = `${pText} ${hText}`.trim();
-    if (!combinedText) return false;
-
-    const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
-    let match: RegExpExecArray | null;
-
-    while ((match = regex.exec(combinedText)) !== null) {
-      const dayNum = match[1] ? parseInt(match[1], 10) : viewingDay;
-      const stepNum = parseInt(match[2], 10);
-      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-      const mode = parsePlaceholderMode(match[4]);
-      const targetStepIdx = stepNum - 1;
-
-      const targetVal = getCrossDayStoredAnswer(dayNum, targetStepIdx, viewingDay, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
-      const targetDC = (dayNum === viewingDay || !allDaysContent)
-        ? dayContent
-        : (allDaysContent.find(d => Number(d.day) === dayNum) || dayContent);
-
-      // Check 1: Explicit main link {Step N main} or {Dx Step N main} (Single decision point linking)
-      if (mode === 'main') {
-        if (targetVal !== undefined && targetVal !== null) {
-          const valStr = String(targetVal).trim();
-          if (valStr && valStr !== '[]' && valStr !== '{}') {
-            if (opNum !== undefined) {
-              let writtenOpts: string[] = [];
-              if (targetDC?.taskPollOptions?.[targetStepIdx]) {
+      // Check if any version matches an explicit option token for the source step
+      if (progRes.activeSelection) {
+        const lowerSel = progRes.activeSelection.toLowerCase().trim();
+        for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
+          const vText = promptVersions[vIdx];
+          const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+          let m: RegExpExecArray | null;
+          while ((m = regex.exec(vText)) !== null) {
+            const vDay = m[1] ? parseInt(m[1], 10) : Number(dayContent.day || 1);
+            const vStep = parseInt(m[2], 10) - 1;
+            const vOp = m[3] ? parseInt(m[3], 10) : undefined;
+            if (vOp !== undefined) {
+              const vDC = (allDaysContent && Array.isArray(allDaysContent))
+                ? (allDaysContent.find(d => Number(d.day) === vDay) || dayContent)
+                : dayContent;
+              let vOpts: string[] = [];
+              if (vDC?.taskPollOptions?.[vStep]) {
                 try {
-                  writtenOpts = JSON.parse(targetDC.taskPollOptions[targetStepIdx]).map((s: any) => String(s).trim()).filter(Boolean);
+                  const parsed = JSON.parse(vDC.taskPollOptions[vStep]);
+                  if (Array.isArray(parsed)) vOpts = parsed.map((o: any) => String(o).trim());
                 } catch (e) {}
               }
-              const optIndex = opNum - 1;
-              const targetWrittenText = writtenOpts[optIndex];
-              const ansArr = [valStr];
-              const matched = ansArr.some(ans => {
-                const lower = ans.toLowerCase();
-                if (targetWrittenText && lower === targetWrittenText.toLowerCase()) return true;
-                if (lower === `poll ${opNum}` || lower === `op ${opNum}` || lower === `op${opNum}` || lower === String(opNum)) return true;
-                return false;
-              });
-              if (matched) return true;
-            } else {
-              return true;
+              const optText = vOpts[vOp - 1];
+              if (optText && optText.toLowerCase().trim() === lowerSel) {
+                return vIdx;
+              }
             }
           }
         }
       }
 
-      // Check 2: Explicit option link {Step K op M} or {Dx Step K op M} (Original session option linking)
-      if (opNum !== undefined) {
-        if (targetVal !== undefined && targetVal !== null) {
-          let writtenOpts: string[] = [];
-          if (targetDC?.taskPollOptions?.[targetStepIdx]) {
-            try {
-              writtenOpts = JSON.parse(targetDC.taskPollOptions[targetStepIdx]).map((s: any) => String(s).trim()).filter(Boolean);
-            } catch (e) {}
-          }
-          const optIndex = opNum - 1;
-          const targetWrittenText = writtenOpts[optIndex];
-          
-          let ansArr: string[] = [];
-          try {
-            const strVal = String(targetVal).trim();
-            if (strVal.startsWith('[')) ansArr = JSON.parse(strVal);
-            else if (strVal.startsWith('{')) ansArr = Object.values(JSON.parse(strVal));
-            else ansArr = [strVal];
-          } catch (e) {
-            ansArr = [String(targetVal).trim()];
-          }
-
-          const matched = ansArr.some(ans => {
-            const lower = String(ans).toLowerCase().trim();
-            if (targetWrittenText && lower === targetWrittenText.toLowerCase().trim()) return true;
-            if (lower === `poll ${opNum}` || lower === `op ${opNum}` || lower === `op${opNum}` || lower === String(opNum)) return true;
-            return false;
-          });
-
-          if (matched) {
-            return true;
-          }
-        }
-
-        // Also check against progRes.activeOptionIndex / progRes.activeSelection
-        if (progRes.isNarrowed) {
-          if (progRes.activeOptionIndex === opNum - 1) return true;
-          if (progRes.activeSelection) {
-            let writtenOpts: string[] = [];
-            if (targetDC?.taskPollOptions?.[targetStepIdx]) {
-              try {
-                writtenOpts = JSON.parse(targetDC.taskPollOptions[targetStepIdx]).map((s: any) => String(s).trim()).filter(Boolean);
-              } catch (e) {}
-            }
-            const optIndex = opNum - 1;
-            const targetWrittenText = writtenOpts[optIndex];
-            if (targetWrittenText && progRes.activeSelection.toLowerCase().trim() === targetWrittenText.toLowerCase().trim()) {
-              return true;
-            }
-          }
-        }
+      if (progRes.activeOptionIndex < promptVersions.length && progRes.activeOptionIndex >= 0) {
+        return progRes.activeOptionIndex;
       }
     }
-
-    return false;
-  };
-
-  // 1. Direct pass: test each version for matching main/op linking tokens
-  for (let vIdx = 0; vIdx < totalVersions; vIdx++) {
-    if (testVersionMatch(vIdx)) {
-      return vIdx;
-    }
   }
 
-  // 2. Progressive option index fallback
-  const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : 0) + 1;
-  const opTokenRegex = new RegExp(`\\{(?:[dD](?:ay)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
-  for (let vIdx = 0; vIdx < totalVersions; vIdx++) {
-    const text = `${promptVersions[vIdx] || ''} ${hintVersions[vIdx] || ''}`;
-    if (opTokenRegex.test(text)) {
-      return vIdx;
-    }
-  }
-
-  if (progRes.activeOptionIndex >= 0 && progRes.activeOptionIndex < totalVersions) {
-    return progRes.activeOptionIndex;
-  }
-
-  return 0;
+  return progRes.activeOptionIndex >= 0 ? progRes.activeOptionIndex : 0;
 }
 
 /**
@@ -1773,7 +1661,38 @@ export function isStepVisibleForSprint(
 
     if (pollIdx >= 0) {
       const pollDC = targetPollDay === viewingDay ? dayContent : (Array.isArray(allDaysContent) ? allDaysContent.find(dc => Number(dc.day) === targetPollDay) : undefined);
-      const selection = getCrossDayStoredAnswer(targetPollDay, pollIdx, viewingDay, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+      let selection: string | undefined = undefined;
+      if (targetPollDay === viewingDay) {
+        selection = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[pollIdx] : taskInputs[pollIdx]) : undefined;
+      } else {
+        if (allDaysInputs) {
+          if (Array.isArray(allDaysInputs)) {
+            const prevProg = allDaysInputs.find((p: any) => p && Number(p.day) === targetPollDay);
+            if (prevProg) {
+              if (Array.isArray(prevProg.answers)) selection = prevProg.answers[pollIdx];
+              else if (prevProg.answersMap && typeof prevProg.answersMap === 'object') selection = (prevProg.answersMap as any)[pollIdx];
+              else if (typeof prevProg.submission === 'string') selection = prevProg.submission.split(' | ')[pollIdx];
+            }
+          } else if (typeof allDaysInputs === 'object') {
+            const dVal = (allDaysInputs as any)[targetPollDay] || (allDaysInputs as any)[targetPollDay - 1];
+            if (dVal) selection = Array.isArray(dVal) ? dVal[pollIdx] : (dVal as any)[pollIdx];
+          }
+        }
+        if (!selection && typeof sessionStorage !== 'undefined' && previewSprintId) {
+          try {
+            const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${previewSprintId}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              const prevProg = parsed?.progress?.find((p: any) => p && Number(p.day) === targetPollDay);
+              if (prevProg) {
+                if (Array.isArray(prevProg.answers)) selection = prevProg.answers[pollIdx];
+                else if (prevProg.answersMap) selection = (prevProg.answersMap as any)[pollIdx];
+                else if (typeof prevProg.submission === 'string') selection = prevProg.submission.split(' | ')[pollIdx];
+              }
+            }
+          } catch (e) {}
+        }
+      }
 
       if (!selection) return false;
 
@@ -1785,7 +1704,7 @@ export function isStepVisibleForSprint(
       }
       customOptions = customOptions.filter(Boolean);
 
-      const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+      const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
       const pollOptions = customOptions;
 
       let selectedOptions: string[] = [];
@@ -1820,40 +1739,15 @@ export function isStepVisibleForSprint(
     }
   }
 
-  // 2. Step Prompt / Sub-step Version Checking
+  // 2. Implicit placeholder branch checking
   const rawPrompt = dayContent.taskPrompts?.[stepIndex] || (stepIndex === 0 ? dayContent.taskPrompt : undefined);
   if (!rawPrompt) return true;
 
   const promptVersions = parseStepVersions(rawPrompt);
+  const activeVerIdx = promptVersions.length > 1
+    ? resolveStepVersionIndex(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs)
+    : 0;
 
-  // If step has multiple sub-step versions (e.g. 1.1, 1.2, 1.3...):
-  // Resolve the active sub-step version based on linking/main logic and check visibility
-  if (promptVersions.length > 1) {
-    const activeVerIdx = resolveStepVersionIndex(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
-    const activeVersionPrompt = promptVersions[activeVerIdx] || promptVersions[0];
-    
-    // Check if the active version contains an explicit disconnect/hide rule
-    const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(activeVersionPrompt)) !== null) {
-      const dayNum = match[1] ? parseInt(match[1], 10) : viewingDay;
-      const stepNum = parseInt(match[2], 10);
-      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-      const mode = parsePlaceholderMode(match[4]);
-      if (mode === 'disconnect' && opNum !== undefined) {
-        const val = getCrossDayStoredAnswer(dayNum, stepNum - 1, viewingDay, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
-        if (val) {
-          const strVal = String(val).toLowerCase();
-          if (strVal.includes(`op ${opNum}`) || strVal.includes(`poll ${opNum}`) || strVal.includes(String(opNum))) {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  // Single version step: evaluate visibility constraints
   const checkPromptVisibility = (promptText: string): boolean => {
     if (!promptText) return true;
     const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
@@ -1883,13 +1777,41 @@ export function isStepVisibleForSprint(
         const targetDC = targetDay === viewingDay ? dayContent : (Array.isArray(allDaysContent) ? allDaysContent.find(dc => Number(dc.day) === targetDay) : undefined);
         if (!targetDC) continue;
 
-        const val = getCrossDayStoredAnswer(targetDay, targetIdx, viewingDay, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+        let val: any = undefined;
+        if (targetDay === viewingDay) {
+          val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[targetIdx] : taskInputs[targetIdx]) : undefined;
+        } else {
+          if (allDaysInputs) {
+            if (Array.isArray(allDaysInputs)) {
+              const prevProg = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+              if (prevProg) {
+                if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
+                else if (prevProg.answersMap && typeof prevProg.answersMap === 'object') val = (prevProg.answersMap as any)[targetIdx];
+                else if (typeof prevProg.submission === 'string') val = prevProg.submission.split(' | ')[targetIdx];
+              }
+            } else if (typeof allDaysInputs === 'object') {
+              const dVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+              if (dVal) val = Array.isArray(dVal) ? dVal[targetIdx] : (dVal as any)[targetIdx];
+            }
+          }
+          if (!val && typeof sessionStorage !== 'undefined' && previewSprintId) {
+            try {
+              const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${previewSprintId}`);
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                const prevProg = parsed?.progress?.find((p: any) => p && Number(p.day) === targetDay);
+                if (prevProg) {
+                  if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
+                  else if (prevProg.answersMap) val = (prevProg.answersMap as any)[targetIdx];
+                  else if (typeof prevProg.submission === 'string') val = prevProg.submission.split(' | ')[targetIdx];
+                }
+              }
+            } catch (e) {}
+          }
+        }
 
         // If mode is 'main' and no opNum is specified (e.g. {D1 Step 7 main}), it is an active progressive connector
         if (mode === 'main' && opNum === undefined) {
-          if (!val || (typeof val === 'string' && !val.trim())) {
-            return false;
-          }
           continue;
         }
 
@@ -1923,7 +1845,7 @@ export function isStepVisibleForSprint(
           const isOptionSelected = (oNum: number) => {
             const optIndex = oNum - 1;
             const targetWrittenText = writtenOpts[optIndex];
-            const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
+            const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
             if (prog.isNarrowed && prog.sourceStepIdx === targetIdx) {
               if (prog.activeOptionIndex === optIndex) return true;
               if (prog.activeSelection && targetWrittenText && prog.activeSelection.toLowerCase().trim() === targetWrittenText.toLowerCase().trim()) return true;
@@ -1953,7 +1875,15 @@ export function isStepVisibleForSprint(
     return true;
   };
 
-  return checkPromptVisibility(rawPrompt);
+  if (promptVersions.length > 1) {
+    const activeVersionPrompt = promptVersions[activeVerIdx] || promptVersions[0];
+    if (checkPromptVisibility(activeVersionPrompt)) {
+      return true;
+    }
+    return promptVersions.some(vPrompt => checkPromptVisibility(vPrompt));
+  } else {
+    return checkPromptVisibility(rawPrompt);
+  }
 }
 
 /**
