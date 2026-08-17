@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -2681,9 +2681,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 if (i !== activeTaskIndex) return null;
                                 const stepVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
-                                const baseInputType = getStepVersionValue(dayContent.taskInputTypes?.[i], 0, (dayContent.taskInputTypes?.[i] || 'text'));
-                                const effectiveInputType = getStepVersionValue(dayContent.taskInputTypes?.[i], stepVerIdx, baseInputType);
-                                const effectivePollOptions = getStepVersionValue(dayContent.taskPollOptions?.[i], stepVerIdx);
+                                const effectiveInputType = getStepInputType(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                                const effectivePollOptions = getStepPollOptions(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 return (
                                   <motion.div
                               key={i}
@@ -2942,13 +2941,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     {(() => {
                                       let pollOptions: string[] = [];
                                       let customOptions: string[] = [];
-                                      if (effectivePollOptions || dayContent?.taskPollOptions?.[i]) {
+                                      const optsStr = effectivePollOptions || dayContent?.taskPollOptions?.[i] || "[]";
+                                      try {
+                                        customOptions = JSON.parse(optsStr);
+                                      } catch (e) {
                                         try {
-                                          customOptions = JSON.parse(
-                                            effectivePollOptions || dayContent?.taskPollOptions?.[i] || "[]",
-                                          );
-                                        } catch (e) {}
+                                          customOptions = JSON.parse(dayContent?.taskPollOptions?.[i] || "[]");
+                                        } catch (err) {}
                                       }
+                                      if (!Array.isArray(customOptions)) customOptions = [];
                                       customOptions = customOptions.filter(Boolean);
 
                                       // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -1105,9 +1105,8 @@ const SprintPreview: React.FC = () => {
                             const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
                             const rawPrompt = day1Content?.taskPrompts?.[i] || activePrompts[i] || activePrompts[0] || "";
                             const prompt = getStepVersionValue(rawPrompt, stepVerIdx);
-                            const baseInputType = getStepVersionValue(day1Content?.taskInputTypes?.[i], 0, (day1Content?.taskInputTypes?.[i] || 'text'));
-                            const effectiveInputType = getStepVersionValue(day1Content?.taskInputTypes?.[i], stepVerIdx, baseInputType);
-                            const effectivePollOptions = getStepVersionValue(day1Content?.taskPollOptions?.[i], stepVerIdx);
+                            const effectiveInputType = getStepInputType(day1Content, i, taskInputs, sprint?.dailyContent);
+                            const effectivePollOptions = getStepPollOptions(day1Content, i, taskInputs, sprint?.dailyContent);
                             return (
                                 <>
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
@@ -1321,13 +1320,15 @@ const SprintPreview: React.FC = () => {
                                                 {(() => {
                                                     let pollOptions: string[] = [];
                                                     let customOptions: string[] = [];
-                                                    if (effectivePollOptions || day1Content?.taskPollOptions?.[i]) {
+                                                    const optsStr = effectivePollOptions || day1Content?.taskPollOptions?.[i] || "[]";
+                                                    try {
+                                                        customOptions = JSON.parse(optsStr);
+                                                    } catch (e) {
                                                         try {
-                                                            customOptions = JSON.parse(
-                                                                effectivePollOptions || day1Content?.taskPollOptions?.[i] || "[]",
-                                                            );
-                                                        } catch (e) {}
+                                                            customOptions = JSON.parse(day1Content?.taskPollOptions?.[i] || "[]");
+                                                        } catch (err) {}
                                                     }
+                                                    if (!Array.isArray(customOptions)) customOptions = [];
                                                     customOptions = customOptions.filter(Boolean);
 
                                                     // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.

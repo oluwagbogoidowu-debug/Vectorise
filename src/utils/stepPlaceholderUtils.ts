@@ -1342,34 +1342,13 @@ export function resolveTaskHintForUser(
   return text ? text.trim() : '';
 }
 
-export function parseStepVersions(raw?: string | null, isPollOptions: boolean = false): string[] {
+export function parseStepVersions(raw?: string | null): string[] {
   if (!raw) return [''];
   const trimmed = raw.trim();
   if (!trimmed) return [''];
 
   if (trimmed.includes('|||')) {
     return trimmed.split('|||');
-  }
-
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try {
-      const arr = JSON.parse(trimmed);
-      if (Array.isArray(arr) && arr.length > 0) {
-        if (isPollOptions) {
-          if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
-            return arr.map(v => (v === null || v === undefined) ? '' : String(v));
-          }
-          return [raw];
-        }
-
-        // Check if element 0 is a serialized JSON array string
-        if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
-          return arr.map(v => (v === null || v === undefined) ? '' : String(v));
-        }
-
-        return arr.map(v => (v === null || v === undefined) ? '' : String(v));
-      }
-    } catch (e) {}
   }
 
   return [raw];
@@ -1388,33 +1367,13 @@ export function getStepVersionValue(rawField?: string | null, versionIdx: number
 
   if (trimmed.includes('|||')) {
     const vers = trimmed.split('|||');
-    const val = vers[versionIdx] !== undefined ? vers[versionIdx] : vers[0];
+    const val = (vers[versionIdx] !== undefined && vers[versionIdx] !== '') 
+      ? vers[versionIdx] 
+      : ((vers[0] !== undefined && vers[0] !== '') ? vers[0] : fallbackDefault);
     return (val !== undefined && val !== null) ? val : fallbackDefault;
   }
 
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    try {
-      const arr = JSON.parse(trimmed);
-      if (Array.isArray(arr) && arr.length > 0) {
-        if (fallbackDefault === '[]') {
-          if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
-            const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
-            return val ?? fallbackDefault;
-          }
-          return trimmed;
-        }
-
-        const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
-        return (val !== undefined && val !== null) ? String(val) : fallbackDefault;
-      }
-    } catch (e) {}
-  }
-
-  const versions = parseStepVersions(rawField);
-  if (versionIdx >= 0 && versionIdx < versions.length && versions[versionIdx] !== undefined) {
-    return versions[versionIdx];
-  }
-  return versions[0] ?? fallbackDefault;
+  return rawField;
 }
 
 export function updateStepVersionValue(rawField: string | null | undefined, versionIdx: number, newValue: string): string {
@@ -1423,29 +1382,6 @@ export function updateStepVersionValue(rawField: string | null | undefined, vers
     const versions = Array(versionIdx + 1).fill('');
     versions[versionIdx] = newValue;
     return serializeStepVersions(versions);
-  }
-
-  const trimmed = rawField.trim();
-
-  // If rawField is a poll options field or newValue is a JSON array string
-  const isPollOpts = (trimmed.startsWith('[') && trimmed.endsWith(']')) || newValue.trim().startsWith('[');
-
-  if (isPollOpts) {
-    if (trimmed.includes('|||')) {
-      const versions = trimmed.split('|||');
-      while (versions.length <= versionIdx) versions.push('[]');
-      versions[versionIdx] = newValue;
-      return versions.join('|||');
-    } else {
-      if (versionIdx === 0) {
-        return newValue;
-      } else {
-        const versions = [trimmed];
-        while (versions.length <= versionIdx) versions.push('[]');
-        versions[versionIdx] = newValue;
-        return versions.join('|||');
-      }
-    }
   }
 
   const versions = parseStepVersions(rawField);
@@ -1481,7 +1417,9 @@ export function getStepPollOptions(
   if (!dayContent) return '[]';
   const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
   const rawOpts = dayContent.taskPollOptions?.[stepIdx];
-  return getStepVersionValue(rawOpts, verIdx, '[]');
+  const baseOpts = getStepVersionValue(rawOpts, 0, (rawOpts || '[]'));
+  const verOpts = getStepVersionValue(rawOpts, verIdx, baseOpts);
+  return verOpts || baseOpts || '[]';
 }
 
 export function getStepMultiTextLabels(
