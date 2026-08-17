@@ -1582,20 +1582,18 @@ export function getStepVersionValue(rawField?: string | null, versionIdx: number
     return (val !== undefined && val !== null) ? val : fallbackDefault;
   }
 
+  // If rawField is a JSON array string representing poll options or a list
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
       const arr = JSON.parse(trimmed);
-      if (Array.isArray(arr) && arr.length > 0) {
-        if (fallbackDefault === '[]') {
-          if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
-            const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
-            return val ?? fallbackDefault;
-          }
-          return trimmed;
+      if (Array.isArray(arr)) {
+        // If it is a nested JSON array representing versioned arrays (e.g. ['["Opt1"]', '["Opt2"]'])
+        if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
+          const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
+          return val ?? fallbackDefault;
         }
-
-        const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
-        return (val !== undefined && val !== null) ? String(val) : fallbackDefault;
+        // Otherwise, this entire JSON array is the options array for this step/version
+        return trimmed;
       }
     } catch (e) {}
   }
