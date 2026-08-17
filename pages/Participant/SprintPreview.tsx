@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, getLinkedPollAndTagOptions, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -872,14 +872,93 @@ const SprintPreview: React.FC = () => {
 
     const getLinkedTagsForStep = (stepIndex: number): string[] => {
         if (!day1Content) return [];
-        return getLinkedPollAndTagOptions(
+
+        // Strictly no step with no linking should send or receive poll or poll option or action steps
+        const explicitLinks = getExplicitLinkedSteps(stepIndex, day1Content, sprint?.dailyContent);
+        if (explicitLinks.length === 0) {
+            return [];
+        }
+
+        // Check step linking resolution
+        const progRes = resolveProgressiveStepSelections(
             stepIndex,
             day1Content,
             taskInputs,
             sprint?.dailyContent,
-            (sprint as any)?.enrollment?.progress,
-            sprintId || sprint?.id
+            (sprint as any)?.enrollment?.progress
         );
+        if (progRes.allSelections.length > 0) {
+            return progRes.allSelections;
+        }
+
+        // If mainLink is present and not connected, return empty (don't draw options)
+        const hasMainLink = explicitLinks.some(l => l.mode === 'main' && l.opNum !== undefined);
+        if (hasMainLink) {
+            return [];
+        }
+
+        // Check if the new taskLinkedSources tells us which steps are explicitly linked
+        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex])) {
+            const sources = day1Content.taskLinkedSources[stepIndex];
+            if (sources.length === 0) return [];
+            const allTags: string[] = [];
+            sources.forEach(srcIndex => {
+                if (srcIndex >= 0) {
+                    const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
+                    // Strictly only poll to poll and tag to poll
+                    if (srcType === "poll" || srcType === "tags") {
+                        if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
+                            try {
+                                const val = taskInputs[srcIndex];
+                                if (val.startsWith("[")) {
+                                    allTags.push(...JSON.parse(val));
+                                } else if (srcType === "poll") {
+                                    allTags.push(val);
+                                } else {
+                                    allTags.push(...val.split(",").filter(Boolean));
+                                }
+                            } catch (e) {
+                                console.error("Error parsing tags for source in preview", srcIndex, e);
+                            }
+                        }
+                    }
+                } else {
+                    // Cross-day link!
+                    const absVal = Math.abs(srcIndex);
+                    const targetDay = Math.floor(absVal / 100);
+                    const targetStepIdx = absVal % 100;
+                    
+                    const targetProgress = (sprint as any)?.enrollment?.progress?.find((p: any) => p.day === targetDay);
+                    const targetDayContent = Array.isArray(sprint?.dailyContent)
+                        ? sprint.dailyContent.find((dc) => dc.day === targetDay)
+                        : undefined;
+                        
+                    if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
+                        const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
+                        // Strictly only poll to poll and tag to poll
+                        if (srcType === "poll" || srcType === "tags") {
+                            const val = targetProgress.answers[targetStepIdx];
+                            if (val) {
+                                try {
+                                    if (val.startsWith("[")) {
+                                        allTags.push(...JSON.parse(val));
+                                    } else if (srcType === "poll") {
+                                        allTags.push(val);
+                                    } else {
+                                        allTags.push(...val.split(",").filter(Boolean));
+                                    }
+                                } catch (e) {
+                                    console.error("Error parsing cross-day tags for source", srcIndex, e);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            return Array.from(new Set(allTags)).filter(Boolean);
+        }
+
+        return [];
     };
 
     const isLinkedTextStep = (stepIndex: number): boolean => {

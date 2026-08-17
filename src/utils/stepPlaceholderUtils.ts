@@ -957,139 +957,6 @@ export function resolveProgressiveStepSelections(
 }
 
 /**
- * Resolves options received dynamically by a poll step from other steps.
- * Rules:
- * 1. Receiving poll options to display is strictly poll-to-poll and tag-to-poll linking.
- * 2. It is based ONLY on if the step is actually connected to the steps in question
- *    (via taskLinkedSources, taskPollOptionLinks, or explicit {Step N} references).
- * 3. Displaying a previous poll option in another poll option is NEVER the work of 'main',
- *    and it doesn't show by default without connecting it.
- * 4. It receives EXACTLY what is there in those connected steps (and nothing else).
- *    e.g. If Step 7 links to Step 1, 2, and 3, it receives only from those 3 steps.
- */
-export function getLinkedPollAndTagOptions(
-  stepIndex: number,
-  dayContent?: any,
-  taskInputs?: any[],
-  allDaysContent?: any[],
-  allDaysInputs?: any[] | Record<number, any>,
-  previewSprintId?: string
-): string[] {
-  if (!dayContent) return [];
-  const currentDay = Number(dayContent.day || 1);
-
-  // 1. Collect all explicitly connected source steps
-  const sourceSteps: { day: number; stepIdx: number }[] = [];
-
-  const addSource = (d: number, s: number) => {
-    if (s < 0 || (d === currentDay && s >= stepIndex)) return;
-    const exists = sourceSteps.some(src => src.day === d && src.stepIdx === s);
-    if (!exists) {
-      sourceSteps.push({ day: d, stepIdx: s });
-    }
-  };
-
-  // 1a. taskLinkedSources
-  if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {
-    for (const srcIdx of dayContent.taskLinkedSources[stepIndex]) {
-      if (typeof srcIdx === 'number') {
-        if (srcIdx < 0) {
-          const absVal = Math.abs(srcIdx);
-          const sDay = Math.floor(absVal / 100);
-          const sStep = absVal % 100;
-          addSource(sDay, sStep);
-        } else {
-          addSource(currentDay, srcIdx);
-        }
-      }
-    }
-  }
-
-  // 1b. taskPollOptionLinks
-  const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIndex];
-  const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
-  if (pollLinkInfo && pollLinkInfo.targetPollIdx >= 0) {
-    addSource(currentDay, pollLinkInfo.targetPollIdx);
-  }
-
-  if (sourceSteps.length === 0) {
-    return [];
-  }
-
-  // 2. Filter sources STRICTLY to type "poll" or "tags"
-  const validSources = sourceSteps.filter(src => {
-    const sDC = (src.day === currentDay || !allDaysContent)
-      ? dayContent
-      : (allDaysContent.find(d => Number(d.day) === src.day) || dayContent);
-    const sType = String(sDC?.taskInputTypes?.[src.stepIdx] || "").trim().toLowerCase();
-    return sType === "poll" || sType === "tags";
-  });
-
-  if (validSources.length === 0) {
-    return [];
-  }
-
-  // 3. For each connected step, receive exactly what is there
-  const parseStepAnswers = (val: any): string[] => {
-    if (val === undefined || val === null) return [];
-    if (typeof val === 'string') {
-      const trimmed = val.trim();
-      if (!trimmed) return [];
-      if (trimmed.startsWith('[')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (Array.isArray(parsed)) return parsed.map(s => String(s).trim()).filter(Boolean);
-        } catch (e) {}
-      }
-      if (trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (parsed && typeof parsed === 'object') {
-            if (Array.isArray(parsed.choices)) return parsed.choices.map((c: any) => String(c).trim()).filter(Boolean);
-            if (Array.isArray(parsed.selectedChoices)) return parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean);
-            if (typeof parsed.choice === 'string' && parsed.choice) return [parsed.choice.trim()];
-            if (typeof parsed.answer === 'string' && parsed.answer) return [parsed.answer.trim()];
-          }
-        } catch (e) {}
-      }
-      if (trimmed.includes(',')) {
-        return trimmed.split(',').map(s => s.trim()).filter(Boolean);
-      }
-      return [trimmed];
-    }
-    if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
-    return [];
-  };
-
-  const collectedOptions: string[] = [];
-
-  validSources.forEach(src => {
-    const sDC = (src.day === currentDay || !allDaysContent)
-      ? dayContent
-      : (allDaysContent.find(d => Number(d.day) === src.day) || dayContent);
-
-    const rawVal = getCrossDayStoredAnswer(src.day, src.stepIdx, currentDay, taskInputs, allDaysContent, allDaysInputs, previewSprintId);
-    const answers = parseStepAnswers(rawVal);
-
-    if (answers.length > 0) {
-      collectedOptions.push(...answers);
-    } else {
-      // User hasn't answered yet: take configured poll options or tags
-      if (sDC?.taskPollOptions?.[src.stepIdx]) {
-        try {
-          const parsed = JSON.parse(sDC.taskPollOptions[src.stepIdx]);
-          if (Array.isArray(parsed)) {
-            collectedOptions.push(...parsed.map((s: any) => String(s).trim()).filter(Boolean));
-          }
-        } catch (e) {}
-      }
-    }
-  });
-
-  return Array.from(new Set(collectedOptions)).filter(Boolean);
-}
-
-/**
  * Replaces `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step 1 Op 4 d}` etc. placeholders in prompt with user's choices.
  */
 export function formatInterpolatedText(
@@ -1547,18 +1414,20 @@ export function getStepVersionValue(rawField?: string | null, versionIdx: number
     return (val !== undefined && val !== null) ? val : fallbackDefault;
   }
 
-  // If rawField is a JSON array string representing poll options or a list
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
     try {
       const arr = JSON.parse(trimmed);
-      if (Array.isArray(arr)) {
-        // If it is a nested JSON array representing versioned arrays (e.g. ['["Opt1"]', '["Opt2"]'])
-        if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
-          const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
-          return val ?? fallbackDefault;
+      if (Array.isArray(arr) && arr.length > 0) {
+        if (fallbackDefault === '[]') {
+          if (typeof arr[0] === 'string' && arr[0].trim().startsWith('[')) {
+            const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
+            return val ?? fallbackDefault;
+          }
+          return trimmed;
         }
-        // Otherwise, this entire JSON array is the options array for this step/version
-        return trimmed;
+
+        const val = arr[versionIdx] !== undefined ? arr[versionIdx] : arr[0];
+        return (val !== undefined && val !== null) ? String(val) : fallbackDefault;
       }
     } catch (e) {}
   }
