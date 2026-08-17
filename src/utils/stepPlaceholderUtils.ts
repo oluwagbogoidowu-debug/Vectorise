@@ -1012,41 +1012,6 @@ export function getLinkedPollAndTagOptions(
     addSource(currentDay, pollLinkInfo.targetPollIdx);
   }
 
-  // 1c. Texts to scan for explicit placeholder links {Step N}, {D1 Step N}
-  // (EXCLUDING {Step N main} because 'main' is never for poll options)
-  const textsToScan: string[] = [];
-  const promptVal = dayContent.taskPrompts?.[stepIndex];
-  if (typeof promptVal === 'string') textsToScan.push(promptVal);
-  else if (stepIndex === 0 && typeof dayContent.taskPrompt === 'string') textsToScan.push(dayContent.taskPrompt);
-  const hintVal = dayContent.taskHints?.[stepIndex];
-  if (typeof hintVal === 'string') textsToScan.push(hintVal);
-  const footnoteVal = dayContent.taskFootnotes?.[stepIndex];
-  if (typeof footnoteVal === 'string') textsToScan.push(footnoteVal);
-  const tagNoteVal = dayContent.taskTagNotes?.[stepIndex];
-  if (typeof tagNoteVal === 'string') textsToScan.push(tagNoteVal);
-  const optionsVal = dayContent.taskPollOptions?.[stepIndex];
-  if (typeof optionsVal === 'string') textsToScan.push(optionsVal);
-
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
-
-  for (const text of textsToScan) {
-    let match: RegExpExecArray | null;
-    regex.lastIndex = 0;
-    while ((match = regex.exec(text)) !== null) {
-      const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
-      const stepNum = parseInt(match[2], 10);
-      const mode = parsePlaceholderMode(match[4]);
-      const targetStepIdx = stepNum - 1;
-
-      // Strictly skip 'main' and 'disconnect' - main is NEVER for poll option receiving
-      if (mode === 'main' || mode === 'disconnect') continue;
-
-      if (targetStepIdx >= 0 && (dayNum !== currentDay || targetStepIdx < stepIndex)) {
-        addSource(dayNum, targetStepIdx);
-      }
-    }
-  }
-
   if (sourceSteps.length === 0) {
     return [];
   }
