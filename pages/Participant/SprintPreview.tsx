@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, getLinkedPollAndTagOptions, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -872,93 +872,14 @@ const SprintPreview: React.FC = () => {
 
     const getLinkedTagsForStep = (stepIndex: number): string[] => {
         if (!day1Content) return [];
-
-        // Strictly no step with no linking should send or receive poll or poll option or action steps
-        const explicitLinks = getExplicitLinkedSteps(stepIndex, day1Content, sprint?.dailyContent);
-        if (explicitLinks.length === 0) {
-            return [];
-        }
-
-        // Check step linking resolution
-        const progRes = resolveProgressiveStepSelections(
+        return getLinkedPollAndTagOptions(
             stepIndex,
             day1Content,
             taskInputs,
             sprint?.dailyContent,
-            (sprint as any)?.enrollment?.progress
+            (sprint as any)?.enrollment?.progress,
+            sprintId || sprint?.id
         );
-        if (progRes.allSelections.length > 0) {
-            return progRes.allSelections;
-        }
-
-        // If mainLink is present and not connected, return empty (don't draw options)
-        const hasMainLink = explicitLinks.some(l => l.mode === 'main' && l.opNum !== undefined);
-        if (hasMainLink) {
-            return [];
-        }
-
-        // Check if the new taskLinkedSources tells us which steps are explicitly linked
-        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex])) {
-            const sources = day1Content.taskLinkedSources[stepIndex];
-            if (sources.length === 0) return [];
-            const allTags: string[] = [];
-            sources.forEach(srcIndex => {
-                if (srcIndex >= 0) {
-                    const srcType = String(day1Content.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
-                    // Strictly only poll to poll and tag to poll
-                    if (srcType === "poll" || srcType === "tags") {
-                        if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
-                            try {
-                                const val = taskInputs[srcIndex];
-                                if (val.startsWith("[")) {
-                                    allTags.push(...JSON.parse(val));
-                                } else if (srcType === "poll") {
-                                    allTags.push(val);
-                                } else {
-                                    allTags.push(...val.split(",").filter(Boolean));
-                                }
-                            } catch (e) {
-                                console.error("Error parsing tags for source in preview", srcIndex, e);
-                            }
-                        }
-                    }
-                } else {
-                    // Cross-day link!
-                    const absVal = Math.abs(srcIndex);
-                    const targetDay = Math.floor(absVal / 100);
-                    const targetStepIdx = absVal % 100;
-                    
-                    const targetProgress = (sprint as any)?.enrollment?.progress?.find((p: any) => p.day === targetDay);
-                    const targetDayContent = Array.isArray(sprint?.dailyContent)
-                        ? sprint.dailyContent.find((dc) => dc.day === targetDay)
-                        : undefined;
-                        
-                    if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
-                        const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
-                        // Strictly only poll to poll and tag to poll
-                        if (srcType === "poll" || srcType === "tags") {
-                            const val = targetProgress.answers[targetStepIdx];
-                            if (val) {
-                                try {
-                                    if (val.startsWith("[")) {
-                                        allTags.push(...JSON.parse(val));
-                                    } else if (srcType === "poll") {
-                                        allTags.push(val);
-                                    } else {
-                                        allTags.push(...val.split(",").filter(Boolean));
-                                    }
-                                } catch (e) {
-                                    console.error("Error parsing cross-day tags for source", srcIndex, e);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            return Array.from(new Set(allTags)).filter(Boolean);
-        }
-
-        return [];
     };
 
     const isLinkedTextStep = (stepIndex: number): boolean => {
@@ -1102,9 +1023,11 @@ const SprintPreview: React.FC = () => {
                             }
                             
                             const i = activeTaskIndex;
-                            const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
+                            const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id);
                             const rawPrompt = day1Content?.taskPrompts?.[i] || activePrompts[i] || activePrompts[0] || "";
                             const prompt = getStepVersionValue(rawPrompt, stepVerIdx);
+                            const effectiveInputType = getStepVersionValue(day1Content?.taskInputTypes?.[i], stepVerIdx, 'text');
+                            const effectivePollOptions = getStepVersionValue(day1Content?.taskPollOptions?.[i], stepVerIdx);
                             return (
                                 <>
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
@@ -1188,15 +1111,15 @@ const SprintPreview: React.FC = () => {
                                         })()}
 
                                         <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
-                                            <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent)} />
+                                            <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id)} />
                                         </div>
                                         {day1Content?.taskFootnotes?.[i] && (
                                             <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
-                                                <FormattedText text={formatInterpolatedText(day1Content.taskFootnotes[i], day1Content, taskInputs, sprint?.dailyContent)} />
+                                                <FormattedText text={formatInterpolatedText(day1Content.taskFootnotes[i], day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id)} />
                                             </div>
                                         )}
                                         {(() => {
-                                            const resolvedHint = resolveTaskHintForUser(day1Content?.taskHints?.[i], i, day1Content, taskInputs, sprint?.dailyContent);
+                                            const resolvedHint = resolveTaskHintForUser(day1Content?.taskHints?.[i], i, day1Content, taskInputs, sprint?.dailyContent, (sprint as any)?.enrollment?.progress, sprint?.id);
                                             if (!resolvedHint) return null;
                                             return (
                                                 <div className="mb-4">
@@ -1218,7 +1141,7 @@ const SprintPreview: React.FC = () => {
                                                 </div>
                                             );
                                         })()}
-                                        {day1Content?.taskInputTypes?.[i] === "tags" ? (
+                                        {effectiveInputType === "tags" ? (
                                             <div className="space-y-3 mb-4">
                                                 <TagInput
                                                     value={taskInputs[i] || ""}
@@ -1301,7 +1224,7 @@ const SprintPreview: React.FC = () => {
                                                     );
                                                 })()}
                                             </div>
-                                        ) : day1Content?.taskInputTypes?.[i] === "note" ? (
+                                        ) : effectiveInputType === "note" ? (
                                             <div className="space-y-4 animate-fade-in text-left mb-4">
                                                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
@@ -1313,15 +1236,15 @@ const SprintPreview: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : day1Content?.taskInputTypes?.[i] === "poll" ? (
+                                        ) : effectiveInputType === "poll" ? (
                                             <div className="space-y-2 mb-4">
                                                 {(() => {
                                                     let pollOptions: string[] = [];
                                                     let customOptions: string[] = [];
-                                                    if (day1Content.taskPollOptions?.[i]) {
+                                                    if (effectivePollOptions) {
                                                         try {
                                                             customOptions = JSON.parse(
-                                                                day1Content.taskPollOptions[i],
+                                                                effectivePollOptions,
                                                             );
                                                         } catch (e) {}
                                                     }
@@ -1332,7 +1255,7 @@ const SprintPreview: React.FC = () => {
                                                     const linkedTags = getLinkedTagsForStep(i);
                                                     pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
 
-                                                    const isMultiSelect = !!day1Content.taskPollMultiSelect?.[i];
+                                                    const isMultiSelect = !!day1Content?.taskPollMultiSelect?.[i];
                                                     let selectedOpts: string[] = [];
                                                     try {
                                                         if (taskInputs[i] && taskInputs[i].startsWith("[")) {
@@ -1476,7 +1399,7 @@ const SprintPreview: React.FC = () => {
                                                         );
                                                 })()}
                                             </div>
-                                        ) : day1Content?.taskInputTypes?.[i] === "mark" ? (
+                                        ) : effectiveInputType === "mark" ? (
                                             <div className="space-y-4 animate-fade-in text-left mb-4">
                                                 <button
                                                     type="button"
@@ -1510,7 +1433,7 @@ const SprintPreview: React.FC = () => {
                                                     )}
                                                 </button>
                                             </div>
-                                        ) : day1Content?.taskInputTypes?.[i] === "none" ? null : (
+                                        ) : effectiveInputType === "none" ? null : (
                                             isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                                  <div className="space-y-4 animate-fade-in text-left mb-4">
                                                      {getLinkedTagsForStep(i).map((tag, tagIndex) => {
@@ -1611,16 +1534,16 @@ const SprintPreview: React.FC = () => {
                                             ) : <div />}
                                             
                                             {(() => {
-                                                const isTags = day1Content?.taskInputTypes?.[i] === "tags";
-                                                const isNote = day1Content?.taskInputTypes?.[i] === "note";
-                                                const isMark = day1Content?.taskInputTypes?.[i] === "mark";
-                                                const isNone = day1Content?.taskInputTypes?.[i] === "none";
+                                                const isTags = effectiveInputType === "tags";
+                                                const isNote = effectiveInputType === "note";
+                                                const isMark = effectiveInputType === "mark";
+                                                const isNone = effectiveInputType === "none";
                                                 const val = taskInputs[i];
                                                 let stepCompleted = isNote || isNone;
                                                 if (isMark) {
                                                     stepCompleted = val === "Completed" || val === "Skipped";
                                                 } else if (!isNote && !isNone && val) {
-                                                    if (isTags || (day1Content?.taskInputTypes?.[i] === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
+                                                    if (isTags || (effectiveInputType === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
                                                         stepCompleted = val !== "[]" && val !== "";
                                                     } else if (isLinkedTextStep(i)) {
                                                         const tags = getLinkedTagsForStep(i);
