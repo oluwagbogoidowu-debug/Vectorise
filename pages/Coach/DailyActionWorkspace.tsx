@@ -761,7 +761,8 @@ export default function DailyActionWorkspace({
               const stepVerKey = `${dayNum}-${activeIdx}`;
               const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
               const prompt = getStepVersionValue(rawPrompt, activeVerIdx);
-              const activeInputType = getStepVersionValue(rawInputType, activeVerIdx, 'text');
+              const baseInputType = getStepVersionValue(dayContent.taskInputTypes?.[activeIdx], 0, (dayContent.taskInputTypes?.[activeIdx] || 'text'));
+              const activeInputType = getStepVersionValue(dayContent.taskInputTypes?.[activeIdx], activeVerIdx, baseInputType);
             const isLastAssignedPrompt = lastAssignedField === `prompt-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedNote = lastAssignedField === `note-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
@@ -897,7 +898,8 @@ export default function DailyActionWorkspace({
                                 const types = [...(dayContent.taskInputTypes || [])];
                                 while (types.length <= activeIdx) types.push('text');
                                 const rawType = types[activeIdx] || 'text';
-                                types[activeIdx] = updateStepVersionValue(rawType, newVerIdx, 'text') as any;
+                                const baseType = getStepVersionValue(rawType, 0, 'text');
+                                types[activeIdx] = updateStepVersionValue(rawType, newVerIdx, baseType) as any;
                                 updateFieldForDay(dayNum, 'taskInputTypes', types);
                               }}
                               className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-purple-600 hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
@@ -1179,7 +1181,7 @@ export default function DailyActionWorkspace({
                             .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                           
                           const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
-                          const showSingleLink = dayContent.taskInputTypes?.[activeIdx] === 'tags';
+                          const showSingleLink = activeInputType === 'tags';
                           
                           const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags' || item.type === 'poll');
                           const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
@@ -1193,8 +1195,8 @@ export default function DailyActionWorkspace({
                             .map((type, idx) => ({ type, idx }))
                             .filter(item => item.idx < activeIdx && (item.type === 'poll' || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
 
-                          const showTagLink = hasPrecedingForTagLink && (dayContent.taskInputTypes?.[activeIdx] === 'tags' || dayContent.taskInputTypes?.[activeIdx] === 'poll');
-                          const showTextLink = hasPrecedingTexts && (dayContent.taskInputTypes?.[activeIdx] === 'text' || !dayContent.taskInputTypes?.[activeIdx]);
+                          const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
+                          const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
                           const showPollBranchLink = precedingPollSteps.length > 0;
                           const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
                           const currentPollLink = dayContent.taskPollOptionLinks?.[activeIdx];

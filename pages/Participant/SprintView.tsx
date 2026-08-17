@@ -2681,7 +2681,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 if (i !== activeTaskIndex) return null;
                                 const stepVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
-                                const effectiveInputType = getStepVersionValue(dayContent.taskInputTypes?.[i], stepVerIdx, 'text');
+                                const baseInputType = getStepVersionValue(dayContent.taskInputTypes?.[i], 0, (dayContent.taskInputTypes?.[i] || 'text'));
+                                const effectiveInputType = getStepVersionValue(dayContent.taskInputTypes?.[i], stepVerIdx, baseInputType);
                                 const effectivePollOptions = getStepVersionValue(dayContent.taskPollOptions?.[i], stepVerIdx);
                                 return (
                                   <motion.div
@@ -2849,7 +2850,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 );
                               })()}
                               {!dayProgress?.completed &&
-                                (dayContent.taskInputTypes?.[i] === "tags" ? (
+                                (effectiveInputType === "tags" ? (
                                   <div className="space-y-3">
                                     <TagInput
                                       value={taskInputs[i]}
@@ -2923,7 +2924,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       );
                                     })()}
                                   </div>
-                                ) : dayContent.taskInputTypes?.[i] === "note" ? (
+                                ) : effectiveInputType === "note" ? (
                                   <div className="space-y-4 animate-fade-in text-left">
                                     <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
                                       <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
@@ -2935,16 +2936,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       </div>
                                     </div>
                                   </div>
-                                ) : dayContent.taskInputTypes?.[i] ===
+                                ) : effectiveInputType ===
                                   "poll" ? (
                                   <div className="space-y-2">
                                     {(() => {
                                       let pollOptions: string[] = [];
                                       let customOptions: string[] = [];
-                                      if (dayContent.taskPollOptions?.[i]) {
+                                      if (effectivePollOptions || dayContent?.taskPollOptions?.[i]) {
                                         try {
                                           customOptions = JSON.parse(
-                                            dayContent.taskPollOptions[i],
+                                            effectivePollOptions || dayContent?.taskPollOptions?.[i] || "[]",
                                           );
                                         } catch (e) {}
                                       }
@@ -3100,7 +3101,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         );
                                     })()}
                                   </div>
-                                  ) : dayContent.taskInputTypes?.[i] === "mark" ? (
+                                  ) : effectiveInputType === "mark" ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       <button
                                         type="button"
@@ -3134,7 +3135,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         )}
                                       </button>
                                     </div>
-                                  ) : dayContent.taskInputTypes?.[i] === "none" ? null : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                  ) : effectiveInputType === "none" ? null : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       {getLinkedTagsForStep(i).map((tag, tagIndex) => {
                                         let currentAnswers: Record<string, string> = {};
@@ -3324,16 +3325,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       (() => {
                                         const val = taskInputs[i];
                                         const isTags =
-                                          dayContent.taskInputTypes?.[i] ===
+                                          effectiveInputType ===
                                           "tags";
                                         const isNote =
-                                          dayContent.taskInputTypes?.[i] ===
+                                          effectiveInputType ===
                                           "note";
                                         const isMark =
-                                          dayContent.taskInputTypes?.[i] ===
+                                          effectiveInputType ===
                                           "mark";
                                         
-                                        const isNone = dayContent.taskInputTypes?.[i] === "none";
+                                        const isNone = effectiveInputType === "none";
                                         let stepCompleted = isNote || isNone;
                                         if (isMainActiveForStep(i, dayContent, sprint?.dailyContent)) {
                                           const parsed = parseDualInputState(val);
@@ -3341,7 +3342,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         } else if (isMark) {
                                           stepCompleted = val === "Completed" || val === "Skipped";
                                         } else if (!isNote && !!val) {
-                                          if (isTags || (dayContent.taskInputTypes?.[i] === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
+                                          if (isTags || (effectiveInputType === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
                                             stepCompleted = val !== "[]" && val !== "";
                                           } else if (isLinkedTextStep(i)) {
                                             const tags = getLinkedTagsForStep(i);

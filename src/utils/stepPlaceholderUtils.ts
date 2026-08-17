@@ -1466,8 +1466,9 @@ export function getStepInputType(
   if (!dayContent) return 'text';
   const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
   const rawType = dayContent.taskInputTypes?.[stepIdx];
-  const typeVal = getStepVersionValue(rawType, verIdx, 'text');
-  return typeVal ? typeVal.trim().toLowerCase() : 'text';
+  const baseType = getStepVersionValue(rawType, 0, (rawType || 'text'));
+  const typeVal = getStepVersionValue(rawType, verIdx, baseType);
+  return typeVal ? typeVal.trim().toLowerCase() : (baseType ? baseType.trim().toLowerCase() : 'text');
 }
 
 export function getStepPollOptions(

@@ -3028,7 +3028,8 @@ const EditSprint: React.FC = () => {
                             const stepVersions = parseStepVersions(rawPrompt);
                             const activeVerIdx = activeStepVersionMap[index] || 0;
                             const prompt = getStepVersionValue(rawPrompt, activeVerIdx);
-                            const activeInputType = getStepVersionValue(rawInputType, activeVerIdx, 'text');
+                            const baseInputType = getStepVersionValue(rawInputType, 0, (rawInputType || 'text'));
+                            const activeInputType = getStepVersionValue(rawInputType, activeVerIdx, baseInputType);
 
                             const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || [], currentContent.taskPollOptions, Number(currentContent.day || selectedDay || 1), sprint?.dailyContent);
                             return (
@@ -3075,7 +3076,8 @@ const EditSprint: React.FC = () => {
                                                             const types = [...(currentContent.taskInputTypes || [])];
                                                             while (types.length <= index) types.push('text');
                                                             const rawType = types[index] || 'text';
-                                                            types[index] = updateStepVersionValue(rawType, newVerIdx, 'text') as any;
+                                                            const baseType = getStepVersionValue(rawType, 0, 'text');
+                                                            types[index] = updateStepVersionValue(rawType, newVerIdx, baseType) as any;
                                                             updateCurrentContentField('taskInputTypes', types);
                                                         }}
                                                         className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-primary hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
@@ -3400,7 +3402,7 @@ const EditSprint: React.FC = () => {
                                                                 .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
                                                             
                                                             const precedingDaysSteps = getPrecedingDaysTagSteps();
-                                                            const showSingleLink = currentContent.taskInputTypes?.[index] === 'tags';
+                                                            const showSingleLink = activeInputType === 'tags';
                                                             
                                                             const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags' || item.type === 'poll');
                                                             const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
@@ -3411,8 +3413,8 @@ const EditSprint: React.FC = () => {
                                                             const hasPrecedingForTagLink = precedingTagSteps.length > 0 || precedingDaysSteps.length > 0;
                                                             const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
-                                                            const showTagLink = hasPrecedingForTagLink && (currentContent.taskInputTypes?.[index] === 'tags' || currentContent.taskInputTypes?.[index] === 'poll');
-                                                            const showTextLink = hasPrecedingTexts && (currentContent.taskInputTypes?.[index] === 'text' || !currentContent.taskInputTypes?.[index]);
+                                                            const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
+                                                            const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
 																const showPollBranchLink = (currentContent.taskInputTypes || []).map((type, idx) => ({ type, idx })).filter(item => item.idx < index && (item.type === 'poll' || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0)))).length > 0;
 																const currentPollLink = currentContent.taskPollOptionLinks?.[index];
                                                             
