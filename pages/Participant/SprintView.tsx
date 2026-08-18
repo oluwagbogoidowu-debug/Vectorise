@@ -2440,7 +2440,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return activePrompts.every((_, i) => {
       if (!isStepVisible(i)) return true;
 
-      const type = dayContent.taskInputTypes?.[i] || "text";
+      const type = getStepInputType(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
       if (type === "note" || type === "none") return true;
 
       const val = taskInputs[i];
@@ -3337,12 +3337,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         
                                         const isNone = effectiveInputType === "none";
                                         let stepCompleted = isNote || isNone;
-                                        if (isMainActiveForStep(i, dayContent, sprint?.dailyContent)) {
+                                        if (isNone || isNote) {
+                                          stepCompleted = true;
+                                        } else if (isMainActiveForStep(i, dayContent, sprint?.dailyContent)) {
                                           const parsed = parseDualInputState(val);
                                           stepCompleted = Boolean(parsed.choice || (parsed.selectedChoices && parsed.selectedChoices.length > 0) || (parsed.text && parsed.text.trim().length > 0) || (val && val.trim().length > 0));
                                         } else if (isMark) {
                                           stepCompleted = val === "Completed" || val === "Skipped";
-                                        } else if (!isNote && !!val) {
+                                        } else if (!isNote && !isNone && !!val) {
                                           if (isTags || (effectiveInputType === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
                                             stepCompleted = val !== "[]" && val !== "";
                                           } else if (isLinkedTextStep(i)) {

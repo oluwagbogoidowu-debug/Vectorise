@@ -1621,7 +1621,9 @@ const SprintPreview: React.FC = () => {
                                                 const isNone = effectiveInputType === "none";
                                                 const val = taskInputs[i];
                                                 let stepCompleted = isNote || isNone;
-                                                if (isMark) {
+                                                if (isNone || isNote) {
+                                                    stepCompleted = true;
+                                                } else if (isMark) {
                                                     stepCompleted = val === "Completed" || val === "Skipped";
                                                 } else if (!isNote && !isNone && val) {
                                                     if (isTags || (effectiveInputType === "poll" && !!day1Content?.taskPollMultiSelect?.[i])) {
