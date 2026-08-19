@@ -601,7 +601,10 @@ export const pushNotificationManager = {
       if (enrollmentsSnap.empty) continue;
 
       const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
-      const sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+      let sprintSnap = await db.collection('experiences').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+      if (!sprintSnap.exists) {
+        sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+      }
       const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
 
       // Robust calculation of last active timestamp across user logins and actual task progress submissions

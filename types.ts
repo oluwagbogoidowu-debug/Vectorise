@@ -225,6 +225,76 @@ export interface DynamicSection {
   type?: 'text' | 'list';
 }
 
+export type ExperienceContentType = 'sprint' | 'blog' | 'ignite' | 'challenge';
+
+export interface BaseExperience {
+  id: string;
+  coachId: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  contentType?: ExperienceContentType;
+  category: string; // The subcategory (e.g. Mindset, Execution, Micro-Habits, Influence, etc.)
+  subcategory?: string;
+  coverImageUrl: string;
+  price: number;
+  currency: string;
+  duration: number;
+  published: boolean;
+  approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'archived';
+  createdAt?: string;
+  updatedAt?: string;
+  deleted?: boolean;
+}
+
+export interface SprintDetails {
+  outcomes?: string[];
+  transformation?: string;
+  forWho?: string[];
+  notForWho?: string[];
+  methodSnapshot?: { verb: string; description: string }[];
+  protocol?: 'One action per day' | 'Guided task' | 'Challenge-based';
+  outcomeTag?: string;
+  outcomeStatement?: string;
+  sprintType?: 'Fundamentals' | 'Core' | 'Expert' | 'Foundational' | 'Execution' | 'Skill';
+  difficulty?: SprintDifficulty;
+  dynamicSections?: DynamicSection[];
+  checkInReminder?: boolean;
+  checkInReminderDays?: number;
+  curriculumSource?: string;
+  parentSprintId?: string;
+  isVersion?: boolean;
+  versionNumber?: number;
+  versionTag?: string;
+}
+
+export interface RiseBlogDetails {
+  blogBody?: string;
+  blogImage?: string;
+  readTime?: string;
+  audience?: string[];
+  likes?: number;
+  authorName?: string;
+  authorRole?: string;
+  authorAvatar?: string;
+}
+
+export interface IgniteDetails {
+  igniteBody?: string;
+  igniteBgColor?: string;
+  igniteDate?: string;
+  likes?: number;
+}
+
+export interface ChallengeDetails {
+  name?: string;
+  whatToDo?: string;
+  howOften?: string;
+  howLong?: string;
+  completionCriteria?: string;
+  whyDoIt?: string;
+}
+
 export interface Sprint {
   id: string;
   trackId?: string;
@@ -234,6 +304,7 @@ export interface Sprint {
   actionTrigger?: string;
   description: string; 
   category: string;
+  subcategory?: string;
   difficulty?: SprintDifficulty;
   audience?: string[];
   overrideOrchestrator?: boolean;
