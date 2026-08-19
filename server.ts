@@ -84,48 +84,59 @@ async function startServer() {
 
     try {
       if (db) {
-        const snapshot = await db.collection('sprints').get();
-        snapshot.forEach((docSnap: any) => {
-          const data = docSnap.data();
-          if (data.deleted === true || data.published === false) return;
+        const categories = ['Sprint', 'RiseBlog', 'Ignite', 'Challenge'];
+        for (const cat of categories) {
+          try {
+            const snapshot = await db.collection('experiences').doc(cat).collection('items').get();
+            for (const docSnap of snapshot.docs) {
+              const itemData = docSnap.data();
+              let data = itemData;
+              try {
+                const infoSnap = await docSnap.ref.collection('sprintdetails').doc('info').get();
+                if (infoSnap.exists) data = { ...itemData, ...infoSnap.data() };
+              } catch (e) {}
 
-          let lastmodDate = new Date();
-          if (data.updatedAt) {
-            try {
-              lastmodDate = typeof data.updatedAt.toDate === 'function' ? data.updatedAt.toDate() : new Date(data.updatedAt);
-            } catch (e) {
-              lastmodDate = new Date();
-            }
-          }
-          const lastmod = isNaN(lastmodDate.getTime()) ? new Date().toISOString() : lastmodDate.toISOString();
+              if (data.deleted === true || data.published === false) continue;
 
-          if (data.contentType === 'blog' && (data.approvalStatus === 'approved' || !data.approvalStatus)) {
-            let audienceSlug = 'general';
-            if (Array.isArray(data.audience)) {
-              const cleaned = data.audience.map((a: any) => String(a).trim()).filter(Boolean);
-              if (cleaned.length === 1) {
-                audienceSlug = slugify(cleaned[0]) || 'general';
+              let lastmodDate = new Date();
+              if (data.updatedAt) {
+                try {
+                  lastmodDate = typeof data.updatedAt.toDate === 'function' ? data.updatedAt.toDate() : new Date(data.updatedAt);
+                } catch (e) {
+                  lastmodDate = new Date();
+                }
               }
-            } else if (typeof data.audience === 'string' && data.audience.trim()) {
-              audienceSlug = slugify(data.audience) || 'general';
-            }
+              const lastmod = isNaN(lastmodDate.getTime()) ? new Date().toISOString() : lastmodDate.toISOString();
 
-            const titleSlug = slugify(data.title || data.blogTitle || docSnap.id) || docSnap.id;
-            dynamicRoutes.push({
-              url: `/${audienceSlug}/${titleSlug}`,
-              lastmod,
-              priority: '0.8',
-              changefreq: 'weekly'
-            });
-          } else if (data.contentType !== 'blog' && data.contentType !== 'ignite') {
-            dynamicRoutes.push({
-              url: `/sprint/preview/${docSnap.id}`,
-              lastmod,
-              priority: '0.7',
-              changefreq: 'weekly'
-            });
-          }
-        });
+              if ((data.contentType === 'blog' || cat === 'RiseBlog') && (data.approvalStatus === 'approved' || !data.approvalStatus)) {
+                let audienceSlug = 'general';
+                if (Array.isArray(data.audience)) {
+                  const cleaned = data.audience.map((a: any) => String(a).trim()).filter(Boolean);
+                  if (cleaned.length === 1) {
+                    audienceSlug = slugify(cleaned[0]) || 'general';
+                  }
+                } else if (typeof data.audience === 'string' && data.audience.trim()) {
+                  audienceSlug = slugify(data.audience) || 'general';
+                }
+
+                const titleSlug = slugify(data.title || data.blogTitle || docSnap.id) || docSnap.id;
+                dynamicRoutes.push({
+                  url: `/${audienceSlug}/${titleSlug}`,
+                  lastmod,
+                  priority: '0.8',
+                  changefreq: 'weekly'
+                });
+              } else if (data.contentType !== 'blog' && data.contentType !== 'ignite' && cat !== 'RiseBlog' && cat !== 'Ignite') {
+                dynamicRoutes.push({
+                  url: `/sprint/preview/${docSnap.id}`,
+                  lastmod,
+                  priority: '0.7',
+                  changefreq: 'weekly'
+                });
+              }
+            }
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.error('[Sitemap] Error fetching dynamic pages from Firestore:', err);
@@ -364,8 +375,20 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       try {
         let docData: any = null;
         if (sprintId && typeof sprintId === 'string') {
-          const doc = await db.collection('sprints').doc(sprintId).collection('sprintdetails').doc('info').get();
-          if (doc.exists) docData = doc.data();
+          let sDoc = await db.collection('experiences').doc('Sprint').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
+          if (!sDoc.exists) {
+            sDoc = await db.collection('experiences').doc('RiseBlog').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
+          }
+          if (!sDoc.exists) {
+            sDoc = await db.collection('experiences').doc('Ignite').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
+          }
+          if (!sDoc.exists) {
+            sDoc = await db.collection('experiences').doc('Challenge').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
+          }
+          if (!sDoc.exists) {
+            sDoc = await db.collection('experiences').doc(sprintId).collection('sprintdetails').doc('info').get();
+          }
+          if (sDoc.exists) docData = sDoc.data();
         } else if (trackId && typeof trackId === 'string') {
           const doc = await db.collection('tracks').doc(trackId).get();
           if (doc.exists) docData = doc.data();

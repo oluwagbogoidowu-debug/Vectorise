@@ -28,9 +28,21 @@ export default async function handler(req: Request, res: Response) {
       }
       urlPath = `/track/${id}`;
     } else {
-      // Default to sprint
+      // Default to experience / sprint
       let sprintData: any = null;
-      const docReq = await db.collection('sprints').doc(id).collection('sprintdetails').doc('info').get();
+      let docReq = await db.collection('experiences').doc('Sprint').collection('items').doc(id).collection('sprintdetails').doc('info').get();
+      if (!docReq.exists) {
+        docReq = await db.collection('experiences').doc('RiseBlog').collection('items').doc(id).collection('sprintdetails').doc('info').get();
+      }
+      if (!docReq.exists) {
+        docReq = await db.collection('experiences').doc('Ignite').collection('items').doc(id).collection('sprintdetails').doc('info').get();
+      }
+      if (!docReq.exists) {
+        docReq = await db.collection('experiences').doc('Challenge').collection('items').doc(id).collection('sprintdetails').doc('info').get();
+      }
+      if (!docReq.exists) {
+        docReq = await db.collection('experiences').doc(id).collection('sprintdetails').doc('info').get();
+      }
       if (docReq.exists) {
         sprintData = docReq.data();
       }

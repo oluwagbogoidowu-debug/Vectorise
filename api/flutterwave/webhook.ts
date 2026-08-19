@@ -74,7 +74,19 @@ export default async (req: any, res: any) => {
       
       const hasActive = !activeEnrollments.empty;
 
-      const sprintSnap = await transaction.get(db.collection('sprints').doc(sprintId).collection('sprintdetails').doc('info'));
+      let sprintSnap = await transaction.get(db.collection('experiences').doc('Sprint').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+      if (!sprintSnap.exists) {
+        sprintSnap = await transaction.get(db.collection('experiences').doc('RiseBlog').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+      }
+      if (!sprintSnap.exists) {
+        sprintSnap = await transaction.get(db.collection('experiences').doc('Ignite').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+      }
+      if (!sprintSnap.exists) {
+        sprintSnap = await transaction.get(db.collection('experiences').doc('Challenge').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+      }
+      if (!sprintSnap.exists) {
+        sprintSnap = await transaction.get(db.collection('experiences').doc(sprintId).collection('sprintdetails').doc('info'));
+      }
       const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
 
       transaction.set(enrollmentRef, {

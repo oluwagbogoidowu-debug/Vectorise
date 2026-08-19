@@ -80,15 +80,122 @@ export const determineExperienceContentType = (item: any): { contentType: 'sprin
     };
 };
 
+export const EXPERIENCES_COLLECTION = 'experiences';
+export const EXPERIENCE_SINGULAR_COLLECTION = 'experience';
+export const LEGACY_SPRINTS_COLLECTION = 'sprints';
+
+export type ExperienceDocName = 'Sprint' | 'RiseBlog' | 'Ignite' | 'Challenge';
+export const EXPERIENCE_DOC_NAMES: ExperienceDocName[] = ['Sprint', 'RiseBlog', 'Ignite', 'Challenge'];
+
+export const getExperienceDocName = (item: any): ExperienceDocName => {
+    const { contentType, subcategory } = determineExperienceContentType(item);
+    if (contentType === 'blog' || subcategory === 'riseblog') return 'RiseBlog';
+    if (contentType === 'ignite' || subcategory === 'insight') return 'Ignite';
+    if (contentType === 'challenge' || subcategory === 'challenge') return 'Challenge';
+    return 'Sprint';
+};
+
+export const ensureExperienceCategoryDocs = async (): Promise<void> => {
+    const categoryMetadata: Record<ExperienceDocName, { title: string; description: string }> = {
+        Sprint: { title: 'Sprint Experiences', description: 'Structured multi-day action sprints.' },
+        RiseBlog: { title: 'RiseBlog Experiences', description: 'Transformative articles and micro-habit learning.' },
+        Ignite: { title: 'Ignite Insights', description: 'Bite-sized daily sparks and mindset insights.' },
+        Challenge: { title: 'Challenge Experiences', description: 'Action-oriented personal and community challenges.' }
+    };
+
+    const collections = [EXPERIENCES_COLLECTION, EXPERIENCE_SINGULAR_COLLECTION];
+    for (const col of collections) {
+        for (const cat of EXPERIENCE_DOC_NAMES) {
+            try {
+                await setDoc(doc(db, col, cat), {
+                    id: cat,
+                    name: cat,
+                    title: categoryMetadata[cat].title,
+                    description: categoryMetadata[cat].description,
+                    type: cat,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (e) {
+                // Ignore silent network/permission errors
+            }
+        }
+    }
+};
+
 let isMigrationRunning = false;
 let hasMigratedSession = false;
+
+/**
+ * Permanently cleans up and deletes all data in the former 'sprints' collection and flat 'experiences'
+ * once confirmed safely relocated under experiences/{Category}/items/{id}.
+ */
+const cleanupLegacySprintDocs = async (itemId: string): Promise<void> => {
+    try {
+        // 1. Delete details from legacy sprints
+        await deleteDoc(doc(db, LEGACY_SPRINTS_COLLECTION, itemId, 'sprintdetails', 'info')).catch(() => {});
+        await deleteDoc(doc(db, LEGACY_SPRINTS_COLLECTION, itemId, 'sprintdetials', 'info')).catch(() => {});
+        await deleteDoc(doc(db, LEGACY_SPRINTS_COLLECTION, itemId, 'details', 'info')).catch(() => {});
+
+        // 2. Delete days from legacy sprints
+        try {
+            const daysSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION, itemId, 'days'));
+            for (const d of daysSnap.docs) {
+                await deleteDoc(d.ref).catch(() => {});
+            }
+        } catch (e) {}
+
+        // 3. Delete reviews from legacy sprints
+        try {
+            const revSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION, itemId, 'reviews'));
+            for (const r of revSnap.docs) {
+                await deleteDoc(r.ref).catch(() => {});
+            }
+        } catch (e) {}
+
+        // 4. Delete numbered day subcollections if any
+        for (let dayNum = 1; dayNum <= 40; dayNum++) {
+            try {
+                const subColSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION, itemId, `day ${dayNum}`));
+                for (const subDoc of subColSnap.docs) {
+                    await deleteDoc(subDoc.ref).catch(() => {});
+                }
+            } catch (e) {}
+        }
+
+        // 5. Delete root doc in legacy sprints
+        await deleteDoc(doc(db, LEGACY_SPRINTS_COLLECTION, itemId)).catch(() => {});
+
+        // 6. Delete old flat document in experiences if itemId is not a category doc name
+        if (!EXPERIENCE_DOC_NAMES.includes(itemId as any)) {
+            await deleteDoc(doc(db, EXPERIENCES_COLLECTION, itemId, 'sprintdetails', 'info')).catch(() => {});
+            await deleteDoc(doc(db, EXPERIENCES_COLLECTION, itemId, 'sprintdetials', 'info')).catch(() => {});
+            await deleteDoc(doc(db, EXPERIENCES_COLLECTION, itemId, 'details', 'info')).catch(() => {});
+            try {
+                const flatDays = await getDocs(collection(db, EXPERIENCES_COLLECTION, itemId, 'days'));
+                for (const fd of flatDays.docs) {
+                    await deleteDoc(fd.ref).catch(() => {});
+                }
+            } catch (e) {}
+            try {
+                const flatRevs = await getDocs(collection(db, EXPERIENCES_COLLECTION, itemId, 'reviews'));
+                for (const fr of flatRevs.docs) {
+                    await deleteDoc(fr.ref).catch(() => {});
+                }
+            } catch (e) {}
+            await deleteDoc(doc(db, EXPERIENCES_COLLECTION, itemId)).catch(() => {});
+        }
+    } catch (err) {
+        console.warn(`[Cleanup] Non-fatal error cleaning legacy sprint doc ${itemId}:`, err);
+    }
+};
 
 export const migrateAllSprintsToExperiences = async (): Promise<void> => {
     if (isMigrationRunning || hasMigratedSession) return;
     isMigrationRunning = true;
     try {
-        console.log('[Migration] Starting auto-migration of all sprints, riseblogs, and insights to experiences collection...');
-        
+        console.log('[Migration] Ensuring parent category documents in experiences collection (Sprint, RiseBlog, Ignite, Challenge)...');
+        await ensureExperienceCategoryDocs().catch(() => {});
+
         const allItemIds = new Set<string>();
         const sprintDocsMap: Record<string, any> = {};
 
@@ -97,7 +204,7 @@ export const migrateAllSprintsToExperiences = async (): Promise<void> => {
             const sgSnap = await getDocs(query(collectionGroup(db, 'sprintdetails')));
             sgSnap.forEach(d => {
                 const parentId = d.ref.parent?.parent?.id;
-                if (parentId) {
+                if (parentId && !EXPERIENCE_DOC_NAMES.includes(parentId as any)) {
                     allItemIds.add(parentId);
                     sprintDocsMap[parentId] = { ...(sprintDocsMap[parentId] || {}), ...sanitizeData(d.data()), id: parentId };
                 }
@@ -111,7 +218,7 @@ export const migrateAllSprintsToExperiences = async (): Promise<void> => {
             const dgSnap = await getDocs(query(collectionGroup(db, 'details')));
             dgSnap.forEach(d => {
                 const parentId = d.ref.parent?.parent?.id;
-                if (parentId) {
+                if (parentId && !EXPERIENCE_DOC_NAMES.includes(parentId as any)) {
                     allItemIds.add(parentId);
                     sprintDocsMap[parentId] = { ...(sprintDocsMap[parentId] || {}), ...sanitizeData(d.data()), id: parentId };
                 }
@@ -124,33 +231,53 @@ export const migrateAllSprintsToExperiences = async (): Promise<void> => {
         try {
             const legSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION));
             legSnap.forEach(d => {
-                allItemIds.add(d.id);
-                const data = d.data();
-                if (data && Object.keys(data).length > 0) {
-                    sprintDocsMap[d.id] = { ...(sprintDocsMap[d.id] || {}), ...sanitizeData(data), id: d.id };
+                if (d.id && !EXPERIENCE_DOC_NAMES.includes(d.id as any)) {
+                    allItemIds.add(d.id);
+                    const data = d.data();
+                    if (data && Object.keys(data).length > 0) {
+                        sprintDocsMap[d.id] = { ...(sprintDocsMap[d.id] || {}), ...sanitizeData(data), id: d.id };
+                    }
                 }
             });
         } catch (e) {
             console.warn('[Migration] legacy sprints root scan skipped:', e);
         }
 
-        // 4. Scan experiences root collection
+        // 4. Scan experiences root collection for old flat documents
         try {
             const expSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION));
-            expSnap.forEach(d => {
-                allItemIds.add(d.id);
-                const data = d.data();
-                if (data && Object.keys(data).length > 0) {
-                    sprintDocsMap[d.id] = { ...(sprintDocsMap[d.id] || {}), ...sanitizeData(data), id: d.id };
+            for (const d of expSnap.docs) {
+                if (d.id && !EXPERIENCE_DOC_NAMES.includes(d.id as any)) {
+                    allItemIds.add(d.id);
+                    const data = d.data();
+                    if (data && Object.keys(data).length > 0) {
+                        sprintDocsMap[d.id] = { ...(sprintDocsMap[d.id] || {}), ...sanitizeData(data), id: d.id };
+                    }
                 }
-            });
+            }
         } catch (e) {
             console.warn('[Migration] experiences root scan skipped:', e);
         }
 
+        // 5. Scan categorized subcollections: experiences/{Category}/items
+        for (const cat of EXPERIENCE_DOC_NAMES) {
+            try {
+                const catSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, cat, 'items'));
+                catSnap.forEach(d => {
+                    if (d.id) {
+                        allItemIds.add(d.id);
+                        const data = d.data();
+                        if (data && Object.keys(data).length > 0) {
+                            sprintDocsMap[d.id] = { ...(sprintDocsMap[d.id] || {}), ...sanitizeData(data), id: d.id };
+                        }
+                    }
+                });
+            } catch (e) {}
+        }
+
         let migratedCount = 0;
         for (const itemId of Array.from(allItemIds)) {
-            if (!itemId) continue;
+            if (!itemId || EXPERIENCE_DOC_NAMES.includes(itemId as any)) continue;
             try {
                 let itemData = sprintDocsMap[itemId] || { id: itemId };
                 if (!itemData.title && !itemData.blogBody && !itemData.igniteBody && !itemData.blogTitle) {
@@ -163,19 +290,36 @@ export const migrateAllSprintsToExperiences = async (): Promise<void> => {
                 }
 
                 const { contentType, subcategory } = determineExperienceContentType(itemData);
-                const needsWrite = itemData.contentType !== contentType || itemData.subcategory !== subcategory;
                 itemData.contentType = contentType;
                 itemData.subcategory = subcategory;
 
+                const docName = getExperienceDocName(itemData);
+
+                // Write to hierarchical experience path
                 await sprintService._writeSubcollections(itemId, itemData);
-                migratedCount++;
+
+                // Confirm that the document has been successfully moved and is accessible in experiences
+                const checkSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, docName, 'items', itemId, 'sprintdetails', 'info'));
+                if (checkSnap.exists()) {
+                    // Confirmed moved: Now safely delete from former sprints collection & old flat locations
+                    await cleanupLegacySprintDocs(itemId);
+                    migratedCount++;
+                }
             } catch (err) {
                 console.error(`[Migration] Failed relocating item ${itemId}:`, err);
             }
         }
 
+        // Final cleanup sweep across remaining root docs in legacy 'sprints' collection
+        try {
+            const remainingSprintsSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION));
+            for (const rDoc of remainingSprintsSnap.docs) {
+                await cleanupLegacySprintDocs(rDoc.id);
+            }
+        } catch (e) {}
+
         hasMigratedSession = true;
-        console.log(`[Migration] Successfully relocated and categorized ${migratedCount} experiences into experiences collection.`);
+        console.log(`[Migration] Successfully structured ${migratedCount} items under category documents in experiences collection and deleted former sprints data.`);
     } catch (error) {
         console.error('[Migration] Global migration failed:', error);
     } finally {
@@ -183,9 +327,7 @@ export const migrateAllSprintsToExperiences = async (): Promise<void> => {
     }
 };
 
-const EXPERIENCES_COLLECTION = 'experiences';
 const SPRINTS_COLLECTION = 'experiences';
-const LEGACY_SPRINTS_COLLECTION = 'sprints';
 const ENROLLMENTS_COLLECTION = 'enrollments';
 const ORCHESTRATOR_LOGS = 'orchestrator_logs';
 const ORCHESTRATION_COLLECTION = 'orchestration';
@@ -379,8 +521,7 @@ export const sprintService = {
     createSprint: async (sprint: Sprint) => {
         const now = new Date().toISOString();
         const newSprint = sanitizeData({ ...sprint, createdAt: now, updatedAt: now, deleted: false });
-        // Parent document is kept completely empty to store sprint details purely in subcollections
-        await setDoc(doc(db, SPRINTS_COLLECTION, sprint.id), {});
+        await ensureExperienceCategoryDocs().catch(() => {});
         await sprintService._writeSubcollections(sprint.id, newSprint);
         sprintCache[sprint.id] = newSprint;
         try {
@@ -392,26 +533,51 @@ export const sprintService = {
     fetchAndCacheSprintInBackground: async (sprintId: string) => {
         const cacheKey = `vectorise_sprint_cache_${sprintId}`;
         try {
-            // Check experiences collection first, fallback to legacy sprints
-            let snap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId));
-            let detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'sprintdetails', 'info'));
-            if (!detailsSnap.exists()) {
-                detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'details', 'info'));
+            let sprintData: any = null;
+
+            // 1. Try categorized experiences paths: experiences/{Category}/items/{sprintId}
+            for (const cat of EXPERIENCE_DOC_NAMES) {
+                try {
+                    let detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'sprintdetails', 'info'));
+                    if (!detailsSnap.exists()) {
+                        detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'details', 'info'));
+                    }
+                    if (detailsSnap.exists()) {
+                        sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                        break;
+                    }
+                } catch (e) {}
             }
 
-            if (!snap.exists() && !detailsSnap.exists()) {
-                snap = await getDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId));
-                detailsSnap = await getDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
+            // 2. Try singular experience paths: experience/{Category}/items/{sprintId}
+            if (!sprintData) {
+                for (const cat of EXPERIENCE_DOC_NAMES) {
+                    try {
+                        let detailsSnap = await getDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, cat, 'items', sprintId, 'sprintdetails', 'info'));
+                        if (detailsSnap.exists()) {
+                            sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                            break;
+                        }
+                    } catch (e) {}
+                }
             }
 
-            if (!snap.exists() && !detailsSnap.exists()) return;
+            // 3. Fallback to flat experiences paths
+            if (!sprintData) {
+                let snap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId));
+                let detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'sprintdetails', 'info'));
+                if (!detailsSnap.exists()) {
+                    detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'details', 'info'));
+                }
+                if (detailsSnap.exists()) {
+                    sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                } else if (snap.exists() && snap.data()?.title) {
+                    sprintData = { id: sprintId, ...cleanDetailsData(snap.data()) };
+                }
+            }
+
+            if (!sprintData) return;
             
-            let sprintData = { id: sprintId } as any;
-            if (detailsSnap.exists()) {
-                sprintData = { ...sprintData, ...cleanDetailsData(detailsSnap.data()) };
-            } else if (snap.exists()) {
-                sprintData = { ...sprintData, ...cleanDetailsData(snap.data()) };
-            }
             const resolved = await sprintService.resolveSprintDays(sprintData);
             if (resolved) {
                 sprintCache[sprintId] = resolved;
@@ -451,32 +617,56 @@ export const sprintService = {
             }
         }
 
-        // 3. No cache available. Let's fetch from Firestore with resilient fallbacks
+        // 3. No cache available. Fetch from Firestore across categorized documents
         try {
             console.log(`[sprintService] Fetching sprint ${sprintId} from Firestore...`);
             
             const fetchPromise: Promise<Sprint | null> = (async (): Promise<Sprint | null> => {
-                // Check primary experiences collection
-                let snap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId));
-                let detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'sprintdetails', 'info'));
-                if (!detailsSnap.exists()) {
-                    detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'details', 'info'));
-                }
-                
-                // Fallback to legacy sprints collection
-                if (!snap.exists() && !detailsSnap.exists()) {
-                    snap = await getDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId));
-                    detailsSnap = await getDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'));
-                }
-
                 let sprintData: any = null;
-                if (detailsSnap.exists()) {
-                    sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
-                } else if (snap.exists()) {
-                    sprintData = { id: sprintId, ...cleanDetailsData(snap.data()) };
+
+                // A. Try categorized experiences paths: experiences/{Category}/items/{sprintId}
+                for (const cat of EXPERIENCE_DOC_NAMES) {
+                    try {
+                        let detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'sprintdetails', 'info'));
+                        if (!detailsSnap.exists()) {
+                            detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'details', 'info'));
+                        }
+                        if (detailsSnap.exists()) {
+                            sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                            break;
+                        }
+                    } catch (e) {}
                 }
 
-                // Fallback A: Check if sprintId is an orchestration slot ID
+                // B. Try singular experience paths: experience/{Category}/items/{sprintId}
+                if (!sprintData) {
+                    for (const cat of EXPERIENCE_DOC_NAMES) {
+                        try {
+                            let detailsSnap = await getDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, cat, 'items', sprintId, 'sprintdetails', 'info'));
+                            if (detailsSnap.exists()) {
+                                sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                                break;
+                            }
+                        } catch (e) {}
+                    }
+                }
+
+                // C. Fallback to flat experiences collection
+                if (!sprintData) {
+                    let snap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId));
+                    let detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'sprintdetails', 'info'));
+                    if (!detailsSnap.exists()) {
+                        detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'details', 'info'));
+                    }
+
+                    if (detailsSnap.exists()) {
+                        sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                    } else if (snap.exists() && snap.data()?.title) {
+                        sprintData = { id: sprintId, ...cleanDetailsData(snap.data()) };
+                    }
+                }
+
+                // Fallback D: Check if sprintId is an orchestration slot ID
                 if (!sprintData) {
                     try {
                         const slotSnap = await getDoc(doc(db, ORCHESTRATION_SLOTS_COLLECTION, sprintId));
@@ -490,7 +680,7 @@ export const sprintService = {
                     } catch (e) {}
                 }
 
-                // Fallback B: Search collectionGroup('sprintdetails') or collectionGroup('details')
+                // Fallback E: Search collectionGroup('sprintdetails') or collectionGroup('details')
                 if (!sprintData) {
                     try {
                         const q = query(collectionGroup(db, 'sprintdetails'));
@@ -566,11 +756,9 @@ export const sprintService = {
     },
 
     subscribeToSprint: (sprintId: string, callback: (sprint: Sprint | null) => void) => {
-        const detailsRef = doc(db, EXPERIENCES_COLLECTION, sprintId, 'sprintdetails', 'info');
-        const legacyDetailsRef = doc(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
-        
         let latestDetails: any = null;
         let latestDays: Record<number, any> = {};
+        const unsubs: (() => void)[] = [];
 
         const emitMerged = () => {
             if (!latestDetails) return;
@@ -602,87 +790,119 @@ export const sprintService = {
             callback(deserialized);
         };
 
-        // Listen to sprint details
-        const unsubDetails = onSnapshot(detailsRef, async (detailsSnap) => {
-            if (detailsSnap.exists()) {
-                latestDetails = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
-                emitMerged();
-            } else {
-                // Try legacy detailsRef fallback
-                const legacySnap = await getDoc(legacyDetailsRef);
-                if (legacySnap.exists()) {
-                    latestDetails = { id: sprintId, ...cleanDetailsData(legacySnap.data()) };
-                    emitMerged();
-                } else {
-                    // Try parent doc fallback if not migrated yet
-                    const parentSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, sprintId));
-                    if (parentSnap.exists() && parentSnap.data()?.title) {
-                        latestDetails = { id: sprintId, ...cleanDetailsData(parentSnap.data()) };
+        // Set up listeners on categorized paths
+        for (const cat of EXPERIENCE_DOC_NAMES) {
+            try {
+                const catDetailsRef = doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'sprintdetails', 'info');
+                const u1 = onSnapshot(catDetailsRef, (snap) => {
+                    if (snap.exists()) {
+                        latestDetails = { id: sprintId, ...cleanDetailsData(snap.data()) };
                         emitMerged();
-                    } else {
-                        const legacyParentSnap = await getDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId));
-                        if (legacyParentSnap.exists() && legacyParentSnap.data()?.title) {
-                            latestDetails = { id: sprintId, ...cleanDetailsData(legacyParentSnap.data()) };
-                            emitMerged();
-                        } else {
-                            callback(null);
-                        }
                     }
-                }
-            }
-        }, (error) => {
-            console.error("Error listening to sprint details snapshot:", error);
-            // Fallback to static fetch to make sure the callback receives the data
-            sprintService.getSprintById(sprintId)
-                .then((data: any) => {
-                    if (data) {
-                        callback(data);
-                    }
-                })
-                .catch((err: any) => {
-                    console.error("Static fallback also failed for detailsRef in subscribeToSprint:", err);
-                });
-        });
+                }, () => {});
+                unsubs.push(u1);
 
-        // Listen to days subcollection
-        const unsubDays = onSnapshot(collection(db, EXPERIENCES_COLLECTION, sprintId, 'days'), async (daysSnap) => {
-            if (!daysSnap.empty) {
-                const days: Record<number, any> = {};
-                daysSnap.forEach(dDoc => {
-                    const data = dDoc.data();
-                    const dayNum = parseInt(dDoc.id.replace('day ', ''));
-                    if (!isNaN(dayNum)) {
-                        days[dayNum] = data;
-                    }
-                });
-                latestDays = days;
-                emitMerged();
-            } else {
-                // Fallback to legacy sprints days
-                try {
-                    const legacyDaysSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'days'));
-                    if (!legacyDaysSnap.empty) {
+                const catDaysRef = collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'days');
+                const u2 = onSnapshot(catDaysRef, (snap) => {
+                    if (!snap.empty) {
                         const days: Record<number, any> = {};
-                        legacyDaysSnap.forEach(dDoc => {
+                        snap.forEach(dDoc => {
                             const data = dDoc.data();
                             const dayNum = parseInt(dDoc.id.replace('day ', ''));
                             if (!isNaN(dayNum)) {
                                 days[dayNum] = data;
                             }
                         });
-                        latestDays = days;
+                        latestDays = { ...latestDays, ...days };
                         emitMerged();
                     }
-                } catch (e) {}
+                }, () => {});
+                unsubs.push(u2);
+            } catch (e) {}
+        }
+
+        // Listen to legacy flat experiences & sprints details
+        try {
+            const detailsRef = doc(db, EXPERIENCES_COLLECTION, sprintId, 'sprintdetails', 'info');
+            const u3 = onSnapshot(detailsRef, async (detailsSnap) => {
+                if (detailsSnap.exists()) {
+                    latestDetails = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
+                    emitMerged();
+                } else if (!latestDetails) {
+                    sprintService.getSprintById(sprintId).then(res => {
+                        if (res) {
+                            latestDetails = res;
+                            emitMerged();
+                        }
+                    }).catch(() => {});
+                }
+            }, () => {});
+            unsubs.push(u3);
+
+            const unsubDays = onSnapshot(collection(db, EXPERIENCES_COLLECTION, sprintId, 'days'), async (daysSnap) => {
+                if (!daysSnap.empty) {
+                    const days: Record<number, any> = {};
+                    daysSnap.forEach(dDoc => {
+                        const data = dDoc.data();
+                        const dayNum = parseInt(dDoc.id.replace('day ', ''));
+                        if (!isNaN(dayNum)) {
+                            days[dayNum] = data;
+                        }
+                    });
+                    latestDays = { ...latestDays, ...days };
+                    emitMerged();
+                }
+            }, () => {});
+            unsubs.push(unsubDays);
+        } catch (e) {}
+
+        // Initial fallback check
+        sprintService.getSprintById(sprintId).then((res) => {
+            if (res && !latestDetails) {
+                latestDetails = res;
+                emitMerged();
             }
-        }, (error) => {
-            console.warn("Days subcollection snapshot notice:", error.message);
-        });
+        }).catch(() => {});
 
         return () => {
-            unsubDetails();
-            unsubDays();
+            unsubs.forEach(u => {
+                try { u(); } catch (e) {}
+            });
         };
+    },
+
+    getExperiencesByCategory: async (categoryName: ExperienceDocName): Promise<Sprint[]> => {
+        try {
+            const colRef = collection(db, EXPERIENCES_COLLECTION, categoryName, 'items');
+            const snap = await getDocs(colRef);
+            const items: Sprint[] = [];
+            for (const d of snap.docs) {
+                const item = await sprintService.getSprintById(d.id);
+                if (item && item.deleted !== true) {
+                    items.push(item);
+                }
+            }
+            return items;
+        } catch (e) {
+            console.error(`Error getting experiences for category ${categoryName}:`, e);
+            return [];
+        }
+    },
+
+    subscribeToExperiencesByCategory: (categoryName: ExperienceDocName, callback: (sprints: Sprint[]) => void) => {
+        try {
+            const colRef = collection(db, EXPERIENCES_COLLECTION, categoryName, 'items');
+            return onSnapshot(colRef, async (snap) => {
+                const ids = snap.docs.map(d => d.id);
+                const items = await sprintService.getSprintsByIds(ids);
+                callback(items.filter(i => i.deleted !== true));
+            }, (err) => {
+                console.warn(`subscribeToExperiencesByCategory error for ${categoryName}:`, err);
+            });
+        } catch (e) {
+            console.error(`Error subscribing to experiences category ${categoryName}:`, e);
+            return () => {};
+        }
     },
 
     getCoachSprints: async (coachId: string) => {
@@ -855,15 +1075,52 @@ export const sprintService = {
             const { contentType, subcategory } = determineExperienceContentType(sprint);
             sprint.contentType = contentType;
             sprint.subcategory = subcategory;
+            const primaryDocName = getExperienceDocName(sprint);
 
-            let daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, sprint.id, 'days'));
-            if (daysSnap.empty) {
-                daysSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION, sprint.id, 'days'));
+            let daysSnap: any = null;
+
+            // 1. Check primary categorized path: experiences/{Category}/items/{sprint.id}/days
+            try {
+                daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, primaryDocName, 'items', sprint.id, 'days'));
+            } catch (e) {}
+
+            // 2. Check other categories if empty
+            if (!daysSnap || daysSnap.empty) {
+                for (const cat of EXPERIENCE_DOC_NAMES) {
+                    if (cat === primaryDocName) continue;
+                    try {
+                        const snap = await getDocs(collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprint.id, 'days'));
+                        if (!snap.empty) {
+                            daysSnap = snap;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 3. Check singular experience collection: experience/{Category}/items/{sprint.id}/days
+            if (!daysSnap || daysSnap.empty) {
+                for (const cat of EXPERIENCE_DOC_NAMES) {
+                    try {
+                        const snap = await getDocs(collection(db, EXPERIENCE_SINGULAR_COLLECTION, cat, 'items', sprint.id, 'days'));
+                        if (!snap.empty) {
+                            daysSnap = snap;
+                            break;
+                        }
+                    } catch (e) {}
+                }
+            }
+
+            // 4. Fallback to flat experiences collection
+            if (!daysSnap || daysSnap.empty) {
+                try {
+                    daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, sprint.id, 'days'));
+                } catch (e) {}
             }
 
             const loadedDays: Record<number, any> = {};
-            if (!daysSnap.empty) {
-                daysSnap.forEach(dDoc => {
+            if (daysSnap && !daysSnap.empty) {
+                daysSnap.forEach((dDoc: any) => {
                     const data = dDoc.data();
                     const dayNum = parseInt(dDoc.id.replace('day ', ''));
                     if (!isNaN(dayNum)) {
@@ -883,30 +1140,10 @@ export const sprintService = {
                     }
                 }
                 sprint.dailyContent = dailyContent;
-                
-                // If parent doc contains dailyContent, clean it up immediately in Firestore
-                if (hasDailyField) {
-                    try {
-                        const parentRef = doc(db, EXPERIENCES_COLLECTION, sprint.id);
-                        await updateDoc(parentRef, { dailyContent: deleteField() }).catch(() => {});
-                        
-                        const detailsRef = doc(db, EXPERIENCES_COLLECTION, sprint.id, 'sprintdetails', 'info');
-                        await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
-                    } catch (e) {}
-                }
             } else if (sprint.dailyContent && sprint.dailyContent.length > 0) {
                 // Auto-migrate old format sprint to new subcollections in the background
                 console.log(`[Migration] Auto-migrating sprint ${sprint.id} to new subcollection structure in Firestore...`);
                 await sprintService._writeSubcollections(sprint.id, sprint);
-                
-                // Clean from parent and sprintdetails
-                try {
-                    const parentRef = doc(db, EXPERIENCES_COLLECTION, sprint.id);
-                    await updateDoc(parentRef, { dailyContent: deleteField() }).catch(() => {});
-                    
-                    const detailsRef = doc(db, EXPERIENCES_COLLECTION, sprint.id, 'sprintdetails', 'info');
-                    await updateDoc(detailsRef, { dailyContent: deleteField() }).catch(() => {});
-                } catch (e) {}
             }
         } catch (err) {
             console.error("Error resolving sprint subcollection days:", err);
@@ -934,57 +1171,49 @@ export const sprintService = {
             metadata.contentType = contentType;
             metadata.subcategory = subcategory;
 
+            const docName = getExperienceDocName(metadata);
             const detailsData = sanitizeData({ ...metadata, contentType, subcategory, updatedAt: new Date().toISOString() });
             
             // Clean up dailyContent from detailsData
             delete (detailsData as any).dailyContent;
-            
-            // 1. Write to experiences collection subcollections
-            await setDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'sprintdetails', 'info'), detailsData);
-            await setDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, 'details', 'info'), detailsData);
-            
-            // Also write to legacy sprints collection for backward compatibility
-            try {
-                await setDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info'), detailsData);
-            } catch (e) {}
 
-            // Ensure any direct obsolete day documents (day X) are deleted
-            for (let d = 1; d <= 30; d++) {
-                try {
-                    await deleteDoc(doc(db, EXPERIENCES_COLLECTION, sprintId, `day ${d}`));
-                    await deleteDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId, `day ${d}`));
-                } catch (err) {}
-            }
+            // Ensure parent category documents exist
+            await ensureExperienceCategoryDocs().catch(() => {});
             
-            // Set base experience root document
-            const experienceRootDoc = sanitizeData({
+            // 1. Write to hierarchical categorized paths: experiences/{Category}/items/{sprintId}/...
+            await setDoc(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'sprintdetails', 'info'), detailsData);
+            await setDoc(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'details', 'info'), detailsData);
+            await setDoc(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId), {
                 id: sprintId,
-                coachId: metadata.coachId || '',
-                title: metadata.title || '',
-                subtitle: metadata.subtitle || '',
-                description: metadata.description || '',
-                contentType: contentType,
-                category: metadata.category || '',
-                subcategory: subcategory,
-                coverImageUrl: metadata.coverImageUrl || '',
-                price: metadata.price || 0,
-                currency: metadata.currency || 'NGN',
-                duration: metadata.duration || 1,
-                published: metadata.published ?? true,
-                approvalStatus: metadata.approvalStatus || 'approved',
-                createdAt: metadata.createdAt || new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                deleted: metadata.deleted || false,
-            });
-            await setDoc(doc(db, EXPERIENCES_COLLECTION, sprintId), experienceRootDoc);
-            
+                title: metadata.title || metadata.blogTitle || metadata.igniteTitle || '',
+                contentType,
+                subcategory,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+
+            // 2. Also write to experience/{Category}/items/{sprintId} (singular collection alias)
             try {
-                await setDoc(doc(db, LEGACY_SPRINTS_COLLECTION, sprintId), {});
+                await setDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'sprintdetails', 'info'), detailsData);
+                await setDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'details', 'info'), detailsData);
             } catch (e) {}
+            
+            // 3. Proactively clean up any remnant copy from former sprints collection
+            cleanupLegacySprintDocs(sprintId).catch(() => {});
+
+            // Cleanup from other categories if item was moved or re-categorized
+            for (const otherCat of EXPERIENCE_DOC_NAMES) {
+                if (otherCat !== docName) {
+                    try {
+                        await deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId, 'sprintdetails', 'info'));
+                        await deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId, 'details', 'info'));
+                        await deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId));
+                    } catch (e) {}
+                }
+            }
 
             if (Array.isArray(dailyContent)) {
-                // Get all existing day documents in experiences to check for deletions
-                const daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, sprintId, 'days'));
+                // Get existing days in categorized doc
+                const daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days'));
                 const newDayNums = new Set(dailyContent.map(d => d.day));
                 for (const dDoc of daysSnap.docs) {
                     const dayNum = parseInt(dDoc.id.replace('day ', ''));
@@ -998,14 +1227,14 @@ export const sprintService = {
                     const dayNum = day.day;
                     const dayData = sanitizeData(day);
                     
-                    // Write to experiences/days
-                    const daysSubDocRef = doc(db, EXPERIENCES_COLLECTION, sprintId, 'days', `day ${dayNum}`);
-                    await setDoc(daysSubDocRef, dayData);
+                    // Categorized days write
+                    const catDayRef = doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days', `day ${dayNum}`);
+                    await setDoc(catDayRef, dayData);
 
-                    // Sync to legacy sprints/days
+                    // Singular experience collection alias
                     try {
-                        const legacyDayRef = doc(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'days', `day ${dayNum}`);
-                        await setDoc(legacyDayRef, dayData);
+                        const singDayRef = doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'days', `day ${dayNum}`);
+                        await setDoc(singDayRef, dayData);
                     } catch (e) {}
                 }
             }
@@ -1383,26 +1612,18 @@ export const sprintService = {
     },
 
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
-        const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
-        
         try {
-            // Fetch existing details from subcollection OR parent doc as fallback
-            let existingDetails: any = {};
-            const detailsSnap = await getDoc(detailsRef);
-            if (detailsSnap.exists()) {
-                existingDetails = sanitizeData(detailsSnap.data());
-            } else {
-                const parentSnap = await getDoc(sprintRef);
-                if (parentSnap.exists()) {
-                    existingDetails = sanitizeData(parentSnap.data());
-                }
+            // Fetch existing details with comprehensive fallback
+            let existingDetails: any = await sprintService.getSprintById(sprintId, true);
+            if (!existingDetails) {
+                existingDetails = {};
             }
 
             // Also fetch existing days if data doesn't include dailyContent so dailyContent is preserved
             if (!data.dailyContent && !existingDetails.dailyContent) {
                 try {
-                    const daysSnap = await getDocs(collection(db, SPRINTS_COLLECTION, sprintId, 'days'));
+                    const docName = getExperienceDocName(existingDetails);
+                    const daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days'));
                     if (!daysSnap.empty) {
                         const days = daysSnap.docs.map(d => sanitizeData(d.data())).sort((a: any, b: any) => (a.day || 0) - (b.day || 0));
                         existingDetails.dailyContent = days;
@@ -1415,9 +1636,6 @@ export const sprintService = {
             
             await sprintService._writeSubcollections(sprintId, mergedSub);
 
-            // Ensure the parent doc is completely empty to satisfies single subcollection source of truth ONLY after successful subcollections sync
-            await setDoc(sprintRef, {});
-
             sprintCache[sprintId] = mergedSub;
             try {
                 localStorage.setItem(`vectorise_sprint_cache_${sprintId}`, safeJSONStringify(mergedSub));
@@ -1429,22 +1647,19 @@ export const sprintService = {
     },
 
     deleteSprint: async (sprintId: string) => {
-        // Mark sprint as deleted inside the subcollection info, parent doc remains completely empty
-        const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        await setDoc(sprintRef, {});
-
         try {
-            const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
-            const detailsSnap = await getDoc(detailsRef);
-            if (detailsSnap.exists()) {
-                const details = sanitizeData(detailsSnap.data());
-                details.deleted = true;
-                details.published = false;
-                details.updatedAt = new Date().toISOString();
-                await setDoc(detailsRef, details);
+            const existing = await sprintService.getSprintById(sprintId, true);
+            if (existing) {
+                const details = {
+                    ...existing,
+                    deleted: true,
+                    published: false,
+                    updatedAt: new Date().toISOString()
+                };
+                await sprintService._writeSubcollections(sprintId, details);
             }
         } catch (err) {
-            console.error("[SprintService] Failed to mark subcollection as deleted:", err);
+            console.error("[SprintService] Failed to mark experience as deleted:", err);
         }
 
         // 2. Remove from all Tracks
@@ -1503,30 +1718,23 @@ export const sprintService = {
     },
 
     approveSprint: async (sprintId: string, data?: Partial<Sprint>) => {
-        const sprintRef = doc(db, SPRINTS_COLLECTION, sprintId);
-        const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
-
         try {
-            let existingDetails = {};
-            const detailsSnap = await getDoc(detailsRef);
-            if (detailsSnap.exists()) {
-                existingDetails = sanitizeData(detailsSnap.data());
-            } else {
-                const parentSnap = await getDoc(sprintRef);
-                if (parentSnap.exists()) {
-                    existingDetails = sanitizeData(parentSnap.data());
-                }
-            }
+            let existingDetails: any = await sprintService.getSprintById(sprintId, true);
+            if (!existingDetails) existingDetails = {};
 
-            const finalData = { ...existingDetails, ...(data || {}), id: sprintId, approvalStatus: 'approved' as const, published: true, updatedAt: new Date().toISOString() };
+            const finalData = { 
+                ...existingDetails, 
+                ...(data || {}), 
+                id: sprintId, 
+                approvalStatus: 'approved' as const, 
+                published: true, 
+                updatedAt: new Date().toISOString() 
+            };
             if ((finalData as any).pendingChanges) {
                 delete (finalData as any).pendingChanges;
             }
 
             await sprintService._writeSubcollections(sprintId, finalData);
-
-            // Entirely clear parent document fields ONLY after writing subcollections successfully
-            await setDoc(sprintRef, {});
 
             sprintCache[sprintId] = finalData as Sprint;
             try {
@@ -1692,134 +1900,36 @@ export const sprintService = {
         };
 
         try {
-            log("Starting system-wide legacy sprint document migration...");
-            const sprintsSnap = await getDocs(collection(db, SPRINTS_COLLECTION));
+            log("Starting system-wide migration to experiences/{Category}/items/{id} and wiping former sprints collection...");
+            await ensureExperienceCategoryDocs().catch(() => {});
             
+            const sprintsSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION));
             report.sprintsScanned = sprintsSnap.size;
-            log(`Found ${sprintsSnap.size} sprints in the database.`);
+            log(`Found ${sprintsSnap.size} legacy sprints in former 'sprints' collection.`);
 
             for (const sprintDoc of sprintsSnap.docs) {
                 const sprintId = sprintDoc.id;
-                log(`Scanning sprint: ${sprintId}...`);
+                log(`Processing sprint: ${sprintId}...`);
 
-                // 1. Fetch parent document
-                let parentData = sanitizeData(sprintDoc.data());
-                
-                // 2. Fetch details/info document
-                let detailsData: any = null;
-                const detailsRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetails', 'info');
-                const detailsTypoRef = doc(db, SPRINTS_COLLECTION, sprintId, 'sprintdetials', 'info');
-                
-                try {
-                    const snap = await getDoc(detailsRef);
-                    if (snap.exists()) {
-                        detailsData = sanitizeData(snap.data());
-                    }
-                } catch (e) {
-                    log(`Warning loading details info for ${sprintId}: ${e}`);
-                }
-
-                try {
-                    const typoSnap = await getDoc(detailsTypoRef);
-                    if (typoSnap.exists() && !detailsData) {
-                        detailsData = sanitizeData(typoSnap.data());
-                        log(`Found legacy data under sprintdetials typo path for ${sprintId}.`);
-                    }
-                } catch (e) {}
-
-                // Merge metadata to see what we have
-                const combinedMetadata = { ...parentData, ...detailsData };
-                
-                // 3. Resolve existing days in the 'days' subcollection
-                const daysSnap = await getDocs(collection(db, SPRINTS_COLLECTION, sprintId, 'days'));
-                const hasDaysSubcollection = !daysSnap.empty;
-
-                let dailyContentToSave = combinedMetadata.dailyContent || null;
-
-                // If days subcollection is empty but we have dailyContent, save it to 'days'
-                if (!hasDaysSubcollection && dailyContentToSave && dailyContentToSave.length > 0) {
-                    log(`Sprint ${sprintId} has dailyContent but empty 'days' subcollection. Migrating content...`);
-                    
-                    const mergedForSub = { ...combinedMetadata, dailyContent: dailyContentToSave };
-                    await sprintService._writeSubcollections(sprintId, mergedForSub);
-                    
+                // 1. Fetch full sprint details
+                const fullSprint = await sprintService.getSprintById(sprintId, true);
+                if (fullSprint) {
+                    const docName = getExperienceDocName(fullSprint);
+                    log(`Relocating ${sprintId} to experiences/${docName}/items/${sprintId}...`);
+                    await sprintService._writeSubcollections(sprintId, fullSprint);
                     report.sprintsMigratedToSubcollection++;
-                    log(`Successfully migrated ${dailyContentToSave.length} days of content to 'sprints/${sprintId}/days'.`);
-                } else if (hasDaysSubcollection) {
-                    log(`Sprint ${sprintId} already has a 'days' subcollection of size ${daysSnap.size}.`);
                 }
 
-                // 4. CLEAN UP Parent document 'sprints/{sprintId}'
-                const fieldsToDelete: Record<string, any> = {
-                    dailyContent: deleteField(),
-                    attachments: deleteField(),
-                    lessonAttachments: deleteField(),
-                    taskAttachments: deleteField(),
-                    dailyContentAttachments: deleteField()
-                };
-
-                try {
-                    // Entirely clear the parent doc, converting it to an empty object
-                    const parentRef = doc(db, SPRINTS_COLLECTION, sprintId);
-                    await setDoc(parentRef, {});
-                    report.parentFieldsCleaned++;
-                    log(`Successfully cleared all fields from parent document sprints/${sprintId}, converting it to an empty placeholder.`);
-                } catch (e: any) {
-                    log(`Error cleaning parent doc for ${sprintId}: ${e.message}`);
-                    report.errors.push(`ParentDoc ${sprintId}: ${e.message}`);
-                }
-
-                // 5. CLEAN UP 'sprints/{sprintId}/sprintdetails/info' and 'sprintdetials/info'
-                try {
-                    let detailsChanged = false;
-                    if (detailsData) {
-                        for (const key of Object.keys(fieldsToDelete)) {
-                            if (key in detailsData) {
-                                detailsChanged = true;
-                            }
-                        }
-                    }
-
-                    // Always execute update with deleteField on actual target subdocs to guarantee cleanup
-                    const detailsSnapObj = await getDoc(detailsRef);
-                    if (detailsSnapObj.exists()) {
-                        await updateDoc(detailsRef, fieldsToDelete);
-                        if (detailsChanged) report.detailsFieldsCleaned++;
-                    }
-
-                    // Run on typo collection too
-                    const typoSnapObj = await getDoc(detailsTypoRef);
-                    if (typoSnapObj.exists()) {
-                        await updateDoc(detailsTypoRef, fieldsToDelete);
-                        log(`Cleaned legacy fields from legacy typo path 'sprintdetials/info' for ${sprintId}.`);
-                    }
-                } catch (e: any) {
-                    log(`Error cleaning details info doc for ${sprintId}: ${e.message}`);
-                    report.errors.push(`DetailsDoc ${sprintId}: ${e.message}`);
-                }
-
-                // 6. Delete legacy subcollections / documents (e.g. 'day 1', 'day 2', ..., 'day 40')
-                log(`Scanning for legacy 'day X' subcollections under sprints/${sprintId}...`);
-                for (let d = 1; d <= 40; d++) {
-                    const legacyDayColName = `day ${d}`;
-                    try {
-                        const legacyDayColRef = collection(db, SPRINTS_COLLECTION, sprintId, legacyDayColName);
-                        const legacyDaySnap = await getDocs(legacyDayColRef);
-                        
-                        if (!legacyDaySnap.empty) {
-                            log(`Found legacy document(s) in collection 'sprints/${sprintId}/${legacyDayColName}'. Deleting...`);
-                            for (const docInSub of legacyDaySnap.docs) {
-                                await deleteDoc(docInSub.ref);
-                                report.legacyDocsDeleted++;
-                            }
-                        }
-                    } catch (e: any) {
-                        log(`Error scanning/deleting legacy subcollection ${legacyDayColName} for ${sprintId}: ${e.message}`);
-                    }
-                }
+                // 2. Wipe from legacy sprints collection
+                await cleanupLegacySprintDocs(sprintId);
+                report.legacyDocsDeleted++;
+                log(`Successfully deleted legacy copy from former 'sprints/${sprintId}'.`);
             }
 
-            log("Migration complete!");
+            // Also migrate global experiences
+            await migrateAllSprintsToExperiences();
+
+            log("Migration and legacy sprints cleanup complete! All sprint views and operations now draw from 'experiences' alone.");
             return report;
         } catch (e: any) {
             log(`Fatal error during migration: ${e.message}`);

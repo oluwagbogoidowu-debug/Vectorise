@@ -148,11 +148,9 @@ export const ensureSeedBlogsInFirestore = (): Promise<void> => {
   isSeedingPromise = (async () => {
     try {
       for (const blog of SEED_BLOG_SPRINTS) {
-        let detailsRef = doc(db, 'experiences', blog.id, 'sprintdetails', 'info');
-        let snap = await getDoc(detailsRef);
+        let snap = await getDoc(doc(db, 'experiences', 'RiseBlog', 'items', blog.id, 'sprintdetails', 'info'));
         if (!snap.exists()) {
-          detailsRef = doc(db, 'sprints', blog.id, 'sprintdetails', 'info');
-          snap = await getDoc(detailsRef);
+          snap = await getDoc(doc(db, 'experiences', blog.id, 'sprintdetails', 'info'));
         }
         if (!snap.exists()) {
           console.log(`[Seed] Creating blog post in Firestore: ${blog.id}`);

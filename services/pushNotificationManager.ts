@@ -601,9 +601,18 @@ export const pushNotificationManager = {
       if (enrollmentsSnap.empty) continue;
 
       const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
-      let sprintSnap = await db.collection('experiences').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+      let sprintSnap = await db.collection('experiences').doc('Sprint').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
       if (!sprintSnap.exists) {
-        sprintSnap = await db.collection('sprints').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+        sprintSnap = await db.collection('experiences').doc('RiseBlog').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+      }
+      if (!sprintSnap.exists) {
+        sprintSnap = await db.collection('experiences').doc('Ignite').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+      }
+      if (!sprintSnap.exists) {
+        sprintSnap = await db.collection('experiences').doc('Challenge').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+      }
+      if (!sprintSnap.exists) {
+        sprintSnap = await db.collection('experiences').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
       }
       const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
 
