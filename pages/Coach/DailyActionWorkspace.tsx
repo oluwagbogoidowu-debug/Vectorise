@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -533,7 +533,7 @@ export default function DailyActionWorkspace({
     if (!dayContent) return -1;
     for (let i = currentIndex - 1; i >= 0; i--) {
       const type = dayContent.taskInputTypes?.[i];
-      if ((type as string) === 'poll' || (i === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || (type as string) === 'poll'))) {
+      if (isStepOrSubStepPoll(type) || (i === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))) {
         return i;
       }
     }
@@ -573,23 +573,30 @@ export default function DailyActionWorkspace({
 
   const getPrecedingDaysTagStepsForDay = (day: number) => {
     if (!sprint || day <= 1) return [];
-    const result: { day: number; stepIdx: number; type: string; label: string; prompt: string }[] = [];
+    const result: { day: number; stepIdx: number; type: string; label: string; prompt: string; subStepsCount?: number }[] = [];
     
     const sortedContent = [...(sprint.dailyContent || [])].sort((a, b) => b.day - a.day);
     
     sortedContent.forEach(dc => {
       if (dc.day < day) {
         dc.taskInputTypes?.forEach((type, idx) => {
-          if (type === 'tags' || type === 'poll' || type === 'text' || !type) {
-            const prompt = dc.taskPrompts?.[idx] || dc.taskPrompt || `Step ${idx + 1}`;
-            result.push({
-              day: dc.day,
-              stepIdx: idx,
-              type: type || 'text',
-              label: `D${dc.day} - Step ${idx + 1}`,
-              prompt
-            });
-          }
+          const typeStr = String(type || '');
+          const isPoll = isStepOrSubStepPoll(typeStr);
+          const isTags = typeStr.includes('tags');
+          let resolvedType = 'text';
+          if (isPoll) resolvedType = 'poll';
+          else if (isTags) resolvedType = 'tags';
+
+          const rawPrompt = dc.taskPrompts?.[idx] || (idx === 0 ? dc.taskPrompt : '') || `Step ${idx + 1}`;
+          const promptVersions = parseStepVersions(rawPrompt);
+          result.push({
+            day: dc.day,
+            stepIdx: idx,
+            type: resolvedType,
+            label: `D${dc.day} - Step ${idx + 1}`,
+            prompt: promptVersions[0] || rawPrompt,
+            subStepsCount: promptVersions.length
+          });
         });
       }
     });
@@ -1178,8 +1185,16 @@ export default function DailyActionWorkspace({
                         {/* Step Relationships Link trigger */}
                         {(() => {
                           const precedingTagSteps = (dayContent.taskInputTypes || [])
-                            .map((type, idx) => ({ type, idx }))
-                            .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
+                            .map((type, idx) => {
+                              const rawType = String(type || '');
+                              const isPoll = isStepOrSubStepPoll(rawType);
+                              const isTags = rawType.includes('tags');
+                              let resolvedType = 'text';
+                              if (isPoll) resolvedType = 'poll';
+                              else if (isTags) resolvedType = 'tags';
+                              return { type: resolvedType, rawType, idx };
+                            })
+                            .filter(item => item.idx < activeIdx);
                           
                           const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
                           const showSingleLink = activeInputType === 'tags';
@@ -1199,7 +1214,7 @@ export default function DailyActionWorkspace({
 
                           const precedingPollSteps = (dayContent.taskInputTypes || [])
                             .map((type, idx) => ({ type, idx }))
-                            .filter(item => item.idx < activeIdx && (item.type === 'poll' || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
+                            .filter(item => item.idx < activeIdx && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
 
                           const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
                           const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
@@ -1387,7 +1402,7 @@ export default function DailyActionWorkspace({
                     {(() => {
                       const precedingPolls = (dayContent.taskInputTypes || [])
                         .map((type, idx) => ({ type, idx }))
-                        .filter(item => item.idx < activeIdx && (item.type === 'poll' || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
+                        .filter(item => item.idx < activeIdx && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
 
                       if (precedingPolls.length === 0) return null;
 
@@ -1413,12 +1428,7 @@ export default function DailyActionWorkspace({
                       }
                       if (targetPollIdx === -1) return null;
 
-                      let pollOptions: string[] = [];
-                      if (dayContent.taskPollOptions?.[targetPollIdx]) {
-                        try {
-                          pollOptions = JSON.parse(dayContent.taskPollOptions[targetPollIdx]);
-                        } catch (e) {}
-                      }
+                      let pollOptions: string[] = getAllStepPollOptions(dayContent, targetPollIdx);
                       pollOptions = pollOptions.filter(Boolean);
 
                       return (
@@ -1465,7 +1475,10 @@ export default function DailyActionWorkspace({
                               <div className="flex flex-wrap gap-1.5">
                                 {precedingPolls.map(p => {
                                   const isTarget = targetPollIdx === p.idx;
-                                  const promptText = dayContent.taskPrompts?.[p.idx] || `Step ${p.idx + 1}`;
+                                  const rawPrompt = dayContent.taskPrompts?.[p.idx] || (p.idx === 0 ? dayContent.taskPrompt : '') || `Step ${p.idx + 1}`;
+                                  const pVersions = parseStepVersions(rawPrompt);
+                                  const promptText = pVersions[0] || rawPrompt;
+                                  const subCount = pVersions.length;
                                   return (
                                     <button
                                       key={p.idx}
@@ -1475,7 +1488,7 @@ export default function DailyActionWorkspace({
                                       }}
                                       className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${isTarget ? 'bg-purple-700 text-white border-purple-700 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                                     >
-                                      Step {p.idx + 1} Poll ({promptText.slice(0, 15)}{promptText.length > 15 ? '...' : ''})
+                                      Step {p.idx + 1} Poll {subCount > 1 ? `(${subCount} sub-steps)` : `(${promptText.slice(0, 15)}${promptText.length > 15 ? '...' : ''})`}
                                     </button>
                                   );
                                 })}
@@ -1534,8 +1547,24 @@ export default function DailyActionWorkspace({
                     {/* Multi-Link selector inside card */}
                     {(() => {
                       const rawPrecedingSteps = (dayContent.taskInputTypes || [])
-                        .map((type, idx) => ({ type, idx }))
-                        .filter(item => item.idx < activeIdx && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
+                        .map((type, idx) => {
+                          const rawType = String(type || '');
+                          const isPoll = isStepOrSubStepPoll(rawType);
+                          const isTags = rawType.includes('tags');
+                          let resolvedType = 'text';
+                          if (isPoll) resolvedType = 'poll';
+                          else if (isTags) resolvedType = 'tags';
+                          const rawPrompt = dayContent.taskPrompts?.[idx] || (idx === 0 ? dayContent.taskPrompt : '') || `Step ${idx + 1}`;
+                          const pVersions = parseStepVersions(rawPrompt);
+                          return {
+                            type: resolvedType,
+                            rawType,
+                            idx,
+                            subStepsCount: pVersions.length,
+                            prompt: pVersions[0] || rawPrompt
+                          };
+                        })
+                        .filter(item => item.idx < activeIdx);
                       
                       const rawPrecedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
 
@@ -1544,7 +1573,7 @@ export default function DailyActionWorkspace({
 
                       const precedingMatchingSteps = rawPrecedingSteps.filter(item => {
                         if (isTargetPoll) {
-                          return item.type === 'poll';
+                          return item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                         } else if (isTargetTag) {
                           return item.type === 'tags';
                         } else {

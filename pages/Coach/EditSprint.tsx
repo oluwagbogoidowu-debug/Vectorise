@@ -20,7 +20,7 @@ import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -501,23 +501,30 @@ const EditSprint: React.FC = () => {
 
   const getPrecedingDaysTagSteps = () => {
     if (!sprint || selectedDay <= 1) return [];
-    const result: { day: number; stepIdx: number; type: string; label: string; prompt: string }[] = [];
+    const result: { day: number; stepIdx: number; type: string; label: string; prompt: string; subStepsCount?: number }[] = [];
     
     const sortedContent = [...(sprint.dailyContent || [])].sort((a, b) => b.day - a.day);
     
     sortedContent.forEach(dc => {
         if (dc.day < selectedDay) {
             dc.taskInputTypes?.forEach((type, idx) => {
-                if (type === 'tags' || type === 'poll' || type === 'text' || !type) {
-                    const prompt = dc.taskPrompts?.[idx] || dc.taskPrompt || `Step ${idx + 1}`;
-                    result.push({
-                        day: dc.day,
-                        stepIdx: idx,
-                        type: type || 'text',
-                        label: `D${dc.day} - Step ${idx + 1}`,
-                        prompt
-                    });
-                }
+                const typeStr = String(type || '');
+                const isPoll = isStepOrSubStepPoll(typeStr);
+                const isTags = typeStr.includes('tags');
+                let resolvedType = 'text';
+                if (isPoll) resolvedType = 'poll';
+                else if (isTags) resolvedType = 'tags';
+
+                const rawPrompt = dc.taskPrompts?.[idx] || (idx === 0 ? dc.taskPrompt : '') || `Step ${idx + 1}`;
+                const promptVersions = parseStepVersions(rawPrompt);
+                result.push({
+                    day: dc.day,
+                    stepIdx: idx,
+                    type: resolvedType,
+                    label: `D${dc.day} - Step ${idx + 1}`,
+                    prompt: promptVersions[0] || rawPrompt,
+                    subStepsCount: promptVersions.length
+                });
             });
         }
     });
@@ -565,16 +572,11 @@ const EditSprint: React.FC = () => {
           : undefined;
         if (targetDayContent) {
           const type = String(targetDayContent.taskInputTypes?.[targetStepIndex] || '').trim().toLowerCase();
-          if (type === 'poll' || type === 'tags') {
-            let hasOpts = false;
-            try {
-              const opts = JSON.parse(targetDayContent.taskPollOptions?.[targetStepIndex] || '[]');
-              if (Array.isArray(opts) && opts.length > 0) {
-                allTags.push(...opts.map(o => String(o || '').trim()).filter(Boolean));
-                hasOpts = true;
-              }
-            } catch (e) {}
-            if (!hasOpts && type === 'tags') {
+          if (isStepOrSubStepPoll(type) || type === 'tags') {
+            const opts = getAllStepPollOptions(targetDayContent, targetStepIndex);
+            if (opts.length > 0) {
+              allTags.push(...opts);
+            } else if (type === 'tags') {
               allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
             }
           }
@@ -582,16 +584,11 @@ const EditSprint: React.FC = () => {
       } else {
         // Same-day link!
         const type = String(currentContent.taskInputTypes?.[srcIndex] || '').trim().toLowerCase();
-        if (type === 'poll' || type === 'tags') {
-          let hasOpts = false;
-          try {
-            const opts = JSON.parse(currentContent.taskPollOptions?.[srcIndex] || '[]');
-            if (Array.isArray(opts) && opts.length > 0) {
-              allTags.push(...opts.map(o => String(o || '').trim()).filter(Boolean));
-              hasOpts = true;
-            }
-          } catch (e) {}
-          if (!hasOpts && type === 'tags') {
+        if (isStepOrSubStepPoll(type) || type === 'tags') {
+          const opts = getAllStepPollOptions(currentContent, srcIndex);
+          if (opts.length > 0) {
+            allTags.push(...opts);
+          } else if (type === 'tags') {
             allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
           }
         }
@@ -605,7 +602,7 @@ const EditSprint: React.FC = () => {
     if (!dayContent) return -1;
     for (let i = currentIndex - 1; i >= 0; i--) {
       const type = dayContent.taskInputTypes?.[i];
-      if ((type as string) === 'poll' || (i === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0 || (type as string) === 'poll'))) {
+      if (isStepOrSubStepPoll(type) || (i === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))) {
         return i;
       }
     }
@@ -3398,8 +3395,16 @@ const EditSprint: React.FC = () => {
                                                         </div>
                                                         {(() => {
                                                             const precedingTagSteps = (currentContent.taskInputTypes || [])
-                                                                .map((type, idx) => ({ type, idx }))
-                                                                .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
+                                                                .map((type, idx) => {
+                                                                    const rawType = String(type || '');
+                                                                    const isPoll = isStepOrSubStepPoll(rawType);
+                                                                    const isTags = rawType.includes('tags');
+                                                                    let resolvedType = 'text';
+                                                                    if (isPoll) resolvedType = 'poll';
+                                                                    else if (isTags) resolvedType = 'tags';
+                                                                    return { type: resolvedType, rawType, idx };
+                                                                })
+                                                                .filter(item => item.idx < index);
                                                             
                                                             const precedingDaysSteps = getPrecedingDaysTagSteps();
                                                             const showSingleLink = activeInputType === 'tags';
@@ -3419,7 +3424,7 @@ const EditSprint: React.FC = () => {
 
                                                             const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
                                                             const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
-																const showPollBranchLink = (currentContent.taskInputTypes || []).map((type, idx) => ({ type, idx })).filter(item => item.idx < index && (item.type === 'poll' || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0)))).length > 0;
+																const showPollBranchLink = (currentContent.taskInputTypes || []).map((type, idx) => ({ type, idx })).filter(item => item.idx < index && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0)))).length > 0;
 																const currentPollLink = currentContent.taskPollOptionLinks?.[index];
                                                             
                                                             const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
@@ -3640,8 +3645,24 @@ const EditSprint: React.FC = () => {
                                             {/* Multi-Link selector interface */}
                                             {(() => {
                                                 const rawPrecedingSteps = (currentContent.taskInputTypes || [])
-                                                    .map((type, idx) => ({ type, idx }))
-                                                    .filter(item => item.idx < index && (item.type === 'tags' || item.type === 'poll' || item.type === 'text' || !item.type));
+                                                    .map((type, idx) => {
+                                                        const rawType = String(type || '');
+                                                        const isPoll = isStepOrSubStepPoll(rawType);
+                                                        const isTags = rawType.includes('tags');
+                                                        let resolvedType = 'text';
+                                                        if (isPoll) resolvedType = 'poll';
+                                                        else if (isTags) resolvedType = 'tags';
+                                                        const rawPrompt = currentContent.taskPrompts?.[idx] || (idx === 0 ? currentContent.taskPrompt : '') || `Step ${idx + 1}`;
+                                                        const pVersions = parseStepVersions(rawPrompt);
+                                                        return {
+                                                            type: resolvedType,
+                                                            rawType,
+                                                            idx,
+                                                            subStepsCount: pVersions.length,
+                                                            prompt: pVersions[0] || rawPrompt
+                                                        };
+                                                    })
+                                                    .filter(item => item.idx < index);
                                                 
                                                 const rawPrecedingDaysSteps = getPrecedingDaysTagSteps();
 
@@ -3650,7 +3671,7 @@ const EditSprint: React.FC = () => {
 
                                                 const precedingTagSteps = rawPrecedingSteps.filter(item => {
                                                     if (isTargetPoll) {
-                                                        return item.type === 'poll';
+                                                        return item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                                                     } else if (isTargetTag) {
                                                         return item.type === 'tags';
                                                     } else {
@@ -4125,7 +4146,7 @@ const EditSprint: React.FC = () => {
                                                 const pollIdx = findNearestPrecedingPoll(currentContent, index);
 												const precedingPolls = (currentContent.taskInputTypes || [])
 													.map((type, idx) => ({ type, idx }))
-													.filter(item => item.idx < index && (item.type === 'poll' || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0))));
+													.filter(item => item.idx < index && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0))));
 
 												if (precedingPolls.length === 0) return null;
 
@@ -4150,12 +4171,7 @@ const EditSprint: React.FC = () => {
 													targetPollIdx = precedingPolls[precedingPolls.length - 1]?.idx ?? -1;
 												}
 												if (targetPollIdx === -1) return null;
-                                                let pollOptions: string[] = [];
-                                                if (currentContent.taskPollOptions?.[targetPollIdx]) {
-                                                    try {
-                                                        pollOptions = JSON.parse(currentContent.taskPollOptions[targetPollIdx]);
-                                                    } catch (e) {}
-                                                }
+                                                let pollOptions: string[] = getAllStepPollOptions(currentContent, targetPollIdx);
                                                 pollOptions = pollOptions.filter(Boolean);
 
                                                 return (
@@ -4208,7 +4224,10 @@ const EditSprint: React.FC = () => {
                                                                         <div className="flex flex-wrap gap-1.5">
                                                                             {precedingPolls.map(p => {
                                                                                 const isTarget = targetPollIdx === p.idx;
-                                                                                const promptText = currentContent.taskPrompts?.[p.idx] || `Step ${p.idx + 1}`;
+                                                                                const rawPrompt = currentContent.taskPrompts?.[p.idx] || (p.idx === 0 ? currentContent.taskPrompt : '') || `Step ${p.idx + 1}`;
+                                                                                const pVersions = parseStepVersions(rawPrompt);
+                                                                                const promptText = pVersions[0] || rawPrompt;
+                                                                                const subCount = pVersions.length;
                                                                                 return (
                                                                                     <button
                                                                                         key={p.idx}
@@ -4218,7 +4237,7 @@ const EditSprint: React.FC = () => {
                                                                                         }}
                                                                                         className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${isTarget ? 'bg-purple-700 text-white border-purple-700 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
                                                                                     >
-                                                                                        Step {p.idx + 1} Poll ({promptText.slice(0, 15)}{promptText.length > 15 ? '...' : ''})
+                                                                                        Step {p.idx + 1} Poll {subCount > 1 ? `(${subCount} sub-steps)` : `(${promptText.slice(0, 15)}${promptText.length > 15 ? '...' : ''})`}
                                                                                     </button>
                                                                                 );
                                                                             })}
