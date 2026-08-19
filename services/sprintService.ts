@@ -13,6 +13,176 @@ const cleanDetailsData = (raw: any): any => {
     return cleaned;
 };
 
+export const determineExperienceContentType = (item: any): { contentType: 'sprint' | 'blog' | 'ignite' | 'challenge'; subcategory: string } => {
+    if (!item) return { contentType: 'sprint', subcategory: 'sprint' };
+
+    const ct = String(item.contentType || '').toLowerCase().trim();
+    const sc = String(item.subcategory || '').toLowerCase().trim();
+    const title = String(item.title || '').toLowerCase().trim();
+    const cat = String(item.category || '').toLowerCase().trim();
+
+    // 1. RiseBlog / Blog
+    if (
+        ct === 'blog' ||
+        ct === 'riseblog' ||
+        sc === 'riseblog' ||
+        sc === 'blog' ||
+        Boolean(item.blogBody) ||
+        Boolean(item.blogImage) ||
+        Boolean(item.blogTitle) ||
+        title.includes('riseblog') ||
+        cat.includes('riseblog')
+    ) {
+        return {
+            contentType: 'blog',
+            subcategory: 'riseblog'
+        };
+    }
+
+    // 2. Ignite / Insight
+    if (
+        ct === 'ignite' ||
+        ct === 'insight' ||
+        sc === 'ignite' ||
+        sc === 'insight' ||
+        Boolean(item.igniteBody) ||
+        Boolean(item.igniteBgColor) ||
+        title.includes('ignite') ||
+        title.includes('insight') ||
+        cat.includes('ignite') ||
+        cat.includes('insight')
+    ) {
+        return {
+            contentType: 'ignite',
+            subcategory: 'insight'
+        };
+    }
+
+    // 3. Challenge
+    if (
+        ct === 'challenge' ||
+        sc === 'challenge' ||
+        Boolean(item.completionCriteria) ||
+        Boolean(item.whatToDo) ||
+        title.includes('challenge') ||
+        cat.includes('challenge')
+    ) {
+        return {
+            contentType: 'challenge',
+            subcategory: 'challenge'
+        };
+    }
+
+    // 4. Default to standard Sprint
+    return {
+        contentType: 'sprint',
+        subcategory: item.subcategory || item.category || 'sprint'
+    };
+};
+
+let isMigrationRunning = false;
+let hasMigratedSession = false;
+
+export const migrateAllSprintsToExperiences = async (): Promise<void> => {
+    if (isMigrationRunning || hasMigratedSession) return;
+    isMigrationRunning = true;
+    try {
+        console.log('[Migration] Starting auto-migration of all sprints, riseblogs, and insights to experiences collection...');
+        
+        const allItemIds = new Set<string>();
+        const sprintDocsMap: Record<string, any> = {};
+
+        // 1. Scan collectionGroup('sprintdetails')
+        try {
+            const sgSnap = await getDocs(query(collectionGroup(db, 'sprintdetails')));
+            sgSnap.forEach(d => {
+                const parentId = d.ref.parent?.parent?.id;
+                if (parentId) {
+                    allItemIds.add(parentId);
+                    sprintDocsMap[parentId] = { ...(sprintDocsMap[parentId] || {}), ...sanitizeData(d.data()), id: parentId };
+                }
+            });
+        } catch (e) {
+            console.warn('[Migration] collectionGroup sprintdetails scan skipped:', e);
+        }
+
+        // 2. Scan collectionGroup('details')
+        try {
+            const dgSnap = await getDocs(query(collectionGroup(db, 'details')));
+            dgSnap.forEach(d => {
+                const parentId = d.ref.parent?.parent?.id;
+                if (parentId) {
+                    allItemIds.add(parentId);
+                    sprintDocsMap[parentId] = { ...(sprintDocsMap[parentId] || {}), ...sanitizeData(d.data()), id: parentId };
+                }
+            });
+        } catch (e) {
+            console.warn('[Migration] collectionGroup details scan skipped:', e);
+        }
+
+        // 3. Scan legacy sprints root collection
+        try {
+            const legSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION));
+            legSnap.forEach(d => {
+                allItemIds.add(d.id);
+                const data = d.data();
+                if (data && Object.keys(data).length > 0) {
+                    sprintDocsMap[d.id] = { ...(sprintDocsMap[d.id] || {}), ...sanitizeData(data), id: d.id };
+                }
+            });
+        } catch (e) {
+            console.warn('[Migration] legacy sprints root scan skipped:', e);
+        }
+
+        // 4. Scan experiences root collection
+        try {
+            const expSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION));
+            expSnap.forEach(d => {
+                allItemIds.add(d.id);
+                const data = d.data();
+                if (data && Object.keys(data).length > 0) {
+                    sprintDocsMap[d.id] = { ...(sprintDocsMap[d.id] || {}), ...sanitizeData(data), id: d.id };
+                }
+            });
+        } catch (e) {
+            console.warn('[Migration] experiences root scan skipped:', e);
+        }
+
+        let migratedCount = 0;
+        for (const itemId of Array.from(allItemIds)) {
+            if (!itemId) continue;
+            try {
+                let itemData = sprintDocsMap[itemId] || { id: itemId };
+                if (!itemData.title && !itemData.blogBody && !itemData.igniteBody && !itemData.blogTitle) {
+                    const full = await sprintService.getSprintById(itemId, true);
+                    if (full) itemData = full;
+                }
+
+                if (!itemData.title && !itemData.blogBody && !itemData.igniteBody && !itemData.blogTitle) {
+                    continue;
+                }
+
+                const { contentType, subcategory } = determineExperienceContentType(itemData);
+                const needsWrite = itemData.contentType !== contentType || itemData.subcategory !== subcategory;
+                itemData.contentType = contentType;
+                itemData.subcategory = subcategory;
+
+                await sprintService._writeSubcollections(itemId, itemData);
+                migratedCount++;
+            } catch (err) {
+                console.error(`[Migration] Failed relocating item ${itemId}:`, err);
+            }
+        }
+
+        hasMigratedSession = true;
+        console.log(`[Migration] Successfully relocated and categorized ${migratedCount} experiences into experiences collection.`);
+    } catch (error) {
+        console.error('[Migration] Global migration failed:', error);
+    } finally {
+        isMigrationRunning = false;
+    }
+};
+
 const EXPERIENCES_COLLECTION = 'experiences';
 const SPRINTS_COLLECTION = 'experiences';
 const LEGACY_SPRINTS_COLLECTION = 'sprints';
@@ -551,12 +721,16 @@ export const sprintService = {
 
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
         ensureSeedBlogsInFirestore().catch(() => {});
+        migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs
                 .map(d => {
                     const data = sanitizeData(d.data()) as Sprint;
                     data.id = d.ref.parent.parent!.id;
+                    const { contentType, subcategory } = determineExperienceContentType(data);
+                    data.contentType = contentType;
+                    data.subcategory = subcategory;
                     return data;
                 })
                 .filter(s => (s.coachId === coachId || (s.contentType === 'blog' && (s.coachId === 'admin1' || coachId === 'admin1'))) && s.deleted !== true);
@@ -567,12 +741,16 @@ export const sprintService = {
 
     getAdminSprints: async () => {
         ensureSeedBlogsInFirestore().catch(() => {});
+        migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
         const raw = snap.docs
             .map(d => {
                 const data = sanitizeData(d.data()) as Sprint;
                 data.id = d.ref.parent.parent!.id;
+                const { contentType, subcategory } = determineExperienceContentType(data);
+                data.contentType = contentType;
+                data.subcategory = subcategory;
                 return data;
             })
             .filter(s => s.deleted !== true);
@@ -581,12 +759,16 @@ export const sprintService = {
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         ensureSeedBlogsInFirestore().catch(() => {});
+        migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs
                 .map(d => {
                     const data = sanitizeData(d.data()) as Sprint;
                     data.id = d.ref.parent.parent!.id;
+                    const { contentType, subcategory } = determineExperienceContentType(data);
+                    data.contentType = contentType;
+                    data.subcategory = subcategory;
                     return data;
                 })
                 .filter(s => s.deleted !== true);
@@ -599,11 +781,15 @@ export const sprintService = {
 
     subscribeToAllSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         ensureSeedBlogsInFirestore().catch(() => {});
+        migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs.map(d => {
                 const data = sanitizeData(d.data()) as Sprint;
                 data.id = d.ref.parent.parent!.id;
+                const { contentType, subcategory } = determineExperienceContentType(data);
+                data.contentType = contentType;
+                data.subcategory = subcategory;
                 return data;
             });
             const resolved = await sprintService.resolveSprintsList(raw);
@@ -615,12 +801,16 @@ export const sprintService = {
 
     getPublishedSprints: async () => {
         ensureSeedBlogsInFirestore().catch(() => {});
+        migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
         const raw = snap.docs
             .map(d => {
                 const data = sanitizeData(d.data()) as Sprint;
                 data.id = d.ref.parent.parent!.id;
+                const { contentType, subcategory } = determineExperienceContentType(data);
+                data.contentType = contentType;
+                data.subcategory = subcategory;
                 return data;
             })
             .filter(s => {
@@ -634,12 +824,16 @@ export const sprintService = {
 
     subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
         ensureSeedBlogsInFirestore().catch(() => {});
+        migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
             const raw = snap.docs
                 .map(d => {
                     const data = sanitizeData(d.data()) as Sprint;
                     data.id = d.ref.parent.parent!.id;
+                    const { contentType, subcategory } = determineExperienceContentType(data);
+                    data.contentType = contentType;
+                    data.subcategory = subcategory;
                     return data;
                 })
                 .filter(s => {
@@ -658,6 +852,10 @@ export const sprintService = {
     resolveSprintDays: async (sprint: Sprint): Promise<Sprint> => {
         if (!sprint || !sprint.id) return sprint;
         try {
+            const { contentType, subcategory } = determineExperienceContentType(sprint);
+            sprint.contentType = contentType;
+            sprint.subcategory = subcategory;
+
             let daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, sprint.id, 'days'));
             if (daysSnap.empty) {
                 daysSnap = await getDocs(collection(db, LEGACY_SPRINTS_COLLECTION, sprint.id, 'days'));
@@ -731,7 +929,12 @@ export const sprintService = {
                 dailyContent, 
                 ...metadata 
             } = serializedSprint;
-            const detailsData = sanitizeData({ ...metadata, updatedAt: new Date().toISOString() });
+            
+            const { contentType, subcategory } = determineExperienceContentType(metadata);
+            metadata.contentType = contentType;
+            metadata.subcategory = subcategory;
+
+            const detailsData = sanitizeData({ ...metadata, contentType, subcategory, updatedAt: new Date().toISOString() });
             
             // Clean up dailyContent from detailsData
             delete (detailsData as any).dailyContent;
@@ -760,9 +963,9 @@ export const sprintService = {
                 title: metadata.title || '',
                 subtitle: metadata.subtitle || '',
                 description: metadata.description || '',
-                contentType: metadata.contentType || 'sprint',
+                contentType: contentType,
                 category: metadata.category || '',
-                subcategory: metadata.subcategory || metadata.category || '',
+                subcategory: subcategory,
                 coverImageUrl: metadata.coverImageUrl || '',
                 price: metadata.price || 0,
                 currency: metadata.currency || 'NGN',
