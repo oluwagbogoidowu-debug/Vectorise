@@ -28,6 +28,7 @@ export default function DailyActionWorkspace({
   const [activeStepIndices, setActiveStepIndices] = useState<Record<number, number>>({});
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
   const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | 'poll' | null>(null);
+  const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
   const [selectedPollTarget, setSelectedPollTarget] = useState<Record<number, number>>({});
   const [addingCustomOption, setAddingCustomOption] = useState<Record<number, boolean>>({});
   const [lastAssignedField, setLastAssignedField] = useState<string | null>(null);
@@ -1183,12 +1184,17 @@ export default function DailyActionWorkspace({
                           const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
                           const showSingleLink = activeInputType === 'tags';
                           
-                          const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                          const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
+                          const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
                           const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
 
-                          const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                          const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags');
+                          const precedingDaysPollOnlySteps = precedingDaysSteps.filter(item => item.type === 'poll');
                           const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
-                          const hasPrecedingForTagLink = precedingTagSteps.length > 0 || precedingDaysSteps.length > 0;
+
+                          const hasPrecedingForTagLink = activeInputType === 'poll'
+                            ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0)
+                            : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
                           const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
                           const precedingPollSteps = (dayContent.taskInputTypes || [])
@@ -1228,7 +1234,11 @@ export default function DailyActionWorkspace({
                                       setActiveLinkSelectorType('tag');
                                     }
                                   }}
-                                  title={hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding step(s). Click to configure or link more dynamic tag/poll source questions.` : "Link Tag Sources: Pull selected labels/options from previous tag/poll steps to populate this question dynamically."}
+                                  title={
+                                    activeInputType === 'poll'
+                                      ? (hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding poll step(s). Click to configure or link more dynamic poll source questions.` : "Link Poll Sources: Pull selected options from previous poll steps to populate this question dynamically.")
+                                      : (hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding tag step(s). Click to configure or link more dynamic tag source questions.` : "Link Tag Sources: Pull selected tags from previous tag steps to populate this question dynamically.")
+                                  }
                                   className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'tag' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : hasSelectedSources ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
                                 >
                                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1529,32 +1539,48 @@ export default function DailyActionWorkspace({
                       
                       const rawPrecedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
 
-                      const precedingTagSteps = rawPrecedingSteps.filter(item => {
-                        if (activeLinkSelectorType === 'tag') {
-                          return item.type === 'tags' || item.type === 'poll';
+                      const isTargetPoll = activeInputType === 'poll' || activeLinkSelectorType === 'poll';
+                      const isTargetTag = activeInputType === 'tags' && activeLinkSelectorType === 'tag';
+
+                      const precedingMatchingSteps = rawPrecedingSteps.filter(item => {
+                        if (isTargetPoll) {
+                          return item.type === 'poll';
+                        } else if (isTargetTag) {
+                          return item.type === 'tags';
                         } else {
                           return item.type === 'text' || !item.type;
                         }
                       });
 
-                      const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
-                        if (activeLinkSelectorType === 'tag') {
-                          return item.type === 'tags' || item.type === 'poll';
+                      const precedingDaysMatchingSteps = rawPrecedingDaysSteps.filter(item => {
+                        if (isTargetPoll) {
+                          return item.type === 'poll';
+                        } else if (isTargetTag) {
+                          return item.type === 'tags';
                         } else {
                           return item.type === 'text' || !item.type;
                         }
                       });
 
-                      const showSelector = activeLinkSelectorIndex === activeIdx && isActiveCard && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
+                      const showSelector = activeLinkSelectorIndex === activeIdx && isActiveCard && (precedingMatchingSteps.length > 0 || precedingDaysMatchingSteps.length > 0);
                       
                       if (showSelector) {
                         const yesterdayNum = dayNum - 1;
-                        const yesterdaySteps = precedingDaysSteps.filter(s => s.day === yesterdayNum);
+                        const yesterdaySteps = precedingDaysMatchingSteps.filter(s => s.day === yesterdayNum);
+                        const earlierSteps = precedingDaysMatchingSteps.filter(s => s.day < yesterdayNum);
+                        const hasEarlier = earlierSteps.length > 0;
+                        const isEarlierExpanded = !expandedStepEarlierDays || !expandedStepEarlierDays[activeIdx] ? false : expandedStepEarlierDays[activeIdx];
 
                         return (
-                          <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-2 text-left text-[11px]">
+                          <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-2.5 text-left text-[11px]">
                             <div className="text-[9px] font-black text-gray-550 uppercase tracking-wider flex items-center justify-between">
-                              <span>{activeLinkSelectorType === 'tag' ? "Link choices/options from preceding tag/poll steps:" : "Link dynamic responses from preceding text steps:"}</span>
+                              <span>
+                                {isTargetPoll
+                                  ? "Link choices/options from preceding poll steps:"
+                                  : isTargetTag
+                                    ? "Link choices/options from preceding tag steps:"
+                                    : "Link dynamic responses from preceding text steps:"}
+                              </span>
                               {((dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0) && (
                                 <button 
                                   type="button" 
@@ -1563,6 +1589,7 @@ export default function DailyActionWorkspace({
                                     handleClearSourceLinks(dayNum, activeIdx);
                                   }}
                                   className="p-1 px-2 bg-red-50 hover:bg-red-100 text-red-500 rounded border border-red-100 transition-colors cursor-pointer text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5 ml-auto mr-2"
+                                  title="Clear all links: Disconnect all linked source steps from this question."
                                 >
                                   <Trash2 size={8} /> Clear
                                 </button>
@@ -1570,56 +1597,122 @@ export default function DailyActionWorkspace({
                               <button 
                                 type="button" 
                                 onClick={() => setActiveLinkSelectorIndex(null)}
-                                className="text-gray-400 hover:text-gray-600 font-bold"
+                                className="text-gray-400 hover:text-gray-600 font-bold ml-1"
                               >
                                 ✕
                               </button>
                             </div>
 
-                            <div className="flex flex-wrap gap-1.5">
-                              {precedingTagSteps.map(step => {
-                                const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(step.idx);
-                                return (
-                                  <button
-                                    key={step.idx}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      handleToggleSourceLink(dayNum, activeIdx, step.idx);
-                                    }}
-                                    className={`px-2 py-1 text-xs rounded border inline-flex items-center gap-1 ${
-                                      isLinked 
-                                        ? 'bg-purple-600 text-white border-purple-600' 
-                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    <span>Step {step.idx + 1}</span>
-                                  </button>
-                                );
-                              })}
+                            {/* Today's Preceding Steps */}
+                            {precedingMatchingSteps.length > 0 && (
+                              <div className="space-y-1">
+                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Today's Preceding Steps:</div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {precedingMatchingSteps.map(step => {
+                                    const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(step.idx);
+                                    return (
+                                      <button
+                                        key={step.idx}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          handleToggleSourceLink(dayNum, activeIdx, step.idx);
+                                        }}
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1 transition-all ${
+                                          isLinked 
+                                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs' 
+                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <span>Step {step.idx + 1}</span>
+                                        {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
 
-                              {yesterdaySteps.map(step => {
-                                const encodedVal = -(step.day * 100 + step.stepIdx);
-                                const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(encodedVal);
-                                return (
+                            {/* Yesterday's steps */}
+                            {yesterdaySteps.length > 0 && (
+                              <div className="space-y-1 pt-1 border-t border-gray-200/50">
+                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Yesterday (Day {yesterdayNum}):</div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {yesterdaySteps.map(step => {
+                                    const encodedVal = -(step.day * 100 + step.stepIdx);
+                                    const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(encodedVal);
+                                    return (
+                                      <button
+                                        key={`prev-${step.day}-${step.stepIdx}`}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          handleToggleSourceLink(dayNum, activeIdx, encodedVal);
+                                        }}
+                                        className={`px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1 transition-all ${
+                                          isLinked 
+                                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs' 
+                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                        {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Earlier days */}
+                            {hasEarlier && (
+                              <div className="pt-1 border-t border-gray-200/50">
+                                {!isEarlierExpanded ? (
                                   <button
-                                    key={`prev-${step.day}-${step.stepIdx}`}
                                     type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      handleToggleSourceLink(dayNum, activeIdx, encodedVal);
-                                    }}
-                                    className={`px-2 py-1 text-xs rounded border inline-flex items-center gap-1 ${
-                                      isLinked 
-                                        ? 'bg-purple-600 text-white border-purple-600' 
-                                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                                    }`}
+                                    onClick={() => setExpandedStepEarlierDays(prev => ({ ...prev, [activeIdx]: true }))}
+                                    className="text-[9px] font-bold text-purple-600 hover:underline flex items-center gap-1"
                                   >
-                                    <span>Day {step.day} Step {step.stepIdx + 1}</span>
+                                    ... show more previous days
                                   </button>
-                                );
-                              })}
-                            </div>
+                                ) : (
+                                  <div className="space-y-2 pt-1">
+                                    {Array.from(new Set(earlierSteps.map(s => s.day))).sort((a, b) => b - a).map(pDayNum => {
+                                      const daySteps = earlierSteps.filter(s => s.day === pDayNum);
+                                      return (
+                                        <div key={pDayNum} className="space-y-1">
+                                          <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Day {pDayNum}:</div>
+                                          <div className="flex flex-wrap gap-1.5">
+                                            {daySteps.map(step => {
+                                              const encodedVal = -(step.day * 100 + step.stepIdx);
+                                              const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(encodedVal);
+                                              return (
+                                                <button
+                                                  key={`prev-${step.day}-${step.stepIdx}`}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setSelectedDay(dayNum);
+                                                    handleToggleSourceLink(dayNum, activeIdx, encodedVal);
+                                                  }}
+                                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1 transition-all ${
+                                                    isLinked 
+                                                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs' 
+                                                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                                  }`}
+                                                >
+                                                  <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                                  {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       }

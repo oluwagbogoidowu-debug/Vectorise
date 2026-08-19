@@ -3404,13 +3404,17 @@ const EditSprint: React.FC = () => {
                                                             const precedingDaysSteps = getPrecedingDaysTagSteps();
                                                             const showSingleLink = activeInputType === 'tags';
                                                             
-                                                            const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                                                            const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
+                                                            const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
                                                             const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
 
-                                                            const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags' || item.type === 'poll');
+                                                            const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags');
+                                                            const precedingDaysPollOnlySteps = precedingDaysSteps.filter(item => item.type === 'poll');
                                                             const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
 
-                                                            const hasPrecedingForTagLink = precedingTagSteps.length > 0 || precedingDaysSteps.length > 0;
+                                                            const hasPrecedingForTagLink = activeInputType === 'poll'
+                                                                ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0)
+                                                                : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
                                                             const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
                                                             const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
@@ -3443,7 +3447,11 @@ const EditSprint: React.FC = () => {
                                                                                     setActiveLinkSelectorType('tag');
                                                                                 }
                                                                             }}
-                                                                            title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more dynamic tag/poll source questions.` : "Link Tag Sources: Pull selected labels/options from previous tag/poll steps to populate this question dynamically."}
+                                                                            title={
+                                                                                activeInputType === 'poll'
+                                                                                    ? (hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding poll step(s). Click to configure or link more dynamic poll source questions.` : "Link Poll Sources: Pull selected options from previous poll steps to populate this question dynamically.")
+                                                                                    : (hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding tag step(s). Click to configure or link more dynamic tag source questions.` : "Link Tag Sources: Pull selected tags from previous tag steps to populate this question dynamically.")
+                                                                            }
                                                                             className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'tag' ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
                                                                         >
                                                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -3637,21 +3645,28 @@ const EditSprint: React.FC = () => {
                                                 
                                                 const rawPrecedingDaysSteps = getPrecedingDaysTagSteps();
 
+                                                const isTargetPoll = activeInputType === 'poll' || activeLinkSelectorType === 'poll';
+                                                const isTargetTag = activeInputType === 'tags' && activeLinkSelectorType === 'tag';
+
                                                 const precedingTagSteps = rawPrecedingSteps.filter(item => {
-                                                    if (activeLinkSelectorType === 'tag') {
-                                                        return item.type === 'tags' || item.type === 'poll';
-                                                     } else {
-                                                         return item.type === 'text' || !item.type;
-                                                     }
-                                                 });
+                                                    if (isTargetPoll) {
+                                                        return item.type === 'poll';
+                                                    } else if (isTargetTag) {
+                                                        return item.type === 'tags';
+                                                    } else {
+                                                        return item.type === 'text' || !item.type;
+                                                    }
+                                                });
 
                                                 const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
-                                                    if (activeLinkSelectorType === 'tag') {
-                                                        return item.type === 'tags' || item.type === 'poll';
-                                                     } else {
-                                                         return item.type === 'text' || !item.type;
-                                                     }
-                                                 });
+                                                    if (isTargetPoll) {
+                                                        return item.type === 'poll';
+                                                    } else if (isTargetTag) {
+                                                        return item.type === 'tags';
+                                                    } else {
+                                                        return item.type === 'text' || !item.type;
+                                                    }
+                                                });
 
                                                 const showSelector = activeLinkSelectorIndex === index && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
                                                 
@@ -3665,7 +3680,13 @@ const EditSprint: React.FC = () => {
                                                     return (
                                                         <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-3 text-left">
                                                             <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                                                                <span>{activeLinkSelectorType === 'tag' ? "Link this question to receive choices/options from preceding tag/poll steps:" : "Link this question to pull dynamic content/responses from preceding text steps:"}</span>
+                                                                <span>
+                                                                    {isTargetPoll
+                                                                        ? "Link this question to receive choices/options from preceding poll steps:"
+                                                                        : isTargetTag
+                                                                            ? "Link this question to receive choices/options from preceding tag steps:"
+                                                                            : "Link this question to pull dynamic content/responses from preceding text steps:"}
+                                                                </span>
                                                                 {((currentContent.taskLinkedSources?.[index]?.length || 0) > 0) && (
                                                                     <button 
                                                                         type="button" 
