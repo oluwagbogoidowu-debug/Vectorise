@@ -759,13 +759,15 @@ const ParticipantDashboard: React.FC = () => {
     const checkOtherMilestones = async () => {
       const p = user as Participant;
       
-      let referralsCount = p.impactStats?.peopleHelped || 0;
-      try {
-        const { getDocs, collection, query } = await import('firebase/firestore');
-        const snap = await getDocs(query(collection(db, 'users', user.id, 'referrals')));
-        referralsCount = snap.docs.length;
-      } catch (err) {
-        console.error("Error fetching referrals count on dashboard:", err);
+      let referralsCount = dashboardReferrals.length;
+      if (referralsCount === 0) {
+        try {
+          const { getDocs, collection, query } = await import('firebase/firestore');
+          const snap = await getDocs(query(collection(db, 'users', user.id, 'referrals')));
+          referralsCount = snap.docs.length;
+        } catch (err) {
+          console.error("Error fetching referrals count on dashboard:", err);
+        }
       }
 
       let userReflections: any[] = [];
@@ -777,7 +779,12 @@ const ParticipantDashboard: React.FC = () => {
 
       const milestoneStats = computeMilestoneStats(allEnrollments, userReflections, referralsCount);
 
-      await userService.checkAndNotifyMilestones(user.id, milestoneStats, p.claimedMilestoneIds || []);
+      await userService.checkAndNotifyMilestones(
+        user.id, 
+        milestoneStats, 
+        p.claimedMilestoneIds || [],
+        (p as any).notifiedMilestoneIds || []
+      );
 
       const allCheckableMilestones = MILESTONES;
 
@@ -809,7 +816,7 @@ const ParticipantDashboard: React.FC = () => {
     if (!isLoading) {
       checkOtherMilestones();
     }
-  }, [user, allEnrollments, isLoading]);
+  }, [user, allEnrollments, dashboardReferrals, isLoading]);
 
   useEffect(() => {
     if (!user || isLoading || allEnrollments.length === 0) return;

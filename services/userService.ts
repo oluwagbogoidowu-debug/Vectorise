@@ -493,6 +493,16 @@ export const userService = {
               });
           });
           
+          try {
+            const storageKeyUnlocked = `vectorise_unlocked_milestones_${uid}`;
+            const stored = localStorage.getItem(storageKeyUnlocked);
+            const list: string[] = stored ? JSON.parse(stored) : [];
+            if (!list.includes(milestoneId)) {
+              list.push(milestoneId);
+              localStorage.setItem(storageKeyUnlocked, JSON.stringify(list));
+            }
+          } catch (e) {}
+
           // Only show notification if it's in the Hall of Rise (MILESTONES)
           const milestoneDef = MILESTONES.find(m => m.id === milestoneId);
           if (isAutoClaim && milestoneDef) {
@@ -507,8 +517,8 @@ export const userService = {
       }
   },
 
-  notifyMilestoneReached: (milestoneId: string, points: number, actionLabel: string = "Claim") => {
-    queueNotification('info', `Milestone Reached: ${milestoneId}`, {
+  notifyMilestoneReached: (milestoneTitle: string, points: number, actionLabel: string = "Claim") => {
+    queueNotification('info', `Milestone Reached: ${milestoneTitle}`, {
       description: `${points} coins are ready to claim in the Hall of Rise!`,
       action: {
         label: actionLabel,
@@ -518,19 +528,99 @@ export const userService = {
     });
   },
 
-  checkAndNotifyMilestones: async (uid: string, stats: UserMilestoneStats, currentClaimedIds: string[]) => {
+  checkAndNotifyMilestones: async (uid: string, stats: UserMilestoneStats, currentClaimedIds: string[], userDocNotifiedIds?: string[]) => {
+    if (!uid) return;
+
     // Only include milestones that are actually in the Hall of Rise (MILESTONES)
-    // and are NOT auto-claimed (since those notify immediately)
+    // and are NOT auto-claimed (since those notify immediately upon auto-claim)
     const manualMilestones = MILESTONES.filter(m => !m.isAutoClaim);
+    const storageKeyUnlocked = `vectorise_unlocked_milestones_${uid}`;
+    const storageKeyInit = `vectorise_milestones_init_${uid}`;
+
+    let knownUnlockedIds: string[] = [];
+    try {
+      const stored = localStorage.getItem(storageKeyUnlocked);
+      if (stored) {
+        knownUnlockedIds = JSON.parse(stored);
+      }
+    } catch (e) {
+      knownUnlockedIds = [];
+    }
+
+    if (userDocNotifiedIds && Array.isArray(userDocNotifiedIds)) {
+      userDocNotifiedIds.forEach(id => {
+        if (!knownUnlockedIds.includes(id)) {
+          knownUnlockedIds.push(id);
+        }
+      });
+    }
+
+    const isInitialized = localStorage.getItem(storageKeyInit) === 'true';
+
+    if (!isInitialized) {
+      // First baseline evaluation for this user on this browser session/device:
+      // Record any already unlocked / historical milestones into known list so we NEVER blast stale toasts on initial load
+      const initialUnlocked: string[] = Array.from(new Set([...knownUnlockedIds, ...currentClaimedIds]));
+      for (const m of manualMilestones) {
+        const val = calculateMilestoneStatValue(m.id, stats);
+        if (val >= m.targetValue) {
+          if (!initialUnlocked.includes(m.id)) {
+            initialUnlocked.push(m.id);
+          }
+        }
+      }
+      try {
+        localStorage.setItem(storageKeyUnlocked, JSON.stringify(initialUnlocked));
+        localStorage.setItem(storageKeyInit, 'true');
+      } catch (e) {
+        console.error("Failed to initialize unlocked milestones storage:", e);
+      }
+      return;
+    }
+
+    // Real-time checks: Only notify for badges that genuinely just transitioned to unlocked!
+    let updatedList = [...knownUnlockedIds];
+    let hasChanges = false;
+    const newlyUnlockedIds: string[] = [];
 
     for (const m of manualMilestones) {
       const val = calculateMilestoneStatValue(m.id, stats);
-      if (val >= m.targetValue && !currentClaimedIds.includes(m.id)) {
-        // Check if we already notified in this session to avoid spam
-        const sessionKey = `notified_${m.id}`;
+      const isUnlocked = val >= m.targetValue;
+      const isClaimed = currentClaimedIds.includes(m.id);
+      const alreadyKnown = updatedList.includes(m.id);
+
+      if (isUnlocked && !isClaimed && !alreadyKnown) {
+        // True milestone unlock moment!
+        updatedList.push(m.id);
+        newlyUnlockedIds.push(m.id);
+        hasChanges = true;
+
+        const sessionKey = `notified_${uid}_${m.id}`;
         if (!sessionStorage.getItem(sessionKey)) {
-          userService.notifyMilestoneReached(m.title, m.points);
           sessionStorage.setItem(sessionKey, 'true');
+          userService.notifyMilestoneReached(m.title, m.points);
+        }
+      } else if (isClaimed && !alreadyKnown) {
+        updatedList.push(m.id);
+        hasChanges = true;
+      }
+    }
+
+    if (hasChanges) {
+      try {
+        localStorage.setItem(storageKeyUnlocked, JSON.stringify(updatedList));
+      } catch (e) {
+        console.error("Failed to save unlocked milestones to localStorage:", e);
+      }
+
+      if (newlyUnlockedIds.length > 0) {
+        try {
+          const userRef = doc(db, 'users', uid);
+          await updateDoc(userRef, {
+            notifiedMilestoneIds: arrayUnion(...newlyUnlockedIds)
+          });
+        } catch (err) {
+          console.warn("Could not persist notifiedMilestoneIds to Firestore:", err);
         }
       }
     }
