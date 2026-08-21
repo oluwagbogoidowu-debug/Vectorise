@@ -48,51 +48,101 @@ const CoachParticipants: React.FC = () => {
             setIsLoading(true);
 
             try {
-                let coachSprints: Sprint[] = [];
+                let availableSprints: Sprint[] = [];
+                let enrollments: ParticipantSprint[] = [];
                 
                 if (user.role === UserRole.ADMIN) {
-                    // Admins in coach mode see specific categories
-                    const adminSprints = await sprintService.getAdminCoachSprints();
-                    const myOwnSprints = await sprintService.getCoachSprints(user.id);
+                    // Admins see all sprints and all participant enrollments
+                    const [adminAllSprints, adminCoachSprints, myOwnSprints, allDbEnrollments] = await Promise.all([
+                        sprintService.getAdminSprints(),
+                        sprintService.getAdminCoachSprints(),
+                        sprintService.getCoachSprints(user.id),
+                        sprintService.getAllEnrollments()
+                    ]);
                     
-                    // Combine and deduplicate
-                    const combined = [...adminSprints, ...myOwnSprints];
-                    const uniqueIds = new Set();
-                    coachSprints = combined.filter(s => {
-                        if (uniqueIds.has(s.id)) return false;
-                        uniqueIds.add(s.id);
-                        return true;
+                    const combined = [...adminAllSprints, ...adminCoachSprints, ...myOwnSprints];
+                    const uniqueMap = new Map<string, Sprint>();
+                    combined.forEach(s => {
+                        if (s?.id && !uniqueMap.has(s.id)) {
+                            uniqueMap.set(s.id, s);
+                        }
                     });
+                    availableSprints = Array.from(uniqueMap.values());
+                    enrollments = allDbEnrollments;
                 } else {
-                    coachSprints = await sprintService.getCoachSprints(user.id);
+                    // Coaches see all their own sprints and enrollments for their sprints / coach assignments
+                    const [coachSprints, allDbEnrollments] = await Promise.all([
+                        sprintService.getCoachSprints(user.id),
+                        sprintService.getAllEnrollments()
+                    ]);
+                    
+                    availableSprints = coachSprints || [];
+                    const coachSprintIds = new Set(availableSprints.map(s => s.id));
+                    
+                    // Include enrollments where coach_id matches or sprint_id matches coach's sprints
+                    enrollments = allDbEnrollments.filter(e => 
+                        (e.coach_id && e.coach_id === user.id) || 
+                        (e.sprint_id && coachSprintIds.has(e.sprint_id))
+                    );
+
+                    // If coach has enrollments for sprints not in availableSprints, fetch those sprints too
+                    const missingSprintIds = Array.from(new Set(
+                        enrollments.map(e => e.sprint_id).filter(id => !!id && !coachSprintIds.has(id))
+                    ));
+                    
+                    if (missingSprintIds.length > 0) {
+                        const fetchedMissing = await Promise.all(
+                            missingSprintIds.map(id => sprintService.getSprintById(id))
+                        );
+                        fetchedMissing.forEach(s => {
+                            if (s && !coachSprintIds.has(s.id)) {
+                                availableSprints.push(s);
+                                coachSprintIds.add(s.id);
+                            }
+                        });
+                    }
                 }
 
-                const approvedSprints = coachSprints.filter(s => s.approvalStatus === 'approved');
-                setMySprints(approvedSprints);
+                // Set sprints in dropdown selector (all available programs)
+                setMySprints(availableSprints);
 
-                const mySprintIds = approvedSprints
-                    .map(s => s.id)
-                    .filter(id => !!id);
-
-                if (mySprintIds.length === 0) {
+                if (enrollments.length === 0) {
                     setAllEnrollments([]);
                     setIsLoading(false);
                     return;
                 }
 
-                const enrollments = await sprintService.getEnrollmentsForSprints(mySprintIds);
-                const uniqueParticipantIds = Array.from(new Set(enrollments.map(e => e.user_id))) as string[];
+                const uniqueParticipantIds = Array.from(new Set(enrollments.map(e => e.user_id).filter(id => !!id))) as string[];
                 const dbParticipants = await userService.getUsersByIds(uniqueParticipantIds);
 
                 const now = new Date();
-                const enriched = enrollments.map(ps => {
-                    const student = dbParticipants.find(u => u.id === ps.user_id) || 
-                                   MOCK_USERS.find(u => u.id === ps.user_id) as Participant;
-                    const sprint = approvedSprints.find(s => s.id === ps.sprint_id) as Sprint;
-                    
-                    if (!sprint || !student) return null;
+                const sprintMap = new Map<string, Sprint>(availableSprints.map(s => [s.id, s]));
 
-                    const completions = ps.progress.filter(p => p.completed);
+                const enriched = enrollments.map(ps => {
+                    if (!ps || !ps.user_id) return null;
+
+                    const student = dbParticipants.find(u => u.id === ps.user_id) || 
+                                   MOCK_USERS.find(u => u.id === ps.user_id) || {
+                                       id: ps.user_id,
+                                       name: (ps as any).userName || (ps as any).studentName || (ps as any).userEmail?.split('@')[0] || `Participant ${ps.user_id.slice(0, 6)}`,
+                                       email: (ps as any).userEmail || '',
+                                       role: UserRole.PARTICIPANT,
+                                       profileImageUrl: (ps as any).userPhoto || (ps as any).profileImageUrl || `https://picsum.photos/seed/${ps.user_id}/100/100`
+                                   } as Participant;
+
+                    let sprint = sprintMap.get(ps.sprint_id);
+                    if (!sprint) {
+                        sprint = {
+                            id: ps.sprint_id,
+                            title: (ps as any).sprintTitle || `Sprint #${ps.sprint_id.slice(0, 8)}`,
+                            duration: ps.progress?.length || 7,
+                            category: 'Core',
+                            coachId: user.id
+                        } as Sprint;
+                    }
+
+                    const progressList = Array.isArray(ps.progress) ? ps.progress : [];
+                    const completions = progressList.filter(p => p && p.completed);
                     const lastCompletion = completions.length > 0 
                         ? [...completions].sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime())[0]
                         : null;
@@ -101,15 +151,16 @@ const CoachParticipants: React.FC = () => {
                         ? (now.getTime() - new Date(lastCompletion.completedAt!).getTime()) < (24 * 60 * 60 * 1000)
                         : false;
 
-                    const nextIncomplete = ps.progress.find(p => !p.completed);
+                    const nextIncomplete = progressList.find(p => p && !p.completed);
 
                     return {
                         ...ps,
+                        progress: progressList,
                         student,
                         sprint,
                         isActiveToday,
                         completedCount: completions.length,
-                        currentMilestoneDay: nextIncomplete ? nextIncomplete.day : sprint.duration
+                        currentMilestoneDay: nextIncomplete ? nextIncomplete.day : (sprint.duration || progressList.length || 7)
                     };
                 }).filter((e): e is ExtendedEnrollment => e !== null);
 

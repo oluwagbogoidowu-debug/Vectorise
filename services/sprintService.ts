@@ -478,6 +478,21 @@ const notifyCoachesOnSprintStart = async (userId: string, sprintId: string, coac
     }
 };
 
+export const deduplicateSprintsById = (sprints: Sprint[]): Sprint[] => {
+    const map = new Map<string, Sprint>();
+    for (const s of sprints) {
+        if (s && s.id && typeof s.id === 'string' && !EXPERIENCE_DOC_NAMES.includes(s.id as any)) {
+            if (!map.has(s.id)) {
+                map.set(s.id, s);
+            } else {
+                const existing = map.get(s.id)!;
+                map.set(s.id, { ...existing, ...s });
+            }
+        }
+    }
+    return Array.from(map.values());
+};
+
 export const sprintService = {
     incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
         try {
@@ -908,27 +923,35 @@ export const sprintService = {
     getCoachSprints: async (coachId: string) => {
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const raw = snap.docs
-            .map(d => {
+        const rawMap = new Map<string, Sprint>();
+        snap.docs.forEach(d => {
+            const id = d.ref.parent?.parent?.id;
+            if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
                 const data = sanitizeData(d.data()) as Sprint;
-                data.id = d.ref.parent.parent!.id;
-                return data;
-            })
-            .filter(s => s.coachId === coachId && s.deleted !== true);
-        return await sprintService.resolveSprintsList(raw);
+                data.id = id;
+                if (data.coachId === coachId && data.deleted !== true) {
+                    rawMap.set(id, data);
+                }
+            }
+        });
+        return await sprintService.resolveSprintsList(Array.from(rawMap.values()));
     },
 
     getAdminCoachSprints: async () => {
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const allSprints = snap.docs
-            .map(d => {
+        const rawMap = new Map<string, Sprint>();
+        snap.docs.forEach(d => {
+            const id = d.ref.parent?.parent?.id;
+            if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
                 const data = sanitizeData(d.data()) as Sprint;
-                data.id = d.ref.parent.parent!.id;
-                return data;
-            })
-            .filter(s => s.deleted !== true);
-        const resolved = await sprintService.resolveSprintsList(allSprints);
+                data.id = id;
+                if (data.deleted !== true) {
+                    rawMap.set(id, data);
+                }
+            }
+        });
+        const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
         return resolved.filter(s => 
             s.sprintType === 'Foundational' || 
             s.sprintType === 'Fundamentals' || 
@@ -944,17 +967,21 @@ export const sprintService = {
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs
-                .map(d => {
+            const rawMap = new Map<string, Sprint>();
+            snap.docs.forEach(d => {
+                const id = d.ref.parent?.parent?.id;
+                if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
                     const data = sanitizeData(d.data()) as Sprint;
-                    data.id = d.ref.parent.parent!.id;
+                    data.id = id;
                     const { contentType, subcategory } = determineExperienceContentType(data);
                     data.contentType = contentType;
                     data.subcategory = subcategory;
-                    return data;
-                })
-                .filter(s => (s.coachId === coachId || (s.contentType === 'blog' && (s.coachId === 'admin1' || coachId === 'admin1'))) && s.deleted !== true);
-            const resolved = await sprintService.resolveSprintsList(raw);
+                    if ((data.coachId === coachId || (data.contentType === 'blog' && (data.coachId === 'admin1' || coachId === 'admin1'))) && data.deleted !== true) {
+                        rawMap.set(id, data);
+                    }
+                }
+            });
+            const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
             callback(resolved);
         });
     },
@@ -964,17 +991,21 @@ export const sprintService = {
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const raw = snap.docs
-            .map(d => {
+        const rawMap = new Map<string, Sprint>();
+        snap.docs.forEach(d => {
+            const id = d.ref.parent?.parent?.id;
+            if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
                 const data = sanitizeData(d.data()) as Sprint;
-                data.id = d.ref.parent.parent!.id;
+                data.id = id;
                 const { contentType, subcategory } = determineExperienceContentType(data);
                 data.contentType = contentType;
                 data.subcategory = subcategory;
-                return data;
-            })
-            .filter(s => s.deleted !== true);
-        return await sprintService.resolveSprintsList(raw);
+                if (data.deleted !== true) {
+                    rawMap.set(id, data);
+                }
+            }
+        });
+        return await sprintService.resolveSprintsList(Array.from(rawMap.values()));
     },
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
@@ -982,17 +1013,21 @@ export const sprintService = {
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs
-                .map(d => {
+            const rawMap = new Map<string, Sprint>();
+            snap.docs.forEach(d => {
+                const id = d.ref.parent?.parent?.id;
+                if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
                     const data = sanitizeData(d.data()) as Sprint;
-                    data.id = d.ref.parent.parent!.id;
+                    data.id = id;
                     const { contentType, subcategory } = determineExperienceContentType(data);
                     data.contentType = contentType;
                     data.subcategory = subcategory;
-                    return data;
-                })
-                .filter(s => s.deleted !== true);
-            const resolved = await sprintService.resolveSprintsList(raw);
+                    if (data.deleted !== true) {
+                        rawMap.set(id, data);
+                    }
+                }
+            });
+            const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
             callback(resolved);
         }, (error) => {
             if (onError) onError(error);
@@ -1004,15 +1039,19 @@ export const sprintService = {
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs.map(d => {
-                const data = sanitizeData(d.data()) as Sprint;
-                data.id = d.ref.parent.parent!.id;
-                const { contentType, subcategory } = determineExperienceContentType(data);
-                data.contentType = contentType;
-                data.subcategory = subcategory;
-                return data;
+            const rawMap = new Map<string, Sprint>();
+            snap.docs.forEach(d => {
+                const id = d.ref.parent?.parent?.id;
+                if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
+                    const data = sanitizeData(d.data()) as Sprint;
+                    data.id = id;
+                    const { contentType, subcategory } = determineExperienceContentType(data);
+                    data.contentType = contentType;
+                    data.subcategory = subcategory;
+                    rawMap.set(id, data);
+                }
             });
-            const resolved = await sprintService.resolveSprintsList(raw);
+            const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
             callback(resolved);
         }, (error) => {
             if (onError) onError(error);
@@ -1024,22 +1063,29 @@ export const sprintService = {
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
-        const raw = snap.docs
-            .map(d => {
+        const rawMap = new Map<string, Sprint>();
+        snap.docs.forEach(d => {
+            const id = d.ref.parent?.parent?.id;
+            if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
                 const data = sanitizeData(d.data()) as Sprint;
-                data.id = d.ref.parent.parent!.id;
+                data.id = id;
                 const { contentType, subcategory } = determineExperienceContentType(data);
                 data.contentType = contentType;
                 data.subcategory = subcategory;
-                return data;
-            })
-            .filter(s => {
-                if (s.deleted === true) return false;
-                if (s.contentType === 'blog') return s.approvalStatus === 'approved';
-                if (s.contentType === 'ignite') return s.published === true || s.approvalStatus === 'approved';
-                return s.approvalStatus === 'approved' && s.published === true;
-            });
-        return await sprintService.resolveSprintsList(raw);
+                
+                let isAllowed = false;
+                if (data.deleted !== true) {
+                    if (data.contentType === 'blog') isAllowed = data.approvalStatus === 'approved';
+                    else if (data.contentType === 'ignite') isAllowed = data.published === true || data.approvalStatus === 'approved';
+                    else isAllowed = data.approvalStatus === 'approved' && data.published === true;
+                }
+
+                if (isAllowed) {
+                    rawMap.set(id, data);
+                }
+            }
+        });
+        return await sprintService.resolveSprintsList(Array.from(rawMap.values()));
     },
 
     subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
@@ -1047,22 +1093,29 @@ export const sprintService = {
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
         return onSnapshot(q, async (snap) => {
-            const raw = snap.docs
-                .map(d => {
+            const rawMap = new Map<string, Sprint>();
+            snap.docs.forEach(d => {
+                const id = d.ref.parent?.parent?.id;
+                if (id && !EXPERIENCE_DOC_NAMES.includes(id as any) && !rawMap.has(id)) {
                     const data = sanitizeData(d.data()) as Sprint;
-                    data.id = d.ref.parent.parent!.id;
+                    data.id = id;
                     const { contentType, subcategory } = determineExperienceContentType(data);
                     data.contentType = contentType;
                     data.subcategory = subcategory;
-                    return data;
-                })
-                .filter(s => {
-                    if (s.deleted === true) return false;
-                    if (s.contentType === 'blog') return s.approvalStatus === 'approved';
-                    if (s.contentType === 'ignite') return s.published === true || s.approvalStatus === 'approved';
-                    return s.approvalStatus === 'approved' && s.published === true;
-                });
-            const resolved = await sprintService.resolveSprintsList(raw);
+
+                    let isAllowed = false;
+                    if (data.deleted !== true) {
+                        if (data.contentType === 'blog') isAllowed = data.approvalStatus === 'approved';
+                        else if (data.contentType === 'ignite') isAllowed = data.published === true || data.approvalStatus === 'approved';
+                        else isAllowed = data.approvalStatus === 'approved' && data.published === true;
+                    }
+
+                    if (isAllowed) {
+                        rawMap.set(id, data);
+                    }
+                }
+            });
+            const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
             callback(resolved);
         }, (error) => {
             if (onError) onError(error);
@@ -1152,11 +1205,12 @@ export const sprintService = {
     },
 
     resolveSprintsList: async (sprints: Sprint[]): Promise<Sprint[]> => {
-        const results = await Promise.all(sprints.map(async (s) => {
+        const uniqueInputs = deduplicateSprintsById(sprints);
+        const results = await Promise.all(uniqueInputs.map(async (s) => {
             const cachedOrFetched = await sprintService.getSprintById(s.id);
             return cachedOrFetched || s;
         }));
-        return results.filter((s): s is Sprint => s !== null);
+        return deduplicateSprintsById(results.filter((s): s is Sprint => s !== null));
     },
 
     _writeSubcollections: async (sprintId: string, sprintData: any) => {
@@ -1538,38 +1592,10 @@ export const sprintService = {
 
     getEnrollmentsForSprints: async (sprintIds: string[]) => {
         if (!sprintIds.length) return [];
-        const results: ParticipantSprint[] = [];
-        try {
-            const usersSnap = await getDocs(collection(db, 'users'));
-            const userDocs = usersSnap.docs;
-            
-            await Promise.all(userDocs.map(async (userDoc) => {
-                const userId = userDoc.id;
-                
-                // Fetch from users/{userId}/enrollments
-                const enrollmentsRef = collection(db, 'users', userId, 'enrollments');
-                const enrollmentsSnap = await getDocs(enrollmentsRef);
-                enrollmentsSnap.forEach(doc => {
-                    const data = sanitizeData(doc.data()) as ParticipantSprint;
-                    if (sprintIds.includes(data.sprint_id)) {
-                        results.push({ ...data, id: doc.id });
-                    }
-                });
-                
-                // Fallback: Fetch from users/{userId}/enrollment
-                const enrollmentRef = collection(db, 'users', userId, 'enrollment');
-                const enrollmentSnap = await getDocs(enrollmentRef);
-                enrollmentSnap.forEach(doc => {
-                    const data = sanitizeData(doc.data()) as ParticipantSprint;
-                    if (sprintIds.includes(data.sprint_id) && !results.some(r => r.id === doc.id)) {
-                        results.push({ ...data, id: doc.id });
-                    }
-                });
-            }));
-        } catch (e) {
-            console.error("Failed to fetch enrollments from individual user paths:", e);
-        }
-        return results;
+        const sprintIdSet = new Set(sprintIds.filter(id => !!id && typeof id === 'string'));
+        if (sprintIdSet.size === 0) return [];
+        const all = await sprintService.getAllEnrollments();
+        return all.filter(e => sprintIdSet.has(e.sprint_id));
     },
 
     subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void, onError?: (error: any) => void) => {
@@ -1583,9 +1609,67 @@ export const sprintService = {
     },
 
     getAllEnrollments: async () => {
-        const q = query(collectionGroup(db, 'enrollments'));
-        const snap = await getDocs(q);
-        return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
+        const map = new Map<string, ParticipantSprint>();
+        try {
+            // 1. Try collectionGroup 'enrollments'
+            try {
+                const q = query(collectionGroup(db, 'enrollments'));
+                const snap = await getDocs(q);
+                snap.docs.forEach(d => {
+                    const data = sanitizeData(d.data()) as ParticipantSprint;
+                    const id = d.id;
+                    const userId = d.ref.parent?.parent?.id || data.user_id;
+                    if (userId && data.sprint_id) {
+                        map.set(id, { ...data, id, user_id: data.user_id || userId });
+                    }
+                });
+            } catch (e) {
+                console.warn("[sprintService] collectionGroup enrollments query warning:", e);
+            }
+
+            // 2. Try collectionGroup 'enrollment' (singular alias)
+            try {
+                const qSingular = query(collectionGroup(db, 'enrollment'));
+                const snapSingular = await getDocs(qSingular);
+                snapSingular.docs.forEach(d => {
+                    const data = sanitizeData(d.data()) as ParticipantSprint;
+                    const id = d.id;
+                    const userId = d.ref.parent?.parent?.id || data.user_id;
+                    if (userId && data.sprint_id && !map.has(id)) {
+                        map.set(id, { ...data, id, user_id: data.user_id || userId });
+                    }
+                });
+            } catch (e) {}
+
+            // 3. Fallback / supplementary scan: Iterate through users
+            try {
+                const usersSnap = await getDocs(collection(db, 'users'));
+                await Promise.all(usersSnap.docs.map(async (userDoc) => {
+                    const userId = userDoc.id;
+                    try {
+                        const snap = await getDocs(collection(db, 'users', userId, 'enrollments'));
+                        snap.forEach(d => {
+                            const data = sanitizeData(d.data()) as ParticipantSprint;
+                            if (data.sprint_id && !map.has(d.id)) {
+                                map.set(d.id, { ...data, id: d.id, user_id: data.user_id || userId });
+                            }
+                        });
+                    } catch (e) {}
+                    try {
+                        const snapSing = await getDocs(collection(db, 'users', userId, 'enrollment'));
+                        snapSing.forEach(d => {
+                            const data = sanitizeData(d.data()) as ParticipantSprint;
+                            if (data.sprint_id && !map.has(d.id)) {
+                                map.set(d.id, { ...data, id: d.id, user_id: data.user_id || userId });
+                            }
+                        });
+                    } catch (e) {}
+                }));
+            } catch (e) {}
+        } catch (err) {
+            console.error("Failed to load all enrollments:", err);
+        }
+        return Array.from(map.values());
     },
 
     subscribeToAllEnrollments: (callback: (enrollments: ParticipantSprint[]) => void) => {

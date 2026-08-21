@@ -266,18 +266,41 @@ export const userService = {
   },
 
   getUsersByIds: async (uids: string[]) => {
-    const validIds = Array.from(new Set((uids || []).filter(id => !!id && typeof id === 'string' && id !== '')));
+    const validIds = Array.from(new Set((uids || []).filter(id => !!id && typeof id === 'string' && id.trim() !== '')));
     if (validIds.length === 0) return [];
     try {
-      const CHUNK_SIZE = 25;
       const results: Participant[] = [];
-      for (let i = 0; i < validIds.length; i += CHUNK_SIZE) {
-        const chunk = validIds.slice(i, i + CHUNK_SIZE);
-        const q = query(collection(db, 'users'), where("id", "in", chunk));
-        const querySnapshot = await getDocs(q);
-        querySnapshot.forEach((doc) => results.push(sanitizeData(doc.data()) as Participant));
+      const userMap = new Map<string, Participant>();
+
+      // 1. Direct document fetches
+      await Promise.all(validIds.map(async (uid) => {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', uid));
+          if (userSnap.exists()) {
+            const data = sanitizeData({ id: userSnap.id, ...userSnap.data() }) as Participant;
+            userMap.set(uid, data);
+          }
+        } catch (e) {}
+      }));
+
+      // 2. Query fallback for any not found yet
+      const missingIds = validIds.filter(id => !userMap.has(id));
+      if (missingIds.length > 0) {
+        const CHUNK_SIZE = 25;
+        for (let i = 0; i < missingIds.length; i += CHUNK_SIZE) {
+          const chunk = missingIds.slice(i, i + CHUNK_SIZE);
+          try {
+            const q = query(collection(db, 'users'), where("id", "in", chunk));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach((doc) => {
+              const d = sanitizeData({ id: doc.id, ...doc.data() }) as Participant;
+              userMap.set(doc.id, d);
+            });
+          } catch (e) {}
+        }
       }
-      return results;
+
+      return Array.from(userMap.values());
     } catch (error) {
       console.error("Error fetching users by IDs:", error);
       return [];
