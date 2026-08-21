@@ -428,6 +428,13 @@ export const deserializeSprint = (sprint: any): any => {
 
 // In-memory cache for resolved sprint documents
 const sprintCache: Record<string, Sprint> = {};
+let cachedAllEnrollments: { data: ParticipantSprint[]; cachedAt: number } | null = null;
+let cachedPublishedSprints: { data: Sprint[]; cachedAt: number } | null = null;
+let cachedAdminSprints: { data: Sprint[]; cachedAt: number } | null = null;
+let cachedAdminCoachSprints: { data: Sprint[]; cachedAt: number } | null = null;
+const cachedCoachSprintsMap = new Map<string, { data: Sprint[]; cachedAt: number }>();
+let cachedOrchestrationData: { data: Record<string, any>; cachedAt: number } | null = null;
+const SPRINT_CACHE_TTL_MS = 30 * 1000; // 30 seconds TTL
 
 const notifyCoachesOnSprintStart = async (userId: string, sprintId: string, coachIdInput?: string) => {
     try {
@@ -921,6 +928,12 @@ export const sprintService = {
     },
 
     getCoachSprints: async (coachId: string) => {
+        if (!coachId) return [];
+        const cached = cachedCoachSprintsMap.get(coachId);
+        if (cached && Date.now() - cached.cachedAt < SPRINT_CACHE_TTL_MS) {
+            return cached.data;
+        }
+
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
         const rawMap = new Map<string, Sprint>();
@@ -934,10 +947,16 @@ export const sprintService = {
                 }
             }
         });
-        return await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+        const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+        cachedCoachSprintsMap.set(coachId, { data: resolved, cachedAt: Date.now() });
+        return resolved;
     },
 
     getAdminCoachSprints: async () => {
+        if (cachedAdminCoachSprints && Date.now() - cachedAdminCoachSprints.cachedAt < SPRINT_CACHE_TTL_MS) {
+            return cachedAdminCoachSprints.data;
+        }
+
         const q = query(collectionGroup(db, 'sprintdetails'));
         const snap = await getDocs(q);
         const rawMap = new Map<string, Sprint>();
@@ -952,7 +971,7 @@ export const sprintService = {
             }
         });
         const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
-        return resolved.filter(s => 
+        const filtered = resolved.filter(s => 
             s.sprintType === 'Foundational' || 
             s.sprintType === 'Fundamentals' || 
             s.sprintType === 'Core' || 
@@ -960,6 +979,8 @@ export const sprintService = {
             s.category === 'Core Platform Sprint' || 
             s.category === 'Growth Fundamentals'
         );
+        cachedAdminCoachSprints = { data: filtered, cachedAt: Date.now() };
+        return filtered;
     },
 
     subscribeToCoachSprints: (coachId: string, callback: (sprints: Sprint[]) => void) => {
@@ -982,11 +1003,18 @@ export const sprintService = {
                 }
             });
             const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+            if (coachId) {
+                cachedCoachSprintsMap.set(coachId, { data: resolved, cachedAt: Date.now() });
+            }
             callback(resolved);
         });
     },
 
     getAdminSprints: async () => {
+        if (cachedAdminSprints && Date.now() - cachedAdminSprints.cachedAt < SPRINT_CACHE_TTL_MS) {
+            return cachedAdminSprints.data;
+        }
+
         ensureSeedBlogsInFirestore().catch(() => {});
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
@@ -1005,7 +1033,9 @@ export const sprintService = {
                 }
             }
         });
-        return await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+        const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+        cachedAdminSprints = { data: resolved, cachedAt: Date.now() };
+        return resolved;
     },
 
     subscribeToAdminSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
@@ -1028,6 +1058,7 @@ export const sprintService = {
                 }
             });
             const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+            cachedAdminSprints = { data: resolved, cachedAt: Date.now() };
             callback(resolved);
         }, (error) => {
             if (onError) onError(error);
@@ -1059,6 +1090,10 @@ export const sprintService = {
     },
 
     getPublishedSprints: async () => {
+        if (cachedPublishedSprints && Date.now() - cachedPublishedSprints.cachedAt < SPRINT_CACHE_TTL_MS) {
+            return cachedPublishedSprints.data;
+        }
+
         ensureSeedBlogsInFirestore().catch(() => {});
         migrateAllSprintsToExperiences().catch(() => {});
         const q = query(collectionGroup(db, 'sprintdetails'));
@@ -1085,7 +1120,9 @@ export const sprintService = {
                 }
             }
         });
-        return await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+        const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+        cachedPublishedSprints = { data: resolved, cachedAt: Date.now() };
+        return resolved;
     },
 
     subscribeToPublishedSprints: (callback: (sprints: Sprint[]) => void, onError?: (error: any) => void) => {
@@ -1116,6 +1153,7 @@ export const sprintService = {
                 }
             });
             const resolved = await sprintService.resolveSprintsList(Array.from(rawMap.values()));
+            cachedPublishedSprints = { data: resolved, cachedAt: Date.now() };
             callback(resolved);
         }, (error) => {
             if (onError) onError(error);
@@ -1124,6 +1162,12 @@ export const sprintService = {
 
     resolveSprintDays: async (sprint: Sprint): Promise<Sprint> => {
         if (!sprint || !sprint.id) return sprint;
+        
+        // Fast path: If dailyContent is already populated in the sprint, return immediately
+        if (Array.isArray(sprint.dailyContent) && sprint.dailyContent.length > 0) {
+            return deserializeSprint(sprint);
+        }
+
         try {
             const { contentType, subcategory } = determineExperienceContentType(sprint);
             sprint.contentType = contentType;
@@ -1181,8 +1225,6 @@ export const sprintService = {
                     }
                 });
             }
-            
-            const hasDailyField = 'dailyContent' in sprint;
 
             if (Object.keys(loadedDays).length > 0) {
                 const dailyContent = [];
@@ -1195,8 +1237,7 @@ export const sprintService = {
                 sprint.dailyContent = dailyContent;
             } else if (sprint.dailyContent && sprint.dailyContent.length > 0) {
                 // Auto-migrate old format sprint to new subcollections in the background
-                console.log(`[Migration] Auto-migrating sprint ${sprint.id} to new subcollection structure in Firestore...`);
-                await sprintService._writeSubcollections(sprint.id, sprint);
+                sprintService._writeSubcollections(sprint.id, sprint).catch(() => {});
             }
         } catch (err) {
             console.error("Error resolving sprint subcollection days:", err);
@@ -1206,11 +1247,15 @@ export const sprintService = {
 
     resolveSprintsList: async (sprints: Sprint[]): Promise<Sprint[]> => {
         const uniqueInputs = deduplicateSprintsById(sprints);
-        const results = await Promise.all(uniqueInputs.map(async (s) => {
-            const cachedOrFetched = await sprintService.getSprintById(s.id);
-            return cachedOrFetched || s;
-        }));
-        return deduplicateSprintsById(results.filter((s): s is Sprint => s !== null));
+        const results = uniqueInputs.map((s) => {
+            if (sprintCache[s.id]) {
+                return sprintCache[s.id];
+            }
+            const deserialized = deserializeSprint(s);
+            sprintCache[s.id] = deserialized;
+            return deserialized;
+        });
+        return results;
     },
 
     _writeSubcollections: async (sprintId: string, sprintData: any) => {
@@ -1426,12 +1471,16 @@ export const sprintService = {
     },
 
     getOrchestration: async (): Promise<Record<string, LifecycleSlotAssignment>> => {
+        if (cachedOrchestrationData && (Date.now() - cachedOrchestrationData.cachedAt < SPRINT_CACHE_TTL_MS)) {
+            return cachedOrchestrationData.data;
+        }
         const q = query(collection(db, ORCHESTRATION_SLOTS_COLLECTION));
         const snap = await getDocs(q);
         const mapping: Record<string, LifecycleSlotAssignment> = {};
         snap.forEach(doc => {
             mapping[doc.id] = sanitizeData(doc.data()) as LifecycleSlotAssignment;
         });
+        cachedOrchestrationData = { data: mapping, cachedAt: Date.now() };
         return mapping;
     },
 
@@ -1442,6 +1491,7 @@ export const sprintService = {
             snapshot.forEach(doc => {
                 mapping[doc.id] = sanitizeData(doc.data()) as LifecycleSlotAssignment;
             });
+            cachedOrchestrationData = { data: mapping, cachedAt: Date.now() };
             callback(mapping);
         });
     },
@@ -1609,73 +1659,88 @@ export const sprintService = {
     },
 
     getAllEnrollments: async () => {
+        if (cachedAllEnrollments && (Date.now() - cachedAllEnrollments.cachedAt < SPRINT_CACHE_TTL_MS)) {
+            return cachedAllEnrollments.data;
+        }
+
         const map = new Map<string, ParticipantSprint>();
         try {
-            // 1. Try collectionGroup 'enrollments'
-            try {
-                const q = query(collectionGroup(db, 'enrollments'));
-                const snap = await getDocs(q);
-                snap.docs.forEach(d => {
-                    const data = sanitizeData(d.data()) as ParticipantSprint;
-                    const id = d.id;
-                    const userId = d.ref.parent?.parent?.id || data.user_id;
-                    if (userId && data.sprint_id) {
-                        map.set(id, { ...data, id, user_id: data.user_id || userId });
+            // 1. Run collectionGroup queries in parallel
+            await Promise.all([
+                (async () => {
+                    try {
+                        const q = query(collectionGroup(db, 'enrollments'));
+                        const snap = await getDocs(q);
+                        snap.docs.forEach(d => {
+                            const data = sanitizeData(d.data()) as ParticipantSprint;
+                            const id = d.id;
+                            const userId = d.ref.parent?.parent?.id || data.user_id;
+                            if (userId && data.sprint_id) {
+                                map.set(id, { ...data, id, user_id: data.user_id || userId });
+                            }
+                        });
+                    } catch (e) {
+                        console.warn("[sprintService] collectionGroup enrollments query warning:", e);
                     }
-                });
-            } catch (e) {
-                console.warn("[sprintService] collectionGroup enrollments query warning:", e);
+                })(),
+                (async () => {
+                    try {
+                        const qSingular = query(collectionGroup(db, 'enrollment'));
+                        const snapSingular = await getDocs(qSingular);
+                        snapSingular.docs.forEach(d => {
+                            const data = sanitizeData(d.data()) as ParticipantSprint;
+                            const id = d.id;
+                            const userId = d.ref.parent?.parent?.id || data.user_id;
+                            if (userId && data.sprint_id && !map.has(id)) {
+                                map.set(id, { ...data, id, user_id: data.user_id || userId });
+                            }
+                        });
+                    } catch (e) {}
+                })()
+            ]);
+
+            // 2. Only fallback to per-user scan if collectionGroup found NOTHING (e.g. index building)
+            if (map.size === 0) {
+                try {
+                    const usersSnap = await getDocs(collection(db, 'users'));
+                    await Promise.all(usersSnap.docs.map(async (userDoc) => {
+                        const userId = userDoc.id;
+                        try {
+                            const snap = await getDocs(collection(db, 'users', userId, 'enrollments'));
+                            snap.forEach(d => {
+                                const data = sanitizeData(d.data()) as ParticipantSprint;
+                                if (data.sprint_id && !map.has(d.id)) {
+                                    map.set(d.id, { ...data, id: d.id, user_id: data.user_id || userId });
+                                }
+                            });
+                        } catch (e) {}
+                        try {
+                            const snapSing = await getDocs(collection(db, 'users', userId, 'enrollment'));
+                            snapSing.forEach(d => {
+                                const data = sanitizeData(d.data()) as ParticipantSprint;
+                                if (data.sprint_id && !map.has(d.id)) {
+                                    map.set(d.id, { ...data, id: d.id, user_id: data.user_id || userId });
+                                }
+                            });
+                        } catch (e) {}
+                    }));
+                } catch (e) {}
             }
-
-            // 2. Try collectionGroup 'enrollment' (singular alias)
-            try {
-                const qSingular = query(collectionGroup(db, 'enrollment'));
-                const snapSingular = await getDocs(qSingular);
-                snapSingular.docs.forEach(d => {
-                    const data = sanitizeData(d.data()) as ParticipantSprint;
-                    const id = d.id;
-                    const userId = d.ref.parent?.parent?.id || data.user_id;
-                    if (userId && data.sprint_id && !map.has(id)) {
-                        map.set(id, { ...data, id, user_id: data.user_id || userId });
-                    }
-                });
-            } catch (e) {}
-
-            // 3. Fallback / supplementary scan: Iterate through users
-            try {
-                const usersSnap = await getDocs(collection(db, 'users'));
-                await Promise.all(usersSnap.docs.map(async (userDoc) => {
-                    const userId = userDoc.id;
-                    try {
-                        const snap = await getDocs(collection(db, 'users', userId, 'enrollments'));
-                        snap.forEach(d => {
-                            const data = sanitizeData(d.data()) as ParticipantSprint;
-                            if (data.sprint_id && !map.has(d.id)) {
-                                map.set(d.id, { ...data, id: d.id, user_id: data.user_id || userId });
-                            }
-                        });
-                    } catch (e) {}
-                    try {
-                        const snapSing = await getDocs(collection(db, 'users', userId, 'enrollment'));
-                        snapSing.forEach(d => {
-                            const data = sanitizeData(d.data()) as ParticipantSprint;
-                            if (data.sprint_id && !map.has(d.id)) {
-                                map.set(d.id, { ...data, id: d.id, user_id: data.user_id || userId });
-                            }
-                        });
-                    } catch (e) {}
-                }));
-            } catch (e) {}
+            const results = Array.from(map.values());
+            cachedAllEnrollments = { data: results, cachedAt: Date.now() };
+            return results;
         } catch (err) {
             console.error("Failed to load all enrollments:", err);
+            return cachedAllEnrollments?.data || [];
         }
-        return Array.from(map.values());
     },
 
     subscribeToAllEnrollments: (callback: (enrollments: ParticipantSprint[]) => void) => {
         const q = query(collectionGroup(db, 'enrollments'));
         return onSnapshot(q, (snapshot) => {
-            callback(snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint)));
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
+            cachedAllEnrollments = { data: list, cachedAt: Date.now() };
+            callback(list);
         });
     },
 

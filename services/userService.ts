@@ -8,6 +8,11 @@ import { MILESTONES, calculateMilestoneStatValue, UserMilestoneStats } from './m
 const notificationQueue: { type: 'success' | 'info' | 'error', message: string, options: any }[] = [];
 let isProcessingQueue = false;
 
+// Fast in-memory caches for high-frequency queries
+const userMemoryCache = new Map<string, { user: User | Participant | Coach; cachedAt: number }>();
+let coachesMemoryCache: { coaches: Coach[]; cachedAt: number } | null = null;
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds TTL
+
 const processQueue = async () => {
   if (isProcessingQueue || notificationQueue.length === 0) return;
   isProcessingQueue = true;
@@ -231,10 +236,18 @@ export const userService = {
 
   getUserDocument: async (uid: string) => {
     try {
+      if (!uid) return null;
+      const cached = userMemoryCache.get(uid);
+      if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+        return cached.user;
+      }
+
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
-        return sanitizeData(userSnap.data()) as User | Participant | Coach;
+        const user = sanitizeData(userSnap.data()) as User | Participant | Coach;
+        userMemoryCache.set(uid, { user, cachedAt: Date.now() });
+        return user;
       } else {
         return null;
       }
@@ -259,7 +272,11 @@ export const userService = {
       const q = query(collection(db, 'users'), where("email", "==", email.toLowerCase().trim()));
       const snap = await getDocs(q);
       if (snap.empty) return null;
-      return sanitizeData(snap.docs[0].data()) as User | Participant | Coach;
+      const user = sanitizeData(snap.docs[0].data()) as User | Participant | Coach;
+      if (user?.id) {
+        userMemoryCache.set(user.id, { user, cachedAt: Date.now() });
+      }
+      return user;
     } catch (error) {
       return null;
     }
@@ -269,32 +286,50 @@ export const userService = {
     const validIds = Array.from(new Set((uids || []).filter(id => !!id && typeof id === 'string' && id.trim() !== '')));
     if (validIds.length === 0) return [];
     try {
-      const results: Participant[] = [];
       const userMap = new Map<string, Participant>();
+      const missingIds: string[] = [];
+      const now = Date.now();
 
-      // 1. Direct document fetches
-      await Promise.all(validIds.map(async (uid) => {
+      // 1. Check in-memory cache first
+      validIds.forEach(uid => {
+        const cached = userMemoryCache.get(uid);
+        if (cached && now - cached.cachedAt < CACHE_TTL_MS) {
+          userMap.set(uid, cached.user as Participant);
+        } else {
+          missingIds.push(uid);
+        }
+      });
+
+      // If all were cached, return immediately with zero network delay
+      if (missingIds.length === 0) {
+        return Array.from(userMap.values());
+      }
+
+      // 2. Fetch missing users efficiently in parallel
+      await Promise.all(missingIds.map(async (uid) => {
         try {
           const userSnap = await getDoc(doc(db, 'users', uid));
           if (userSnap.exists()) {
             const data = sanitizeData({ id: userSnap.id, ...userSnap.data() }) as Participant;
             userMap.set(uid, data);
+            userMemoryCache.set(uid, { user: data, cachedAt: now });
           }
         } catch (e) {}
       }));
 
-      // 2. Query fallback for any not found yet
-      const missingIds = validIds.filter(id => !userMap.has(id));
-      if (missingIds.length > 0) {
+      // 3. Fallback query for any remaining
+      const stillMissing = missingIds.filter(id => !userMap.has(id));
+      if (stillMissing.length > 0) {
         const CHUNK_SIZE = 25;
-        for (let i = 0; i < missingIds.length; i += CHUNK_SIZE) {
-          const chunk = missingIds.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < stillMissing.length; i += CHUNK_SIZE) {
+          const chunk = stillMissing.slice(i, i + CHUNK_SIZE);
           try {
             const q = query(collection(db, 'users'), where("id", "in", chunk));
             const querySnapshot = await getDocs(q);
-            querySnapshot.forEach((doc) => {
-              const d = sanitizeData({ id: doc.id, ...doc.data() }) as Participant;
-              userMap.set(doc.id, d);
+            querySnapshot.forEach((d) => {
+              const data = sanitizeData({ id: d.id, ...d.data() }) as Participant;
+              userMap.set(d.id, data);
+              userMemoryCache.set(d.id, { user: data, cachedAt: now });
             });
           } catch (e) {}
         }
@@ -331,13 +366,17 @@ export const userService = {
 
   getCoaches: async () => {
     try {
+      if (coachesMemoryCache && Date.now() - coachesMemoryCache.cachedAt < CACHE_TTL_MS) {
+        return coachesMemoryCache.coaches;
+      }
       const q = query(collection(db, 'users'), where("role", "==", UserRole.COACH));
       const querySnapshot = await getDocs(q);
       const coaches: Coach[] = [];
       querySnapshot.forEach((doc) => coaches.push(sanitizeData({ id: doc.id, ...doc.data() }) as Coach));
+      coachesMemoryCache = { coaches, cachedAt: Date.now() };
       return coaches;
     } catch (error) {
-      return [];
+      return coachesMemoryCache?.coaches || [];
     }
   },
 
