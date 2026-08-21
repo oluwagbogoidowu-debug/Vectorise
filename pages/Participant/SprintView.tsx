@@ -2162,6 +2162,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 completedAt: timestamp,
                 submission: taskInputs.map((ti) => ti || "").join(" | "),
                 answers: taskInputs,
+                questions: dayContent?.taskPrompts || (dayContent?.taskPrompt ? [dayContent.taskPrompt] : []),
               }
             : p,
         );
@@ -2233,6 +2234,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               completedAt: timestamp,
               submission: taskInputs.map((ti) => ti || "").join(" | "),
               answers: taskInputs,
+              questions: dayContent?.taskPrompts || (dayContent?.taskPrompt ? [dayContent.taskPrompt] : []),
             }
           : p,
       );

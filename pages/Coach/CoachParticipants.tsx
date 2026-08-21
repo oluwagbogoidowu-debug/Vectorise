@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MOCK_USERS } from '../../services/mockData';
-import { Participant, Sprint, ParticipantSprint, CoachingComment, UserRole } from '../../types';
+import { Participant, Sprint, ParticipantSprint, CoachingComment, UserRole, DailyContent } from '../../types';
 import Button from '../../components/Button';
 import CustomSelect from '../../components/CustomSelect';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { chatService } from '../../services/chatService';
 import { notificationService } from '../../services/notificationService';
+import { db } from '../../services/firebase';
+import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
+import { parseStepVersions, formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
 
 interface ExtendedEnrollment extends ParticipantSprint {
     student: Participant;
@@ -28,6 +31,8 @@ const CoachParticipants: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     
     const [viewingSubmission, setViewingSubmission] = useState<{enrollment: ExtendedEnrollment, day: number} | null>(null);
+    const [activeDayContent, setActiveDayContent] = useState<DailyContent | null>(null);
+    const [isDayContentLoading, setIsDayContentLoading] = useState<boolean>(false);
     const [activePreviewTaskIndex, setActivePreviewTaskIndex] = useState(0);
     const [isContentExpanded, setIsContentExpanded] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -196,6 +201,120 @@ const CoachParticipants: React.FC = () => {
             }
         }
     }, [isLoading, allEnrollments]);
+
+    useEffect(() => {
+        if (!viewingSubmission) {
+            setActiveDayContent(null);
+            return;
+        }
+
+        let isMounted = true;
+        const sprintId = viewingSubmission.enrollment.sprint_id || viewingSubmission.enrollment.sprint?.id;
+        const day = viewingSubmission.day;
+
+        // Check if dailyContent is already loaded on sprint
+        const existingContent = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent)
+            ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c && c.day === day)
+            : null;
+
+        if (existingContent && ((existingContent.taskPrompts && existingContent.taskPrompts.length > 0) || existingContent.taskPrompt || existingContent.lessonText)) {
+            setActiveDayContent(existingContent);
+        }
+
+        const fetchDayContent = async () => {
+            setIsDayContentLoading(true);
+            try {
+                // 1. Fetch full resolved sprint from sprintService (forces subcollection days load)
+                if (sprintId) {
+                    const fullSprint = await sprintService.getSprintById(sprintId, true);
+                    if (fullSprint && Array.isArray(fullSprint.dailyContent)) {
+                        const dayMatch = fullSprint.dailyContent.find(c => c && c.day === day);
+                        if (dayMatch && isMounted) {
+                            setActiveDayContent(dayMatch);
+                            // Also update local enrollment sprint dailyContent reference
+                            viewingSubmission.enrollment.sprint.dailyContent = fullSprint.dailyContent;
+                            setIsDayContentLoading(false);
+                            return;
+                        }
+                    }
+                }
+
+                // 2. Direct Firestore queries across categorized paths
+                const docNames = ['Core', 'Blog', 'Ignite', 'Sprint', 'Custom', 'Default', 'Experiences'];
+                if (sprintId) {
+                    for (const docName of docNames) {
+                        try {
+                            const snap = await getDoc(doc(db, 'experiences', docName, 'items', sprintId, 'days', `day ${day}`));
+                            if (snap.exists() && isMounted) {
+                                const data = snap.data();
+                                setActiveDayContent({ day, ...data } as DailyContent);
+                                setIsDayContentLoading(false);
+                                return;
+                            }
+                        } catch (e) {}
+
+                        try {
+                            const snapSing = await getDoc(doc(db, 'experience', docName, 'items', sprintId, 'days', `day ${day}`));
+                            if (snapSing.exists() && isMounted) {
+                                const data = snapSing.data();
+                                setActiveDayContent({ day, ...data } as DailyContent);
+                                setIsDayContentLoading(false);
+                                return;
+                            }
+                        } catch (e) {}
+                    }
+
+                    // 3. Direct Firestore queries flat experiences & legacy sprints
+                    try {
+                        const snapFlat = await getDoc(doc(db, 'experiences', sprintId, 'days', `day ${day}`));
+                        if (snapFlat.exists() && isMounted) {
+                            setActiveDayContent({ day, ...snapFlat.data() } as DailyContent);
+                            setIsDayContentLoading(false);
+                            return;
+                        }
+                    } catch (e) {}
+
+                    try {
+                        const snapLegacy = await getDoc(doc(db, 'sprints', sprintId, 'days', `day ${day}`));
+                        if (snapLegacy.exists() && isMounted) {
+                            setActiveDayContent({ day, ...snapLegacy.data() } as DailyContent);
+                            setIsDayContentLoading(false);
+                            return;
+                        }
+                    } catch (e) {}
+
+                    // 4. Collection query for alternative day doc IDs
+                    for (const docName of docNames) {
+                        try {
+                            const daysCol = collection(db, 'experiences', docName, 'items', sprintId, 'days');
+                            const snapCol = await getDocs(daysCol);
+                            for (const dDoc of snapCol.docs) {
+                                const dData = dDoc.data();
+                                const parsedNum = parseInt(dDoc.id.replace(/\D/g, ''), 10);
+                                if (parsedNum === day || dData.day === day || dData.dayNum === day) {
+                                    if (isMounted) {
+                                        setActiveDayContent({ day, ...dData } as DailyContent);
+                                        setIsDayContentLoading(false);
+                                        return;
+                                    }
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                }
+            } catch (err) {
+                console.error("[CoachParticipants] Failed to fetch day content:", err);
+            } finally {
+                if (isMounted) setIsDayContentLoading(false);
+            }
+        };
+
+        fetchDayContent();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [viewingSubmission?.enrollment.sprint_id, viewingSubmission?.enrollment.sprint?.id, viewingSubmission?.day]);
 
     useEffect(() => {
         if (!viewingSubmission || !user) {
@@ -599,9 +718,11 @@ const CoachParticipants: React.FC = () => {
                                             <span className="absolute -top-3 left-4 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[8px] font-black uppercase tracking-wider rounded-md shadow-sm">Expository Material</span>
                                             <p className="whitespace-pre-line mt-1.5 italic font-sans block text-gray-805 leading-relaxed">
                                                 {(() => {
-                                                    const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
-                                                        ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) 
-                                                        : null;
+                                                    const contentData = activeDayContent || (
+                                                        Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
+                                                            ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c && c.day === viewingSubmission.day) 
+                                                            : null
+                                                    );
                                                     return contentData?.lessonText || "No lesson text recorded.";
                                                 })()}
                                             </p>
@@ -621,7 +742,7 @@ const CoachParticipants: React.FC = () => {
                                     const progressObj = viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day);
                                     const sub = progressObj?.submission;
                                     
-                                    if (!sub) {
+                                    if (!sub && (!progressObj?.answers || progressObj.answers.length === 0)) {
                                         return (
                                             <div className="p-10 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200 text-center animate-fade-in">
                                                 <p className="text-gray-400 italic text-sm font-bold uppercase tracking-widest">No text content provided</p>
@@ -629,26 +750,75 @@ const CoachParticipants: React.FC = () => {
                                         );
                                     }
 
-                                    const contentData = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
-                                        ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c.day === viewingSubmission.day) 
-                                        : null;
-                                    const prompts = contentData?.taskPrompts || (contentData?.taskPrompt ? [contentData.taskPrompt] : []);
-                                    const inputTypes = contentData?.taskInputTypes || [];
-                                    const answers = progressObj?.answers || sub.split(' | ');
+                                    const contentData = activeDayContent || (
+                                        Array.isArray(viewingSubmission.enrollment.sprint.dailyContent) 
+                                            ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c && c.day === viewingSubmission.day) 
+                                            : null
+                                    );
 
-                                    const itemsToDisplay = prompts.length > 0
-                                        ? prompts.map((promptText, i) => ({
-                                              prompt: promptText,
-                                              answer: answers[i] || '',
-                                              type: inputTypes[i] || 'text',
-                                              index: i
-                                          }))
-                                        : answers.map((ans, i) => ({
-                                              prompt: `Task Question ${i + 1}`,
-                                              answer: ans,
-                                              type: 'text',
-                                              index: i
-                                          }));
+                                    // Extract all available question prompts from contentData or submission record
+                                    let candidatePrompts: string[] = [];
+                                    if (Array.isArray(contentData?.taskPrompts) && contentData.taskPrompts.some(p => p && typeof p === 'string' && p.trim().length > 0)) {
+                                        candidatePrompts = contentData.taskPrompts;
+                                    } else if (contentData?.taskPrompt && typeof contentData.taskPrompt === 'string' && contentData.taskPrompt.trim().length > 0) {
+                                        candidatePrompts = [contentData.taskPrompt];
+                                    } else if (Array.isArray((contentData as any)?.prompts) && (contentData as any).prompts.some((p: any) => p && String(p).trim().length > 0)) {
+                                        candidatePrompts = (contentData as any).prompts;
+                                    } else if (Array.isArray((contentData as any)?.questions) && (contentData as any).questions.some((p: any) => p && String(p).trim().length > 0)) {
+                                        candidatePrompts = (contentData as any).questions;
+                                    } else if (Array.isArray((progressObj as any)?.questions) && (progressObj as any).questions.length > 0) {
+                                        candidatePrompts = (progressObj as any).questions;
+                                    } else if (Array.isArray((progressObj as any)?.taskPrompts) && (progressObj as any).taskPrompts.length > 0) {
+                                        candidatePrompts = (progressObj as any).taskPrompts;
+                                    }
+
+                                    const inputTypes = contentData?.taskInputTypes || [];
+                                    const answers = progressObj?.answers || (typeof sub === 'string' ? sub.split(' | ') : []);
+                                    const totalCount = Math.max(answers.length, candidatePrompts.length, 1);
+
+                                    const itemsToDisplay = Array.from({ length: totalCount }).map((_, i) => {
+                                        let rawPrompt = candidatePrompts[i] || (i === 0 && contentData?.taskPrompt ? contentData.taskPrompt : '');
+                                        
+                                        // Parse step versions if prompt contains multiple version alternatives [A | B]
+                                        if (rawPrompt && typeof rawPrompt === 'string' && rawPrompt.includes('|') && rawPrompt.startsWith('[') && rawPrompt.endsWith(']')) {
+                                            const versions = parseStepVersions(rawPrompt);
+                                            rawPrompt = versions[0] || rawPrompt;
+                                        }
+
+                                        // Format dynamic placeholder interpolations {step 1}, {d1 step 2}, etc.
+                                        let formattedPrompt = rawPrompt;
+                                        if (rawPrompt) {
+                                            try {
+                                                formattedPrompt = formatInterpolatedText(
+                                                    rawPrompt,
+                                                    contentData,
+                                                    answers,
+                                                    viewingSubmission.enrollment.sprint.dailyContent,
+                                                    viewingSubmission.enrollment.progress
+                                                );
+                                            } catch (e) {
+                                                formattedPrompt = rawPrompt;
+                                            }
+                                        }
+
+                                        // If still completely empty, construct a clean contextual question title
+                                        if (!formattedPrompt || !formattedPrompt.trim()) {
+                                            if (contentData?.taskHints?.[i]) {
+                                                formattedPrompt = contentData.taskHints[i];
+                                            } else if ((contentData as any)?.title) {
+                                                formattedPrompt = `${(contentData as any).title} — Step ${i + 1}`;
+                                            } else {
+                                                formattedPrompt = `Day ${viewingSubmission.day} Step ${i + 1} Question`;
+                                            }
+                                        }
+
+                                        return {
+                                            prompt: formattedPrompt,
+                                            answer: answers[i] !== undefined ? answers[i] : '',
+                                            type: inputTypes[i] || 'text',
+                                            index: i
+                                        };
+                                    });
 
                                     return (
                                         <div className="space-y-4 animate-fade-in">
@@ -687,7 +857,7 @@ const CoachParticipants: React.FC = () => {
                                                                     <div className="text-[10px] font-black text-primary uppercase tracking-[0.15em] mb-1">
                                                                         Question {item.index + 1}
                                                                     </div>
-                                                                    <p className="text-sm font-black text-gray-800 leading-tight line-clamp-3" title={item.prompt}>
+                                                                    <p className="text-sm font-black text-gray-800 leading-snug line-clamp-3" title={item.prompt}>
                                                                         "{item.prompt}"
                                                                     </p>
                                                                     {contentData?.taskFootnotes?.[item.index] && (
