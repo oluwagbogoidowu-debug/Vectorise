@@ -265,7 +265,12 @@ const SprintPreview: React.FC = () => {
     const [showBottomCancelConfirm, setShowBottomCancelConfirm] = useState(false);
     const [isSprintOverviewOpen, setIsSprintOverviewOpen] = useState(false);
     const [soundEnabled] = useState(() => getSoundSettings());
+    const [loadingSprint, setLoadingSprint] = useState<boolean>(!location.state?.sprint);
     const prevTaskIndexRef = useRef(0);
+
+    const day1Content = useMemo(() => {
+        return Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+    }, [sprint?.dailyContent]);
 
     useEffect(() => {
         if (activeTaskIndex > prevTaskIndexRef.current) {
@@ -717,6 +722,7 @@ const SprintPreview: React.FC = () => {
             const initialProcessed = processSprint(location.state.sprint);
             if (initialProcessed) {
                 setSprint(initialProcessed);
+                setLoadingSprint(false);
             }
         }
 
@@ -728,9 +734,11 @@ const SprintPreview: React.FC = () => {
                     console.log("[SprintPreview] Successfully processed static sprint data:", processed.id);
                     setSprint(processed);
                 }
+                setLoadingSprint(false);
             })
             .catch((err: any) => {
                 console.error("[SprintPreview] Error fetching static sprint data:", err);
+                setLoadingSprint(false);
             });
 
         // Also subscribe for realtime updates, wrapping in try/catch to avoid crash if permissions are missing
@@ -743,6 +751,7 @@ const SprintPreview: React.FC = () => {
                     console.log("[SprintPreview] Received realtime sprint details snapshot updates.");
                     setSprint(processed);
                 }
+                setLoadingSprint(false);
             });
         } catch (err) {
             console.error("[SprintPreview] Realtime subscription failed (usually expected for guest users):", err);
@@ -790,9 +799,28 @@ const SprintPreview: React.FC = () => {
         }
     };
 
-    if (!sprint) return <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center"><h2 className="text-base font-black mb-4">Sprint not found.</h2><button onClick={() => navigate('/discover')} className="text-primary font-black uppercase tracking-widest text-xs">Back to Discover</button></div>;
+    if (loadingSprint && !sprint) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Sprint Preview...</p>
+            </div>
+        );
+    }
 
-    const day1Content = Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+    if (!sprint) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
+                <h2 className="text-base font-black mb-4 text-gray-800">Sprint preview not found.</h2>
+                <button 
+                    onClick={() => navigate('/discover')} 
+                    className="text-primary font-black uppercase tracking-widest text-xs px-4 py-2 bg-primary/10 rounded-xl hover:bg-primary/20 transition-all cursor-pointer"
+                >
+                    Back to Discover
+                </button>
+            </div>
+        );
+    }
 
     const isStepVisible = (stepIndex: number): boolean => {
         return isStepVisibleForSprint(

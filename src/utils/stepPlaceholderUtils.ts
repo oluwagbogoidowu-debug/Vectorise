@@ -1311,10 +1311,10 @@ export function resolveTaskHintForUser(
   const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
   const selectedOptIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
 
-  // Check if any hint version explicitly contains a matching {Step N Op M} or {Dx Step N Op M} token
+  // Check if any hint version explicitly contains a matching {Step N Op M} or {Mx/Dx Step N Op M} token
   let matchingVerIdx = -1;
   const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : selectedOptIdx) + 1;
-  const opTokenRegex = new RegExp(`\\{(?:[dD](?:ay)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
+  const opTokenRegex = new RegExp(`\\{(?:[dDmM](?:ay|ove)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
 
   for (let vIdx = 0; vIdx < versions.length; vIdx++) {
     if (opTokenRegex.test(versions[vIdx])) {
@@ -1535,7 +1535,7 @@ export function resolveStepVersionIndex(
     const promptVersions = parseStepVersions(rawPrompt);
     if (promptVersions.length > 1) {
       const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : 0) + 1;
-      const opTokenRegex = new RegExp(`\\{(?:[dD](?:ay)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
+      const opTokenRegex = new RegExp(`\\{(?:[dDmM](?:ay|ove)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
       
       for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
         if (opTokenRegex.test(promptVersions[vIdx])) {

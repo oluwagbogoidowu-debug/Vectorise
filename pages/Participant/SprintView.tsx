@@ -2472,22 +2472,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   };
 
   if (!enrollment || !sprint || !enrollment.progress) {
-    if (isPreview) {
-      return (
-        <div className="flex flex-col items-center justify-center h-screen bg-[#FAFAFA] p-6 text-center">
-          <p className="text-sm text-gray-500 font-bold mb-4">Sprint details loading or preview unavailable.</p>
-          <button
-            onClick={() => navigate(-1)}
-            className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-          >
-            Go Back
-          </button>
-        </div>
-      );
-    }
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex flex-col items-center justify-center h-screen bg-[#FAFAFA] p-6 text-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
+          {isPreview ? "Loading Sprint Preview..." : "Loading Sprint..."}
+        </p>
       </div>
     );
   }
