@@ -121,13 +121,6 @@ export function isMainActiveForStep(
     return true;
   }
 
-  if (allDaysContent && Array.isArray(allDaysContent)) {
-    const explicitLinks = getExplicitLinkedSteps(stepIdx, dayContent, allDaysContent);
-    if (explicitLinks.some(l => l.mode === 'main')) {
-      return true;
-    }
-  }
-
   return false;
 }
 
@@ -389,7 +382,9 @@ export function getExplicitLinkedSteps(
   const links: { day: number; stepIdx: number; opNum?: number; mode?: StepPlaceholderMode }[] = [];
 
   const addLink = (d: number, s: number, opNum?: number, mode?: StepPlaceholderMode) => {
-    if (s < 0 || (d === currentDay && s >= stepIdx)) return;
+    if (s < 0 || d < 1) return;
+    // An upstream link can ONLY come from a preceding day or a strictly preceding step on the same day
+    if (d > currentDay || (d === currentDay && s >= stepIdx)) return;
     if (mode === 'disconnect') return; // 'd' means disconnect only this
     const existing = links.find(l => l.day === d && l.stepIdx === s);
     if (!existing) {
@@ -463,81 +458,6 @@ export function getExplicitLinkedSteps(
             addLink(dayNum, targetStepIdx, opNum, 'main');
           } else if (targetPollLink) {
             addLink(dayNum, targetStepIdx, targetPollLink.optNum);
-          }
-        }
-      }
-    }
-  }
-
-  // 4. Scan allDaysContent to discover links declared in other days
-  if (allDaysContent && Array.isArray(allDaysContent)) {
-    for (const otherDC of allDaysContent) {
-      if (!otherDC) continue;
-      const otherDayNum = Number(otherDC.day || 1);
-
-      // Check taskPollOptionLinks pointing to this step
-      if (Array.isArray(otherDC.taskPollOptionLinks)) {
-        otherDC.taskPollOptionLinks.forEach((link: any, sIdx: number) => {
-          const pInfo = parsePollLinkInfo(link);
-          if (pInfo && pInfo.targetPollIdx === stepIdx && otherDayNum === currentDay) {
-            addLink(otherDayNum, sIdx, pInfo.optNum);
-          }
-        });
-      }
-
-      // Check taskLinkedSources pointing to this step
-      if (Array.isArray(otherDC.taskLinkedSources)) {
-        otherDC.taskLinkedSources.forEach((sources: any, sIdx: number) => {
-          if (Array.isArray(sources)) {
-            for (const src of sources) {
-              if (typeof src === 'number') {
-                if (src < 0) {
-                  const absVal = Math.abs(src);
-                  const sDay = Math.floor(absVal / 100);
-                  const sStep = absVal % 100;
-                  if (sDay === currentDay && sStep === stepIdx) {
-                    addLink(otherDayNum, sIdx);
-                  }
-                } else if (otherDayNum === currentDay && src === stepIdx) {
-                  addLink(otherDayNum, sIdx);
-                }
-              }
-            }
-          }
-        });
-      }
-
-      // Check placeholders in otherDC that reference current step
-      const otherPromptsLen = Math.max(
-        otherDC.taskPrompts?.length || 0,
-        otherDC.taskInputTypes?.length || 0,
-        otherDC.taskHints?.length || 0,
-        0
-      );
-
-      for (let s = 0; s < otherPromptsLen; s++) {
-        const otherTexts: string[] = [];
-        if (typeof otherDC.taskPrompts?.[s] === 'string') otherTexts.push(otherDC.taskPrompts[s]);
-        if (typeof otherDC.taskHints?.[s] === 'string') otherTexts.push(otherDC.taskHints[s]);
-        if (typeof otherDC.taskFootnotes?.[s] === 'string') otherTexts.push(otherDC.taskFootnotes[s]);
-        if (typeof otherDC.taskTagNotes?.[s] === 'string') otherTexts.push(otherDC.taskTagNotes[s]);
-        if (typeof otherDC.taskPollOptions?.[s] === 'string') otherTexts.push(otherDC.taskPollOptions[s]);
-
-        for (const t of otherTexts) {
-          let match: RegExpExecArray | null;
-          regex.lastIndex = 0;
-          while ((match = regex.exec(t)) !== null) {
-            const dayNum = match[1] ? parseInt(match[1], 10) : otherDayNum;
-            const stepNum = parseInt(match[2], 10);
-            const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-            const mode = parsePlaceholderMode(match[4]);
-            const targetStepIdx = stepNum - 1;
-
-            if (dayNum === currentDay && targetStepIdx === stepIdx) {
-              if (mode === 'main' || opNum !== undefined) {
-                addLink(otherDayNum, s, opNum, mode);
-              }
-            }
           }
         }
       }
@@ -1449,14 +1369,6 @@ export function getAllStepPollOptions(
   } else if (Array.isArray(raw)) {
     allOpts.push(...raw.map((s: any) => String(s).trim()).filter(Boolean));
   }
-
-  const activeVerOptsStr = getStepPollOptions(dayContent, stepIdx, taskInputs, allDaysContent, allDaysInputs);
-  try {
-    const parsed = JSON.parse(activeVerOptsStr);
-    if (Array.isArray(parsed)) {
-      allOpts.push(...parsed.map((s: any) => String(s).trim()).filter(Boolean));
-    }
-  } catch (e) {}
 
   return Array.from(new Set(allOpts));
 }

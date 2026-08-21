@@ -809,9 +809,39 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskMultiTextLabels
       : [];
 
+    const safeInputTypes = Array.isArray((content as any).taskInputTypes)
+      ? (content as any).taskInputTypes
+      : paddedPrompts.map(() => 'text');
+
+    const safePollOptions = Array.isArray((content as any).taskPollOptions)
+      ? (content as any).taskPollOptions
+      : [];
+
+    const safeLinkedSources = Array.isArray((content as any).taskLinkedSources)
+      ? (content as any).taskLinkedSources
+      : [];
+
+    const safeLinkedToNext = Array.isArray((content as any).taskLinkedToNext)
+      ? (content as any).taskLinkedToNext
+      : [];
+
+    const safePollOptionLinks = Array.isArray((content as any).taskPollOptionLinks)
+      ? (content as any).taskPollOptionLinks
+      : [];
+
+    const safeTagNoteActive = Array.isArray((content as any).taskTagNoteActive)
+      ? (content as any).taskTagNoteActive
+      : [];
+
     return {
         ...content,
         taskPrompts: paddedPrompts,
+        taskInputTypes: safeInputTypes,
+        taskPollOptions: safePollOptions,
+        taskLinkedSources: safeLinkedSources,
+        taskLinkedToNext: safeLinkedToNext,
+        taskPollOptionLinks: safePollOptionLinks,
+        taskTagNoteActive: safeTagNoteActive,
         taskHints: safeHints,
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
