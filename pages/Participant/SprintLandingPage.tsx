@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
 
-import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2 } from 'lucide-react';
+import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X } from 'lucide-react';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -272,6 +272,15 @@ const SprintLandingPage: React.FC = () => {
         setImageError(false);
     }, [sprint?.coverImageUrl]);
 
+    const hasCompletedOrActiveSprint = useMemo(() => {
+        if (!user || !userEnrollments || userEnrollments.length === 0) return false;
+        return userEnrollments.some(e => 
+            e.status === 'completed' || 
+            e.status === 'active' ||
+            (e.progress && e.progress.length > 0 && e.progress.some(p => p.completed))
+        );
+    }, [user, userEnrollments]);
+
     const enrollmentStatus = useMemo(() => {
         if (!user || !sprint) return 'none';
         const enrollment = userEnrollments.find(e => e.sprint_id === sprint.id);
@@ -315,6 +324,14 @@ const SprintLandingPage: React.FC = () => {
         if (!sprint) return;
 
         analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath }, user?.id);
+
+        // If user is logged in and not their first sprint, directly bring up the bottom modal bar for payment
+        if (user && hasCompletedOrActiveSprint) {
+            setCommitmentContext({ isGuest: false });
+            setShowCommitmentSheet(true);
+            return;
+        }
+
         setIsCheckingEmail(true);
         await new Promise(resolve => setTimeout(resolve, 300));
         setIsCheckingEmail(false);
@@ -754,10 +771,18 @@ const SprintLandingPage: React.FC = () => {
                             {/* Card displaying Action Trigger line */}
                             <div className="relative z-10">
                                 {enrollmentStatus === 'none' ? (
-                                    <div>
+                                    <div className="space-y-4">
                                         <p className="text-sm sm:text-base font-semibold text-gray-700 leading-relaxed text-center">
                                             {sprint.actionTrigger || "Start by seeing how you actually spend your time."}
                                         </p>
+                                        <Button 
+                                            onClick={handleJoinClick} 
+                                            disabled={isCheckingEmail}
+                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0 bg-primary text-white hover:bg-primary-hover cursor-pointer"
+                                        >
+                                            {isCheckingEmail ? "Opening Move 1..." : "Make Your First Move"}
+                                            {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />}
+                                        </Button>
                                     </div>
                                 ) : enrollmentStatus === 'active' ? (
                                     <div className="space-y-4">
@@ -808,7 +833,7 @@ const SprintLandingPage: React.FC = () => {
                             disabled={isCheckingEmail}
                             className="py-3 px-5 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0 shrink-0 bg-primary text-white hover:bg-primary-hover cursor-pointer"
                         >
-                            {isCheckingEmail ? "Unlocking Day 1..." : "Begin Day 1"}
+                            {isCheckingEmail ? "Opening Move 1..." : "Make Your First Move"}
                             {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />}
                         </Button>
                     </div>
@@ -822,7 +847,15 @@ const SprintLandingPage: React.FC = () => {
                         className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-sm transition-opacity duration-300 animate-fade-in-quick"
                         onClick={() => setShowCommitmentSheet(false)}
                     />
-                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[70vh] pb-6 animate-slide-up-quick">
+                    <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.15)] border-t border-gray-100 z-[101] p-5 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[70vh] pb-6 animate-slide-up-quick relative">
+                        {/* Close button */}
+                        <button 
+                            onClick={() => setShowCommitmentSheet(false)}
+                            className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
                         {/* Drag Handle indicator */}
                         <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
                         

@@ -69,7 +69,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
     };
 
     const CardContainer = isStatic ? 'div' : Link;
-    const containerProps = isStatic ? {} : { to: `/sprint/${sprint.id}` };
+    const containerProps = isStatic ? {} : { to: `/sprint/${sprint.id}`, state: { fromExplore: true } };
 
     const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
 
