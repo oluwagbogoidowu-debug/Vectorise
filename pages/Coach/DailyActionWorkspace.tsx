@@ -722,7 +722,7 @@ export default function DailyActionWorkspace({
                   Curriculum Timeline
                 </span>
                 <span className="text-[9px] font-bold text-purple-600 uppercase tracking-widest bg-white px-2 py-0.5 rounded-md border border-purple-100 shadow-3xs">
-                  Day {selectedDay} Active
+                  Move {selectedDay} Active
                 </span>
               </div>
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin scroll-smooth">
@@ -741,7 +741,7 @@ export default function DailyActionWorkspace({
                           : 'bg-white border-gray-200 text-gray-500 hover:border-purple-300 hover:text-purple-600 font-semibold'
                       }`}
                     >
-                      <span className="text-[7px] uppercase tracking-tight leading-none opacity-80">Day</span>
+                      <span className="text-[7px] uppercase tracking-tight leading-none opacity-80">Move</span>
                       <span className="text-xs leading-none mt-0.5">{dayNum}</span>
                       {stepCount > 0 && (
                         <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
@@ -1665,7 +1665,7 @@ export default function DailyActionWorkspace({
                             {/* Yesterday's steps */}
                             {yesterdaySteps.length > 0 && (
                               <div className="space-y-1 pt-1 border-t border-gray-200/50">
-                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Yesterday (Day {yesterdayNum}):</div>
+                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Previous (Move {yesterdayNum}):</div>
                                 <div className="flex flex-wrap gap-1.5">
                                   {yesterdaySteps.map(step => {
                                     const encodedVal = -(step.day * 100 + step.stepIdx);
@@ -1684,7 +1684,7 @@ export default function DailyActionWorkspace({
                                             : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                                         }`}
                                       >
-                                        <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                        <span>Move {step.day} - Step {step.stepIdx + 1}</span>
                                         {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
                                       </button>
                                     );
@@ -1702,7 +1702,7 @@ export default function DailyActionWorkspace({
                                     onClick={() => setExpandedStepEarlierDays(prev => ({ ...prev, [activeIdx]: true }))}
                                     className="text-[9px] font-bold text-purple-600 hover:underline flex items-center gap-1"
                                   >
-                                    ... show more previous days
+                                    ... show more previous moves
                                   </button>
                                 ) : (
                                   <div className="space-y-2 pt-1">
@@ -1710,7 +1710,7 @@ export default function DailyActionWorkspace({
                                       const daySteps = earlierSteps.filter(s => s.day === pDayNum);
                                       return (
                                         <div key={pDayNum} className="space-y-1">
-                                          <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Day {pDayNum}:</div>
+                                          <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Move {pDayNum}:</div>
                                           <div className="flex flex-wrap gap-1.5">
                                             {daySteps.map(step => {
                                               const encodedVal = -(step.day * 100 + step.stepIdx);
@@ -1729,7 +1729,7 @@ export default function DailyActionWorkspace({
                                                       : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
                                                   }`}
                                                 >
-                                                  <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                                  <span>Move {step.day} - Step {step.stepIdx + 1}</span>
                                                   {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
                                                 </button>
                                               );

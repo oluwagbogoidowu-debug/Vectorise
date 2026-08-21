@@ -73,7 +73,7 @@ export function serializeDualInputState(state: { choice?: string; selectedChoice
 /**
  * Checks if 'main' mode is active for a specific action step.
  * Main is active if ANY version/prompt of this step contains a placeholder in 'main' mode
- * (e.g. {D1 Step 7 main}, {Step 1 main}, {D1 Step 1 Op1 m}, etc.).
+ * (e.g. {M1 Step 7 main}, {Step 1 main}, {M1 Step 1 Op1 m}, {D1 Step 7 main}, etc.).
  * When active, this applies to the action step and all its substeps (1, 2, 3, 4 versions under it),
  * without leaking to other action steps.
  */
@@ -84,7 +84,7 @@ export function isMainActiveForStep(
 ): boolean {
   if (!dayContent) return false;
 
-  const mainRegex = /\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
+  const mainRegex = /\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
 
   const rawPrompt = dayContent.taskPrompts?.[stepIdx];
   if (typeof rawPrompt === 'string') {
@@ -156,12 +156,12 @@ export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
 }
 
 /**
- * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {D1 Step 3}, {D2 Step 4 Op1 m}, {Day 1 Step 3 list}, {d2 step 4 op 1 h}, {Step 1 Op 4 d}, etc.
+ * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {M1 Step 3}, {M2 Step 4 Op1 m}, {Move 1 Step 3 list}, {D1 Step 3}, {d2 step 4 op 1 h}, {Step 1 Op 4 d}, etc.
  */
-export const PLACEHOLDER_REGEX = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+export const PLACEHOLDER_REGEX = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
 /**
- * Validates `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step N h}`, `{Step N Op 4 d}`, `{Step 1 Op 2 m}` etc. placeholders in prompt text.
+ * Validates `{step N}`, `{M1 Step 3}`, `{M2 Step 4 op 1}`, `{Step N list}`, `{Step N h}`, `{Step N Op 4 d}`, `{Step 1 Op 2 m}` etc. placeholders in prompt text.
  */
 export function validateStepPlaceholders(
   prompt: string,
@@ -173,7 +173,7 @@ export function validateStepPlaceholders(
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
   let match: RegExpExecArray | null;
   const references: StepPlaceholderDetail[] = [];
 
@@ -191,9 +191,9 @@ export function validateStepPlaceholders(
     else if (mode === 'list') modeSuffix = ' list';
     else if (mode === 'main') modeSuffix = ' main';
 
-    const dayPrefix = dayNum !== undefined ? `D${dayNum} ` : '';
+    const movePrefix = dayNum !== undefined ? `M${dayNum} ` : '';
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
-    const rawLabel = `${dayPrefix}Step ${stepNum}${opPart}${modeSuffix}`.trim();
+    const rawLabel = `${movePrefix}Step ${stepNum}${opPart}${modeSuffix}`.trim();
     const token = match[0];
 
     if (!references.some(r => r.token === token)) {
@@ -217,12 +217,12 @@ export function validateStepPlaceholders(
     const targetDay = ref.dayNum !== undefined ? ref.dayNum : currentDay;
     const targetStepIndex = ref.stepNum - 1; // 1-based to 0-based
 
-    // Rule 1: Day range check
+    // Rule 1: Move range check
     if (targetDay < 1) {
       invalidStepRefs.push(ref.stepNum);
       invalidStepLabels.push(ref.rawLabel);
       if (!invalidReason) {
-        invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} must be at least Day 1.`;
+        invalidReason = `Invalid placeholder {${ref.rawLabel}}: Move ${targetDay} must be at least Move 1.`;
       }
       continue;
     }
@@ -232,7 +232,7 @@ export function validateStepPlaceholders(
         invalidStepRefs.push(ref.stepNum);
         invalidStepLabels.push(ref.rawLabel);
         if (!invalidReason) {
-          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} exceeds the sprint duration (${allDaysContent.length} days).`;
+          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Move ${targetDay} exceeds the sprint duration (${allDaysContent.length} moves).`;
         }
         continue;
       }
@@ -240,23 +240,23 @@ export function validateStepPlaceholders(
       invalidStepRefs.push(ref.stepNum);
       invalidStepLabels.push(ref.rawLabel);
       if (!invalidReason) {
-        invalidReason = `Invalid placeholder {${ref.rawLabel}}: Cannot reference future Day ${targetDay} from Day ${currentDay}.`;
+        invalidReason = `Invalid placeholder {${ref.rawLabel}}: Cannot reference future Move ${targetDay} from Move ${currentDay}.`;
       }
       continue;
     }
 
-    // Rule 2: Same day preceding rule
+    // Rule 2: Same move preceding rule
     if (targetDay === currentDay) {
       if (targetStepIndex < 0 || targetStepIndex >= stepIndex) {
         invalidStepRefs.push(ref.stepNum);
         invalidStepLabels.push(ref.rawLabel);
         if (!invalidReason) {
-          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Step ${ref.stepNum} must precede Step ${stepIndex + 1} on Day ${currentDay}.`;
+          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Step ${ref.stepNum} must precede Step ${stepIndex + 1} on Move ${currentDay}.`;
         }
         continue;
       }
     } else {
-      // Rule 3: Cross-day step existence
+      // Rule 3: Cross-move step existence
       if (allDaysContent && Array.isArray(allDaysContent)) {
         const targetDayContent = allDaysContent.find(d => d && (Number(d.day) === targetDay));
         if (targetDayContent) {
@@ -265,7 +265,7 @@ export function validateStepPlaceholders(
             invalidStepRefs.push(ref.stepNum);
             invalidStepLabels.push(ref.rawLabel);
             if (!invalidReason) {
-              invalidReason = `Invalid placeholder {${ref.rawLabel}}: Day ${targetDay} only has ${maxStepsOnDay} step(s). Step ${ref.stepNum} is out of bounds.`;
+              invalidReason = `Invalid placeholder {${ref.rawLabel}}: Move ${targetDay} only has ${maxStepsOnDay} step(s). Step ${ref.stepNum} is out of bounds.`;
             }
             continue;
           }
@@ -338,7 +338,7 @@ export function togglePlaceholderMode(
 ): string {
   if (!prompt) return prompt;
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   return prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr) => {
     const stepNum = parseInt(stepNumStr, 10);
@@ -351,7 +351,7 @@ export function togglePlaceholderMode(
       return fullMatch;
     }
 
-    const dayPart = (dayNum !== undefined || targetDayNum !== undefined) ? `D${dayNum ?? targetDayNum} ` : '';
+    const movePart = (dayNum !== undefined || targetDayNum !== undefined) ? `M${dayNum ?? targetDayNum} ` : '';
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
     let modePart = '';
@@ -361,7 +361,7 @@ export function togglePlaceholderMode(
     else if (targetMode === 'sentence') modePart = ' s';
     else if (targetMode === 'main') modePart = ' main';
 
-    return `{${dayPart}Step ${stepNum}${opPart}${modePart}}`;
+    return `{${movePart}Step ${stepNum}${opPart}${modePart}}`;
   });
 }
 
@@ -438,7 +438,7 @@ export function getExplicitLinkedSteps(
   const optionsVal = dayContent.taskPollOptions?.[stepIdx];
   if (typeof optionsVal === 'string') textsToScan.push(optionsVal);
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   for (const text of textsToScan) {
     let match: RegExpExecArray | null;
@@ -889,7 +889,7 @@ export function resolveProgressiveStepSelections(
 }
 
 /**
- * Replaces `{step N}`, `{D1 Step 3}`, `{D2 Step 4 op 1}`, `{Step N list}`, `{Step 1 Op 4 d}` etc. placeholders in prompt with user's choices.
+ * Replaces `{step N}`, `{M1 Step 3}`, `{M2 Step 4 op 1}`, `{Step N list}`, `{Step 1 Op 4 d}` etc. placeholders in prompt with user's choices.
  */
 export function formatInterpolatedText(
   prompt: string,
@@ -900,7 +900,7 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
-  const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   const currentDayNum = Number(dayContent?.day || 1);
 
@@ -1010,7 +1010,7 @@ export function formatInterpolatedText(
     const targetDC = getDayContent(targetDay);
     const inputType = targetDC?.taskInputTypes?.[stepIndex];
 
-    const dayPrefix = dayNumStr ? `D${targetDay} ` : '';
+    const movePrefix = dayNumStr ? `M${targetDay} ` : '';
 
     const formatOutput = (rawList: string[]): string => {
       if (mode === 'hide' || mode === 'disconnect' || mode === 'main') {
@@ -1020,7 +1020,7 @@ export function formatInterpolatedText(
       const cleaned = rawList.map((item) => item.trim()).filter(Boolean);
 
       if (cleaned.length === 0) {
-        return opNum !== undefined ? `[${dayPrefix}Step ${stepNum} Op${opNum}]` : `[${dayPrefix}Step ${stepNum}]`;
+        return opNum !== undefined ? `[${movePrefix}Step ${stepNum} Op${opNum}]` : `[${movePrefix}Step ${stepNum}]`;
       }
 
       if (mode === 'list') {
@@ -1037,7 +1037,7 @@ export function formatInterpolatedText(
       return cleaned.map(c => c.toLowerCase()).join(', ');
     };
 
-    // CASE 1: Explicit Option Reference e.g. {D2 Step 4 Op1} or {Step 6 Op1}
+    // CASE 1: Explicit Option Reference e.g. {M2 Step 4 Op1} or {Step 6 Op1}
     if (opNum !== undefined) {
       let activeDC = targetDC;
       let activeStepIndex = stepIndex;
@@ -1105,7 +1105,7 @@ export function formatInterpolatedText(
       }
 
       if (!displayText && optionHintText) {
-        const cleanedHint = optionHintText.replace(/\{(?:\s*[dD](?:ay)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?(?:\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi, '').trim();
+        const cleanedHint = optionHintText.replace(/\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?(?:\s*(?:list|normal|hide|sentence|disconnect|h|s|l|n|d))?\}/gi, '').trim();
         if (cleanedHint) {
           if (targetWrittenText &&
               !targetWrittenText.toLowerCase().startsWith('option') &&
@@ -1130,10 +1130,10 @@ export function formatInterpolatedText(
         return formatOutput([displayText]);
       }
 
-      return `[${dayPrefix}Step ${stepNum} Op${opNum}]`;
+      return `[${movePrefix}Step ${stepNum} Op${opNum}]`;
     }
 
-    // CASE 2: General Step Reference e.g. {D1 Step 3} or {Step 6}
+    // CASE 2: General Step Reference e.g. {M1 Step 3} or {Step 6}
     let items: string[] = [];
 
     // Only run progressive/main linking when the placeholder explicitly requests it (mode === 'main')
@@ -1609,7 +1609,7 @@ export function isStepVisibleForSprint(
     if (pollLink.includes(":")) {
       const parts = pollLink.split(":");
       if (parts.length === 3) {
-        const dayPart = parts[0].replace(/day|d/gi, "");
+        const dayPart = parts[0].replace(/move|day|m|d/gi, "");
         targetPollDay = parseInt(dayPart, 10) || viewingDay;
         const stepPart = parts[1].replace("step", "");
         pollIdx = parseInt(stepPart, 10);
@@ -1723,7 +1723,7 @@ export function isStepVisibleForSprint(
 
   const checkPromptVisibility = (promptText: string): boolean => {
     if (!promptText) return true;
-    const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+    const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
     let match: RegExpExecArray | null;
 
     const stepPlaceholders: { dayNum?: number; stepNum: number; opNum?: number; mode: StepPlaceholderMode }[] = [];
@@ -1783,7 +1783,7 @@ export function isStepVisibleForSprint(
           }
         }
 
-        // If mode is 'main' and no opNum is specified (e.g. {D1 Step 7 main}), it is an active progressive connector
+        // If mode is 'main' and no opNum is specified (e.g. {M1 Step 7 main}), it is an active progressive connector
         if (mode === 'main' && opNum === undefined) {
           continue;
         }
@@ -1873,7 +1873,7 @@ export function getHintTokensForContent(dayContent: any, currentStepIdx: number,
     1
   );
 
-  const dayPrefix = (dayNum !== undefined && dayContent.day && Number(dayContent.day) !== dayNum) ? `D${dayContent.day} ` : '';
+  const movePrefix = (dayNum !== undefined && dayContent.day && Number(dayContent.day) !== dayNum) ? `M${dayContent.day} ` : '';
 
   // Track linked connections to provide combined origin + linked step tokens
   const pollLinkRaw = dayContent.taskPollOptionLinks?.[currentStepIdx];
@@ -1885,8 +1885,8 @@ export function getHintTokensForContent(dayContent: any, currentStepIdx: number,
     const currentStepNum = currentStepIdx + 1;
 
     tokens.push({
-      token: `{${dayPrefix}Step ${origStepNum} op ${origOpNum}} {Step ${currentStepNum}}`,
-      label: `${dayPrefix}Step ${origStepNum} op ${origOpNum} → Step ${currentStepNum}`,
+      token: `{${movePrefix}Step ${origStepNum} op ${origOpNum}} {Step ${currentStepNum}}`,
+      label: `${movePrefix}Step ${origStepNum} op ${origOpNum} → Step ${currentStepNum}`,
       isOption: true,
       optNum: origOpNum,
       stepNum: currentStepNum
@@ -1899,8 +1899,8 @@ export function getHintTokensForContent(dayContent: any, currentStepIdx: number,
 
     // Base step token
     tokens.push({
-      token: `{${dayPrefix}Step ${stepNum}}`,
-      label: `${dayPrefix}Step ${stepNum}`,
+      token: `{${movePrefix}Step ${stepNum}}`,
+      label: `${movePrefix}Step ${stepNum}`,
       isOption: false,
       stepNum
     });
@@ -1918,8 +1918,8 @@ export function getHintTokensForContent(dayContent: any, currentStepIdx: number,
       const optCount = Math.max(options.length, 2);
       for (let o = 1; o <= optCount; o++) {
         tokens.push({
-          token: `{${dayPrefix}Step ${stepNum} op ${o}}`,
-          label: `${dayPrefix}${stepNum} op ${o}`,
+          token: `{${movePrefix}Step ${stepNum} op ${o}}`,
+          label: `${movePrefix}${stepNum} op ${o}`,
           isOption: true,
           optNum: o,
           stepNum

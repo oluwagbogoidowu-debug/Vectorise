@@ -188,32 +188,6 @@ const DaySuccessPage: React.FC = () => {
     } catch (e) {
       console.error("Audio initialization failed:", e);
     }
-
-    const updateTimer = () => {
-      const now = new Date();
-      const midnight = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() + 1,
-        0, 0, 0
-      );
-      const diff = midnight.getTime() - now.getTime();
-      
-      if (diff > 0) {
-        const h = Math.floor(diff / (1000 * 60 * 60));
-        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((diff % (1000 * 60)) / 1000);
-        setCountdown(
-          `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-        );
-      } else {
-        setCountdown('00:00:00');
-      }
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleStepUp = () => {
@@ -269,7 +243,7 @@ const DaySuccessPage: React.FC = () => {
         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850]">
           <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
           <span className="text-xs font-black uppercase tracking-wider">
-            Day {completedDay} is complete!
+            Move {completedDay} is complete!
           </span>
         </div>
 
@@ -320,7 +294,7 @@ const DaySuccessPage: React.FC = () => {
                     className="inline-flex items-center gap-2.5 px-5 py-3 bg-[#0E7850]/10 hover:bg-[#0E7850]/15 border border-[#0E7850]/20 text-[#0E7850] rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
                   >
                     <Bell className="w-4 h-4 text-[#0E7850]" />
-                    <span>{isSubscribing ? 'Setting reminder...' : 'Remind me tomorrow'}</span>
+                    <span>{isSubscribing ? 'Setting reminder...' : 'Remind me for next move'}</span>
                   </motion.button>
                 ) : (
                   <motion.div
@@ -331,7 +305,7 @@ const DaySuccessPage: React.FC = () => {
                     className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200/80 text-emerald-800 rounded-2xl text-xs sm:text-sm font-black tracking-wide shadow-xs"
                   >
                     <Check className="w-4 h-4 text-emerald-600 stroke-[3]" />
-                    <span>You’re set for tomorrow</span>
+                    <span>You’re set for next move</span>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -342,7 +316,7 @@ const DaySuccessPage: React.FC = () => {
           {completedDay === 1 && !user?.whatsappJoinedConfirmed && (
             <div className="mt-5 pt-4 border-t border-gray-200/80 w-full text-left flex items-center justify-between gap-3 sm:gap-4">
               <p className="text-sm sm:text-base text-gray-800 font-semibold leading-snug flex-1">
-                Join the WhatsApp support group to get daily reminders and stay on track.
+                Join the WhatsApp support group to get reminders and stay on track.
               </p>
               <a
                 href="https://chat.whatsapp.com/EmXW0yjwdVf9RGgdvyMXdJ?s=cl&p=a&mlu=4"
@@ -383,22 +357,22 @@ const DaySuccessPage: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Next Day Timer Card */}
+          {/* Next Move Card */}
           <motion.div 
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
             className={`bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 relative overflow-hidden ${(!isMilestoneUnlocked || coinsUnlocked <= 0) ? 'col-span-2' : ''}`}
           >
-            <div className="w-8 h-8 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 shrink-0">
-              <Clock className="w-4 h-4 text-[#0E7850]" />
+            <div className="w-8 h-8 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-xl flex items-center justify-center text-[#0E7850] shrink-0">
+              <Sparkles className="w-4 h-4 text-[#0E7850]" />
             </div>
             <div className="text-left min-w-0">
               <p className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none truncate">
-                Next Day In
+                Next Move
               </p>
-              <p className="text-xs sm:text-sm font-mono font-black text-gray-900 tracking-tight mt-1 truncate">
-                {countdown}
+              <p className="text-xs sm:text-sm font-black text-[#0E7850] tracking-tight mt-1 truncate">
+                Ready & Unlocked
               </p>
             </div>
           </motion.div>
@@ -416,7 +390,7 @@ const DaySuccessPage: React.FC = () => {
           onClick={handleStepUp}
           className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
         >
-          <span>Step up your rise</span>
+          <span>Continue to Next Move</span>
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>

@@ -2006,26 +2006,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       return {
         isLocked: true,
         unlockTime: 0,
-        reason: "Complete previous day first.",
+        reason: "Complete previous move first.",
       };
 
-    if (prevDay.completedAt) {
-      const completedDate = new Date(prevDay.completedAt);
-      const nextMidnight = new Date(
-        completedDate.getFullYear(),
-        completedDate.getMonth(),
-        completedDate.getDate() + 1,
-        0,
-        0,
-        0,
-      ).getTime();
-
-      const isLocked = now < nextMidnight;
-      return { isLocked, unlockTime: nextMidnight };
-    }
-
     return { isLocked: false, unlockTime: 0 };
-  }, [enrollment, sprint, viewingDay, now]);
+  }, [enrollment, sprint, viewingDay]);
 
   useEffect(() => {
     if (dayLockDetails.isLocked && dayLockDetails.unlockTime) {
@@ -2420,7 +2405,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     try {
       const enrollmentRef = doc(db, "users", enrollment.user_id, "enrollments", enrollment.id);
       await updateDoc(enrollmentRef, { checkInHistory: updatedHistory });
-      toast.success(`Checked in for Day ${day}!`);
+      toast.success(`Checked in for Move ${day}!`);
       if (user?.id) {
         pushNotificationService
           .triggerUpdate(user.id)
@@ -2607,7 +2592,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                     <span
                       className={`text-[8px] font-black uppercase tracking-widest ${isActive ? "text-white/60" : "text-gray-300"}`}
                     >
-                      Day
+                      Move
                     </span>
                     <span className="text-3xl font-black leading-none">
                       {day}
@@ -2639,26 +2624,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               </div>
             ) : dayLockDetails.isLocked ? (
               <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
-                <div className="p-10 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-sm">
-                  <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">
-                    Access Locked.
+                <div className="p-10 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-sm flex flex-col items-center">
+                  <div className="w-14 h-14 bg-[#0E7850]/10 text-[#0E7850] rounded-2xl flex items-center justify-center mb-5">
+                    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+                    Access Locked
                   </h2>
-                  <p className="text-sm text-gray-500 font-medium mb-12 leading-relaxed">
-                    {dayLockDetails.unlockTime
-                      ? `Next lesson unlocks at midnight.`
-                      : dayLockDetails.reason || "Complete previous day first."}
+                  <p className="text-sm text-gray-500 font-medium mb-8 leading-relaxed">
+                    {dayLockDetails.reason || "Complete previous move first."}
                   </p>
-
-                  {dayLockDetails.unlockTime && (
-                    <>
-                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-6">
-                        Available In
-                      </p>
-                      <p className="text-5xl font-black text-gray-900 tabular-nums tracking-tighter">
-                        {timeToUnlock}
-                      </p>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstIncomplete = enrollment.progress?.find((p) => !p.completed)?.day || 1;
+                      setViewingDay(firstIncomplete);
+                    }}
+                    className="w-full py-4 bg-[#0E7850] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#0b5d3e] transition-all shadow-lg shadow-[#0E7850]/20 active:scale-95 cursor-pointer"
+                  >
+                    Go to Active Move
+                  </button>
                 </div>
               </div>
             ) : (
@@ -4066,7 +4053,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         })}
                       </div>
                       <p className="text-[9px] text-gray-400 mt-4 font-medium">
-                        Click a day to confirm your daily check-in.
+                        Click a move to confirm your daily check-in.
                       </p>
                     </div>
                   )}
@@ -4200,7 +4187,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           }
         }}
         title="Check-in Confirmation"
-        message={`Ready to log your consistency for Day ${confirmCheckInDay || ""}? Tracking your progress is a key part of your growth journey.`}
+        message={`Ready to log your consistency for Move ${confirmCheckInDay || ""}? Tracking your progress is a key part of your growth journey.`}
         confirmText="Confirm Check-in"
         cancelText="Wait, not yet"
         variant="success"

@@ -2716,11 +2716,11 @@ const EditSprint: React.FC = () => {
                 <button
                   key={day}
                   onClick={() => setSelectedDay(day)}
-                  title={`Day ${day}: Switch active editor workspace to curate lessons and action steps for Day ${day}.`}
+                  title={`Move ${day}: Switch active editor workspace to curate lessons and action steps for Move ${day}.`}
                   className={`flex-shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl border transition-all duration-300 relative ${selectedDay === day ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20 scale-105' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-primary/30 hover:text-primary hover:bg-white'}`}
                 >
                   {isDayComplete(day) && <div className={`absolute top-2 right-2 w-2 h-2 rounded-full ${selectedDay === day ? 'bg-white' : 'bg-primary'}`}></div>}
-                  <span className="text-[10px] font-black uppercase tracking-tight">Day</span>
+                  <span className="text-[10px] font-black uppercase tracking-tight">Move</span>
                   <span className="font-black text-2xl leading-none">{day}</span>
                 </button>
               ))}
@@ -3762,7 +3762,7 @@ const EditSprint: React.FC = () => {
                                                             {/* Yesterday's steps */}
                                                             {yesterdaySteps.length > 0 && (
                                                                 <div className="space-y-1.5 pt-1.5 border-t border-gray-200/50">
-                                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Yesterday (Day {yesterdayNum}):</div>
+                                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Previous (Move {yesterdayNum}):</div>
                                                                     <div className="flex flex-wrap gap-2">
                                                                         {yesterdaySteps.map(step => {
                                                                             const encodedVal = -(step.day * 100 + step.stepIdx);
@@ -3778,7 +3778,7 @@ const EditSprint: React.FC = () => {
                                                                                             : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
                                                                                     }`}
                                                                                 >
-                                                                                    <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                                                                    <span>Move {step.day} - Step {step.stepIdx + 1}</span>
                                                                                     {isLinked ? (
                                                                                         <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                                                                                     ) : (
@@ -3800,7 +3800,7 @@ const EditSprint: React.FC = () => {
                                                                             onClick={() => setExpandedStepEarlierDays(prev => ({ ...prev, [index]: true }))}
                                                                             className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
                                                                         >
-                                                                            ... show more previous days
+                                                                            ... show more previous moves
                                                                         </button>
                                                                     ) : (
                                                                         <div className="space-y-3">
@@ -3808,7 +3808,7 @@ const EditSprint: React.FC = () => {
                                                                                 const daySteps = earlierSteps.filter(s => s.day === dayNum);
                                                                                 return (
                                                                                     <div key={dayNum} className="space-y-1.5">
-                                                                                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Day {dayNum}:</div>
+                                                                                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Move {dayNum}:</div>
                                                                                         <div className="flex flex-wrap gap-2">
                                                                                             {daySteps.map(step => {
                                                                                                 const encodedVal = -(step.day * 100 + step.stepIdx);
@@ -3824,7 +3824,7 @@ const EditSprint: React.FC = () => {
                                                                                                                 : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
                                                                                                         }`}
                                                                                                     >
-                                                                                                        <span>Day {step.day} - Step {step.stepIdx + 1}</span>
+                                                                                                        <span>Move {step.day} - Step {step.stepIdx + 1}</span>
                                                                                                         {isLinked ? (
                                                                                                             <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                                                                                                         ) : (
@@ -4316,11 +4316,11 @@ const EditSprint: React.FC = () => {
                         <div className="flex items-center gap-2">
                             <div className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
                             <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
-                                Bridge Note (Shown after Day {selectedDay} Completion)
+                                Bridge Note (Shown after Move {selectedDay} Completion)
                             </span>
                         </div>
                         <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                            This note bridges today and tomorrow. It will be shown on the full-screen success screen after completing all steps for Day {selectedDay}.
+                            This note bridges current move and next move. It will be shown on the full-screen success screen after completing all steps for Move {selectedDay}.
                         </p>
                         {isAdmin && !isFoundational && originalSprint && (
                             <DiffHighlight 
@@ -4334,7 +4334,7 @@ const EditSprint: React.FC = () => {
                             onChange={(e) => handleContentChange('bridgeNote', e.target.value)}
                             rows={3}
                             className={editorInputClasses}
-                            placeholder="Write a note to bridge today and tomorrow (e.g. 'You've laid down the foundation today. Tomorrow, we build...')"
+                            placeholder="Write a note to bridge current move and next move (e.g. 'You've laid down the foundation. Next, we build...')"
                         />
                     </div>
                 </div>
@@ -4365,7 +4365,7 @@ const EditSprint: React.FC = () => {
               {showDailyPreview ? (
                 <>
                   <div className="space-y-2 animate-fade-in text-left">
-                    <h2 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.25em] mb-3">Execution Path Day {selectedDay}</h2>
+                    <h2 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.25em] mb-3">Execution Path Move {selectedDay}</h2>
                     
                     <div className="space-y-2">
                         <SectionHeading>Today's Insight</SectionHeading>
@@ -4780,9 +4780,9 @@ const EditSprint: React.FC = () => {
                     className="w-full py-5 bg-[#0E7850] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center shadow-xl shadow-[#0E7850]/20 hover:bg-[#0E7850]/90 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Sparkles size={16} />
-                    <span>Complete Day (Preview Day Success Screen)</span>
+                    <span>Complete Move (Preview Move Success Screen)</span>
                   </button>
-                  <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Click to preview participant Day Success celebration screen</p>
+                  <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Click to preview participant Move Success celebration screen</p>
                 </div>
               </div>
                 </>
@@ -6162,7 +6162,7 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
           type="button"
           onClick={onClose}
           className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-          title="Close Day Success Preview"
+          title="Close Move Success Preview"
         >
           <X size={18} />
         </button>
@@ -6184,10 +6184,10 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
           {/* Main Title and Subtext stacked on right */}
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight uppercase leading-tight">
-              Day {day} Complete!
+              Move {day} Complete!
             </h2>
             <p className="text-gray-500 font-semibold text-xs uppercase tracking-wider mt-1">
-              You've completed the day's sprint action step
+              You've completed the sprint action step
             </p>
           </div>
         </div>
@@ -6206,13 +6206,13 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
                 Bridge Note
               </p>
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                Your key to tomorrow
+                Your key to next move
               </p>
             </div>
           </div>
           <div className="text-left bg-white/80 border border-purple-50 p-3.5 rounded-2xl">
             <p className="text-xs text-gray-800 font-semibold italic leading-relaxed">
-              "{bridgeNote && bridgeNote.trim() ? bridgeNote : "No bridge note set for this day yet. Add one in the Bridge Note editor section to inspire participants!"}"
+              "{bridgeNote && bridgeNote.trim() ? bridgeNote : "No bridge note set for this move yet. Add one in the Bridge Note editor section to inspire participants!"}"
             </p>
           </div>
         </div>
@@ -6222,7 +6222,7 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
           <div className="flex flex-col items-center">
             <div className="flex items-center gap-1 text-amber-500 mb-0.5">
               <Flame size={16} fill="currentColor" />
-              <span className="text-base font-black">1 Day</span>
+              <span className="text-base font-black">1 Move</span>
             </div>
             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Current Streak</span>
           </div>
@@ -6245,7 +6245,7 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
         </button>
 
         <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-4">
-          ✨ Participant Day Success Screen Preview
+          ✨ Participant Move Success Screen Preview
         </span>
       </div>
     </div>
