@@ -3130,10 +3130,12 @@ const EditSprint: React.FC = () => {
                                                                     const allRawPrompt = currentContent.taskPrompts?.[index] || '';
                                                                     const hasH = /\{[^}]+\s+h\}/i.test(allRawPrompt);
 
-                                                                    const newVersions = pollOpts.map((_, oIdx) => {
+                                                                    const generatedVersions = pollOpts.map((_, oIdx) => {
                                                                         return `{Step ${pollIdx + 1} Op ${oIdx + 1}${hasH ? ' h' : ''}}`;
                                                                     });
-                                                                    setActiveStepVersionMap(prev => ({ ...prev, [index]: 0 }));
+                                                                    const newVersions = [...stepVersions, ...generatedVersions];
+                                                                    const newTargetIdx = stepVersions.length;
+                                                                    setActiveStepVersionMap(prev => ({ ...prev, [index]: newTargetIdx }));
                                                                     handleTaskPromptChange(index, serializeStepVersions(newVersions));
 
                                                                     const types = [...(currentContent.taskInputTypes || [])];
