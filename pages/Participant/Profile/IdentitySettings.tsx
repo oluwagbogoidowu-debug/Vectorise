@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIONS } from '../../../constants';
@@ -24,9 +24,11 @@ const IdentitySettings: React.FC = () => {
 
   // Determine starting step (1 to 11)
   const [setupStep, setSetupStep] = useState<number>(1);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    if (!p) return;
+    if (!p || hasInitialized.current) return;
+    hasInitialized.current = true;
     setTempPersona(p.persona || null);
     setTempOnboardingAnswers(p.onboardingAnswers || {});
     setTempGrowthAreas(p.growthAreas || []);
@@ -49,7 +51,7 @@ const IdentitySettings: React.FC = () => {
     } else {
       setSetupStep(1); // Allow re-editing starting at step 1
     }
-  }, [user]);
+  }, [p]);
 
   if (!user) return null;
 
