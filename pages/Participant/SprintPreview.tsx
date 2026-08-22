@@ -288,51 +288,8 @@ const SprintPreview: React.FC = () => {
         triggerHaptic(hapticPatterns.light);
     }, [activeTaskIndex, soundEnabled]);
     
-    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route or forced preview)
-    useEffect(() => {
-        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        const forcePreview = location.state?.forcePreview || location.state?.sprint;
-        if (!loading && user && !showLockModal && !isCoachPreview && !forcePreview) {
-            sprintService.getUserEnrollments(user.id)
-                .then(enrollments => {
-                    const enrolled = enrollments.find(e => e.sprint_id === sprintId);
-                    if (enrolled) {
-                        navigate(`/participant/sprint/${enrolled.id}`, { replace: true });
-                    } else {
-                        navigate(`/sprint/${sprintId}`, { replace: true });
-                    }
-                })
-                .catch(() => {
-                    navigate(`/sprint/${sprintId}`, { replace: true });
-                });
-        }
-    }, [user, loading, showLockModal, sprintId, navigate, location.pathname]);
+    const isNavigatingToSuccessRef = useRef(false);
 
-    const handleCompletePreviewDay = () => {
-        if (soundEnabled) {
-            try {
-                const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
-                audio.play().catch((e) => console.error("Sound playback failed:", e));
-            } catch (e) {
-                console.error("Audio initialization failed:", e);
-            }
-        }
-        triggerHaptic(hapticPatterns.success);
-
-        const d1Content = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === 1) : undefined;
-        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        const daySuccessState = { 
-            day: 1, 
-            coinsUnlocked: 10, 
-            bridgeNote: d1Content?.bridgeNote,
-            sprintId: sprint?.id,
-            sprint: sprint,
-            isPreview: true,
-            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : `/sprint/${sprint?.id}`
-        };
-        navigate('/participant/day-success', { state: daySuccessState });
-    };
-    
     // Bottom modal bar states
     const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
     const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login
@@ -349,6 +306,91 @@ const SprintPreview: React.FC = () => {
     
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
+
+    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route or forced preview)
+    useEffect(() => {
+        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
+        const forcePreview = location.state?.forcePreview || location.state?.sprint;
+        if (isNavigatingToSuccessRef.current || isSubmittingAuth) return;
+        if (!loading && user && !showLockModal && !isCoachPreview && !forcePreview) {
+            sprintService.getUserEnrollments(user.id)
+                .then(enrollments => {
+                    if (isNavigatingToSuccessRef.current) return;
+                    const enrolled = enrollments.find(e => e.sprint_id === sprintId);
+                    if (enrolled) {
+                        navigate(`/participant/sprint/${enrolled.id}`, { replace: true });
+                    } else {
+                        navigate(`/sprint/${sprintId}`, { replace: true });
+                    }
+                })
+                .catch(() => {
+                    if (isNavigatingToSuccessRef.current) return;
+                    navigate(`/sprint/${sprintId}`, { replace: true });
+                });
+        }
+    }, [user, loading, showLockModal, sprintId, navigate, location.pathname, isSubmittingAuth]);
+
+    const handleCompletePreviewDay = async () => {
+        if (soundEnabled) {
+            try {
+                const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
+                audio.play().catch((e) => console.error("Sound playback failed:", e));
+            } catch (e) {
+                console.error("Audio initialization failed:", e);
+            }
+        }
+        triggerHaptic(hapticPatterns.success);
+
+        const d1Content = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === 1) : undefined;
+        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
+        
+        let enrollmentId = "";
+        if (user && sprint && !isCoachPreview) {
+            isNavigatingToSuccessRef.current = true;
+            try {
+                const effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration, {
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
+                } as any);
+                if (enrollment) {
+                    enrollmentId = enrollment.id;
+                    const updatedProgress = [...(enrollment.progress || [])];
+                    if (updatedProgress[0]) {
+                        updatedProgress[0] = {
+                            ...updatedProgress[0],
+                            completed: true,
+                            completedAt: new Date().toISOString(),
+                            answers: effectiveInputs,
+                            submission: firstInput
+                        };
+                        const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                        await updateDoc(enrollmentRef, { 
+                            progress: updatedProgress,
+                            last_activity_at: new Date().toISOString()
+                        });
+                    }
+                }
+                localStorage.removeItem('pending_first_action');
+            } catch (e) {
+                console.error("Error saving preview progress for logged-in user:", e);
+            }
+        }
+
+        const daySuccessState = { 
+            day: 1, 
+            coinsUnlocked: 10, 
+            bridgeNote: d1Content?.bridgeNote,
+            sprintId: sprint?.id,
+            sprint: sprint,
+            enrollmentId: enrollmentId,
+            isPreview: isCoachPreview,
+            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : undefined,
+            redirectToDaySuccess: true
+        };
+        navigate('/participant/day-success', { state: daySuccessState, replace: true });
+    };
 
     const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
 
@@ -426,6 +468,7 @@ const SprintPreview: React.FC = () => {
         const provider = new GoogleAuthProvider();
         setIsSubmittingAuth(true);
         setAuthError('');
+        isNavigatingToSuccessRef.current = true;
         try {
             const res = await signInWithPopup(auth, provider);
             const firebaseUser = res.user;
@@ -475,14 +518,18 @@ const SprintPreview: React.FC = () => {
                         coinsUnlocked: 10,
                         bridgeNote: d1Content?.bridgeNote,
                         sprintId: targetSprint.id,
-                        enrollmentId: enrollment?.id
-                    } 
+                        sprint: targetSprint,
+                        enrollmentId: enrollment?.id,
+                        redirectToDaySuccess: true
+                    },
+                    replace: true
                 });
             } else {
                 setShowLockModal(false);
                 navigate('/dashboard', { replace: true });
             }
         } catch (error: any) {
+            isNavigatingToSuccessRef.current = false;
             console.error("Google Sign-In Failure:", error);
             if (error.code === 'auth/unauthorized-domain') {
                 setAuthError("Google Sign-In is not enabled for this domain. Please use Email & Password instead.");
@@ -504,6 +551,7 @@ const SprintPreview: React.FC = () => {
         }
         setAuthError('');
         setIsSubmittingAuth(true);
+        isNavigatingToSuccessRef.current = true;
 
         try {
             resetVerificationDeferral();
@@ -588,13 +636,15 @@ const SprintPreview: React.FC = () => {
                 coinsUnlocked: 10,
                 bridgeNote: day1BridgeNote,
                 enrollmentId,
-                sprintId: targetSprint?.id || targetSprintId
+                sprintId: targetSprint?.id || targetSprintId,
+                sprint: targetSprint
             };
 
             toast.success("Account created successfully!");
             setShowLockModal(false);
             navigate('/participant/day-success', { state: daySuccessState, replace: true });
         } catch (error: any) {
+            isNavigatingToSuccessRef.current = false;
             console.error("Signup error:", error);
             if (error.code === 'auth/email-already-in-use') setAuthError("Email already in use. Try logging in instead.");
             else if (error.code === 'auth/weak-password') setAuthError("Password must be at least 6 characters.");
@@ -613,6 +663,7 @@ const SprintPreview: React.FC = () => {
         }
         setAuthError('');
         setIsSubmittingAuth(true);
+        isNavigatingToSuccessRef.current = true;
 
         try {
             const userCredential = await signInWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
@@ -663,7 +714,9 @@ const SprintPreview: React.FC = () => {
                     coinsUnlocked: 10, 
                     bridgeNote: day1Content?.bridgeNote,
                     enrollmentId: enrollment.id,
-                    sprintId: targetSprint.id
+                    sprintId: targetSprint.id,
+                    sprint: targetSprint,
+                    redirectToDaySuccess: true
                 };
 
                 navigate('/participant/day-success', { state: daySuccessState, replace: true });
@@ -672,6 +725,7 @@ const SprintPreview: React.FC = () => {
                 navigate('/dashboard', { replace: true });
             }
         } catch (error: any) {
+            isNavigatingToSuccessRef.current = false;
             console.error("Login error:", error);
             if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
                 setAuthError("Incorrect email or password.");

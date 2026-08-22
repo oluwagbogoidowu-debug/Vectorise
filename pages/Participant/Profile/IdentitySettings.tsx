@@ -67,42 +67,32 @@ const IdentitySettings: React.FC = () => {
   const totalSteps = 11;
   const progressPercent = Math.max(5, Math.min(100, Math.round((setupStep / totalSteps) * 100)));
 
-  const handleSelectPersona = async (persona: string) => {
+  const handleSelectPersona = (persona: string) => {
     triggerHaptic(hapticPatterns.light);
     setTempPersona(persona);
-    setIsSaving(true);
-    try {
-      await updateProfile(sanitizeData({ persona }));
-      setSetupStep(2);
-    } catch (e) {
-      toast.error("Failed to save persona");
-    } finally {
-      setIsSaving(false);
-    }
+    setSetupStep(2);
+    updateProfile(sanitizeData({ persona })).catch((e) => {
+      console.error("Failed to save persona in background:", e);
+    });
   };
 
-  const handleSelectQuizAnswer = async (answer: string) => {
+  const handleSelectQuizAnswer = (answer: string) => {
     triggerHaptic(hapticPatterns.light);
     const qIndex = setupStep - 1; // 1, 2, or 3
     const nextAnswers = { ...tempOnboardingAnswers, [qIndex]: answer };
     setTempOnboardingAnswers(nextAnswers);
-    setIsSaving(true);
-    try {
-      await updateProfile(sanitizeData({ onboardingAnswers: nextAnswers }));
-      if (setupStep === 4) {
-        setSetupStep(5);
-        setCurrentTaskGroupIdx(0);
-      } else {
-        setSetupStep(prev => prev + 1);
-      }
-    } catch (e) {
-      toast.error("Failed to save answer");
-    } finally {
-      setIsSaving(false);
+    if (setupStep === 4) {
+      setSetupStep(5);
+      setCurrentTaskGroupIdx(0);
+    } else {
+      setSetupStep(prev => prev + 1);
     }
+    updateProfile(sanitizeData({ onboardingAnswers: nextAnswers })).catch((e) => {
+      console.error("Failed to save answer in background:", e);
+    });
   };
 
-  const handleSelectGrowthArea = async (area: string) => {
+  const handleSelectGrowthArea = (area: string) => {
     triggerHaptic(hapticPatterns.light);
     const currentGroup = GROWTH_AREAS[currentTaskGroupIdx];
     if (!currentGroup) return;
@@ -111,34 +101,24 @@ const IdentitySettings: React.FC = () => {
     const newAreas = [...otherAreas, area];
     setTempGrowthAreas(newAreas);
 
-    setIsSaving(true);
-    try {
-      await updateProfile(sanitizeData({ growthAreas: newAreas }));
-      if (currentTaskGroupIdx < GROWTH_AREAS.length - 1) {
-        setCurrentTaskGroupIdx(prev => prev + 1);
-        setSetupStep(prev => prev + 1);
-      } else {
-        setSetupStep(10);
-      }
-    } catch (e) {
-      toast.error("Failed to save growth area");
-    } finally {
-      setIsSaving(false);
+    if (currentTaskGroupIdx < GROWTH_AREAS.length - 1) {
+      setCurrentTaskGroupIdx(prev => prev + 1);
+      setSetupStep(prev => prev + 1);
+    } else {
+      setSetupStep(10);
     }
+    updateProfile(sanitizeData({ growthAreas: newAreas })).catch((e) => {
+      console.error("Failed to save growth area in background:", e);
+    });
   };
 
-  const handleSelectPathway = async (pathwayId: string) => {
+  const handleSelectPathway = (pathwayId: string) => {
     triggerHaptic(hapticPatterns.light);
     setTempRisePathway(pathwayId);
-    setIsSaving(true);
-    try {
-      await updateProfile(sanitizeData({ risePathway: pathwayId }));
-      setSetupStep(11);
-    } catch (e) {
-      toast.error("Failed to save pathway");
-    } finally {
-      setIsSaving(false);
-    }
+    setSetupStep(11);
+    updateProfile(sanitizeData({ risePathway: pathwayId })).catch((e) => {
+      console.error("Failed to save pathway in background:", e);
+    });
   };
 
   const handleSaveFinalIdentity = async () => {

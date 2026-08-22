@@ -1725,6 +1725,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               if (openChatParam === "true") {
                 setIsChatModalOpen(true);
               }
+            } else if (location.state?.targetDay) {
+              const maxDay = data.progress?.length || 1;
+              setViewingDay(Math.min(location.state.targetDay, maxDay));
             } else {
               const firstIncomplete = data.progress?.find((p) => !p.completed);
               setViewingDay(
@@ -2272,7 +2275,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
           setIsCompletionModalOpen(true);
         } else {
-          navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0, bridgeNote: dayContent?.bridgeNote } });
+          navigate('/participant/day-success', { 
+            state: { 
+              day: viewingDay, 
+              coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+              bridgeNote: dayContent?.bridgeNote,
+              enrollmentId: enrollment.id,
+              sprintId: enrollment.sprint_id,
+              sprint: sprint,
+              enrollment: enrollment
+            } 
+          });
         }
 
         setIsSubmitting(false);
@@ -2319,7 +2332,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
         setIsCompletionModalOpen(true);
       } else {
-        navigate('/participant/day-success', { state: { day: viewingDay, coinsUnlocked: viewingDay === 1 ? 10 : 0, bridgeNote: dayContent?.bridgeNote } });
+        navigate('/participant/day-success', { 
+          state: { 
+            day: viewingDay, 
+            coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+            bridgeNote: dayContent?.bridgeNote,
+            enrollmentId: enrollment.id,
+            sprintId: enrollment.sprint_id,
+            sprint: sprint,
+            enrollment: enrollment
+          } 
+        });
       }
 
       // Trigger push permission request if it's the first submission or based on logic

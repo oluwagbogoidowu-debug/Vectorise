@@ -74,10 +74,28 @@ const DaySuccessPage: React.FC = () => {
     window.open(WHATSAPP_GROUP_URL, '_blank', 'noopener,noreferrer');
   };
 
+  const [resolvedEnrollmentId, setResolvedEnrollmentId] = useState<string | null>(location.state?.enrollmentId || null);
+
+  useEffect(() => {
+    if (!resolvedEnrollmentId && user) {
+      const targetSprintId = location.state?.sprintId || location.state?.sprint?.id;
+      sprintService.getUserEnrollments(user.id).then(enrollments => {
+        const found = targetSprintId 
+          ? enrollments.find(e => e.sprint_id === targetSprintId)
+          : enrollments[0];
+        if (found) {
+          setResolvedEnrollmentId(found.id);
+        }
+      }).catch(err => console.error("Error resolving enrollment in DaySuccessPage:", err));
+    }
+  }, [resolvedEnrollmentId, user, location.state]);
+
   const handleExit = () => {
     const isPreview = location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl);
-    const sprintId = location.state?.sprintId;
+    const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
+    const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
+    const nextDay = completedDay + 1;
 
     if (isPreview) {
       if (sprintId) {
@@ -92,6 +110,13 @@ const DaySuccessPage: React.FC = () => {
       } else {
         navigate(-1);
       }
+    } else if (enrollmentId) {
+      navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
+        replace: true,
+        state: { targetDay: nextDay }
+      });
+    } else if (user) {
+      navigate('/participant-dashboard', { replace: true });
     } else {
       navigate('/');
     }
@@ -193,11 +218,12 @@ const DaySuccessPage: React.FC = () => {
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
     const isPreview = location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl);
-    const sprintId = location.state?.sprintId;
+    const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
+    const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
+    const nextDay = completedDay + 1;
 
     if (isPreview) {
-      const nextDay = completedDay + 1;
       const targetUrl = returnToPreviewUrl || `/coach/sprint/preview/${sprintId}`;
       navigate(targetUrl, {
         replace: true,
@@ -207,6 +233,29 @@ const DaySuccessPage: React.FC = () => {
           targetDay: nextDay,
           isPreview: true
         }
+      });
+    } else if (enrollmentId) {
+      navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
+        replace: true,
+        state: {
+          targetDay: nextDay
+        }
+      });
+    } else if (user) {
+      sprintService.getUserEnrollments(user.id).then(enrollments => {
+        const found = sprintId ? enrollments.find(e => e.sprint_id === sprintId) : enrollments[0];
+        if (found) {
+          navigate(`/participant/sprint/${found.id}?day=${nextDay}`, { 
+            replace: true,
+            state: {
+              targetDay: nextDay
+            }
+          });
+        } else {
+          navigate('/participant-dashboard', { replace: true });
+        }
+      }).catch(() => {
+        navigate('/participant-dashboard', { replace: true });
       });
     } else {
       handleExit();
