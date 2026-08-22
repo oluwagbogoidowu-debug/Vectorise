@@ -1314,15 +1314,17 @@ export const sprintService = {
                 // Get existing days in categorized doc
                 const daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days'));
                 const newDayNums = new Set(dailyContent.map(d => d.day));
+                const deletePromises: Promise<any>[] = [];
                 for (const dDoc of daysSnap.docs) {
                     const dayNum = parseInt(dDoc.id.replace('day ', ''));
                     if (!isNaN(dayNum) && !newDayNums.has(dayNum)) {
-                        await deleteDoc(dDoc.ref);
+                        deletePromises.push(deleteDoc(dDoc.ref));
                     }
                 }
+                await Promise.all(deletePromises);
 
-                for (const day of dailyContent) {
-                    if (!day || typeof day.day === 'undefined') continue;
+                const writePromises = dailyContent.map(async (day) => {
+                    if (!day || typeof day.day === 'undefined') return;
                     const dayNum = day.day;
                     const dayData = sanitizeData(day);
                     
@@ -1335,7 +1337,8 @@ export const sprintService = {
                         const singDayRef = doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'days', `day ${dayNum}`);
                         await setDoc(singDayRef, dayData);
                     } catch (e) {}
-                }
+                });
+                await Promise.all(writePromises);
             }
 
             // Update in-memory and localStorage cache
