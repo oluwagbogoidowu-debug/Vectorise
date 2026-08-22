@@ -916,39 +916,78 @@ export default function DailyActionWorkspace({
                               <Plus size={11} strokeWidth={3} />
                             </button>
                             {stepVersions.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDay(dayNum);
-                                  const removeVerFromRaw = (rawStr?: string | null) => {
-                                    const vers = parseStepVersions(rawStr);
-                                    if (vers.length <= 1) return vers[0] || '';
-                                    const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
-                                    return serializeStepVersions(filtered);
-                                  };
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    const pollIdx = findNearestPrecedingPoll(dayContent, activeIdx);
+                                    if (pollIdx === -1) {
+                                      alert("No preceding poll step found to auto-populate options from.");
+                                      return;
+                                    }
+                                    const pollOpts = getAllStepPollOptions(dayContent, pollIdx);
+                                    if (!pollOpts || pollOpts.length === 0) {
+                                      alert("Preceding step has no poll options configured.");
+                                      return;
+                                    }
+                                    const allRawPrompt = dayContent.taskPrompts?.[activeIdx] || '';
+                                    const hasH = /\{[^}]+\s+h\}/i.test(allRawPrompt);
 
-                                  const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
-                                  const newVerIdx = Math.max(0, activeVerIdx - 1);
-                                  setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
-                                  handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+                                    const newVersions = pollOpts.map((_, oIdx) => {
+                                      return `{Step ${pollIdx + 1} Op ${oIdx + 1}${hasH ? ' h' : ''}}`;
+                                    });
+                                    setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: 0 }));
+                                    handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
 
-                                  const types = [...(dayContent.taskInputTypes || [])];
-                                  if (types[activeIdx] !== undefined) {
-                                    types[activeIdx] = removeVerFromRaw(types[activeIdx]) as any;
+                                    const types = [...(dayContent.taskInputTypes || [])];
+                                    while (types.length <= activeIdx) types.push('text');
+                                    const rawType = types[activeIdx] || 'text';
+                                    const baseType = getStepVersionValue(rawType, 0, 'text');
+                                    const newTypesArr = pollOpts.map(() => baseType);
+                                    types[activeIdx] = serializeStepVersions(newTypesArr) as any;
                                     updateFieldForDay(dayNum, 'taskInputTypes', types);
-                                  }
+                                  }}
+                                  className="px-1.5 py-0.5 text-[10px] text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded transition-all cursor-pointer flex items-center gap-0.5 font-bold"
+                                  title="Auto-populate sub-steps for each option of preceding poll step (Op 1, Op 2...)"
+                                >
+                                  <Sparkles size={10} />
+                                  <span>Auto</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    const removeVerFromRaw = (rawStr?: string | null) => {
+                                      const vers = parseStepVersions(rawStr);
+                                      if (vers.length <= 1) return vers[0] || '';
+                                      const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                      return serializeStepVersions(filtered);
+                                    };
 
-                                  const opts = [...(dayContent.taskPollOptions || [])];
-                                  if (opts[activeIdx] !== undefined) {
-                                    opts[activeIdx] = removeVerFromRaw(opts[activeIdx]);
-                                    updateFieldForDay(dayNum, 'taskPollOptions', opts);
-                                  }
-                                }}
-                                className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
-                                title="Remove current context version"
-                              >
-                                <Trash2 size={10} />
-                              </button>
+                                    const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                    const newVerIdx = Math.max(0, activeVerIdx - 1);
+                                    setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
+                                    handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+
+                                    const types = [...(dayContent.taskInputTypes || [])];
+                                    if (types[activeIdx] !== undefined) {
+                                      types[activeIdx] = removeVerFromRaw(types[activeIdx]) as any;
+                                      updateFieldForDay(dayNum, 'taskInputTypes', types);
+                                    }
+
+                                    const opts = [...(dayContent.taskPollOptions || [])];
+                                    if (opts[activeIdx] !== undefined) {
+                                      opts[activeIdx] = removeVerFromRaw(opts[activeIdx]);
+                                      updateFieldForDay(dayNum, 'taskPollOptions', opts);
+                                    }
+                                  }}
+                                  className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
+                                  title="Remove current context version"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
+                              </div>
                             )}
                           </div>
 

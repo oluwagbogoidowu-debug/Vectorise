@@ -3113,38 +3113,76 @@ const EditSprint: React.FC = () => {
                                                         <Plus size={11} strokeWidth={3} />
                                                     </button>
                                                     {stepVersions.length > 1 && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const removeVerFromRaw = (rawStr?: string | null) => {
-                                                                    const vers = parseStepVersions(rawStr);
-                                                                    if (vers.length <= 1) return vers[0] || '';
-                                                                    const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
-                                                                    return serializeStepVersions(filtered);
-                                                                };
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const pollIdx = findNearestPrecedingPoll(currentContent, index);
+                                                                    if (pollIdx === -1) {
+                                                                        alert("No preceding poll step found to auto-populate options from.");
+                                                                        return;
+                                                                    }
+                                                                    const pollOpts = getAllStepPollOptions(currentContent, pollIdx);
+                                                                    if (!pollOpts || pollOpts.length === 0) {
+                                                                        alert("Preceding step has no poll options configured.");
+                                                                        return;
+                                                                    }
+                                                                    const allRawPrompt = currentContent.taskPrompts?.[index] || '';
+                                                                    const hasH = /\{[^}]+\s+h\}/i.test(allRawPrompt);
 
-                                                                const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
-                                                                const newVerIdx = Math.max(0, activeVerIdx - 1);
-                                                                setActiveStepVersionMap(prev => ({ ...prev, [index]: newVerIdx }));
-                                                                handleTaskPromptChange(index, serializeStepVersions(newVersions));
+                                                                    const newVersions = pollOpts.map((_, oIdx) => {
+                                                                        return `{Step ${pollIdx + 1} Op ${oIdx + 1}${hasH ? ' h' : ''}}`;
+                                                                    });
+                                                                    setActiveStepVersionMap(prev => ({ ...prev, [index]: 0 }));
+                                                                    handleTaskPromptChange(index, serializeStepVersions(newVersions));
 
-                                                                const types = [...(currentContent.taskInputTypes || [])];
-                                                                if (types[index] !== undefined) {
-                                                                    types[index] = removeVerFromRaw(types[index]) as any;
+                                                                    const types = [...(currentContent.taskInputTypes || [])];
+                                                                    while (types.length <= index) types.push('text');
+                                                                    const rawType = types[index] || 'text';
+                                                                    const baseType = getStepVersionValue(rawType, 0, 'text');
+                                                                    const newTypesArr = pollOpts.map(() => baseType);
+                                                                    types[index] = serializeStepVersions(newTypesArr) as any;
                                                                     updateCurrentContentField('taskInputTypes', types);
-                                                                }
+                                                                }}
+                                                                className="px-1.5 py-0.5 text-[10px] text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded transition-all cursor-pointer flex items-center gap-0.5 font-bold"
+                                                                title="Auto-populate sub-steps for each option of preceding poll step (Op 1, Op 2...)"
+                                                            >
+                                                                <Sparkles size={10} />
+                                                                <span>Auto</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const removeVerFromRaw = (rawStr?: string | null) => {
+                                                                        const vers = parseStepVersions(rawStr);
+                                                                        if (vers.length <= 1) return vers[0] || '';
+                                                                        const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                                                        return serializeStepVersions(filtered);
+                                                                    };
 
-                                                                const opts = [...(currentContent.taskPollOptions || [])];
-                                                                if (opts[index] !== undefined) {
-                                                                    opts[index] = removeVerFromRaw(opts[index]);
-                                                                    updateCurrentContentField('taskPollOptions', opts);
-                                                                }
-                                                            }}
-                                                            className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
-                                                            title="Remove current context version"
-                                                        >
-                                                            <Trash2 size={10} />
-                                                        </button>
+                                                                    const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                                                    const newVerIdx = Math.max(0, activeVerIdx - 1);
+                                                                    setActiveStepVersionMap(prev => ({ ...prev, [index]: newVerIdx }));
+                                                                    handleTaskPromptChange(index, serializeStepVersions(newVersions));
+
+                                                                    const types = [...(currentContent.taskInputTypes || [])];
+                                                                    if (types[index] !== undefined) {
+                                                                        types[index] = removeVerFromRaw(types[index]) as any;
+                                                                        updateCurrentContentField('taskInputTypes', types);
+                                                                    }
+
+                                                                    const opts = [...(currentContent.taskPollOptions || [])];
+                                                                    if (opts[index] !== undefined) {
+                                                                        opts[index] = removeVerFromRaw(opts[index]);
+                                                                        updateCurrentContentField('taskPollOptions', opts);
+                                                                    }
+                                                                }}
+                                                                className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
+                                                                title="Remove current context version"
+                                                            >
+                                                                <Trash2 size={10} />
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
 
