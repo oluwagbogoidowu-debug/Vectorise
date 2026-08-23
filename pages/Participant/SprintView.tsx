@@ -2693,27 +2693,27 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               exit={{ opacity: 0, x: -12 }}
                               transition={{ duration: 0.2, ease: "easeInOut" }}
                               className={isFullBleed 
-                                ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in !transition-none" 
+                                ? "w-full min-h-full bg-white dark:bg-zinc-900 px-6 sm:px-16 md:px-24 lg:px-32 py-12 md:py-20 text-left flex flex-col relative !transition-none" 
                                 : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
                               }
                             >
                               {/* Full-bleed Focus Toggle Button in Top Right */}
-                              <div className="absolute top-4 right-4 z-55 flex items-center gap-2">
+                              <div className="absolute top-6 right-8 z-55 flex items-center gap-2">
                                 <button
                                   type="button"
                                   onClick={() => setIsFullBleed(!isFullBleed)}
-                                  className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
+                                  className="p-3 rounded-2xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-md !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
                                   title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                                 >
                                   {isFullBleed ? (
-                                    <Minimize2 className="h-4 w-4" />
+                                    <Minimize2 className="h-5 w-5" />
                                   ) : (
                                     <Maximize2 className="h-4 w-4" />
                                   )}
                                 </button>
                               </div>
 
-                              <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
+                              <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
                                 <SectionHeading showDot={!dayProgress?.completed}>
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
@@ -3458,7 +3458,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                     ) : (
                       <div 
                           className={isFullBleed 
-                            ? "fixed inset-0 z-50 bg-transparent overflow-y-auto w-screen h-screen px-4 md:px-12 py-12 md:py-20 text-left flex flex-col items-center animate-fade-in !transition-none" 
+                            ? "w-full min-h-full bg-white dark:bg-zinc-900 px-6 sm:px-16 md:px-24 lg:px-32 py-12 md:py-20 text-left flex flex-col relative !transition-none" 
                             : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
                           }
                         >
@@ -3478,7 +3478,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           </button>
                         </div>
 
-                        <div className={isFullBleed ? "w-full max-w-4xl mx-auto space-y-6 flex flex-col relative" : "relative z-10"}>
+                        <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
                           <SectionHeading showDot={!dayProgress?.completed}>
                             {isFullBleed ? (
                               <>Action Step 1</>
@@ -3919,7 +3919,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         </>
                       );
                       return isFullBleed ? createPortal(
-                        <div className="fixed inset-0 z-50 bg-white w-screen h-screen overflow-hidden">
+                        <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-950 w-screen h-screen overflow-y-auto">
                           {taskUI}
                         </div>,
                         document.body
