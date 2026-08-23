@@ -100,8 +100,8 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
   ];
 
   return (
-    <div className="w-full mt-3 pt-3 border-t border-gray-200">
-      <div className="flex items-center justify-between mb-2 px-1">
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-2.5 px-1">
         <span className="text-xs font-black uppercase tracking-wider text-gray-500">
           Get Discounted Coins
         </span>

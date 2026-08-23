@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, X, Sparkles, Star, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, X, Sparkles, Star, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import LocalLogo from '../../components/LocalLogo';
@@ -13,6 +13,7 @@ import { assetService } from '../../services/assetService';
 import { Sprint, Coach, UserRole, Participant, LifecycleSlotAssignment } from '../../types';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
+import { getExploreFirstSprint } from '../../utils/sprintUtils';
 import { toast } from 'sonner';
 
 export const NextSprintRecommendation: React.FC = () => {
@@ -89,118 +90,6 @@ export const NextSprintRecommendation: React.FC = () => {
                 }
             }
 
-            // Filter sprints based on target audience exactly like Explore page
-            const allowedSprints = allPublished.filter(s => {
-                if (user?.role === UserRole.ADMIN) {
-                    return true;
-                }
-                
-                if (!s.audience || s.audience.length === 0) {
-                    return false;
-                }
-
-                const userAudiences: string[] = [];
-                
-                if (user?.role === UserRole.COACH || (user as any)?.persona === 'Coach') {
-                    userAudiences.push('coach');
-                    userAudiences.push('coaches');
-                    
-                    const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
-                    return sprintAudiences.some((sa: string) => 
-                        userAudiences.some(ua => sa === ua || sa.includes(ua) || ua.includes(sa))
-                    );
-                }
-
-                const pathway = String((user as any)?.risePathway || '').toLowerCase().trim();
-                const persona = String((user as any)?.persona || '').toLowerCase().trim();
-                const occupation = String((user as any)?.occupation || '').toLowerCase().trim();
-
-                if (
-                    pathway === 'student' || 
-                    persona === 'student' || 
-                    persona.includes('student') || 
-                    persona.includes('graduate') || 
-                    occupation === 'student' ||
-                    occupation.includes('student')
-                ) {
-                    userAudiences.push('student');
-                    userAudiences.push('students');
-                    userAudiences.push('student/graduate');
-                }
-
-                if (
-                    pathway === 'early_career' || 
-                    pathway === 'growth_pro' || 
-                    persona.includes('9-5') || 
-                    persona.includes('professional') || 
-                    occupation.includes('professional') || 
-                    occupation.includes('employee') || 
-                    occupation.includes('corporate')
-                ) {
-                    userAudiences.push('9-5 professional');
-                    userAudiences.push('9-5 professionals');
-                    userAudiences.push('professional');
-                    userAudiences.push('professionals');
-                    userAudiences.push('corporate professionals');
-                }
-
-                if (
-                    pathway === 'builder' || 
-                    persona.includes('entrepreneur') || 
-                    persona.includes('owner') || 
-                    persona.includes('founder') || 
-                    occupation.includes('entrepreneur') || 
-                    occupation.includes('business owner') || 
-                    occupation.includes('founder')
-                ) {
-                    userAudiences.push('entrepreneur');
-                    userAudiences.push('entrepreneurs');
-                    userAudiences.push('business owner');
-                    userAudiences.push('business owners');
-                    userAudiences.push('founders / entrepreneurs');
-                    userAudiences.push('founder');
-                    userAudiences.push('builder');
-                    userAudiences.push('builders');
-                }
-
-                if (
-                    pathway === 'transition' || 
-                    persona.includes('freelancer') || 
-                    persona.includes('consultant') || 
-                    persona.includes('creative') || 
-                    persona.includes('hustler') || 
-                    occupation.includes('freelancer') || 
-                    occupation.includes('consultant') || 
-                    occupation.includes('creative') || 
-                    occupation.includes('hustler')
-                ) {
-                    userAudiences.push('freelancer/consultant');
-                    userAudiences.push('creative/hustler');
-                    userAudiences.push('freelancer');
-                    userAudiences.push('consultant');
-                    userAudiences.push('creative');
-                    userAudiences.push('hustler');
-                    userAudiences.push('freelancers');
-                    userAudiences.push('consultants');
-                    userAudiences.push('creatives');
-                    userAudiences.push('hustlers');
-                }
-
-                const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
-                const isMatch = sprintAudiences.some((sa: string) => 
-                    userAudiences.some(ua => sa === ua || sa.includes(ua) || ua.includes(sa))
-                );
-
-                const isCoachSprint = sprintAudiences.some(sa => sa === 'coach' || sa === 'coaches');
-                if (isCoachSprint) {
-                    return false;
-                }
-
-                return isMatch;
-            });
-
-            const candidatePool = allowedSprints.length > 0 ? allowedSprints : allPublished;
-
             let userEnrolledIds: string[] = [];
             if (user) {
                 try {
@@ -212,90 +101,12 @@ export const NextSprintRecommendation: React.FC = () => {
             }
 
             const enrolledSet = new Set(userEnrolledIds);
-            const participant = user as Participant;
-            let candidateSprint: Sprint | null = null;
-
-            // Priority 1: User's queued / wishlist sprints
-            const queuedIds = (participant?.savedSprintIds || []).filter(id => !enrolledSet.has(id));
-            const wishlistIds = (participant?.wishlistSprintIds || []).filter(id => !enrolledSet.has(id));
-
-            if (queuedIds.length > 0) {
-                candidateSprint = candidatePool.find(s => s.id === queuedIds[0]) || null;
-            }
-            if (!candidateSprint && wishlistIds.length > 0) {
-                candidateSprint = candidatePool.find(s => s.id === wishlistIds[0]) || null;
+            if (completedSprintId) {
+                enrolledSet.add(completedSprintId);
             }
 
-            // Priority 2: Selected Growth Areas (Explore page logic)
-            const growthAreas = participant?.growthAreas || [];
-            if (!candidateSprint && growthAreas.length > 0) {
-                const matchedGroups = GROWTH_AREAS.filter(g => 
-                    g.options.some(opt => growthAreas.includes(opt))
-                );
-                if (matchedGroups.length > 0) {
-                    const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
-                    candidateSprint = candidatePool.find(s => 
-                        targetSprintTitles.includes(s.title) && !enrolledSet.has(s.id)
-                    ) || null;
-                }
-            }
-
-            // Priority 3: Rise Pathway (Explore page logic)
-            const pathwayId = participant?.risePathway;
-            if (!candidateSprint && pathwayId) {
-                const pathwaySprintMap: Record<string, string[]> = {
-                    'student': ['Clarity Sprint', 'Direction Sprint'],
-                    'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
-                    'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
-                    'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
-                    'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
-                };
-                const targetTitles = pathwaySprintMap[pathwayId] || [];
-                candidateSprint = candidatePool.find(s => 
-                    targetTitles.includes(s.title) && !enrolledSet.has(s.id)
-                ) || null;
-            }
-
-            // Priority 4: Onboarding Focus & Orchestration Slots (Explore page logic)
-            const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
-                             Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
-
-            if (!candidateSprint && userFocus && orchestration) {
-                const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
-                for (const slotId of prioritySlots) {
-                    const mapping = orchestration[slotId];
-                    if (mapping) {
-                        const focusMap = mapping.sprintFocusMap || {};
-                        const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
-                        if (matchedSprintId) {
-                            const found = candidatePool.find(s => s.id === matchedSprintId && !enrolledSet.has(s.id));
-                            if (found) {
-                                candidateSprint = found;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Priority 5: Target Stage (Explore page logic)
-            const targetStage = participant?.currentStage || 'Direction';
-            if (!candidateSprint) {
-                candidateSprint = candidatePool.find(s => 
-                    CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
-                    !enrolledSet.has(s.id)
-                ) || null;
-            }
-
-            // Priority 6: Any non-enrolled published sprint (different from completed)
-            if (!candidateSprint) {
-                candidateSprint = candidatePool.find(s => s.id !== completedSprintId && !enrolledSet.has(s.id)) || null;
-            }
-
-            // Fallback: Any published sprint
-            if (!candidateSprint && candidatePool.length > 0) {
-                candidateSprint = candidatePool.find(s => s.id !== completedSprintId) || candidatePool[0];
-            }
+            // Pick the exact first sprint shown on the Explore page
+            const candidateSprint = getExploreFirstSprint(allPublished, user, orchestration, enrolledSet);
 
             if (candidateSprint) {
                 setSprint(candidateSprint);
@@ -428,20 +239,13 @@ export const NextSprintRecommendation: React.FC = () => {
     const sprintPrice = sprint?.price || 1000;
 
     return (
-        <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-primary text-white relative overflow-hidden selection:bg-white/10">
+        <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-white text-gray-900 relative overflow-hidden">
             {/* Navigation Header */}
             <header className="w-full max-w-[340px] sm:max-w-[380px] z-10 flex items-center justify-between pt-2">
-                <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-white">
-                    <button 
-                        onClick={() => navigate('/explore')} 
-                        className="p-1 -ml-1 text-white/70 hover:text-white transition-colors cursor-pointer"
-                        title="Explore Sprints"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <span>Recommend Next Sprint</span>
-                </div>
-                <LocalLogo type="white" className="h-5 w-auto opacity-40" />
+                <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
+                    Recommended Next Sprint
+                </h1>
+                <LocalLogo type="green" className="h-5 w-auto" />
             </header>
 
             {/* Main Content */}
@@ -450,7 +254,7 @@ export const NextSprintRecommendation: React.FC = () => {
                 <div className="w-full text-left">
                     {isLoading ? (
                         <div className="py-20 flex justify-center items-center">
-                            <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                            <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
                         </div>
                     ) : sprint ? (
                         <div className="space-y-3">
@@ -459,15 +263,15 @@ export const NextSprintRecommendation: React.FC = () => {
                                 coach={fetchedCoach || vectoriseCoach} 
                                 isStatic={true} 
                                 hideFooterDetails={false}
-                                variant="glass"
+                                variant="light"
                             />
                         </div>
                     ) : (
-                        <div className="p-8 text-center bg-white/10 rounded-2xl border border-white/20">
-                            <p className="text-xs font-bold text-white/80">No additional sprints found.</p>
+                        <div className="p-8 text-center bg-gray-50 rounded-2xl border border-gray-200">
+                            <p className="text-xs font-bold text-gray-700">No additional sprints found.</p>
                             <button
                                 onClick={() => navigate('/explore')}
-                                className="mt-4 px-4 py-2 bg-white text-primary text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer"
+                                className="mt-4 px-4 py-2 bg-[#0E7850] text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer"
                             >
                                 Browse All Sprints
                             </button>
@@ -480,7 +284,7 @@ export const NextSprintRecommendation: React.FC = () => {
                     <button
                         onClick={() => setIsPaymentModalOpen(true)}
                         disabled={isLoading || !sprint}
-                        className="w-full py-5 bg-white text-primary font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-5 bg-[#0E7850] hover:bg-[#085C3D] text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl shadow-[#0E7850]/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <span>Continue</span>
                         <ArrowRight className="w-4 h-4" />
@@ -489,11 +293,9 @@ export const NextSprintRecommendation: React.FC = () => {
             </main>
 
             {/* Footer */}
-            <footer className="w-full text-center pb-4 opacity-20 z-10">
-                <p className="text-[9px] font-black uppercase tracking-[0.3em]">GET 1% BETTER DAILY</p>
+            <footer className="w-full text-center pb-4 opacity-40 z-10">
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">GET 1% BETTER DAILY</p>
             </footer>
-
-            <div className="absolute top-[-10%] right-[-10%] w-80 h-80 bg-white/5 rounded-full blur-[100px] pointer-events-none"></div>
 
             {/* Bottom Modal Bar for Payment */}
             <AnimatePresence>
@@ -527,10 +329,10 @@ export const NextSprintRecommendation: React.FC = () => {
                                 </h3>
                             </div>
 
-                            {/* Wallet / Pricing / Payment Options Section */}
+                            {/* Wallet Balance Card */}
                             <div className="bg-gray-50/90 rounded-2xl p-4 sm:p-5 border border-gray-200/80 mb-4 text-left space-y-3.5">
                                 {/* Balance and Cost Row */}
-                                <div className="grid grid-cols-2 gap-3 pb-3.5 border-b border-gray-200">
+                                <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">
                                             Your Balance
@@ -553,60 +355,62 @@ export const NextSprintRecommendation: React.FC = () => {
 
                                 {/* Option: Use Coins (Only shown when coins are enough) */}
                                 {userBalance >= sprintCost && (
-                                    <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
-                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <div className="pt-3 border-t border-gray-200">
+                                        <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                </div>
+                                                <span className="text-sm sm:text-base font-black text-gray-900">
+                                                    Use {sprintCost} coins of your balance to continue
+                                                </span>
                                             </div>
-                                            <span className="text-sm sm:text-base font-black text-gray-900">
-                                                Use {sprintCost} coins of your balance to continue
+                                            <span className="text-xs font-black text-[#0E7850] bg-emerald-100 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
+                                                Available
                                             </span>
                                         </div>
-                                        <span className="text-xs font-black text-[#0E7850] bg-emerald-100 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
-                                            Available
-                                        </span>
                                     </div>
                                 )}
-
-                                {/* If NOT enough coins, show coin packages and pay for remaining coins directly */}
-                                {userBalance < sprintCost && (
-                                    <>
-                                        {/* Horizontal Coin Packages */}
-                                        <BottomModalCoinCards 
-                                            userBalance={userBalance}
-                                            sprintCost={sprintCost}
-                                            sprintId={sprint.id}
-                                            trackId={sprint.trackId}
-                                            selectedPaymentMethod={paymentMethod}
-                                            onSelectPaymentMethod={(method) => setPaymentMethod(method)}
-                                            isProcessing={isProcessingPayment}
-                                        />
-
-                                        {/* Pay for remaining coins directly (Clickable, no radio dot, quiet styling) */}
-                                        <div 
-                                            onClick={() => !isProcessingPayment && setPaymentMethod('card')}
-                                            className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
-                                                paymentMethod === 'card' 
-                                                    ? 'bg-emerald-50/50 border-[#0E7850] text-gray-900 shadow-xs' 
-                                                    : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                                            }`}
-                                        >
-                                            <span className="text-sm sm:text-base font-bold">
-                                                Pay for remaining coins directly
-                                            </span>
-                                            {(() => {
-                                                const coinsRem = Math.max(0, sprintCost - userBalance);
-                                                const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
-                                                return (
-                                                    <span className="text-sm sm:text-base font-black text-[#0E7850] shrink-0 ml-2">
-                                                        ₦{topupPrice.toLocaleString()}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </div>
-                                    </>
-                                )}
                             </div>
+
+                            {/* Outside the card on plain ground: Coin Packages & Direct remaining coin pay */}
+                            {userBalance < sprintCost && (
+                                <div className="space-y-3.5 mb-4 text-left">
+                                    {/* Horizontal Coin Packages on plain ground */}
+                                    <BottomModalCoinCards 
+                                        userBalance={userBalance}
+                                        sprintCost={sprintCost}
+                                        sprintId={sprint.id}
+                                        trackId={sprint.trackId}
+                                        selectedPaymentMethod={paymentMethod}
+                                        onSelectPaymentMethod={(method) => setPaymentMethod(method)}
+                                        isProcessing={isProcessingPayment}
+                                    />
+
+                                    {/* Pay for remaining coins directly on plain ground */}
+                                    <div 
+                                        onClick={() => !isProcessingPayment && setPaymentMethod('card')}
+                                        className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
+                                            paymentMethod === 'card' 
+                                                ? 'bg-emerald-50/50 border-[#0E7850] text-gray-900 shadow-xs ring-1 ring-[#0E7850]/30' 
+                                                : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="text-sm sm:text-base font-bold">
+                                            Pay for remaining coins directly
+                                        </span>
+                                        {(() => {
+                                            const coinsRem = Math.max(0, sprintCost - userBalance);
+                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
+                                            return (
+                                                <span className="text-sm sm:text-base font-black text-[#0E7850] shrink-0 ml-2">
+                                                    ₦{topupPrice.toLocaleString()}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Unlock Action Button */}
                             <div className="pt-2">

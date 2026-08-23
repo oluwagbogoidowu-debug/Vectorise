@@ -11,6 +11,7 @@ import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
 import TrackCard from '../../components/TrackCard';
 import { Package, ArrowRight, Sparkles } from 'lucide-react';
+import { filterAllowedSprintsForUser, getExploreNextSteps } from '../../utils/sprintUtils';
 
 /**
  * LOCKED STAGE CARD (Internal)
@@ -78,124 +79,7 @@ const DiscoverSprints: React.FC = () => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
             setAllSprints(data);
-            // Filter sprints based on target audience and what the user carries as identity (coach, student, entrepreneur...)
-            const allowedSprints = data.filter(s => {
-                if (user?.role === UserRole.ADMIN) {
-                    return true;
-                }
-                
-                // "Don't show a sprint not tag for a person in their explore page."
-                if (!s.audience || s.audience.length === 0) {
-                    return false;
-                }
-
-                // Determine user's active/carried audiences
-                const userAudiences: string[] = [];
-                
-                // "A sprint tag coach shows for someone who has a coach account not more sprint."
-                if (user?.role === UserRole.COACH || (user as any)?.persona === 'Coach') {
-                    userAudiences.push('coach');
-                    userAudiences.push('coaches');
-                    
-                    const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
-                    const isMatch = sprintAudiences.some((sa: string) => 
-                        userAudiences.some(ua => sa === ua || sa.includes(ua) || ua.includes(sa))
-                    );
-                    return isMatch;
-                }
-
-                // Regular Participant user
-                const pathway = String((user as any)?.risePathway || '').toLowerCase().trim();
-                const persona = String((user as any)?.persona || '').toLowerCase().trim();
-                const occupation = String((user as any)?.occupation || '').toLowerCase().trim();
-
-                if (
-                    pathway === 'student' || 
-                    persona === 'student' || 
-                    persona.includes('student') || 
-                    persona.includes('graduate') || 
-                    occupation === 'student' ||
-                    occupation.includes('student')
-                ) {
-                    userAudiences.push('student');
-                    userAudiences.push('students');
-                    userAudiences.push('student/graduate');
-                }
-
-                if (
-                    pathway === 'early_career' || 
-                    pathway === 'growth_pro' || 
-                    persona.includes('9-5') || 
-                    persona.includes('professional') || 
-                    occupation.includes('professional') || 
-                    occupation.includes('employee') || 
-                    occupation.includes('corporate')
-                ) {
-                    userAudiences.push('9-5 professional');
-                    userAudiences.push('9-5 professionals');
-                    userAudiences.push('professional');
-                    userAudiences.push('professionals');
-                    userAudiences.push('corporate professionals');
-                }
-
-                if (
-                    pathway === 'builder' || 
-                    persona.includes('entrepreneur') || 
-                    persona.includes('owner') || 
-                    persona.includes('founder') || 
-                    occupation.includes('entrepreneur') || 
-                    occupation.includes('business owner') || 
-                    occupation.includes('founder')
-                ) {
-                    userAudiences.push('entrepreneur');
-                    userAudiences.push('entrepreneurs');
-                    userAudiences.push('business owner');
-                    userAudiences.push('business owners');
-                    userAudiences.push('founders / entrepreneurs');
-                    userAudiences.push('founder');
-                    userAudiences.push('builder');
-                    userAudiences.push('builders');
-                }
-
-                if (
-                    pathway === 'transition' || 
-                    persona.includes('freelancer') || 
-                    persona.includes('consultant') || 
-                    persona.includes('creative') || 
-                    persona.includes('hustler') || 
-                    occupation.includes('freelancer') || 
-                    occupation.includes('consultant') || 
-                    occupation.includes('creative') || 
-                    occupation.includes('hustler')
-                ) {
-                    userAudiences.push('freelancer/consultant');
-                    userAudiences.push('creative/hustler');
-                    userAudiences.push('freelancer');
-                    userAudiences.push('consultant');
-                    userAudiences.push('creative');
-                    userAudiences.push('hustler');
-                    userAudiences.push('freelancers');
-                    userAudiences.push('consultants');
-                    userAudiences.push('creatives');
-                    userAudiences.push('hustlers');
-                }
-
-                // Check if any of the sprint's audiences match the user's audiences
-                const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
-                const isMatch = sprintAudiences.some((sa: string) => 
-                    userAudiences.some(ua => {
-                        return sa === ua || sa.includes(ua) || ua.includes(sa);
-                    })
-                );
-
-                // A sprint tag coach shows only for someone who has a coach account
-                const isCoachSprint = sprintAudiences.some(sa => sa === 'coach' || sa === 'coaches');
-                if (isCoachSprint) {
-                    return false;
-                }
-
-                return isMatch;
-            });
+            const allowedSprints = filterAllowedSprintsForUser(data, user);
             setSprints(allowedSprints);
             setIsSprintsLoaded(true);
         }, (error) => {
@@ -444,65 +328,9 @@ const DiscoverSprints: React.FC = () => {
     }, [orchestration, user, sprints, tracks, enrolledSprintIds]);
 
     const nextSteps = useMemo(() => {
-        const participant = user as Participant;
-        const list: Sprint[] = [];
-        const seenIds = new Set<string>();
-
-        const addSprint = (sprint: Sprint | undefined) => {
-            if (sprint && !enrolledSprintIds.has(sprint.id) && !seenIds.has(sprint.id)) {
-                list.push(sprint);
-                seenIds.add(sprint.id);
-            }
-        };
-
-        // 0. Include sprints that override orchestrator
-        const overrideSprintsActive = sprints
-            .filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id))
-            .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
-        overrideSprintsActive.forEach(s => {
-            addSprint(s);
-        });
-
-        const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
-                         Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
-
-        // 1. Prioritization list from the orchestrator in direction session (slot_dir_sprint) first
-        const directionMapping = orchestration['slot_dir_sprint'];
-        if (directionMapping) {
-            const focusMap = directionMapping.sprintFocusMap || {};
-            const prioritiesMap = directionMapping.focusOptionPriorityMap || {};
-            const assignedIds = directionMapping.sprintIds || (directionMapping.sprintId ? [directionMapping.sprintId] : []);
-
-            if (userFocus) {
-                // Sprints mapped to slot_dir_sprint that have the user's active focus tag
-                const matches = assignedIds.filter(id => focusMap[id]?.includes(userFocus));
-                const priorities = prioritiesMap[userFocus] || [];
-                if (matches.length > 0) {
-                    matches.sort((a, b) => {
-                        const idxA = priorities.indexOf(a);
-                        const idxB = priorities.indexOf(b);
-                        if (idxA > -1 && idxB > -1) return idxA - idxB;
-                        if (idxA > -1) return -1;
-                        if (idxB > -1) return 1;
-                        return 0;
-                    });
-                    
-                    matches.forEach(sId => {
-                        const s = sprints.find(sp => sp.id === sId);
-                        if (s) addSprint(s);
-                    });
-                }
-            }
-
-            // Fallback: If space permits, add any other assigned sprint ids from slot_dir_sprint in original priority order
-            assignedIds.forEach(sId => {
-                const s = sprints.find(sp => sp.id === sId);
-                if (s) addSprint(s);
-            });
-        }
-
-        // Return up to 3 priority sprints or more if override sprints are active
-        return list.slice(0, Math.max(3, overrideSprintsActive.length));
+        const fullList = getExploreNextSteps(sprints, user, orchestration, enrolledSprintIds);
+        const overrideCount = sprints.filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id)).length;
+        return fullList.slice(0, Math.max(3, overrideCount));
     }, [sprints, user, orchestration, enrolledSprintIds]);
 
     if (isLoading) {
