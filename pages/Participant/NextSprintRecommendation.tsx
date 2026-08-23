@@ -31,7 +31,6 @@ export const NextSprintRecommendation: React.FC = () => {
     // Payment Modal State
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<string>('coins');
-    const [isCommitted, setIsCommitted] = useState<boolean>(true);
     const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
 
     const vectoriseCoach: Coach = useMemo(() => ({
@@ -341,7 +340,7 @@ export const NextSprintRecommendation: React.FC = () => {
     }, [sprint, user]);
 
     const handleConfirmCommitment = async () => {
-        if (!user || !sprint || !isCommitted || isProcessingPayment) return;
+        if (!user || !sprint || isProcessingPayment) return;
 
         setIsProcessingPayment(true);
         const cost = sprint.pointCost || 10;
@@ -434,9 +433,9 @@ export const NextSprintRecommendation: React.FC = () => {
             <header className="w-full max-w-[340px] sm:max-w-[380px] z-10 flex items-center justify-between pt-2">
                 <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-white">
                     <button 
-                        onClick={() => navigate('/dashboard')} 
+                        onClick={() => navigate('/explore')} 
                         className="p-1 -ml-1 text-white/70 hover:text-white transition-colors cursor-pointer"
-                        title="Back to Dashboard"
+                        title="Explore Sprints"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -505,7 +504,7 @@ export const NextSprintRecommendation: React.FC = () => {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                            className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 max-w-md w-full text-gray-900 relative shadow-2xl max-h-[90vh] overflow-y-auto"
+                            className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-7 max-w-md w-full text-gray-900 relative shadow-2xl max-h-[90vh] overflow-y-auto"
                         >
                             {/* Close Button */}
                             <button
@@ -517,132 +516,153 @@ export const NextSprintRecommendation: React.FC = () => {
 
                             {/* Header */}
                             <div className="text-left mb-4">
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 rounded-md border border-emerald-100 mb-1.5">
-                                    <Sparkles className="w-3 h-3 text-[#0E7850]" />
-                                    <span className="text-[9px] font-black uppercase text-[#0E7850] tracking-wider">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200/60 mb-2">
+                                    <Sparkles className="w-4 h-4 text-[#0E7850]" />
+                                    <span className="text-xs font-black uppercase text-[#0E7850] tracking-wider">
                                         Unlock Sprint
                                     </span>
                                 </div>
-                                <h3 className="text-lg font-black text-gray-900 tracking-tight leading-snug">
+                                <h3 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight leading-snug">
                                     {sprint.title}
                                 </h3>
                             </div>
 
                             {/* Wallet / Pricing / Payment Options Section */}
-                            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-4 text-left space-y-3">
-                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                                    <span>Your Balance</span>
-                                    <span className="text-gray-900 font-black">{userBalance} COINS</span>
+                            <div className="bg-gray-50/90 rounded-2xl p-4 sm:p-5 border border-gray-200/80 mb-4 text-left space-y-3.5">
+                                {/* Balance and Cost Row */}
+                                <div className="grid grid-cols-2 gap-3 pb-3.5 border-b border-gray-200">
+                                    <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">
+                                            Your Balance
+                                        </div>
+                                        <div className="text-base sm:text-lg font-black text-gray-950 flex items-center gap-1.5">
+                                            <span>🪙 {userBalance}</span>
+                                            <span className="text-xs font-bold text-gray-500 uppercase">Coins</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">
+                                            Sprint Cost
+                                        </div>
+                                        <div className="text-base sm:text-lg font-black text-[#0E7850] flex items-center justify-end gap-1.5">
+                                            <span>{sprintCost}</span>
+                                            <span className="text-xs font-bold text-emerald-700 uppercase">Coins</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="h-[1px] bg-gray-200 w-full"></div>
 
-                                <div className="space-y-2">
-                                    {/* Option 1: Coins */}
-                                    <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                                        paymentMethod === 'coins' 
-                                            ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                             : 'bg-white border-gray-150 text-gray-500'
-                                    } ${userBalance < sprintCost ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                        <div className="flex items-center gap-2">
-                                            <input 
-                                                type="radio" 
-                                                name="payment_method_choice" 
-                                                checked={paymentMethod === 'coins'} 
-                                                onChange={() => userBalance >= sprintCost && setPaymentMethod('coins')}
-                                                disabled={userBalance < sprintCost || isProcessingPayment}
-                                                className="text-[#0E7850] focus:ring-[#0E7850] h-4 w-4"
-                                            />
-                                            <span className="text-xs font-black uppercase text-gray-800">
-                                                Use {sprintCost} Coins
+                                {/* Option: Use Coins */}
+                                {userBalance >= sprintCost ? (
+                                    <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
+                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                            </div>
+                                            <span className="text-sm sm:text-base font-black text-gray-900">
+                                                Use {sprintCost} coins of your balance to continue
                                             </span>
                                         </div>
-                                        {userBalance < sprintCost && (
-                                            <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">
-                                                Insufficient
-                                            </span>
-                                        )}
-                                    </label>
-                                </div>
-
-                                {/* Horizontal Coin Packages */}
-                                <BottomModalCoinCards 
-                                    userBalance={userBalance}
-                                    sprintCost={sprintCost}
-                                    sprintId={sprint.id}
-                                    trackId={sprint.trackId}
-                                    selectedPaymentMethod={paymentMethod}
-                                    onSelectPaymentMethod={(method) => setPaymentMethod(method)}
-                                    isProcessing={isProcessingPayment}
-                                />
-
-                                {/* Option 2: Instant Topup Card */}
-                                <div 
-                                    onClick={() => !isProcessingPayment && setPaymentMethod('card')}
-                                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                                        paymentMethod === 'card' 
-                                            ? 'bg-gray-100/90 border-gray-400 text-gray-800' 
-                                            : 'bg-white border-gray-200/70 text-gray-400 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <span className="text-[11px] font-bold text-gray-500">Instant card payment</span>
-                                    {(() => {
-                                        const coinsRem = Math.max(0, sprintCost - userBalance);
-                                        const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
-                                        return (
-                                            <span className="text-[11px] font-bold text-gray-600 shrink-0 ml-2">
-                                                {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
-                                            </span>
-                                        );
-                                    })()}
-                                </div>
-
-                                {/* Commitment Checkbox */}
-                                <button 
-                                    onClick={() => !isProcessingPayment && setIsCommitted(!isCommitted)}
-                                    disabled={isProcessingPayment}
-                                    className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all border text-left cursor-pointer ${
-                                        isCommitted 
-                                            ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-400'
-                                    }`}
-                                >
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${
-                                        isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
-                                    }`}>
-                                        {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                        <span className="text-xs font-black text-[#0E7850] bg-emerald-100 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
+                                            Available
+                                        </span>
                                     </div>
-                                    <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
-                                        I commit to showing up and finishing this
-                                    </span>
-                                </button>
+                                ) : (
+                                    <div className="p-3.5 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-5 h-5 rounded-full border-2 border-rose-300 bg-white flex items-center justify-center text-rose-500 shrink-0">
+                                                <X className="w-3 h-3" />
+                                            </div>
+                                            <div className="text-left">
+                                                <span className="text-sm font-bold text-gray-700 block">
+                                                    Use {sprintCost} coins of your balance to continue
+                                                </span>
+                                                <span className="text-xs font-semibold text-rose-600">
+                                                    Need {sprintCost - userBalance} more coin{sprintCost - userBalance > 1 ? 's' : ''} (You have {userBalance})
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded uppercase shrink-0">
+                                            Shortfall
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* If NOT enough coins, show discount packages and instant pay */}
+                                {userBalance < sprintCost && (
+                                    <>
+                                        {/* Horizontal Coin Packages (Discount Part) */}
+                                        <BottomModalCoinCards 
+                                            userBalance={userBalance}
+                                            sprintCost={sprintCost}
+                                            sprintId={sprint.id}
+                                            trackId={sprint.trackId}
+                                            selectedPaymentMethod={paymentMethod}
+                                            onSelectPaymentMethod={(method) => setPaymentMethod(method)}
+                                            isProcessing={isProcessingPayment}
+                                        />
+
+                                        {/* Instant Topup Card Option */}
+                                        <div 
+                                            onClick={() => !isProcessingPayment && setPaymentMethod('card')}
+                                            className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                                                paymentMethod === 'card' 
+                                                    ? 'bg-emerald-50/50 border-[#0E7850] shadow-sm' 
+                                                    : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                                                    paymentMethod === 'card' ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                                                }`}>
+                                                    {paymentMethod === 'card' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="text-sm sm:text-base font-bold text-gray-900 block">Instant Card Payment</span>
+                                                    <span className="text-xs text-gray-500 font-medium">Pay for remaining coins directly</span>
+                                                </div>
+                                            </div>
+                                            {(() => {
+                                                const coinsRem = Math.max(0, sprintCost - userBalance);
+                                                const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
+                                                return (
+                                                    <span className="text-sm sm:text-base font-black text-[#0E7850] shrink-0 ml-2">
+                                                        ₦{topupPrice.toLocaleString()}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Unlock Action Button */}
                             <div className="pt-2">
                                 <button
                                     onClick={handleConfirmCommitment}
-                                    disabled={!isCommitted || isProcessingPayment}
-                                    className={`w-full py-4 rounded-2xl shadow-xl transition-all text-xs font-black tracking-[0.2em] uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
-                                        isCommitted && !isProcessingPayment
+                                    disabled={isProcessingPayment || (paymentMethod === 'coins' && userBalance < sprintCost)}
+                                    className={`w-full py-4.5 rounded-2xl shadow-xl transition-all text-sm sm:text-base font-black tracking-wider uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
+                                        !isProcessingPayment && !(paymentMethod === 'coins' && userBalance < sprintCost)
                                             ? 'bg-[#0E7850] hover:bg-[#085C3D] text-white active:scale-95 shadow-[#0E7850]/20' 
-                                            : 'bg-gray-100 text-gray-300 cursor-not-allowed shadow-none'
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                                     }`}
                                 >
                                     {isProcessingPayment ? (
                                         <div className="flex items-center gap-2">
-                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                             <span>Unlocking Day 1...</span>
                                         </div>
-                                    ) : paymentMethod === 'coins' ? (
+                                    ) : userBalance >= sprintCost ? (
                                         <span>Start Day 1 Now • Use {sprintCost} Coins</span>
                                     ) : paymentMethod === 'card' ? (
                                         (() => {
                                             const coinsRem = Math.max(0, sprintCost - userBalance);
                                             const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
-                                            return <span>Pay ₦{topupPrice.toLocaleString()} & Unlock</span>;
+                                            return <span>Instant Pay ₦{topupPrice.toLocaleString()} & Unlock</span>;
                                         })()
-                                    ) : (
+                                    ) : paymentMethod.startsWith('pkg_') ? (
                                         <span>Purchase Package & Unlock</span>
+                                    ) : (
+                                        <span>Select Payment Method</span>
                                     )}
                                 </button>
                             </div>

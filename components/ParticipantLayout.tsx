@@ -159,7 +159,7 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const isDaySuccess = location.pathname.startsWith('/participant/day-success');
   const isSprintView = location.pathname.startsWith('/participant/sprint');
   const isSettingsPage = location.pathname.startsWith('/profile/settings');
-  const isNextSprint = location.pathname.startsWith('/participant/next-sprint') || location.pathname.startsWith('/participant/recommendation');
+  const isNextSprint = location.pathname.startsWith('/participant/next-sprint') || location.pathname.startsWith('/participant/recommendation') || location.pathname === '/dashboard';
   const isFullBleedPage = isDaySuccess || isSprintView || isSettingsPage || isNextSprint || location.pathname.startsWith('/sprint') || location.pathname.startsWith('/coach/sprint/preview');
 
   return (

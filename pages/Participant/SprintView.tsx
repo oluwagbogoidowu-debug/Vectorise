@@ -732,18 +732,20 @@ interface SectionHeadingProps {
   children: React.ReactNode;
   color?: string;
   showDot?: boolean;
+  className?: string;
 }
 
 const SectionHeading: React.FC<SectionHeadingProps> = ({
   children,
   color = "primary",
   showDot = false,
+  className = "",
 }) => (
   <h2
-    className={`text-[8px] font-black text-${color} uppercase tracking-[0.4em] mb-4 flex items-center gap-2`}
+    className={`font-black text-${color} uppercase tracking-[0.4em] mb-4 flex items-center gap-2 ${className || "text-[8px]"}`}
   >
     {showDot && (
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+      <span className={`rounded-full bg-emerald-500 animate-pulse shrink-0 ${className ? "w-2 h-2" : "w-1.5 h-1.5"}`}></span>
     )}
     <span>{children}</span>
   </h2>
@@ -754,20 +756,22 @@ const AutoGrowingTextarea: React.FC<{
   onChange: (val: string) => void;
   placeholder?: string;
   className?: string;
-}> = ({ value, onChange, placeholder = "What's on your mind...", className = "" }) => {
+  isFullBleed?: boolean;
+}> = ({ value, onChange, placeholder = "What's on your mind...", className = "", isFullBleed = false }) => {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   const adjustHeight = () => {
     const el = ref.current;
     if (el) {
       el.style.height = "auto";
-      el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+      const maxHeight = isFullBleed ? 360 : 180;
+      el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
     }
   };
 
   useEffect(() => {
     adjustHeight();
-  }, [value]);
+  }, [value, isFullBleed]);
 
   return (
     <textarea
@@ -775,8 +779,8 @@ const AutoGrowingTextarea: React.FC<{
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className={`text-gray-950 ${className} overflow-y-auto min-h-[80px]`}
-      style={{ maxHeight: "180px" }}
+      className={`text-gray-950 ${className} overflow-y-auto ${isFullBleed ? "min-h-[140px] sm:min-h-[180px]" : "min-h-[80px]"}`}
+      style={{ maxHeight: isFullBleed ? "360px" : "180px" }}
     />
   );
 };
@@ -787,7 +791,8 @@ const TagInput: React.FC<{
   maxTags?: number;
   placeholder?: string;
   onNext?: () => void;
-}> = ({ value, onChange, maxTags = 10, placeholder = "Type and press Enter...", onNext }) => {
+  isFullBleed?: boolean;
+}> = ({ value, onChange, maxTags = 10, placeholder = "Type and press Enter...", onNext, isFullBleed = false }) => {
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -877,11 +882,11 @@ const TagInput: React.FC<{
 
   return (
     <div className="w-full text-left">
-      <div className="w-full bg-white border border-gray-200 focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all duration-200 rounded-2xl p-3 flex flex-wrap gap-2 items-center">
+      <div className={`w-full bg-white border border-gray-200 focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all duration-200 rounded-2xl flex flex-wrap gap-2 items-center ${isFullBleed ? 'p-4 sm:p-5' : 'p-3'}`}>
         {tags.map((tag, tIndex) => (
           <span
             key={tIndex}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black tracking-tight bg-primary/5 text-primary border border-primary/10 hover:bg-primary/10 transition-colors select-none"
+            className={`inline-flex items-center gap-1.5 rounded-xl font-black tracking-tight bg-primary/5 text-primary border border-primary/10 hover:bg-primary/10 transition-colors select-none ${isFullBleed ? 'px-4 py-2 text-sm sm:text-base' : 'px-3 py-1.5 text-xs'}`}
           >
             {tag}
             <button
@@ -891,7 +896,7 @@ const TagInput: React.FC<{
               title={`Remove ${tag}`}
             >
               <svg
-                className="w-3.5 h-3.5"
+                className={isFullBleed ? "w-4 h-4" : "w-3.5 h-3.5"}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -918,14 +923,14 @@ const TagInput: React.FC<{
           onPaste={handlePaste}
           placeholder={tags.length === 0 ? placeholder : "Add tag..."}
           disabled={tags.length >= maxTags}
-          className="flex-1 min-w-[145px] px-2 py-1 text-sm font-medium text-gray-900 outline-none bg-transparent disabled:opacity-50"
+          className={`flex-1 min-w-[145px] font-medium text-gray-900 outline-none bg-transparent disabled:opacity-50 ${isFullBleed ? 'px-3 py-2 text-base sm:text-lg md:text-xl placeholder:text-gray-400' : 'px-2 py-1 text-sm'}`}
         />
       </div>
 
       {error && (
-        <div className="mt-2 px-1 text-[10px] font-black uppercase tracking-widest text-red-500 font-bold lowercase first-letter:uppercase animate-fade-in">
+        <p className={`mt-1.5 text-rose-500 font-bold animate-fade-in ${isFullBleed ? 'text-sm' : 'text-[10px]'}`}>
           {error}
-        </div>
+        </p>
       )}
     </div>
   );
@@ -2709,7 +2714,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               </div>
 
                               <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
-                                <SectionHeading showDot={!dayProgress?.completed}>
+                                <SectionHeading 
+                                  showDot={!dayProgress?.completed}
+                                  className={isFullBleed ? "text-xs sm:text-sm tracking-[0.3em]" : "text-[8px]"}
+                                >
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
 
@@ -2730,13 +2738,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                          const tagsWithNotes = linkedTagsForNoteSpec.filter(tag => notesMap[tag] && notesMap[tag].trim() !== "");
                                          if (tagsWithNotes.length > 0) {
                                              return (
-                                                 <div className="mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in">
+                                                 <div className={`mb-4 space-y-3 pl-4 border-l-4 border-emerald-500/30 py-1 text-left animate-fade-in ${isFullBleed ? 'space-y-4' : 'space-y-3'}`}>
                                                      {tagsWithNotes.map((tag, tagIndex) => (
-                                                         <div key={tagIndex} className="text-gray-700 font-bold text-xs sm:text-sm leading-relaxed space-y-1.5 mt-1">
-                                                             <div className="inline-block bg-indigo-50 text-indigo-800 border border-indigo-150 px-2.5 py-0.5 rounded-full font-black italic text-[9px] shadow-sm uppercase animate-fade-in">
+                                                         <div key={tagIndex} className={`text-gray-700 font-bold leading-relaxed space-y-1.5 mt-1 ${isFullBleed ? 'text-base sm:text-lg md:text-xl' : 'text-xs sm:text-sm'}`}>
+                                                             <div className={`inline-block bg-indigo-50 text-indigo-800 border border-indigo-150 rounded-full font-black italic shadow-sm uppercase animate-fade-in ${isFullBleed ? 'px-3.5 py-1 text-xs sm:text-sm' : 'px-2.5 py-0.5 text-[9px]'}`}>
                                                                  🏷️ {tag}
                                                              </div>
-                                                             <div className="text-gray-700 font-normal text-sm sm:text-base leading-relaxed pl-1 animate-fade-in">
+                                                             <div className={`text-gray-700 font-normal leading-relaxed pl-1 animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
                                                                  <FormattedText text={notesMap[tag]} />
                                                              </div>
                                                          </div>
@@ -2747,12 +2755,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                      } else {
                                          return (
                                              <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                                                 <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
+                                                 <div className={`text-gray-700 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
                                                      <FormattedText text={dynamicNoteRaw} />
                                                  </div>
                                                  <div className="flex flex-wrap gap-1.5 pt-0.5">
                                                      {linkedTagsForNoteSpec.map((tag, tagIndex) => (
-                                                         <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-150 px-2.5 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm animate-fade-in">
+                                                         <span key={tagIndex} className={`inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-150 rounded-full font-black italic uppercase shadow-sm animate-fade-in ${isFullBleed ? 'px-3.5 py-1 text-xs sm:text-sm' : 'px-2.5 py-0.5 text-[9px]'}`}>
                                                              🏷️ {tag}
                                                          </span>
                                                      ))}
@@ -2783,12 +2791,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                                 return (
                                   <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                                    <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
+                                    <div className={`text-gray-700 font-bold leading-relaxed ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
                                       <FormattedText text={displayNoteText} />
                                     </div>
                                     <div className="flex flex-wrap gap-1.5 pt-0.5">
                                       {linkedTags.map((tag, tagIndex) => (
-                                        <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm">
+                                        <span key={tagIndex} className={`inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 rounded-full font-black italic uppercase shadow-sm ${isFullBleed ? 'px-3.5 py-1 text-xs sm:text-sm' : 'px-2.5 py-0.5 text-[9px]'}`}>
                                           🏷️ {tag}
                                         </span>
                                       ))}
@@ -2797,11 +2805,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 );
                               })()}
 
-                              <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${dayContent?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
+                              <div className={`text-gray-950 font-black leading-tight ${isFullBleed ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
                               {dayContent?.taskFootnotes?.[i] && (
-                                <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
+                                <div className={`mb-6 text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
                                   <FormattedText text={formatInterpolatedText(dayContent.taskFootnotes[i], dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                                 </div>
                               )}
@@ -2818,10 +2826,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           [i]: !prev[i],
                                         }))
                                       }
-                                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                      className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-1.5 py-0.5 rounded text-[8px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                                     >
                                       <svg
-                                        className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                        className={`${isFullBleed ? 'w-4 h-4' : 'w-2.5 h-2.5'} transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -2836,7 +2844,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       <span>Hint</span>
                                     </button>
                                     {revealedHints[i] && (
-                                      <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                      <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-base sm:text-lg font-medium' : 'p-3 rounded-xl text-[11px] sm:text-xs font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                         <FormattedText
                                           text={resolvedHint}
                                         />
@@ -2868,6 +2876,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         }
                                       }}
                                       placeholder="Type and press Enter to add tags..."
+                                      isFullBleed={isFullBleed}
                                     />
                                     {(() => {
                                       const linkedTags = getLinkedTagsForStep(i);
@@ -2884,10 +2893,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                                       return (
                                         <div className="pt-2 animate-fade-in text-left">
-                                          <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest mb-2">
+                                          <p className={`${isFullBleed ? 'text-xs sm:text-sm font-black' : 'text-[10px] font-black'} text-[#0E7850] uppercase tracking-widest mb-3`}>
                                             🏷️ Connected Choices (Click to Toggle):
                                           </p>
-                                          <div className="flex flex-wrap gap-1.5">
+                                          <div className="flex flex-wrap gap-2">
                                             {linkedTags.map((tag, tagIndex) => {
                                               const isSel = selectedTags.some(t => t.toLowerCase() === tag.toLowerCase());
                                               return (
@@ -2905,7 +2914,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                     newInputs[i] = JSON.stringify(newTags);
                                                     setTaskInputs(newInputs);
                                                   }}
-                                                  className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                                  className={`${isFullBleed ? 'px-4 py-2 text-xs sm:text-sm font-black' : 'px-3 py-1.5 text-[10px] font-black'} rounded-full uppercase tracking-widest transition-all border cursor-pointer ${
                                                     isSel 
                                                       ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md" 
                                                       : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-750"
@@ -2922,19 +2931,19 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   </div>
                                 ) : effectiveInputType === "note" ? (
                                   <div className="space-y-4 animate-fade-in text-left">
-                                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/15 rounded-2xl flex items-center gap-3">
-                                      <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                    <div className={`${isFullBleed ? 'p-6 rounded-2xl gap-4' : 'p-4 rounded-2xl gap-3'} bg-emerald-500/10 border border-emerald-500/15 flex items-center`}>
+                                      <div className={`${isFullBleed ? 'w-12 h-12' : 'w-10 h-10'} rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0`}>
+                                        <svg className={isFullBleed ? "w-6 h-6" : "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                       </div>
                                       <div>
-                                        <p className="text-xs font-black text-emerald-800 uppercase tracking-widest">Informational Step Completed</p>
-                                        <p className="text-xs text-emerald-700 font-medium font-semibold">Review the notes above and click Next to continue.</p>
+                                        <p className={`${isFullBleed ? 'text-sm sm:text-base' : 'text-xs'} font-black text-emerald-800 uppercase tracking-widest`}>Informational Step Completed</p>
+                                        <p className={`${isFullBleed ? 'text-sm sm:text-base' : 'text-xs'} text-emerald-700 font-semibold`}>Review the notes above and click Next to continue.</p>
                                       </div>
                                     </div>
                                   </div>
                                 ) : effectiveInputType ===
                                   "poll" ? (
-                                  <div className="space-y-2">
+                                  <div className="space-y-3">
                                     {(() => {
                                       let pollOptions: string[] = [];
                                       let customOptions: string[] = [];
@@ -2969,10 +2978,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         if (isMultiSelect) {
                                           return (
                                             <>
-                                              <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
+                                              <p className={`${isFullBleed ? 'text-xs sm:text-sm font-black' : 'text-[10px] font-black'} uppercase text-primary tracking-widest pl-1 mb-3 animate-pulse flex items-center gap-2`}>
                                                 <span>☑️ Select one or more:</span>
                                               </p>
-                                              <div className="flex flex-wrap gap-1.5 w-full">
+                                              <div className="flex flex-wrap gap-2 w-full">
                                                 {pollOptions
                                                   .filter(Boolean)
                                                   .map((opt: string, optIndex: number) => {
@@ -2993,7 +3002,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                           newInputs[i] = JSON.stringify(newSelected);
                                                           setTaskInputs(newInputs);
                                                         }}
-                                                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                        className={`${isFullBleed ? 'px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm' : 'px-3 py-1.5 text-[9px]'} rounded-full font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
                                                       >
                                                         {opt}
                                                       </button>
@@ -3005,7 +3014,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         }
 
                                         return (
-                                          <div className="flex flex-wrap gap-1.5 w-full">
+                                          <div className="flex flex-wrap gap-2 w-full">
                                             {pollOptions
                                               .filter(Boolean)
                                               .map((opt: string, optIndex: number) => {
@@ -3019,7 +3028,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                       newInputs[i] = opt;
                                                       setTaskInputs(newInputs);
                                                     }}
-                                                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                    className={`${isFullBleed ? 'px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm' : 'px-3 py-1.5 text-[9px]'} rounded-full font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
                                                   >
                                                     {opt}
                                                   </button>
@@ -3032,10 +3041,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       if (isMultiSelect) {
                                         return (
                                           <>
-                                            <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
+                                            <p className={`${isFullBleed ? 'text-xs sm:text-sm font-black' : 'text-[10px] font-black'} uppercase text-primary tracking-widest pl-1 mb-3 animate-pulse flex items-center gap-2`}>
                                               <span>☑️ Select one or more:</span>
                                             </p>
-                                            <div className="space-y-2 w-full">
+                                            <div className="space-y-3 w-full">
                                               {pollOptions
                                                 .filter(Boolean)
                                                 .map((opt: string, optIndex: number) => {
@@ -3056,14 +3065,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                         newInputs[i] = JSON.stringify(newSelected);
                                                         setTaskInputs(newInputs);
                                                       }}
-                                                      className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                      className={`w-full ${isFullBleed ? 'py-4 sm:py-5 px-5 sm:px-6 rounded-2xl text-base sm:text-lg md:text-xl font-bold' : 'py-3 px-4 rounded-xl text-sm font-bold'} transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
                                                     >
                                                       <span>
                                                         {String.fromCharCode(65 + optIndex)}. {opt}
                                                       </span>
-                                                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
+                                                      <div className={`${isFullBleed ? 'w-6 h-6 rounded-lg' : 'w-4 h-4 rounded'} border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
                                                         {isSel && (
-                                                          <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                          <svg className={isFullBleed ? "w-4 h-4 text-white animate-fade-in" : "w-2.5 h-2.5 text-white animate-fade-in"} fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                                                         )}
                                                       </div>
                                                     </button>
@@ -3088,7 +3097,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 newInputs[i] = opt;
                                                 setTaskInputs(newInputs);
                                               }}
-                                              className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                              className={`w-full ${isFullBleed ? 'py-4 sm:py-5 px-5 sm:px-6 rounded-2xl text-base sm:text-lg md:text-xl font-bold' : 'py-3 px-4 rounded-xl text-sm font-bold'} transition-all text-left border ${taskInputs[i] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
                                             >
                                               {String.fromCharCode(
                                                 65 + optIndex,
@@ -3112,22 +3121,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             setConfirmMarkStepIndex(i);
                                           }
                                         }}
-                                        className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[i] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
+                                        className={`w-full ${isFullBleed ? 'p-5 sm:p-6 rounded-2xl' : 'p-4 rounded-2xl'} border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[i] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
                                       >
-                                        <div className="flex items-center gap-3">
-                                          <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${taskInputs[i] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
+                                        <div className="flex items-center gap-3.5">
+                                          <div className={`${isFullBleed ? 'w-7 h-7 rounded-xl border-2' : 'w-5 h-5 rounded-lg border-2'} flex items-center justify-center shrink-0 transition-all ${taskInputs[i] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
                                             {taskInputs[i] === "Completed" && (
-                                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                              <svg className={isFullBleed ? "w-4 h-4" : "w-3 h-3"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                               </svg>
                                             )}
                                           </div>
-                                          <span className="text-sm font-bold tracking-wide">
+                                          <span className={`${isFullBleed ? 'text-base sm:text-lg md:text-xl font-bold' : 'text-sm font-bold'} tracking-wide`}>
                                             {taskInputs[i] === "Completed" ? "Completed & Verified!" : "Mark as Completed"}
                                           </span>
                                         </div>
                                         {taskInputs[i] === "Completed" && (
-                                          <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                          <span className={`${isFullBleed ? 'text-xs px-3.5 py-1 font-black' : 'text-[9px] px-2.5 py-0.5 font-black'} text-emerald-600 bg-emerald-100 rounded-full uppercase tracking-widest shrink-0`}>
                                             DONE
                                           </span>
                                         )}
@@ -3150,9 +3159,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         }
                                         const tagVal = currentAnswers[tag] || "";
                                         return (
-                                          <div key={tagIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                          <div key={tagIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
                                             <div className="flex items-center">
-                                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                              <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
                                                 🏷️ {tag}
                                               </span>
                                             </div>
@@ -3165,7 +3174,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 setTaskInputs(newInputs);
                                               }}
                                               placeholder={`Your answer for ${tag}...`}
-                                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                              isFullBleed={isFullBleed}
+                                              className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-sm rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
                                             />
                                           </div>
                                         );
@@ -3188,9 +3198,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         }
                                         const labelVal = currentAnswers[lbl] || "";
                                         return (
-                                          <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                          <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
                                             <div className="flex items-center">
-                                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                              <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
                                                 📝 {lbl}
                                               </span>
                                             </div>
@@ -3203,7 +3213,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 setTaskInputs(newInputs);
                                               }}
                                               placeholder={`Your answer for ${lbl}...`}
-                                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                              isFullBleed={isFullBleed}
+                                              className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-sm rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
                                             />
                                           </div>
                                         );
@@ -3218,13 +3229,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         setTaskInputs(newInputs);
                                       }}
                                       placeholder="What's on your mind..."
-                                      className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
+                                      isFullBleed={isFullBleed}
+                                      className={`w-full ${isFullBleed ? 'px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-sm rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in`}
                                     />
                                   ))}
                               {dayProgress?.completed && (
-                                <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                                <div className={`px-4 py-3 bg-white/50 border border-primary/10 rounded-xl ${isFullBleed ? 'text-base sm:text-lg' : 'text-sm'} font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center`}>
                                   <svg
-                                    className="w-4 h-4 shrink-0"
+                                    className={`${isFullBleed ? 'w-5 h-5' : 'w-4 h-4'} shrink-0`}
                                     fill="currentColor"
                                     viewBox="0 0 20 20"
                                   >
@@ -3250,7 +3262,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         return tags.map((tag: string, tIndex: number) => (
                                           <span
                                             key={tIndex}
-                                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider"
+                                            className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-sm sm:text-base' : 'px-2.5 py-1 text-xs'} font-semibold bg-primary/10 text-primary uppercase tracking-wider rounded-md`}
                                           >
                                             {tag}
                                           </span>
@@ -3263,10 +3275,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             const parsed = JSON.parse(taskInputs[i]);
                                             return Object.entries(parsed).map(([tag, ans], idx) => (
                                               <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                                <span className={`inline-flex items-center ${isFullBleed ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider rounded-md`}>
                                                   🏷️ {tag}
                                                 </span>
-                                                <p className="text-gray-700 font-medium text-xs pl-1">
+                                                <p className={`text-gray-700 font-medium ${isFullBleed ? 'text-base sm:text-lg' : 'text-xs'} pl-1`}>
                                                   {ans as string}
                                                 </p>
                                               </div>
@@ -3283,10 +3295,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             const parsed = JSON.parse(taskInputs[i]);
                                             return Object.entries(parsed).map(([lbl, ans], idx) => (
                                               <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0 text-left">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                                <span className={`inline-flex items-center ${isFullBleed ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider rounded-md`}>
                                                   📝 {lbl}
                                                 </span>
-                                                <p className="text-gray-700 font-medium text-xs pl-1">
+                                                <p className={`text-gray-700 font-medium ${isFullBleed ? 'text-base sm:text-lg' : 'text-xs'} pl-1`}>
                                                   {ans as string}
                                                 </p>
                                               </div>
@@ -3302,7 +3314,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 </div>
                               )}
                               {i === activeTaskIndex && (
-                                <div className="mt-4 flex flex-col gap-4 w-full">
+                                <div className="mt-6 flex flex-col gap-4 w-full">
                                   <div className="flex justify-between items-center gap-4 w-full">
                                     {getPrevVisibleStepIndex(i) !== -1 ? (
                                       <button
@@ -3311,7 +3323,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           saveParticipantInputImmediately(taskInputs);
                                           setActiveTaskIndex(getPrevVisibleStepIndex(i));
                                         }}
-                                        className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30"
+                                        className={`${isFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
                                       >
                                         Back
                                       </button>
@@ -3374,7 +3386,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                               { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(getNextVisibleStepIndex(i)); }
                                             }
                                             disabled={!isValid}
-                                            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                            className={`${isFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                           >
                                             Next
                                           </button>
@@ -3415,10 +3427,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       type="button"
                                       onClick={() => setIsChatModalOpen(true)}
                                       disabled={dayLockDetails.isLocked}
-                                      className={`inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#0E7850] font-medium transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
+                                      className={`inline-flex items-center gap-1.5 ${isFullBleed ? 'text-sm font-semibold' : 'text-xs font-medium'} text-gray-400 hover:text-[#0E7850] transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
                                       title={dayLockDetails.isLocked ? "Complete previous day first" : "Request guidance"}
                                     >
-                                      <MessageCircle className="w-3.5 h-3.5" />
+                                      <MessageCircle className={isFullBleed ? "w-4 h-4" : "w-3.5 h-3.5"} />
                                       <span>Request guidance</span>
                                       {!dayLockDetails.isLocked && hasUnreadMessages && (
                                         <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
@@ -3434,12 +3446,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       type="button"
                                       onClick={handleFinishDay}
                                       disabled={isSubmitting || !isProofMet}
-                                      className={`w-full py-4.5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                      className={`w-full ${isFullBleed ? 'py-5 sm:py-6 text-sm sm:text-base md:text-lg' : 'py-4.5 text-xs'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                     >
                                       Today's task completed
                                     </button>
                                   ) : (
-                                    <div className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-center border border-gray-100">
+                                    <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100">
                                       Mission Complete
                                     </div>
                                   )}
@@ -3474,7 +3486,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         </div>
 
                         <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
-                          <SectionHeading showDot={!dayProgress?.completed}>
+                          <SectionHeading 
+                            showDot={!dayProgress?.completed}
+                            className={isFullBleed ? "text-xs sm:text-sm tracking-[0.3em]" : "text-[8px]"}
+                          >
                             {isFullBleed ? (
                               <>Action Step 1</>
                             ) : (
@@ -3505,12 +3520,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                           return (
                             <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-1.5">
-                              <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
+                              <div className={`text-gray-700 font-bold leading-relaxed ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
                                 <FormattedText text={displayNoteText} />
                               </div>
                               <div className="flex flex-wrap gap-1.5 pt-0.5">
                                 {linkedTags.map((tag, tagIndex) => (
-                                  <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm">
+                                  <span key={tagIndex} className={`inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 rounded-full font-black italic uppercase shadow-sm ${isFullBleed ? 'px-3.5 py-1 text-xs sm:text-sm' : 'px-2.5 py-0.5 text-[9px]'}`}>
                                     🏷️ {tag}
                                   </span>
                                 ))}
@@ -3518,11 +3533,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </div>
                           );
                         })()}
-                        <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${dayContent?.taskFootnotes?.[0] ? 'mb-2' : 'mb-4'}`}>
+                        <div className={`text-gray-950 font-black leading-tight ${isFullBleed ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[0] ? 'mb-3' : 'mb-6'}`}>
                           <FormattedText text={dayContent?.taskPrompt || ""} />
                         </div>
                         {dayContent?.taskFootnotes?.[0] && (
-                          <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
+                          <div className={`mb-6 text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
                             <FormattedText text={dayContent.taskFootnotes[0]} />
                           </div>
                         )}
@@ -3539,10 +3554,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     0: !prev[0],
                                   }))
                                 }
-                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-1.5 py-0.5 rounded text-[8px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                               >
                                 <svg
-                                  className={`w-2.5 h-2.5 transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
+                                  className={`${isFullBleed ? 'w-4 h-4' : 'w-2.5 h-2.5'} transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -3557,7 +3572,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 <span>Hint</span>
                               </button>
                               {revealedHints[0] && (
-                                <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-base sm:text-lg font-medium' : 'p-3 rounded-xl text-[11px] sm:text-xs font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                   <FormattedText text={resolvedHint} />
                                 </div>
                               )}
@@ -3581,9 +3596,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 }
                               }}
                               placeholder="Type and press Enter to add tags..."
+                              isFullBleed={isFullBleed}
                             />
                           ) : dayContent?.taskInputTypes?.[0] === "poll" ? (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               {(() => {
                                 let pollOpts: string[] = [];
                                 try {
@@ -3605,10 +3621,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   if (isMultiSelect) {
                                     return (
                                       <>
-                                        <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
+                                        <p className={`${isFullBleed ? 'text-xs sm:text-sm font-black' : 'text-[10px] font-black'} uppercase text-primary tracking-widest pl-1 mb-3 animate-pulse flex items-center gap-2`}>
                                           <span>☑️ Select one or more:</span>
                                         </p>
-                                        <div className="flex flex-wrap gap-1.5 w-full">
+                                        <div className="flex flex-wrap gap-2 w-full">
                                           {pollOpts
                                             .filter(Boolean)
                                             .map((opt, optIndex) => {
@@ -3629,7 +3645,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                     newInputs[0] = JSON.stringify(newSelected);
                                                     setTaskInputs(newInputs);
                                                   }}
-                                                  className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                  className={`${isFullBleed ? 'px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm' : 'px-3 py-1.5 text-[9px]'} rounded-full font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
                                                 >
                                                   {opt}
                                                 </button>
@@ -3641,7 +3657,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   }
 
                                   return (
-                                    <div className="flex flex-wrap gap-1.5 w-full">
+                                    <div className="flex flex-wrap gap-2 w-full">
                                       {pollOpts
                                         .filter(Boolean)
                                         .map((opt, optIndex) => {
@@ -3655,7 +3671,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 newInputs[0] = opt;
                                                 setTaskInputs(newInputs);
                                               }}
-                                              className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                              className={`${isFullBleed ? 'px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm' : 'px-3 py-1.5 text-[9px]'} rounded-full font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
                                             >
                                               {opt}
                                             </button>
@@ -3668,10 +3684,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 if (isMultiSelect) {
                                   return (
                                     <>
-                                      <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-2 animate-pulse flex items-center gap-1.5">
+                                      <p className={`${isFullBleed ? 'text-xs sm:text-sm font-black' : 'text-[10px] font-black'} uppercase text-primary tracking-widest pl-1 mb-3 animate-pulse flex items-center gap-2`}>
                                         <span>☑️ Select one or more:</span>
                                       </p>
-                                      <div className="space-y-2 w-full">
+                                      <div className="space-y-3 w-full">
                                         {pollOpts
                                           .filter(Boolean)
                                           .map((opt, optIndex) => {
@@ -3692,14 +3708,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                   newInputs[0] = JSON.stringify(newSelected);
                                                   setTaskInputs(newInputs);
                                                 }}
-                                                className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                className={`w-full ${isFullBleed ? 'py-4 sm:py-5 px-5 sm:px-6 rounded-2xl text-base sm:text-lg md:text-xl font-bold' : 'py-3 px-4 rounded-xl text-sm font-bold'} transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
                                               >
                                                 <span>
                                                   {String.fromCharCode(65 + optIndex)}. {opt}
                                                 </span>
-                                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
+                                                <div className={`${isFullBleed ? 'w-6 h-6 rounded-lg' : 'w-4 h-4 rounded'} border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
                                                   {isSel && (
-                                                    <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                    <svg className={isFullBleed ? "w-4 h-4 text-white animate-fade-in" : "w-2.5 h-2.5 text-white animate-fade-in"} fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                                                   )}
                                                 </div>
                                               </button>
@@ -3721,7 +3737,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         newInputs[0] = opt;
                                         setTaskInputs(newInputs);
                                       }}
-                                      className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[0] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                      className={`w-full ${isFullBleed ? 'py-4 sm:py-5 px-5 sm:px-6 rounded-2xl text-base sm:text-lg md:text-xl font-bold' : 'py-3 px-4 rounded-xl text-sm font-bold'} transition-all text-left border ${taskInputs[0] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
                                     >
                                       {String.fromCharCode(65 + optIndex)}.{" "}
                                       {opt}
@@ -3742,22 +3758,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     setConfirmMarkStepIndex(0);
                                   }
                                 }}
-                                className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[0] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
+                                className={`w-full ${isFullBleed ? 'p-5 sm:p-6 rounded-2xl' : 'p-4 rounded-2xl'} border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[0] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
                               >
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${taskInputs[0] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
+                                <div className="flex items-center gap-3.5">
+                                  <div className={`${isFullBleed ? 'w-7 h-7 rounded-xl border-2' : 'w-5 h-5 rounded-lg border-2'} flex items-center justify-center shrink-0 transition-all ${taskInputs[0] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
                                     {taskInputs[0] === "Completed" && (
-                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                      <svg className={isFullBleed ? "w-4 h-4" : "w-3 h-3"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                       </svg>
                                     )}
                                   </div>
-                                  <span className="text-sm font-bold tracking-wide">
+                                  <span className={`${isFullBleed ? 'text-base sm:text-lg md:text-xl font-bold' : 'text-sm font-bold'} tracking-wide`}>
                                     {taskInputs[0] === "Completed" ? "Completed & Verified!" : "Mark as Completed"}
                                   </span>
                                 </div>
                                 {taskInputs[0] === "Completed" && (
-                                  <span className="text-[9px] font-black text-emerald-600 bg-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest shrink-0">
+                                  <span className={`${isFullBleed ? 'text-xs px-3.5 py-1 font-black' : 'text-[9px] px-2.5 py-0.5 font-black'} text-emerald-600 bg-emerald-100 rounded-full uppercase tracking-widest shrink-0`}>
                                     DONE
                                   </span>
                                 )}
@@ -3780,9 +3796,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 }
                                 const labelVal = currentAnswers[lbl] || "";
                                 return (
-                                  <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                  <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
                                     <div className="flex items-center">
-                                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                      <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
                                         📝 {lbl}
                                       </span>
                                     </div>
@@ -3795,7 +3811,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         setTaskInputs(newInputs);
                                       }}
                                       placeholder={`Your answer for ${lbl}...`}
-                                      className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                      isFullBleed={isFullBleed}
+                                      className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-sm rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
                                     />
                                   </div>
                                 );
@@ -3810,13 +3827,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 setTaskInputs(newInputs);
                               }}
                               placeholder="What's on your mind..."
-                              className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
+                              isFullBleed={isFullBleed}
+                              className={`w-full ${isFullBleed ? 'px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-sm rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in`}
                             />
                           ))}
                         {dayProgress?.completed && (
-                          <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-sm font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                          <div className={`px-4 py-3 bg-white/50 border border-primary/10 rounded-xl ${isFullBleed ? 'text-base sm:text-lg' : 'text-sm'} font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center`}>
                             <svg
-                              className="w-4 h-4 shrink-0"
+                              className={`${isFullBleed ? 'w-5 h-5' : 'w-4 h-4'} shrink-0`}
                               fill="currentColor"
                               viewBox="0 0 20 20"
                             >
@@ -3842,7 +3860,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   return tags.map((tag: string, tIndex: number) => (
                                     <span
                                       key={tIndex}
-                                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider"
+                                      className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-sm sm:text-base' : 'px-2.5 py-1 text-xs'} font-semibold bg-primary/10 text-primary uppercase tracking-wider rounded-md`}
                                     >
                                       {tag}
                                     </span>
@@ -3855,10 +3873,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       const parsed = JSON.parse(taskInputs[0]);
                                       return Object.entries(parsed).map(([lbl, ans], idx) => (
                                         <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0 text-left">
-                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider">
+                                          <span className={`inline-flex items-center ${isFullBleed ? 'px-3 py-1 text-xs' : 'px-2.5 py-0.5 text-[10px]'} font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider rounded-md`}>
                                             📝 {lbl}
                                           </span>
-                                          <p className="text-gray-700 font-medium text-xs pl-1">
+                                          <p className={`text-gray-700 font-medium ${isFullBleed ? 'text-base sm:text-lg' : 'text-xs'} pl-1`}>
                                             {ans as string}
                                           </p>
                                         </div>
@@ -3879,12 +3897,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 type="button"
                                 onClick={handleFinishDay}
                                 disabled={isSubmitting || !isProofMet}
-                                className={`w-full py-4.5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                className={`w-full ${isFullBleed ? 'py-5 sm:py-6 text-sm sm:text-base md:text-lg' : 'py-4.5 text-xs'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                               >
                                 Today's task completed
                               </button>
                             ) : (
-                              <div className="w-full py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-center border border-gray-100">
+                              <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100">
                                 Mission Complete
                               </div>
                             )}
@@ -3897,10 +3915,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             type="button"
                             onClick={() => setIsChatModalOpen(true)}
                             disabled={dayLockDetails.isLocked}
-                            className={`inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#0E7850] font-medium transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
+                            className={`inline-flex items-center gap-1.5 ${isFullBleed ? 'text-sm font-semibold' : 'text-xs font-medium'} text-gray-400 hover:text-[#0E7850] transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
                             title={dayLockDetails.isLocked ? "Complete previous day first" : "Request guidance"}
                           >
-                            <MessageCircle className="w-3.5 h-3.5" />
+                            <MessageCircle className={isFullBleed ? "w-4 h-4" : "w-3.5 h-3.5"} />
                             <span>Request guidance</span>
                             {!dayLockDetails.isLocked && hasUnreadMessages && (
                               <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>

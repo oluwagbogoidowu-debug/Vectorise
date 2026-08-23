@@ -100,17 +100,17 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
   ];
 
   return (
-    <div className="w-full mt-3 pt-2 border-t border-gray-100">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+    <div className="w-full mt-4 pt-3 border-t border-gray-200">
+      <div className="flex items-center justify-between mb-2.5 px-1">
+        <span className="text-xs font-black uppercase tracking-wider text-gray-500">
           Get Discounted Coins
         </span>
-        <span className="text-[9px] font-bold text-gray-400">
+        <span className="text-xs font-semibold text-gray-400">
           Keep your momentum constant
         </span>
       </div>
 
-      <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar text-left scroll-smooth">
+      <div className="flex gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar text-left scroll-smooth">
         {/* Coin Packages */}
         {packages.map((pkg) => {
           const isSelected = selectedPaymentMethod === pkg.id;
@@ -127,37 +127,37 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
                   }
                 }
               }}
-              className={`min-w-[150px] sm:min-w-[165px] w-[155px] shrink-0 border-2 rounded-2xl p-3 flex flex-col justify-between transition-all relative cursor-pointer ${
+              className={`min-w-[170px] sm:min-w-[185px] w-[175px] shrink-0 border-2 rounded-2xl p-3.5 flex flex-col justify-between transition-all relative cursor-pointer ${
                 isSelected 
                   ? 'border-[#0E7850] ring-2 ring-[#0E7850]/40 shadow-md bg-emerald-50/40 scale-[1.02]' 
                   : `bg-white ${pkg.cardStyle} hover:border-gray-300`
               }`}
             >
               <div>
-                <div className="flex items-center justify-between gap-1 mb-1">
+                <div className="flex items-center justify-between gap-1 mb-1.5">
                   <div className="flex items-center gap-1.5">
-                    <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-all ${
                       isSelected ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
                     }`}>
-                      {isSelected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
                     </div>
-                    <span className={`text-[7.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md ${pkg.tagStyle}`}>
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${pkg.tagStyle}`}>
                       {pkg.tag}
                     </span>
                   </div>
-                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${pkg.discountStyle}`}>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${pkg.discountStyle}`}>
                     {pkg.discount}
                   </span>
                 </div>
-                <div className="text-xs font-black text-gray-900 tracking-tight mt-1 mb-0.5">
+                <div className="text-sm sm:text-base font-black text-gray-900 tracking-tight mt-1 mb-1">
                   {pkg.coins} Coins
                 </div>
-                <p className="text-[9px] text-gray-500 font-medium leading-tight line-clamp-2">
+                <p className="text-xs text-gray-600 font-medium leading-snug line-clamp-2">
                   {pkg.description}
                 </p>
               </div>
 
-              <div className="mt-2.5">
+              <div className="mt-3">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -171,12 +171,12 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
                     }
                   }}
                   disabled={loadingPkgId !== null || isProcessing}
-                  className={`w-full py-1.5 px-1 rounded-xl text-[8.5px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1 ${
+                  className={`w-full py-2 px-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 ${
                     isSelected ? 'bg-[#0E7850] text-white shadow-xs' : pkg.buttonStyle
                   } ${(loadingPkgId !== null || isProcessing) ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {loadingPkgId === pkg.id ? (
-                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : isSelected ? (
                     `Selected • ₦${pkg.price.toLocaleString()}`
                   ) : (

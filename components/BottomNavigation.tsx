@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
-import { Home, Zap, User } from 'lucide-react';
+import { Sparkles, Compass, Zap, User } from 'lucide-react';
 
 const BottomNavigation: React.FC = () => {
   const { user } = useAuth();
-  const [hasUnread, setHasUnread] = useState(true); // Default true to match screenshot requirement
+  const [hasUnread, setHasUnread] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -19,11 +19,18 @@ const BottomNavigation: React.FC = () => {
 
   const navItems = [
     {
-      label: 'Home',
-      path: '/dashboard',
+      label: 'Explore',
+      path: '/explore',
+      icon: (active: boolean) => (
+        <Compass className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
+      )
+    },
+    {
+      label: 'Next Sprint',
+      path: '/participant/next-sprint',
       icon: (active: boolean) => (
         <div className="relative">
-          <Home className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
+          <Sparkles className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
           {hasUnread && (
             <div className="absolute -top-1 -right-1 flex items-center justify-center">
               <div className="absolute w-4 h-4 bg-red-500/20 rounded-full animate-pulse"></div>
