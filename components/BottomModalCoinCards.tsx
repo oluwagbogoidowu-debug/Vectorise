@@ -100,13 +100,10 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
   ];
 
   return (
-    <div className="w-full mt-4 pt-3 border-t border-gray-200">
-      <div className="flex items-center justify-between mb-2.5 px-1">
+    <div className="w-full mt-2 pt-2 border-t border-gray-200">
+      <div className="flex items-center justify-between mb-2 px-1">
         <span className="text-xs font-black uppercase tracking-wider text-gray-500">
-          Get Discounted Coins
-        </span>
-        <span className="text-xs font-semibold text-gray-400">
-          Keep your momentum constant
+          Coin Packages
         </span>
       </div>
 
@@ -127,7 +124,7 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
                   }
                 }
               }}
-              className={`min-w-[170px] sm:min-w-[185px] w-[175px] shrink-0 border-2 rounded-2xl p-3.5 flex flex-col justify-between transition-all relative cursor-pointer ${
+              className={`min-w-[165px] sm:min-w-[180px] w-[170px] shrink-0 border-2 rounded-2xl p-3.5 flex flex-col justify-between transition-all relative cursor-pointer ${
                 isSelected 
                   ? 'border-[#0E7850] ring-2 ring-[#0E7850]/40 shadow-md bg-emerald-50/40 scale-[1.02]' 
                   : `bg-white ${pkg.cardStyle} hover:border-gray-300`
@@ -145,9 +142,6 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
                       {pkg.tag}
                     </span>
                   </div>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${pkg.discountStyle}`}>
-                    {pkg.discount}
-                  </span>
                 </div>
                 <div className="text-sm sm:text-base font-black text-gray-900 tracking-tight mt-1 mb-1">
                   {pkg.coins} Coins

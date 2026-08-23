@@ -551,8 +551,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Option: Use Coins */}
-                                {userBalance >= sprintCost ? (
+                                {/* Option: Use Coins (Only shown when coins are enough) */}
+                                {userBalance >= sprintCost && (
                                     <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
@@ -566,31 +566,12 @@ export const NextSprintRecommendation: React.FC = () => {
                                             Available
                                         </span>
                                     </div>
-                                ) : (
-                                    <div className="p-3.5 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-5 h-5 rounded-full border-2 border-rose-300 bg-white flex items-center justify-center text-rose-500 shrink-0">
-                                                <X className="w-3 h-3" />
-                                            </div>
-                                            <div className="text-left">
-                                                <span className="text-sm font-bold text-gray-700 block">
-                                                    Use {sprintCost} coins of your balance to continue
-                                                </span>
-                                                <span className="text-xs font-semibold text-rose-600">
-                                                    Need {sprintCost - userBalance} more coin{sprintCost - userBalance > 1 ? 's' : ''} (You have {userBalance})
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-0.5 rounded uppercase shrink-0">
-                                            Shortfall
-                                        </span>
-                                    </div>
                                 )}
 
-                                {/* If NOT enough coins, show discount packages and instant pay */}
+                                {/* If NOT enough coins, show coin packages and pay for remaining coins directly */}
                                 {userBalance < sprintCost && (
                                     <>
-                                        {/* Horizontal Coin Packages (Discount Part) */}
+                                        {/* Horizontal Coin Packages */}
                                         <BottomModalCoinCards 
                                             userBalance={userBalance}
                                             sprintCost={sprintCost}
@@ -601,26 +582,18 @@ export const NextSprintRecommendation: React.FC = () => {
                                             isProcessing={isProcessingPayment}
                                         />
 
-                                        {/* Instant Topup Card Option */}
+                                        {/* Pay for remaining coins directly (Clickable, no radio dot, quiet styling) */}
                                         <div 
                                             onClick={() => !isProcessingPayment && setPaymentMethod('card')}
-                                            className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                                            className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
                                                 paymentMethod === 'card' 
-                                                    ? 'bg-emerald-50/50 border-[#0E7850] shadow-sm' 
-                                                    : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                                                    ? 'bg-emerald-50/50 border-[#0E7850] text-gray-900 shadow-xs' 
+                                                    : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
                                             }`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                                                    paymentMethod === 'card' ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
-                                                }`}>
-                                                    {paymentMethod === 'card' && <div className="w-2 h-2 bg-white rounded-full"></div>}
-                                                </div>
-                                                <div className="text-left">
-                                                    <span className="text-sm sm:text-base font-bold text-gray-900 block">Instant Card Payment</span>
-                                                    <span className="text-xs text-gray-500 font-medium">Pay for remaining coins directly</span>
-                                                </div>
-                                            </div>
+                                            <span className="text-sm sm:text-base font-bold">
+                                                Pay for remaining coins directly
+                                            </span>
                                             {(() => {
                                                 const coinsRem = Math.max(0, sprintCost - userBalance);
                                                 const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
