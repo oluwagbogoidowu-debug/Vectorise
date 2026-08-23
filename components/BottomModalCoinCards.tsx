@@ -100,10 +100,13 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
   ];
 
   return (
-    <div className="w-full mt-2 pt-2 border-t border-gray-200">
+    <div className="w-full mt-3 pt-3 border-t border-gray-200">
       <div className="flex items-center justify-between mb-2 px-1">
         <span className="text-xs font-black uppercase tracking-wider text-gray-500">
-          Coin Packages
+          Get Discounted Coins
+        </span>
+        <span className="text-xs font-semibold text-gray-400">
+          Keep your momentum constant
         </span>
       </div>
 
@@ -142,6 +145,9 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
                       {pkg.tag}
                     </span>
                   </div>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${pkg.discountStyle}`}>
+                    {pkg.discount}
+                  </span>
                 </div>
                 <div className="text-sm sm:text-base font-black text-gray-900 tracking-tight mt-1 mb-1">
                   {pkg.coins} Coins
