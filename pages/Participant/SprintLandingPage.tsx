@@ -719,7 +719,7 @@ const SprintLandingPage: React.FC = () => {
                             Duration
                         </span>
                         <span className="text-sm sm:text-base font-black text-gray-900 uppercase tracking-tight">
-                            {sprint.duration || 5} DAY
+                            {sprint.duration || 5} Move
                         </span>
                     </div>
 
@@ -775,14 +775,6 @@ const SprintLandingPage: React.FC = () => {
                                         <p className="text-sm sm:text-base font-semibold text-gray-700 leading-relaxed text-center">
                                             {sprint.actionTrigger || "Start by seeing how you actually spend your time."}
                                         </p>
-                                        <Button 
-                                            onClick={handleJoinClick} 
-                                            disabled={isCheckingEmail}
-                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0 bg-primary text-white hover:bg-primary-hover cursor-pointer"
-                                        >
-                                            {isCheckingEmail ? "Opening Move 1..." : "Make Your First Move"}
-                                            {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />}
-                                        </Button>
                                     </div>
                                 ) : enrollmentStatus === 'active' ? (
                                     <div className="space-y-4">
@@ -822,7 +814,7 @@ const SprintLandingPage: React.FC = () => {
 
             {/* Fixed Bottom CTA Bar for Viewport */}
             {enrollmentStatus === 'none' && !showCommitmentSheet && (
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 lg:hidden shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
                     <div className="max-w-md mx-auto flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
@@ -833,7 +825,7 @@ const SprintLandingPage: React.FC = () => {
                             disabled={isCheckingEmail}
                             className="py-3 px-5 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0 shrink-0 bg-primary text-white hover:bg-primary-hover cursor-pointer"
                         >
-                            {isCheckingEmail ? "Opening Move 1..." : "Make Your First Move"}
+                            {isCheckingEmail ? "Opening Move 1..." : "Begin Now"}
                             {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />}
                         </Button>
                     </div>

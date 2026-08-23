@@ -5252,7 +5252,7 @@ const EditSprint: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Duration */}
                   <div>
-                    <label className={labelClasses}>Duration (Days)</label>
+                    <label className={labelClasses}>Duration (Move)</label>
                     <CustomSelect
                       value={versionSettings.duration}
                       onChange={val => setVersionSettings({...versionSettings, duration: Number(val)})}
@@ -5489,7 +5489,7 @@ const EditSprint: React.FC = () => {
                   {/* Check in Reminders Duration */}
                   {versionSettings.checkInReminder && (
                     <div className="md:col-span-2 space-y-2">
-                      <label className={labelClasses}>Reminder Active Duration (Days)</label>
+                      <label className={labelClasses}>Reminder Active Duration (Moves)</label>
                       <input
                         type="number"
                         min={1}
@@ -5674,7 +5674,7 @@ const EditSprint: React.FC = () => {
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             <div>
-                                                <label className={labelClasses}>Duration (Days)</label>
+                                                <label className={labelClasses}>Duration (Move)</label>
                                                 <CustomSelect
                                                     value={editSettings.duration || 7}
                                                     onChange={val => setEditSettings({...editSettings, duration: Number(val)})}
@@ -5897,7 +5897,7 @@ const EditSprint: React.FC = () => {
 
                                                 {editSettings.checkInReminder && (
                                                     <div className="animate-fade-in space-y-2 pt-2">
-                                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Active Duration (Days)</label>
+                                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Active Duration (Moves)</label>
                                                         <input
                                                             type="number"
                                                             min={1}

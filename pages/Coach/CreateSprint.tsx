@@ -741,9 +741,9 @@ const CreateSprint: React.FC = () => {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <label className={labelClasses}>Duration (Days)</label>
+                                            <label className={labelClasses}>Duration (Move)</label>
                                             <CustomSelect
-                                                options={[3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Continuous Days` }))}
+                                                options={[3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Move` }))}
                                                 value={formData.duration}
                                                 onChange={(val) => setFormData(prev => ({ ...prev, duration: Number(val) }))}
                                                 className="mt-2"
