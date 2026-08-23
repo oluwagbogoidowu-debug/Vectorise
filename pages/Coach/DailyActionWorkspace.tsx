@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -2134,28 +2134,109 @@ export default function DailyActionWorkspace({
                 );
               })()}
 
-                  {/* Bridge Note Section */}
-                  <div className="mt-6 pt-6 border-t border-gray-150 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
-                      <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1">
-                        Bridge Note (Shown after Day {dayNum} is done)
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                      This note bridges today and tomorrow. It will be shown in the full bleed screen after completing all steps for Day {dayNum}.
-                    </p>
-                    <textarea
-                      value={dayContent.bridgeNote || ''}
-                      onChange={(e) => {
-                        setSelectedDay(dayNum);
-                        updateFieldForDay(dayNum, 'bridgeNote', e.target.value);
-                      }}
-                      rows={3}
-                      className="w-full px-4 py-3 bg-purple-50/10 border border-purple-100 rounded-2xl text-xs font-medium focus:ring-4 focus:ring-purple-100/50 focus:border-purple-300 outline-none transition-all resize-none"
-                      placeholder="Write a message to bridge today and tomorrow (e.g. 'You've laid down the foundation today. Tomorrow, we build...')"
-                    />
-                  </div>
+                  {/* Bridge Note Section - Only for days before the last day of the sprint */}
+                  {dayNum < (sprint?.duration || 7) && (() => {
+                    const bridgeTokens = getHintTokensForBridgeNote(dayNum, sprint?.dailyContent, dayContent);
+                    const bridgeValidation = validateStepPlaceholders(
+                      dayContent.bridgeNote || '',
+                      999,
+                      dayContent.taskInputTypes || [],
+                      dayContent.taskPollOptions,
+                      dayNum,
+                      sprint?.dailyContent,
+                      true
+                    );
+                    const previewBridgeText = formatInterpolatedText(
+                      dayContent.bridgeNote || '',
+                      dayContent,
+                      null,
+                      sprint?.dailyContent
+                    );
+
+                    return (
+                      <div className="mt-6 pt-6 border-t border-gray-150 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
+                            <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1">
+                              Bridge Note (Shown after Day {dayNum} is done)
+                            </span>
+                          </div>
+                          {bridgeValidation.hasPlaceholders && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${bridgeValidation.isValid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                              {bridgeValidation.isValid ? 'Valid dynamic placeholders' : 'Invalid placeholder'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                          This note bridges Day {dayNum} and Day {dayNum + 1}. It will be shown in the full bleed screen after completing all steps for Day {dayNum}. You can insert step coding (e.g. &#123;M2 Step 1 op 2&#125;).
+                        </p>
+
+                        {/* Available placeholder coding tokens */}
+                        {bridgeTokens.length > 0 && (
+                          <div className="space-y-1.5 pt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
+                                Insert Step Coding
+                              </span>
+                              <span className="text-[9px] text-gray-400 font-medium">Click to insert at end</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 py-1 custom-scrollbar">
+                              {bridgeTokens.map((t, tIdx) => (
+                                <button
+                                  key={tIdx}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    insertHintToken(
+                                      dayContent.bridgeNote || '',
+                                      (newVal) => updateFieldForDay(dayNum, 'bridgeNote', newVal),
+                                      t.token
+                                    );
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 hover:bg-purple-100/80 border border-purple-200/80 text-purple-800 text-[10px] font-bold rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
+                                  title={`Insert ${t.token}`}
+                                >
+                                  <span>+</span>
+                                  <span>{t.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <textarea
+                          value={dayContent.bridgeNote || ''}
+                          onChange={(e) => {
+                            setSelectedDay(dayNum);
+                            updateFieldForDay(dayNum, 'bridgeNote', e.target.value);
+                          }}
+                          rows={3}
+                          className="w-full px-4 py-3 bg-purple-50/10 border border-purple-100 rounded-2xl text-xs font-medium focus:ring-4 focus:ring-purple-100/50 focus:border-purple-300 outline-none transition-all resize-none"
+                          placeholder="Write a message to bridge today and tomorrow (e.g. 'Great work on {M2 Step 1 op 2}! Tomorrow, we build...')"
+                        />
+
+                        {/* Validation warning if invalid */}
+                        {!bridgeValidation.isValid && bridgeValidation.invalidReason && (
+                          <p className="text-[10px] text-rose-600 font-bold bg-rose-50 p-2 rounded-xl border border-rose-100">
+                            {bridgeValidation.invalidReason}
+                          </p>
+                        )}
+
+                        {/* Live Interpolated Preview */}
+                        {dayContent.bridgeNote && dayContent.bridgeNote.trim() && (
+                          <div className="bg-purple-50/40 border border-purple-100/60 rounded-xl p-3 text-left">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-purple-700 block mb-1">
+                              Participant Preview:
+                            </span>
+                            <p className="text-xs text-gray-800 italic font-medium">
+                              "{previewBridgeText || dayContent.bridgeNote}"
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}

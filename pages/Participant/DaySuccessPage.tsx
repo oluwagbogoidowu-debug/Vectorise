@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Clock, ArrowRight, Sparkles, Bell, Check } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
+import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
 
 const DaySuccessPage: React.FC = () => {
   const { user, updateProfile } = useAuth();
@@ -247,7 +248,26 @@ const DaySuccessPage: React.FC = () => {
   const unclaimedText = unclaimedMilestones.length > 0 
     ? ` Unlocked Reward: ${unclaimedMilestones[0].description || unclaimedMilestones[0].title} (+${unclaimedMilestones[0].points} Growth Coins).` 
     : '';
-  const displayBridgeNote = (liveBridgeNote || initialBridgeNote || '') + unclaimedText;
+
+  const sprintDuration = location.state?.sprint?.duration || 7;
+  const isSprintLastDay = completedDay >= sprintDuration;
+
+  const rawBridgeNote = isSprintLastDay ? '' : (liveBridgeNote || initialBridgeNote || '');
+  const dayContent = location.state?.sprint?.dailyContent?.find((d: any) => Number(d?.day) === completedDay) || location.state?.dayContent;
+
+  const formattedBridgeNote = rawBridgeNote
+    ? formatInterpolatedText(
+        rawBridgeNote,
+        dayContent,
+        location.state?.taskInputs,
+        location.state?.sprint?.dailyContent || location.state?.allDaysContent,
+        location.state?.enrollment?.progress || location.state?.allDaysInputs
+      )
+    : '';
+
+  const displayBridgeNote = formattedBridgeNote
+    ? `${formattedBridgeNote}${unclaimedText}`
+    : (unclaimedText.trim() ? unclaimedText.trim() : (isSprintLastDay ? '' : ''));
 
   // Real-time local midnight countdown timer
   const [countdown, setCountdown] = useState('00:00:00');

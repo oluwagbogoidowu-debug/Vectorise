@@ -133,6 +133,7 @@ export interface StepPlaceholderValidation {
   invalidStepLabels?: string[];
   placeholderDetails?: StepPlaceholderDetail[];
   errorMsg?: string;
+  invalidReason?: string;
   isLogicLinked?: boolean;
 }
 
@@ -162,7 +163,8 @@ export function validateStepPlaceholders(
   taskInputTypes: string[],
   taskPollOptions?: string[],
   currentDay: number = 1,
-  allDaysContent?: any[]
+  allDaysContent?: any[],
+  isBridgeNote: boolean = false
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
@@ -238,9 +240,19 @@ export function validateStepPlaceholders(
       continue;
     }
 
-    // Rule 2: Same move preceding rule
+    // Rule 2: Same move preceding rule (for bridge notes, all steps in the current move precede the bridge note)
     if (targetDay === currentDay) {
-      if (targetStepIndex < 0 || targetStepIndex >= stepIndex) {
+      if (isBridgeNote) {
+        const maxSteps = (taskInputTypes && taskInputTypes.length) || 10;
+        if (targetStepIndex < 0 || targetStepIndex >= maxSteps) {
+          invalidStepRefs.push(ref.stepNum);
+          invalidStepLabels.push(ref.rawLabel);
+          if (!invalidReason) {
+            invalidReason = `Invalid placeholder {${ref.rawLabel}}: Step ${ref.stepNum} does not exist on Move ${currentDay}.`;
+          }
+          continue;
+        }
+      } else if (targetStepIndex < 0 || targetStepIndex >= stepIndex) {
         invalidStepRefs.push(ref.stepNum);
         invalidStepLabels.push(ref.rawLabel);
         if (!invalidReason) {
@@ -296,6 +308,7 @@ export function validateStepPlaceholders(
   }
 
   if (invalidStepLabels.length > 0) {
+    const finalReason = invalidReason || `Invalid placeholder logic: ${invalidStepLabels.map(l => `{${l}}`).join(', ')}.`;
     return {
       isValid: false,
       hasPlaceholders: true,
@@ -304,7 +317,8 @@ export function validateStepPlaceholders(
       validStepLabels,
       invalidStepLabels,
       placeholderDetails,
-      errorMsg: invalidReason || `Invalid placeholder logic: ${invalidStepLabels.map(l => `{${l}}`).join(', ')}.`
+      errorMsg: finalReason,
+      invalidReason: finalReason
     };
   }
 
@@ -820,6 +834,12 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
+  // Normalize bare coding tokens like "M2 Step 1 op 2" or "M1 Step 3" into "{M2 Step 1 op 2}"
+  const normalizedPrompt = prompt.replace(
+    /\{([^{}]+)\}|(\b[dDmM]\d+\s+[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?(?:\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\b)/gi,
+    (m, bracketed, bare) => bracketed ? `{${bracketed}}` : `{${bare}}`
+  );
+
   const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   const currentDayNum = Number(dayContent?.day || 1);
@@ -920,7 +940,7 @@ export function formatInterpolatedText(
 
   regex.lastIndex = 0;
 
-  return prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr, modeStr) => {
+  return normalizedPrompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr, modeStr) => {
     const targetDay = dayNumStr ? parseInt(dayNumStr, 10) : currentDayNum;
     const stepNum = parseInt(stepNumStr, 10);
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
@@ -1890,3 +1910,69 @@ export function insertHintToken(
   const updatedHint = currentHint && currentHint.trim() ? `${currentHint.trim()} ${token}` : token;
   onChangeHint(updatedHint);
 }
+
+/**
+ * Returns available placeholder tokens for Bridge Notes (e.g. {M1 Step 1}, {M2 Step 1 op 2}, etc.)
+ * for all moves from Move 1 up to the current move.
+ */
+export function getHintTokensForBridgeNote(
+  currentDayNum: number,
+  allDaysContent?: any[],
+  currentDayContent?: any
+): HintToken[] {
+  const tokens: HintToken[] = [];
+  const maxDay = currentDayNum || 1;
+
+  for (let d = 1; d <= maxDay; d++) {
+    const dc = d === currentDayNum 
+      ? (currentDayContent || (allDaysContent && allDaysContent.find(c => Number(c?.day) === d)))
+      : (allDaysContent && allDaysContent.find(c => Number(c?.day) === d));
+
+    const promptsCount = Math.max(
+      dc?.taskPrompts?.length || 0,
+      dc?.taskInputTypes?.length || 0,
+      1
+    );
+
+    const movePrefix = `M${d} `;
+
+    for (let s = 0; s < promptsCount; s++) {
+      const stepNum = s + 1;
+      const inputType = dc?.taskInputTypes?.[s] || 'text';
+
+      // Base step token
+      tokens.push({
+        token: `{${movePrefix}Step ${stepNum}}`,
+        label: `${movePrefix}Step ${stepNum}`,
+        isOption: false,
+        stepNum
+      });
+
+      // Poll option tokens (e.g. {M2 Step 1 op 1}, {M2 Step 1 op 2})
+      const isPoll = inputType === 'poll' || (typeof inputType === 'string' && inputType.includes('poll'));
+      if (isPoll) {
+        let options: string[] = [];
+        if (dc?.taskPollOptions?.[s]) {
+          try {
+            const parsed = JSON.parse(dc.taskPollOptions[s]);
+            if (Array.isArray(parsed)) options = parsed.filter(Boolean);
+          } catch (e) {}
+        }
+
+        const optCount = Math.max(options.length, 2);
+        for (let o = 1; o <= optCount; o++) {
+          tokens.push({
+            token: `{${movePrefix}Step ${stepNum} op ${o}}`,
+            label: `${movePrefix}Step ${stepNum} op ${o}`,
+            isOption: true,
+            optNum: o,
+            stepNum
+          });
+        }
+      }
+    }
+  }
+
+  return tokens;
+}
+

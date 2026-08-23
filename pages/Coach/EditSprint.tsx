@@ -20,7 +20,7 @@ import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -4381,32 +4381,112 @@ const EditSprint: React.FC = () => {
                         </>
                     )}
 
-                    {/* Bridge Note Section */}
-                    <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm space-y-3 mt-6">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
-                            <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
-                                Bridge Note (Shown after Move {selectedDay} Completion)
-                            </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                            This note bridges current move and next move. It will be shown on the full-screen success screen after completing all steps for Move {selectedDay}.
-                        </p>
-                        {isAdmin && !isFoundational && originalSprint && (
-                            <DiffHighlight 
-                                label="Bridge Note" 
-                                original={Array.isArray(originalSprint.dailyContent) ? originalSprint.dailyContent.find(c => c.day === selectedDay)?.bridgeNote : undefined} 
-                                updated={currentContent.bridgeNote} 
-                            />
-                        )}
-                        <textarea
-                            value={currentContent.bridgeNote || ''}
-                            onChange={(e) => handleContentChange('bridgeNote', e.target.value)}
-                            rows={3}
-                            className={editorInputClasses}
-                            placeholder="Write a note to bridge current move and next move (e.g. 'You've laid down the foundation. Next, we build...')"
-                        />
-                    </div>
+                    {/* Bridge Note Section - Only for moves before the last move of the sprint */}
+                    {selectedDay < (sprint.duration || 7) && (() => {
+                        const bridgeTokens = getHintTokensForBridgeNote(selectedDay, sprint.dailyContent, currentContent);
+                        const bridgeValidation = validateStepPlaceholders(
+                            currentContent.bridgeNote || '',
+                            999,
+                            currentContent.taskInputTypes || [],
+                            currentContent.taskPollOptions,
+                            selectedDay,
+                            sprint.dailyContent,
+                            true
+                        );
+                        const previewBridgeText = formatInterpolatedText(
+                            currentContent.bridgeNote || '',
+                            currentContent,
+                            null,
+                            sprint.dailyContent
+                        );
+
+                        return (
+                            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm space-y-3 mt-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
+                                        <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                                            Bridge Note (Shown after Move {selectedDay} Completion)
+                                        </span>
+                                    </div>
+                                    {bridgeValidation.hasPlaceholders && (
+                                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${bridgeValidation.isValid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                            {bridgeValidation.isValid ? 'Valid dynamic placeholders' : 'Invalid placeholder'}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                                    This note bridges Move {selectedDay} and Move {selectedDay + 1}. It is shown on the full-screen celebration after completing Move {selectedDay}. You can insert step coding (e.g. &#123;M2 Step 1 op 2&#125;).
+                                </p>
+
+                                {/* Available placeholder coding tokens */}
+                                {bridgeTokens.length > 0 && (
+                                    <div className="space-y-1.5 pt-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
+                                                Insert Step Coding
+                                            </span>
+                                            <span className="text-[9px] text-gray-400 font-medium">Click to insert at end</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 py-1 custom-scrollbar">
+                                            {bridgeTokens.map((t, tIdx) => (
+                                                <button
+                                                    key={tIdx}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        insertHintToken(
+                                                            currentContent.bridgeNote || '',
+                                                            (newVal) => handleContentChange('bridgeNote', newVal),
+                                                            t.token
+                                                        );
+                                                    }}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 hover:bg-purple-100/80 border border-purple-200/80 text-purple-800 text-[10px] font-bold rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
+                                                    title={`Insert ${t.token}`}
+                                                >
+                                                    <span>+</span>
+                                                    <span>{t.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {isAdmin && !isFoundational && originalSprint && (
+                                    <DiffHighlight 
+                                        label="Bridge Note" 
+                                        original={Array.isArray(originalSprint.dailyContent) ? originalSprint.dailyContent.find(c => c.day === selectedDay)?.bridgeNote : undefined} 
+                                        updated={currentContent.bridgeNote} 
+                                    />
+                                )}
+                                <textarea
+                                    value={currentContent.bridgeNote || ''}
+                                    onChange={(e) => handleContentChange('bridgeNote', e.target.value)}
+                                    rows={3}
+                                    className={editorInputClasses}
+                                    placeholder="Write a note to bridge current move and next move (e.g. 'Great work on {M2 Step 1 op 2}! Next, we build...')"
+                                />
+
+                                {/* Validation warning if invalid */}
+                                {!bridgeValidation.isValid && bridgeValidation.invalidReason && (
+                                    <p className="text-[10px] text-rose-600 font-bold bg-rose-50 p-2.5 rounded-xl border border-rose-100">
+                                        {bridgeValidation.invalidReason}
+                                    </p>
+                                )}
+
+                                {/* Live Interpolated Preview */}
+                                {currentContent.bridgeNote && currentContent.bridgeNote.trim() && (
+                                    <div className="bg-purple-50/40 border border-purple-100/60 rounded-xl p-3 text-left">
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-purple-700 block mb-1">
+                                            Participant Preview:
+                                        </span>
+                                        <p className="text-xs text-gray-800 italic font-medium">
+                                            "{previewBridgeText || currentContent.bridgeNote}"
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
 
               {/* COMPLETION PROTOCOL CURATION */}
@@ -6008,6 +6088,8 @@ const EditSprint: React.FC = () => {
         day={selectedDay}
         dayContent={currentContent}
         sprintName={sprint?.title}
+        allDaysContent={sprint?.dailyContent}
+        totalDuration={sprint?.duration}
       />
 
       <ActionStepConfirmModal
@@ -6206,9 +6288,11 @@ interface CoachDaySuccessPreviewModalProps {
   day: number;
   dayContent: any;
   sprintName?: string;
+  allDaysContent?: any[];
+  totalDuration?: number;
 }
 
-const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = ({ isOpen, onClose, day, dayContent, sprintName }) => {
+const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = ({ isOpen, onClose, day, dayContent, sprintName, allDaysContent, totalDuration }) => {
   useEffect(() => {
     if (isOpen) {
       try {
@@ -6222,7 +6306,11 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
 
   if (!isOpen) return null;
 
-  const bridgeNote = dayContent?.bridgeNote;
+  const isLastDay = day >= (totalDuration || 7);
+  const rawBridgeNote = isLastDay ? '' : (dayContent?.bridgeNote || '');
+  const formattedBridgeNote = rawBridgeNote
+    ? formatInterpolatedText(rawBridgeNote, dayContent, null, allDaysContent)
+    : '';
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-md animate-fade-in">
@@ -6262,30 +6350,32 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
           </div>
         </div>
 
-        {/* Bridge Note card */}
-        <div className="w-full bg-purple-50/40 border border-purple-100/80 rounded-[2rem] p-5 mb-6 text-left shadow-sm flex flex-col gap-2 relative overflow-hidden">
-          <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-20 h-20 bg-purple-500/5 rounded-full blur-2xl" />
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
+        {/* Bridge Note card (only for days before the last day) */}
+        {!isLastDay && (
+          <div className="w-full bg-purple-50/40 border border-purple-100/80 rounded-[2rem] p-5 mb-6 text-left shadow-sm flex flex-col gap-2 relative overflow-hidden">
+            <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-20 h-20 bg-purple-500/5 rounded-full blur-2xl" />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-purple-600 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest leading-none">
+                  Bridge Note
+                </p>
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                  Your key to next move
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest leading-none">
-                Bridge Note
-              </p>
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                Your key to next move
+            <div className="text-left bg-white/80 border border-purple-50 p-3.5 rounded-2xl">
+              <p className="text-xs text-gray-800 font-semibold italic leading-relaxed">
+                "{formattedBridgeNote ? formattedBridgeNote : "No bridge note set for this move yet. Add one in the Bridge Note editor section to inspire participants!"}"
               </p>
             </div>
           </div>
-          <div className="text-left bg-white/80 border border-purple-50 p-3.5 rounded-2xl">
-            <p className="text-xs text-gray-800 font-semibold italic leading-relaxed">
-              "{bridgeNote && bridgeNote.trim() ? bridgeNote : "No bridge note set for this move yet. Add one in the Bridge Note editor section to inspire participants!"}"
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Stats card */}
         <div className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 mb-6 grid grid-cols-2 gap-3 text-center">

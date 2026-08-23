@@ -45,8 +45,17 @@ const DayCompletionModal: React.FC<{
   onClose: () => void;
   day: number;
   bridgeNote?: string;
-}> = ({ isOpen, onClose, day, bridgeNote }) => {
+  dayContent?: any;
+  taskInputs?: any;
+  sprint?: any;
+  enrollment?: any;
+}> = ({ isOpen, onClose, day, bridgeNote, dayContent, taskInputs, sprint, enrollment }) => {
   if (!isOpen) return null;
+  const isLastDay = day >= (sprint?.duration || 7);
+  const formattedBridgeNote = (!isLastDay && bridgeNote)
+    ? formatInterpolatedText(bridgeNote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)
+    : null;
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
@@ -73,13 +82,13 @@ const DayCompletionModal: React.FC<{
           You've successfully completed Day {day} of the sprint. Keep up the
           momentum!
         </p>
-        {bridgeNote && (
+        {formattedBridgeNote && (
           <div className="mb-6 p-4 bg-purple-50/70 border border-purple-100 rounded-2xl text-left">
             <p className="text-[10px] font-black text-purple-700 uppercase tracking-widest mb-1.5">
               Bridge Note
             </p>
             <p className="text-xs text-gray-700 font-bold italic leading-relaxed">
-              "{bridgeNote}"
+              "{formattedBridgeNote}"
             </p>
           </div>
         )}
@@ -4140,6 +4149,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         }}
         day={viewingDay}
         bridgeNote={dayContent?.bridgeNote}
+        dayContent={dayContent}
+        taskInputs={taskInputs}
+        sprint={sprint}
+        enrollment={enrollment}
       />
       <MirrorReportModal
         isOpen={isMirrorReportModalOpen}

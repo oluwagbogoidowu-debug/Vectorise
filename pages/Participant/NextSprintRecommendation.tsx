@@ -10,7 +10,9 @@ import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { paymentService } from '../../services/paymentService';
 import { assetService } from '../../services/assetService';
-import { Sprint, Coach, UserRole, Participant } from '../../types';
+import { Sprint, Coach, UserRole, Participant, LifecycleSlotAssignment } from '../../types';
+import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
+import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import { toast } from 'sonner';
 
 export const NextSprintRecommendation: React.FC = () => {
@@ -43,17 +45,31 @@ export const NextSprintRecommendation: React.FC = () => {
         approved: true
     }), []);
 
-    // Load next recommended sprint
+    // Load next recommended sprint using Explore recommendation logic
     const loadNextSprint = useCallback(async () => {
         if (initialSprint) {
             setSprint(initialSprint);
+            if (initialSprint.coachId) {
+                try {
+                    const dbCoach = await userService.getUserDocument(initialSprint.coachId);
+                    setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
+                } catch (e) {
+                    setFetchedCoach(vectoriseCoach);
+                }
+            } else {
+                setFetchedCoach(vectoriseCoach);
+            }
             setIsLoading(false);
             return;
         }
 
         setIsLoading(true);
         try {
-            const allPublished = await sprintService.getPublishedSprints().catch(() => []);
+            const [allPublished, dbCoaches, orchestration] = await Promise.all([
+                sprintService.getPublishedSprints().catch(() => []),
+                userService.getCoaches().catch(() => []),
+                (sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>).catch(() => ({} as Record<string, LifecycleSlotAssignment>))
+            ]);
             
             if (sprintId) {
                 const target = allPublished.find(s => s.id === sprintId) || await sprintService.getSprintById(sprintId);
@@ -61,7 +77,7 @@ export const NextSprintRecommendation: React.FC = () => {
                     setSprint(target);
                     if (target.coachId) {
                         try {
-                            const dbCoach = await userService.getUserDocument(target.coachId);
+                            const dbCoach = dbCoaches.find(c => c.id === target.coachId) || await userService.getUserDocument(target.coachId);
                             setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
                         } catch (e) {
                             setFetchedCoach(vectoriseCoach);
@@ -74,8 +90,119 @@ export const NextSprintRecommendation: React.FC = () => {
                 }
             }
 
-            let userEnrolledIds: string[] = [];
+            // Filter sprints based on target audience exactly like Explore page
+            const allowedSprints = allPublished.filter(s => {
+                if (user?.role === UserRole.ADMIN) {
+                    return true;
+                }
+                
+                if (!s.audience || s.audience.length === 0) {
+                    return false;
+                }
 
+                const userAudiences: string[] = [];
+                
+                if (user?.role === UserRole.COACH || (user as any)?.persona === 'Coach') {
+                    userAudiences.push('coach');
+                    userAudiences.push('coaches');
+                    
+                    const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
+                    return sprintAudiences.some((sa: string) => 
+                        userAudiences.some(ua => sa === ua || sa.includes(ua) || ua.includes(sa))
+                    );
+                }
+
+                const pathway = String((user as any)?.risePathway || '').toLowerCase().trim();
+                const persona = String((user as any)?.persona || '').toLowerCase().trim();
+                const occupation = String((user as any)?.occupation || '').toLowerCase().trim();
+
+                if (
+                    pathway === 'student' || 
+                    persona === 'student' || 
+                    persona.includes('student') || 
+                    persona.includes('graduate') || 
+                    occupation === 'student' ||
+                    occupation.includes('student')
+                ) {
+                    userAudiences.push('student');
+                    userAudiences.push('students');
+                    userAudiences.push('student/graduate');
+                }
+
+                if (
+                    pathway === 'early_career' || 
+                    pathway === 'growth_pro' || 
+                    persona.includes('9-5') || 
+                    persona.includes('professional') || 
+                    occupation.includes('professional') || 
+                    occupation.includes('employee') || 
+                    occupation.includes('corporate')
+                ) {
+                    userAudiences.push('9-5 professional');
+                    userAudiences.push('9-5 professionals');
+                    userAudiences.push('professional');
+                    userAudiences.push('professionals');
+                    userAudiences.push('corporate professionals');
+                }
+
+                if (
+                    pathway === 'builder' || 
+                    persona.includes('entrepreneur') || 
+                    persona.includes('owner') || 
+                    persona.includes('founder') || 
+                    occupation.includes('entrepreneur') || 
+                    occupation.includes('business owner') || 
+                    occupation.includes('founder')
+                ) {
+                    userAudiences.push('entrepreneur');
+                    userAudiences.push('entrepreneurs');
+                    userAudiences.push('business owner');
+                    userAudiences.push('business owners');
+                    userAudiences.push('founders / entrepreneurs');
+                    userAudiences.push('founder');
+                    userAudiences.push('builder');
+                    userAudiences.push('builders');
+                }
+
+                if (
+                    pathway === 'transition' || 
+                    persona.includes('freelancer') || 
+                    persona.includes('consultant') || 
+                    persona.includes('creative') || 
+                    persona.includes('hustler') || 
+                    occupation.includes('freelancer') || 
+                    occupation.includes('consultant') || 
+                    occupation.includes('creative') || 
+                    occupation.includes('hustler')
+                ) {
+                    userAudiences.push('freelancer/consultant');
+                    userAudiences.push('creative/hustler');
+                    userAudiences.push('freelancer');
+                    userAudiences.push('consultant');
+                    userAudiences.push('creative');
+                    userAudiences.push('hustler');
+                    userAudiences.push('freelancers');
+                    userAudiences.push('consultants');
+                    userAudiences.push('creatives');
+                    userAudiences.push('hustlers');
+                }
+
+                const sprintAudiences = s.audience.map((a: any) => String(a).toLowerCase().trim());
+                const isMatch = sprintAudiences.some((sa: string) => 
+                    userAudiences.some(ua => sa === ua || sa.includes(ua) || ua.includes(sa))
+                );
+
+                const isCoachSprint = sprintAudiences.some(sa => sa === 'coach' || sa === 'coaches');
+                if (isCoachSprint) {
+                    return false;
+                }
+
+                return isMatch;
+            });
+
+            const candidatePool = allowedSprints.length > 0 ? allowedSprints : allPublished;
+
+            let userEnrolledIds: string[] = [];
             if (user) {
                 try {
                     const enrollments = await sprintService.getUserEnrollments(user.id);
@@ -85,41 +212,105 @@ export const NextSprintRecommendation: React.FC = () => {
                 }
             }
 
-            // Check if user has queued sprints
-            const p = user as Participant;
-            const queuedIds = (p?.savedSprintIds || []).filter(id => !userEnrolledIds.includes(id));
-            const wishlistIds = (p?.wishlistSprintIds || []).filter(id => !userEnrolledIds.includes(id));
-
+            const enrolledSet = new Set(userEnrolledIds);
+            const participant = user as Participant;
             let candidateSprint: Sprint | null = null;
 
-            // 1. Queued sprint first
+            // Priority 1: User's queued / wishlist sprints
+            const queuedIds = (participant?.savedSprintIds || []).filter(id => !enrolledSet.has(id));
+            const wishlistIds = (participant?.wishlistSprintIds || []).filter(id => !enrolledSet.has(id));
+
             if (queuedIds.length > 0) {
-                candidateSprint = allPublished.find(s => s.id === queuedIds[0]) || null;
+                candidateSprint = candidatePool.find(s => s.id === queuedIds[0]) || null;
             }
-
-            // 2. Saved / Wishlist sprint
             if (!candidateSprint && wishlistIds.length > 0) {
-                candidateSprint = allPublished.find(s => s.id === wishlistIds[0]) || null;
+                candidateSprint = candidatePool.find(s => s.id === wishlistIds[0]) || null;
             }
 
-            // 3. Any non-enrolled published sprint (different from completed)
+            // Priority 2: Selected Growth Areas (Explore page logic)
+            const growthAreas = participant?.growthAreas || [];
+            if (!candidateSprint && growthAreas.length > 0) {
+                const matchedGroups = GROWTH_AREAS.filter(g => 
+                    g.options.some(opt => growthAreas.includes(opt))
+                );
+                if (matchedGroups.length > 0) {
+                    const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
+                    candidateSprint = candidatePool.find(s => 
+                        targetSprintTitles.includes(s.title) && !enrolledSet.has(s.id)
+                    ) || null;
+                }
+            }
+
+            // Priority 3: Rise Pathway (Explore page logic)
+            const pathwayId = participant?.risePathway;
+            if (!candidateSprint && pathwayId) {
+                const pathwaySprintMap: Record<string, string[]> = {
+                    'student': ['Clarity Sprint', 'Direction Sprint'],
+                    'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
+                    'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
+                    'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
+                    'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
+                };
+                const targetTitles = pathwaySprintMap[pathwayId] || [];
+                candidateSprint = candidatePool.find(s => 
+                    targetTitles.includes(s.title) && !enrolledSet.has(s.id)
+                ) || null;
+            }
+
+            // Priority 4: Onboarding Focus & Orchestration Slots (Explore page logic)
+            const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
+                             Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
+
+            if (!candidateSprint && userFocus && orchestration) {
+                const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
+                for (const slotId of prioritySlots) {
+                    const mapping = orchestration[slotId];
+                    if (mapping) {
+                        const focusMap = mapping.sprintFocusMap || {};
+                        const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
+                        if (matchedSprintId) {
+                            const found = candidatePool.find(s => s.id === matchedSprintId && !enrolledSet.has(s.id));
+                            if (found) {
+                                candidateSprint = found;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Priority 5: Target Stage (Explore page logic)
+            const targetStage = participant?.currentStage || 'Direction';
             if (!candidateSprint) {
-                candidateSprint = allPublished.find(s => s.id !== completedSprintId && !userEnrolledIds.includes(s.id)) || null;
+                candidateSprint = candidatePool.find(s => 
+                    CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
+                    !enrolledSet.has(s.id)
+                ) || null;
             }
 
-            // 4. Fallback to any published sprint
-            if (!candidateSprint && allPublished.length > 0) {
-                candidateSprint = allPublished.find(s => s.id !== completedSprintId) || allPublished[0];
+            // Priority 6: Any non-enrolled published sprint (different from completed)
+            if (!candidateSprint) {
+                candidateSprint = candidatePool.find(s => s.id !== completedSprintId && !enrolledSet.has(s.id)) || null;
+            }
+
+            // Fallback: Any published sprint
+            if (!candidateSprint && candidatePool.length > 0) {
+                candidateSprint = candidatePool.find(s => s.id !== completedSprintId) || candidatePool[0];
             }
 
             if (candidateSprint) {
                 setSprint(candidateSprint);
                 if (candidateSprint.coachId) {
-                    try {
-                        const dbCoach = await userService.getUserDocument(candidateSprint.coachId);
-                        setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
-                    } catch (e) {
-                        setFetchedCoach(vectoriseCoach);
+                    const matchedCoach = dbCoaches.find(c => c.id === candidateSprint?.coachId);
+                    if (matchedCoach) {
+                        setFetchedCoach(matchedCoach);
+                    } else {
+                        try {
+                            const dbCoach = await userService.getUserDocument(candidateSprint.coachId);
+                            setFetchedCoach((dbCoach as Coach) || vectoriseCoach);
+                        } catch (e) {
+                            setFetchedCoach(vectoriseCoach);
+                        }
                     }
                 } else {
                     setFetchedCoach(vectoriseCoach);
@@ -130,7 +321,7 @@ export const NextSprintRecommendation: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [initialSprint, completedSprintId, user, vectoriseCoach]);
+    }, [initialSprint, sprintId, completedSprintId, user, vectoriseCoach]);
 
     useEffect(() => {
         loadNextSprint();
@@ -241,30 +432,21 @@ export const NextSprintRecommendation: React.FC = () => {
         <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-primary text-white relative overflow-hidden selection:bg-white/10">
             {/* Navigation Header */}
             <header className="w-full max-w-[340px] sm:max-w-[380px] z-10 flex items-center justify-between pt-2">
-                <button 
-                    onClick={() => navigate('/dashboard')} 
-                    className="group flex items-center text-white/60 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest cursor-pointer"
-                >
-                    <ChevronLeft className="h-3.5 w-3.5 mr-1 group-hover:-translate-x-0.5 transition-transform" />
-                    Dashboard
-                </button>
+                <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-white">
+                    <button 
+                        onClick={() => navigate('/dashboard')} 
+                        className="p-1 -ml-1 text-white/70 hover:text-white transition-colors cursor-pointer"
+                        title="Back to Dashboard"
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <span>Recommend Next Sprint</span>
+                </div>
                 <LocalLogo type="white" className="h-5 w-auto opacity-40" />
             </header>
 
             {/* Main Content */}
             <main className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-5 text-center">
-                <div className="space-y-2">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full border border-white/15 backdrop-blur-md">
-                        <Sparkles className="w-3 h-3 text-amber-300" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-200">
-                            Recommended Next Step
-                        </span>
-                    </div>
-                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
-                        Start here
-                    </h1>
-                </div>
-
                 {/* Sprint Card with Price Badge visible */}
                 <div className="w-full text-left">
                     {isLoading ? (
@@ -359,7 +541,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                     <label className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
                                         paymentMethod === 'coins' 
                                             ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                            : 'bg-white border-gray-150 text-gray-500'
+                                             : 'bg-white border-gray-150 text-gray-500'
                                     } ${userBalance < sprintCost ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                         <div className="flex items-center gap-2">
                                             <input 
