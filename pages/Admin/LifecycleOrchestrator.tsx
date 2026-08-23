@@ -24,9 +24,124 @@ const getSlotDefaultOptions = (slotId: string) => {
 
 const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTracks, refreshKey }) => {
     const [selectedStage, setSelectedStage] = useState<LifecycleStage>('Foundation');
+    const [activeOrchestratorTab, setActiveOrchestratorTab] = useState<'stages' | 'sprint_linking'>('stages');
     const [assignments, setAssignments] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+    const [sprintLinks, setSprintLinks] = useState<any[]>([]);
+    const [linkSourceSprintId, setLinkSourceSprintId] = useState<string>('');
+    const [linkOptionCode, setLinkOptionCode] = useState<string>('');
+    const [linkTargetSprintId, setLinkTargetSprintId] = useState<string>('');
+
+    useEffect(() => {
+        sprintService.getSprintLinks().then(links => setSprintLinks(links));
+    }, [refreshKey]);
+
+    const parseOptionCode = (code: string, sprint: Sprint) => {
+        if (!code || !sprint || !sprint.dailyContent) return null;
+        const clean = code.trim().replace(/^\{|\}$/g, '').trim();
+        
+        let dayNum = 1;
+        let stepNum = 1;
+        let opNum = 1;
+
+        const mMatch = clean.match(/M(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
+        const dMatch = clean.match(/Day\s+(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
+        const sMatch = clean.match(/Step\s+(\d+)\s+op(\d+)/i);
+        const shortMatch = clean.match(/M(\d+)\s+S(\d+)\s+O(\d+)/i);
+
+        if (mMatch) {
+            dayNum = parseInt(mMatch[1], 10);
+            stepNum = parseInt(mMatch[2], 10);
+            opNum = parseInt(mMatch[3], 10);
+        } else if (dMatch) {
+            dayNum = parseInt(dMatch[1], 10);
+            stepNum = parseInt(dMatch[2], 10);
+            opNum = parseInt(dMatch[3], 10);
+        } else if (shortMatch) {
+            dayNum = parseInt(shortMatch[1], 10);
+            stepNum = parseInt(shortMatch[2], 10);
+            opNum = parseInt(shortMatch[3], 10);
+        } else if (sMatch) {
+            stepNum = parseInt(sMatch[1], 10);
+            opNum = parseInt(sMatch[2], 10);
+        } else {
+            return null;
+        }
+
+        const stepIdx = stepNum - 1;
+        const optionIdx = opNum - 1;
+
+        const dc = sprint.dailyContent.find(d => Number(d.day) === Number(dayNum)) || sprint.dailyContent[dayNum - 1];
+        if (!dc || !dc.taskPollOptions) return null;
+
+        const rawOpts = dc.taskPollOptions[stepIdx];
+        if (!rawOpts) return null;
+
+        let optionsList: string[] = [];
+        try {
+            if (typeof rawOpts === 'string' && rawOpts.trim().startsWith('[')) {
+                optionsList = JSON.parse(rawOpts);
+            } else if (typeof rawOpts === 'string') {
+                optionsList = rawOpts.split(',').map(s => s.trim());
+            } else if (Array.isArray(rawOpts)) {
+                optionsList = rawOpts;
+            }
+        } catch (e) {
+            optionsList = String(rawOpts).split(',').map(s => s.trim());
+        }
+
+        const optionText = optionsList[optionIdx] || `Option ${opNum}`;
+        return { dayNum, stepIdx, optionIdx, optionText };
+    };
+
+    const handleSaveSprintLink = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!linkSourceSprintId) {
+            toast.error("Please select a source sprint.");
+            return;
+        }
+        if (!linkOptionCode) {
+            toast.error("Please enter an option code (e.g. {M1 Step 3 op1}).");
+            return;
+        }
+        if (!linkTargetSprintId) {
+            toast.error("Please select a target sprint linked to this option.");
+            return;
+        }
+
+        const sourceSprint = allSprints.find(s => s.id === linkSourceSprintId);
+        if (!sourceSprint) {
+            toast.error("Source sprint not found.");
+            return;
+        }
+
+        const parsed = parseOptionCode(linkOptionCode, sourceSprint);
+        const optionText = parsed ? parsed.optionText : linkOptionCode;
+
+        setIsSaving(true);
+        try {
+            const newLink = {
+                id: '',
+                sourceSprintId: linkSourceSprintId,
+                optionCode: linkOptionCode,
+                optionText,
+                targetSprintId: linkTargetSprintId,
+                createdAt: new Date().toISOString()
+            };
+            await sprintService.saveSprintLink(newLink);
+            toast.success("Sprint-to-sprint link saved successfully!");
+            setLinkOptionCode('');
+            setLinkTargetSprintId('');
+            const updatedLinks = await sprintService.getSprintLinks();
+            setSprintLinks(updatedLinks);
+        } catch (err) {
+            toast.error("Failed to save sprint link.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const [activeSprintPicker, setActiveSprintPicker] = useState<string | null>(null);
     const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
@@ -340,46 +455,259 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
     return (
         <div className="flex flex-col animate-fade-in font-sans relative pb-20">
-            {/* Horizontal Stage Navigation */}
-            <nav className="mb-10 w-full overflow-x-auto no-scrollbar scroll-smooth">
-                <div className="bg-gray-50 p-2 rounded-[2rem] border border-gray-100 flex flex-row gap-2 min-w-max">
-                    {STAGES.map((stage, idx) => (
-                        <button
-                            key={stage}
-                            onClick={() => setSelectedStage(stage)}
-                            className={`flex flex-col items-center justify-center gap-0.5 px-6 py-3 rounded-2xl transition-all duration-300 relative group cursor-pointer min-w-[120px] ${
-                                selectedStage === stage 
-                                ? 'bg-primary text-white shadow-xl scale-[1.03] z-10' 
-                                : 'bg-white text-gray-400 border border-transparent hover:border-gray-200'
-                            }`}
-                        >
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${selectedStage === stage ? 'text-white/60' : 'text-gray-300'}`}>0{idx + 1}</span>
-                            <span className="text-[11px] font-black uppercase tracking-tight">{stage}</span>
-                        </button>
-                    ))}
-                </div>
-            </nav>
+            {/* Top Orchestrator Tabs */}
+            <div className="mb-8 flex items-center gap-3">
+                <button
+                    type="button"
+                    onClick={() => setActiveOrchestratorTab('stages')}
+                    className={`px-7 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeOrchestratorTab === 'stages'
+                        ? 'bg-gray-900 text-white shadow-md'
+                        : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                    }`}
+                >
+                    🏛️ Lifecycle Stages
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveOrchestratorTab('sprint_linking')}
+                    className={`px-7 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeOrchestratorTab === 'sprint_linking'
+                        ? 'bg-[#0E7850] text-white shadow-md'
+                        : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                    }`}
+                >
+                    🔗 Sprint Linking
+                </button>
+            </div>
 
-            <main className="flex-1 space-y-8">
-                <header className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
-                    <div className="relative z-10 flex justify-between items-start">
-                        <div>
+            {activeOrchestratorTab === 'sprint_linking' ? (
+                <main className="flex-1 space-y-8 animate-fade-in">
+                    <header className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
+                        <div className="relative z-10">
                             <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-2 italic">
-                                {currentStageConfig.subtitle}
+                                Sprint-to-Sprint Option Linking
                             </h2>
                             <p className="text-sm font-medium text-gray-400 italic">
-                                "{currentStageConfig.description}"
+                                "Map specific option choices within a source sprint to recommended target sprints. When a participant selects that option, the linked sprint becomes their recommended next path."
                             </p>
                         </div>
-                        <button 
-                            onClick={handleClearAll}
-                            disabled={isSaving}
-                            className="px-6 py-3 bg-red-50 text-red-500 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
-                        >
-                            Delete All Orchestration
-                        </button>
+                    </header>
+
+                    {/* Create Link Card */}
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-8">
+                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Create New Sprint Link</h4>
+                        
+                        <form onSubmit={handleSaveSprintLink} className="space-y-6">
+                            {/* 1. Source Sprint Dropdown */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">1. Select First Sprint (Source Sprint)</label>
+                                <select
+                                    value={linkSourceSprintId}
+                                    onChange={(e) => setLinkSourceSprintId(e.target.value)}
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
+                                >
+                                    <option value="">-- Choose Source Sprint --</option>
+                                    {allSprints.map(s => (
+                                        <option key={s.id} value={s.id}>{s.title} ({s.category})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Source Sprint Active Card Details if selected */}
+                            {linkSourceSprintId && (() => {
+                                const src = allSprints.find(s => s.id === linkSourceSprintId);
+                                if (!src) return null;
+                                return (
+                                    <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center gap-4 animate-fade-in">
+                                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-primary/20 shadow-sm">
+                                            <img src={src.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Active Source Sprint</p>
+                                            <h6 className="text-base font-black text-gray-900">{src.title}</h6>
+                                            <p className="text-xs text-gray-500 mt-0.5">{src.duration} Days • {src.category}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* 2. Option Code & Proof Display */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">2. Option Code (e.g. {'{M1 Step 3 op1}'})</label>
+                                <input
+                                    type="text"
+                                    value={linkOptionCode}
+                                    onChange={(e) => setLinkOptionCode(e.target.value)}
+                                    placeholder="{M1 Step 3 op1}"
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
+                                />
+                                <p className="text-[10px] font-bold text-gray-400 italic">Format example: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{'{M1 Step 3 op1}'}</code> or <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{'{Day 1 Step 2 op 2}'}</code></p>
+                            </div>
+
+                            {/* Actual Text Proof Display */}
+                            {linkSourceSprintId && linkOptionCode && (() => {
+                                const src = allSprints.find(s => s.id === linkSourceSprintId);
+                                if (!src) return null;
+                                const parsed = parseOptionCode(linkOptionCode, src);
+                                if (!parsed) {
+                                    return (
+                                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
+                                            ⚠️ Could not parse option code or find matching step/poll options in source sprint. Check syntax (e.g. {'{M1 Step 3 op1}'}).
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div className="p-5 rounded-2xl bg-green-50 border border-green-200 space-y-1 animate-fade-in">
+                                        <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Actual Text Proof (Matched Option)</p>
+                                        <p className="text-sm font-black text-gray-900">"{parsed.optionText}"</p>
+                                        <p className="text-[10px] font-medium text-green-600">Day {parsed.dayNum}, Step {parsed.stepIdx + 1}, Option {parsed.optionIdx + 1}</p>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* 3. Target Linked Sprint Dropdown */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked Sprint (Recommended When Clicked)</label>
+                                <select
+                                    value={linkTargetSprintId}
+                                    onChange={(e) => setLinkTargetSprintId(e.target.value)}
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
+                                >
+                                    <option value="">-- Choose Target Linked Sprint --</option>
+                                    {allSprints.filter(s => s.id !== linkSourceSprintId).map(s => (
+                                        <option key={s.id} value={s.id}>{s.title} ({s.category})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Target Sprint Active Card Details if selected */}
+                            {linkTargetSprintId && (() => {
+                                const tgt = allSprints.find(s => s.id === linkTargetSprintId);
+                                if (!tgt) return null;
+                                return (
+                                    <div className="p-5 rounded-2xl bg-orange-50 border border-orange-100 flex items-center gap-4 animate-fade-in">
+                                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-orange-200 shadow-sm">
+                                            <img src={tgt.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest">Linked Target Sprint (Recommendation)</p>
+                                            <h6 className="text-base font-black text-gray-900">{tgt.title}</h6>
+                                            <p className="text-xs text-gray-500 mt-0.5">{tgt.duration} Days • {tgt.category}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            <div className="flex justify-end pt-4">
+                                <Button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className="px-8 py-4 bg-[#0E7850] text-white hover:bg-[#0b5d3e] rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg transition-all active:scale-95"
+                                >
+                                    {isSaving ? 'Saving Link...' : 'Save Sprint Link'}
+                                </Button>
+                            </div>
+                        </form>
                     </div>
-                </header>
+
+                    {/* Existing Links List */}
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-6">
+                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Configured Sprint Links ({sprintLinks.length})</h4>
+                        
+                        {sprintLinks.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-4">
+                                {sprintLinks.map((link) => {
+                                    const srcSprint = allSprints.find(s => s.id === link.sourceSprintId);
+                                    const tgtSprint = allSprints.find(s => s.id === link.targetSprintId);
+                                    return (
+                                        <div key={link.id} className="p-6 rounded-3xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                                            <div className="flex items-center gap-5 min-w-0">
+                                                <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-200 shadow-sm">
+                                                    <img src={srcSprint?.coverImageUrl || ''} className="w-full h-full object-cover" alt="" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[8px] font-black uppercase tracking-widest">{srcSprint?.title || 'Unknown Source'}</span>
+                                                        <span className="text-gray-300">→</span>
+                                                        <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md text-[8px] font-black uppercase tracking-widest">{tgtSprint?.title || 'Unknown Target'}</span>
+                                                    </div>
+                                                    <p className="text-xs font-black text-gray-900 font-mono bg-white px-2.5 py-1 rounded-xl border border-gray-200 inline-block">
+                                                        {link.optionCode}
+                                                    </p>
+                                                    <p className="text-xs font-bold text-gray-600 mt-1 italic">
+                                                        Proof: "{link.optionText}"
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    if (window.confirm("Are you sure you want to delete this sprint link?")) {
+                                                        await sprintService.deleteSprintLink(link.id);
+                                                        setSprintLinks(await sprintService.getSprintLinks());
+                                                        toast.success("Sprint link deleted.");
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                            >
+                                                Delete Link
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No Sprint Links Configured Yet</p>
+                                <p className="text-[10px] text-gray-300 mt-1">Use the form above to link a source sprint option to a target recommended sprint.</p>
+                            </div>
+                        )}
+                    </div>
+                </main>
+            ) : (
+                <>
+                    {/* Horizontal Stage Navigation */}
+                    <nav className="mb-10 w-full overflow-x-auto no-scrollbar scroll-smooth">
+                        <div className="bg-gray-50 p-2 rounded-[2rem] border border-gray-100 flex flex-row gap-2 min-w-max">
+                            {STAGES.map((stage, idx) => (
+                                <button
+                                    key={stage}
+                                    onClick={() => setSelectedStage(stage)}
+                                    className={`flex flex-col items-center justify-center gap-0.5 px-6 py-3 rounded-2xl transition-all duration-300 relative group cursor-pointer min-w-[120px] ${
+                                        selectedStage === stage 
+                                        ? 'bg-primary text-white shadow-xl scale-[1.03] z-10' 
+                                        : 'bg-white text-gray-400 border border-transparent hover:border-gray-200'
+                                    }`}
+                                >
+                                    <span className={`text-[8px] font-black uppercase tracking-widest ${selectedStage === stage ? 'text-white/60' : 'text-gray-300'}`}>0{idx + 1}</span>
+                                    <span className="text-[11px] font-black uppercase tracking-tight">{stage}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+
+                    <main className="flex-1 space-y-8">
+                        <header className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
+                            <div className="relative z-10 flex justify-between items-start">
+                                <div>
+                                    <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-2 italic">
+                                        {currentStageConfig.subtitle}
+                                    </h2>
+                                    <p className="text-sm font-medium text-gray-400 italic">
+                                        "{currentStageConfig.description}"
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={handleClearAll}
+                                    disabled={isSaving}
+                                    className="px-6 py-3 bg-red-50 text-red-500 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    Delete All Orchestration
+                                </button>
+                            </div>
+                        </header>
 
                 <div className="grid grid-cols-1 gap-6">
                     {currentSlots.map((slot) => {
@@ -1131,6 +1459,8 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                     </div>
                 </div>
             </main>
+            </>
+            )}
 
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; } 

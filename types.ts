@@ -703,3 +703,13 @@ export interface WalletTransaction {
   auditId?: string;
   timestamp: string;
 }
+
+export interface SprintLink {
+  id: string;
+  sourceSprintId: string;
+  optionCode: string;
+  optionText: string;
+  targetSprintId: string;
+  createdAt: string;
+}
+

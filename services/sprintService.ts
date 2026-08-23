@@ -2088,5 +2088,37 @@ export const sprintService = {
             report.errors.push(e.message);
             return report;
         }
+    },
+
+    getSprintLinks: async (): Promise<any[]> => {
+        try {
+            const q = query(collection(db, 'sprint_links'));
+            const snap = await getDocs(q);
+            const links: any[] = [];
+            snap.forEach(doc => {
+                links.push({ id: doc.id, ...sanitizeData(doc.data()) });
+            });
+            return links;
+        } catch (e) {
+            console.error("Failed to fetch sprint links:", e);
+            return [];
+        }
+    },
+
+    saveSprintLink: async (link: any) => {
+        const linkId = link.id || doc(collection(db, 'sprint_links')).id;
+        const docRef = doc(db, 'sprint_links', linkId);
+        const dataToSave = { ...link, id: linkId, updatedAt: new Date().toISOString() };
+        await setDoc(docRef, sanitizeData(dataToSave));
+        return dataToSave;
+    },
+
+    deleteSprintLink: async (id: string) => {
+        try {
+            const { deleteDoc } = await import('firebase/firestore');
+            await deleteDoc(doc(db, 'sprint_links', id));
+        } catch (e) {
+            console.error("Failed to delete sprint link:", e);
+        }
     }
 };
