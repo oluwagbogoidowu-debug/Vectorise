@@ -180,7 +180,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                                     </div>
                                 </div>
                                 <div className="px-3 py-1.5 rounded-xl bg-white/20 text-white font-black text-[9px] uppercase tracking-widest">
-                                    {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost}` : `₦${sprint.price.toLocaleString()}`}
+                                    {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost ?? 10}` : `₦${(sprint.price ?? 1000).toLocaleString()}`}
                                 </div>
                             </div>
                         )}
@@ -271,7 +271,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                                 ? 'bg-blue-50 text-blue-700' 
                                 : 'bg-primary text-white group-hover:bg-primary-hover shadow-primary/20'
                             }`}>
-                                {isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {sprint.pointCost}</>) : `₦${sprint.price.toLocaleString()}`}
+                                {isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {sprint.pointCost ?? 10}</>) : `₦${(sprint.price ?? 1000).toLocaleString()}`}
                             </div>
                         </div>
                     )}

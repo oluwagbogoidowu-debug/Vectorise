@@ -2363,30 +2363,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (!user) return;
 
     try {
-      // Log rating if needed, for now just proceed
-      const enrollments = await sprintService.getUserEnrollments(user.id);
-      const queued = enrollments.filter((e) => e.status === "queued");
-
-      if (queued.length > 0) {
-        // Activate instantly
-        await sprintService.startNextQueuedSprint(user.id);
-        navigate("/dashboard", { replace: true });
-      } else {
-        // Check for saved sprints
-        const p = user as Participant;
-        const hasSaved =
-          (p.savedSprintIds || []).length > 0 ||
-          (p.wishlistSprintIds || []).length > 0;
-
-        if (hasSaved) {
-          navigate("/participant/my-sprints", { replace: true });
-        } else {
-          navigate("/explore", { replace: true });
-        }
-      }
+      navigate("/participant/next-sprint", { 
+        replace: true,
+        state: { 
+          completedSprintId: sprint?.id,
+          rating 
+        } 
+      });
     } catch (err) {
       console.error("Navigation after completion failed", err);
-      navigate("/dashboard", { replace: true });
+      navigate("/participant/next-sprint", { replace: true });
     }
   };
 

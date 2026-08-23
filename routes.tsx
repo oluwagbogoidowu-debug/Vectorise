@@ -72,6 +72,7 @@ const SprintSettings = lazy(() => import('./pages/Participant/Profile/SprintSett
 const RiseArchive = lazy(() => import('./pages/Participant/Profile/RiseArchive'));
 
 const BuyCoins = lazy(() => import('./pages/Participant/BuyCoins'));
+const NextSprintRecommendation = lazy(() => import('./pages/Participant/NextSprintRecommendation'));
 const SprintPreview = lazy(() => import('./pages/Participant/SprintPreview'));
 const RiseBlog = lazy(() => import('./pages/Participant/RiseBlog'));
 
@@ -199,6 +200,9 @@ export const AppRoutes: React.FC = () => {
            <Route path="/impact/badges" element={<Badges />} />
            <Route path="/buy-coins" element={<BuyCoins />} />
            <Route path="/participant/day-success" element={<DaySuccessPage />} />
+           <Route path="/participant/next-sprint" element={<NextSprintRecommendation />} />
+           <Route path="/participant/next-sprint/:sprintId" element={<NextSprintRecommendation />} />
+           <Route path="/participant/recommendation" element={<NextSprintRecommendation />} />
         </Route>
 
         {/* Public RiseBlog routes */}
