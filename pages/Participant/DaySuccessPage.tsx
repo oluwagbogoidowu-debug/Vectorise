@@ -4,6 +4,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { sprintService } from '../../services/sprintService';
+import { shineService } from '../../services/shineService';
+import { userService } from '../../services/userService';
+import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '../../services/milestoneConstants';
+import { toast } from 'sonner';
+import { Participant } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Coins, Clock, ArrowRight, Sparkles, X, Bell, Check } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
@@ -173,7 +178,76 @@ const DaySuccessPage: React.FC = () => {
     };
   }, [location.state?.sprintId, completedDay, user]);
 
-  const displayBridgeNote = liveBridgeNote || initialBridgeNote;
+  const [unclaimedMilestones, setUnclaimedMilestones] = useState<any[]>([]);
+  const [isClaimingIndex, setIsClaimingIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadMilestones = async () => {
+      try {
+        const enrollments = await sprintService.getUserEnrollments(user.id);
+        const reflections = await shineService.getPostsByUserId(user.id).catch(() => []);
+        const referralsCount = (user as any)?.referralsCount || 0;
+
+        const stats = computeMilestoneStats(enrollments, reflections, referralsCount);
+        const claimed = (user as Participant).claimedMilestoneIds || [];
+
+        const unclaimed = MILESTONES.filter(m => {
+          const val = calculateMilestoneStatValue(m.id, stats);
+          return val >= m.targetValue && !claimed.includes(m.id);
+        });
+
+        if (unclaimed.length === 0 && coinsUnlocked > 0) {
+          unclaimed.push({
+            id: unlockedMilestone ? String(unlockedMilestone) : 's2',
+            title: unlockedMilestone || 'You finished your first sprint.',
+            description: unlockedMilestone || 'You finished your first sprint.',
+            points: coinsUnlocked,
+            icon: '🏁',
+            targetValue: 1,
+            category: 'coreProgress'
+          });
+        }
+
+        setUnclaimedMilestones(unclaimed);
+      } catch (err) {
+        console.error("Error loading milestones:", err);
+        if (coinsUnlocked > 0) {
+          setUnclaimedMilestones([{
+            id: 's2',
+            title: 'You finished your first sprint.',
+            description: 'You finished your first sprint.',
+            points: coinsUnlocked,
+            icon: '🏁',
+            targetValue: 1,
+            category: 'coreProgress'
+          }]);
+        }
+      }
+    };
+    loadMilestones();
+  }, [user, coinsUnlocked, unlockedMilestone]);
+
+  const handleClaimMilestone = async (milestone: any, index: number) => {
+    if (!user || isClaimingIndex !== null) return;
+    setIsClaimingIndex(index);
+    triggerHaptic(hapticPatterns.medium);
+    try {
+      await userService.claimMilestone(user.id, milestone.id, milestone.points);
+      toast.success(`Claimed! +${milestone.points} Growth Coins added to your wallet.`);
+      setUnclaimedMilestones(prev => prev.filter((_, idx) => idx !== index));
+    } catch (err) {
+      console.error("Failed to claim milestone:", err);
+      toast.error("Failed to claim milestone. Please try again.");
+    } finally {
+      setIsClaimingIndex(null);
+    }
+  };
+
+  const unclaimedText = unclaimedMilestones.length > 0 
+    ? ` Unlocked Reward: ${unclaimedMilestones[0].description || unclaimedMilestones[0].title} (+${unclaimedMilestones[0].points} Growth Coins).` 
+    : '';
+  const displayBridgeNote = (liveBridgeNote || initialBridgeNote || '') + unclaimedText;
 
   // Real-time local midnight countdown timer
   const [countdown, setCountdown] = useState('00:00:00');
@@ -381,51 +455,50 @@ const DaySuccessPage: React.FC = () => {
           )}
         </motion.div>
 
-        {/* Compact Side-by-Side Cards (Fit on same line) */}
-        <div className="w-full grid grid-cols-2 gap-3 mb-6">
+        {/* Unlocked Reward Card (Full Width) */}
+        <div className="w-full mb-6">
+          <AnimatePresence mode="popLayout">
+            {unclaimedMilestones.length > 0 && (
+              <motion.div
+                key={unclaimedMilestones[0].id}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8, x: 50 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="w-full bg-[#FFFBEB] border border-amber-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 relative overflow-hidden"
+              >
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 text-lg">
+                    {unclaimedMilestones[0].icon || '🏆'}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <p className="text-[10px] sm:text-xs font-black text-amber-800 uppercase tracking-widest leading-none">
+                      Milestone Unlocked
+                    </p>
+                    <p className="text-xs sm:text-sm font-black text-amber-950 tracking-tight mt-1 truncate">
+                      {unclaimedMilestones[0].description || unclaimedMilestones[0].title}
+                    </p>
+                    <p className="text-[10px] sm:text-xs font-bold text-amber-700 tracking-tight mt-0.5">
+                      Reward: +{unclaimedMilestones[0].points} Growth Coins
+                    </p>
+                  </div>
+                </div>
 
-          {/* Unlocked Bonus / Coins Card - ONLY shown if milestone is really unlocked */}
-          {isMilestoneUnlocked && coinsUnlocked > 0 && (
-            <motion.div 
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-              className="bg-[#FFFBEB] border border-amber-200/60 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 relative overflow-hidden"
-            >
-              <div className="w-8 h-8 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
-                <Coins className="w-4 h-4 text-white" />
-              </div>
-              <div className="text-left min-w-0">
-                <p className="text-[8px] sm:text-[9px] font-black text-amber-800 uppercase tracking-widest leading-none truncate">
-                  Unlocked Reward
-                </p>
-                <p className="text-xs sm:text-sm font-black text-amber-950 tracking-tight mt-1 truncate">
-                  +{coinsUnlocked} Coins
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Next Move Card */}
-          <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className={`bg-white border border-gray-100 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 relative overflow-hidden ${(!isMilestoneUnlocked || coinsUnlocked <= 0) ? 'col-span-2' : ''}`}
-          >
-            <div className="w-8 h-8 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-xl flex items-center justify-center text-[#0E7850] shrink-0">
-              <Sparkles className="w-4 h-4 text-[#0E7850]" />
-            </div>
-            <div className="text-left min-w-0">
-              <p className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none truncate">
-                Next Move
-              </p>
-              <p className="text-xs sm:text-sm font-black text-[#0E7850] tracking-tight mt-1 truncate">
-                Ready & Unlocked
-              </p>
-            </div>
-          </motion.div>
-
+                <button
+                  type="button"
+                  onClick={() => handleClaimMilestone(unclaimedMilestones[0], 0)}
+                  disabled={isClaimingIndex === 0}
+                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isClaimingIndex === 0 ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <span>Claim</span>
+                  )}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
       </main>

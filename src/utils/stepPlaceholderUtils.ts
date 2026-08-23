@@ -1299,11 +1299,13 @@ export function updateStepVersionValue(rawField: string | null | undefined, vers
   return serializeStepVersions(versions);
 }
 
-export function isStepOrSubStepPoll(rawType?: string | null): boolean {
-  if (!rawType) return false;
-  if (rawType.trim().toLowerCase() === 'poll') return true;
+export function isStepOrSubStepPoll(rawType?: string | null, pollOptions?: any, prompt?: string | null): boolean {
+  if (pollOptions && Array.isArray(pollOptions) && pollOptions.length > 0) return true;
+  if (!rawType && !prompt) return false;
+  const combined = `${rawType || ''} ${prompt || ''}`.toLowerCase();
+  if (combined.includes('poll') || combined.includes('multiple choice') || combined.includes('op ') || combined.includes('options')) return true;
   const versions = parseStepVersions(rawType);
-  return versions.some(v => v.trim().toLowerCase() === 'poll');
+  return versions.some(v => v.trim().toLowerCase() === 'poll' || v.trim().toLowerCase() === 'multiple choice');
 }
 
 export function getStepInputType(
@@ -1314,8 +1316,16 @@ export function getStepInputType(
   allDaysInputs?: any[] | Record<number, any>
 ): string {
   if (!dayContent) return 'text';
-  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const pollOpts = getAllStepPollOptions(dayContent, stepIdx, taskInputs, allDaysContent, allDaysInputs);
+  if (pollOpts.length > 0) {
+    return 'poll';
+  }
+  const promptVal = dayContent.taskPrompts?.[stepIdx] || (stepIdx === 0 ? dayContent?.taskPrompt : '');
   const rawType = dayContent.taskInputTypes?.[stepIdx];
+  if (isStepOrSubStepPoll(rawType, pollOpts, promptVal)) {
+    return 'poll';
+  }
+  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
   const baseType = getStepVersionValue(rawType, 0, (rawType || 'text'));
   const typeVal = getStepVersionValue(rawType, verIdx, baseType);
   return typeVal ? typeVal.trim().toLowerCase() : (baseType ? baseType.trim().toLowerCase() : 'text');
