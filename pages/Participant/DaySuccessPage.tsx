@@ -10,7 +10,7 @@ import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '
 import { toast } from 'sonner';
 import { Participant } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Coins, Clock, ArrowRight, Sparkles, X, Bell, Check } from 'lucide-react';
+import { Coins, Clock, ArrowRight, Sparkles, Bell, Check } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 
@@ -373,10 +373,10 @@ const DaySuccessPage: React.FC = () => {
         <button
           type="button"
           onClick={handleExit}
-          className="w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-200/80 rounded-full flex items-center justify-center text-gray-600 transition-colors cursor-pointer active:scale-95 shrink-0"
-          aria-label="Cancel"
+          className="w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-200/80 rounded-full flex items-center justify-center text-gray-700 font-bold text-base transition-colors cursor-pointer active:scale-95 shrink-0"
+          aria-label="Menu"
         >
-          <X className="w-5 h-5" />
+          =
         </button>
       </div>
 
@@ -540,10 +540,10 @@ const DaySuccessPage: React.FC = () => {
               {/* Cancel Button top right */}
               <button
                 onClick={handleCloseModal}
-                className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center font-bold text-base transition-colors cursor-pointer"
                 aria-label="Close"
               >
-                <X className="w-5 h-5" />
+                =
               </button>
 
               {/* Icon */}

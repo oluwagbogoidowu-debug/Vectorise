@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { Sparkles, Trophy, ArrowRight, X, Star } from 'lucide-react';
+import { Sparkles, ArrowRight, X, Star } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
+import { sprintService } from '../services/sprintService';
+import { shineService } from '../services/shineService';
+import { userService } from '../services/userService';
+import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '../services/milestoneConstants';
+import { toast } from 'sonner';
+import { Participant } from '../types';
 
 interface SprintCompletionModalProps {
     isOpen: boolean;
@@ -21,12 +28,39 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     const { user } = useAuth();
     const [rating, setRating] = useState<number>(0);
     const [outcome, setOutcome] = useState<string>('');
+    const [unclaimedMilestones, setUnclaimedMilestones] = useState<any[]>([]);
+    const [isClaimingIndex, setIsClaimingIndex] = useState<number | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             setRating(0);
             setOutcome('');
-            // High intensity, beautiful premium celebration effect with waves of confetti
+
+            // Load unclaimed milestones
+            if (user) {
+                const loadMilestones = async () => {
+                    try {
+                        const enrollments = await sprintService.getUserEnrollments(user.id);
+                        const reflections = await shineService.getPostsByUserId(user.id).catch(() => []);
+                        const referralsCount = (user as any)?.referralsCount || 0;
+
+                        const stats = computeMilestoneStats(enrollments, reflections, referralsCount);
+                        const claimed = (user as Participant).claimedMilestoneIds || [];
+
+                        const unclaimed = MILESTONES.filter(m => {
+                            const val = calculateMilestoneStatValue(m.id, stats);
+                            return val >= m.targetValue && !claimed.includes(m.id);
+                        });
+
+                        setUnclaimedMilestones(unclaimed);
+                    } catch (err) {
+                        console.error("Error loading milestones:", err);
+                    }
+                };
+                loadMilestones();
+            }
+
+            // High intensity celebration effect
             const duration = 4 * 1000;
             const animationEnd = Date.now() + duration;
             const defaults = { startVelocity: 35, spread: 360, ticks: 70, zIndex: 1000, scalar: 1.2 };
@@ -42,7 +76,6 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
 
                 const particleCount = 60 * (timeLeft / duration);
                 
-                // Explode colored circles from both left and right sides of the screen
                 confetti({
                     ...defaults,
                     particleCount,
@@ -59,7 +92,22 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
 
             return () => clearInterval(interval);
         }
-    }, [isOpen]);
+    }, [isOpen, user]);
+
+    const handleClaimMilestone = async (milestone: any, index: number) => {
+        if (!user || isClaimingIndex !== null) return;
+        setIsClaimingIndex(index);
+        try {
+            await userService.claimMilestone(user.id, milestone.id, milestone.points);
+            toast.success(`Claimed! +${milestone.points} Growth Coins added to your wallet.`);
+            setUnclaimedMilestones(prev => prev.filter((_, idx) => idx !== index));
+        } catch (err) {
+            console.error("Failed to claim milestone:", err);
+            toast.error("Failed to claim milestone. Please try again.");
+        } finally {
+            setIsClaimingIndex(null);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -100,59 +148,121 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                         </p>
                     </div>
 
-                    {/* Full Bleed Hero Card */}
-                    <div className="w-full bg-gradient-to-br from-[#0E7850] to-[#085C3D] text-white p-6 rounded-[2rem] shadow-lg relative overflow-hidden my-2 flex items-center gap-4">
-                        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none" />
-                        <div className="w-14 h-14 bg-white/15 backdrop-blur-md rounded-2xl flex items-center justify-center shrink-0 border border-white/20">
-                            <Trophy className="w-7 h-7 text-amber-300" />
+                    {/* Milestone Unlocked Card (if any unclaimed milestone) */}
+                    {unclaimedMilestones.length > 0 && (
+                        <div className="w-full bg-[#FFFBEB] border border-amber-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 relative overflow-hidden mb-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 text-lg">
+                                    {unclaimedMilestones[0].icon || '🏆'}
+                                </div>
+                                <div className="text-left min-w-0">
+                                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest leading-none">
+                                        Milestone Unlocked
+                                    </p>
+                                    <p className="text-xs sm:text-sm font-black text-amber-950 tracking-tight mt-1 truncate">
+                                        {unclaimedMilestones[0].description || unclaimedMilestones[0].title}
+                                    </p>
+                                    <p className="text-[10px] font-bold text-amber-700 tracking-tight mt-0.5">
+                                        Reward: +{unclaimedMilestones[0].points} Growth Coins
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleClaimMilestone(unclaimedMilestones[0], 0)}
+                                disabled={isClaimingIndex === 0}
+                                className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                            >
+                                {isClaimingIndex === 0 ? (
+                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <span>Claim</span>
+                                )}
+                            </button>
                         </div>
-                        <div className="text-left flex-1 min-w-0">
-                            <p className="text-[10px] font-black text-emerald-200 uppercase tracking-widest leading-none">
-                                100% Action Steps Completed
-                            </p>
-                            <p className="text-lg font-black tracking-tight text-white mt-1 leading-snug">
-                                True momentum. What you build next compounds your growth.
-                            </p>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Interactive Ratings & Reflection Section */}
-                    <div className="my-6 space-y-4 bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-left">
-                        <div>
-                            <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-3">
-                                How effective was this sprint for your growth?
-                            </p>
-                            <div className="flex justify-between gap-2">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <button
-                                        key={star}
-                                        type="button"
-                                        onClick={() => setRating(star)}
-                                        className={`flex-1 py-3 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                                            rating >= star 
-                                                ? 'bg-[#0E7850] text-white shadow-md scale-105' 
-                                                : 'bg-white text-gray-400 hover:bg-gray-100 border border-gray-100'
-                                        }`}
-                                    >
-                                        <Star className={`w-4 h-4 ${rating >= star ? 'fill-amber-300 text-amber-300' : 'text-gray-300'}`} />
-                                        <span className="text-[11px] font-black">{star}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                    <AnimatePresence mode="wait">
+                        {rating === 0 ? (
+                            <motion.div
+                                key="rating-prompt"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.2 }}
+                                className="my-2 space-y-4 bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-left"
+                            >
+                                <div>
+                                    <p className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3">
+                                        How would you rate this sprint?
+                                    </p>
+                                    <div className="flex justify-between gap-2">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <button
+                                                key={star}
+                                                type="button"
+                                                onClick={() => setRating(star)}
+                                                className="flex-1 py-3.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-white text-gray-400 hover:bg-amber-50 hover:text-amber-400 hover:scale-105 border border-gray-100 shadow-sm active:scale-95 group"
+                                            >
+                                                <Star className="w-5 h-5 text-gray-300 group-hover:text-amber-400 group-hover:fill-amber-400 transition-colors" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="feedback-prompt"
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.2 }}
+                                className="my-2 space-y-3 bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-left"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <button
+                                                key={star}
+                                                type="button"
+                                                onClick={() => setRating(star)}
+                                                className="p-1 cursor-pointer transition-transform hover:scale-110"
+                                            >
+                                                <Star 
+                                                    className={`w-4 h-4 ${
+                                                        star <= rating 
+                                                            ? 'fill-amber-400 text-amber-400' 
+                                                            : 'text-gray-300'
+                                                    }`} 
+                                                />
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <span className="text-[10px] font-bold text-gray-400 tracking-wide uppercase">
+                                        {rating} of 5 Stars
+                                    </span>
+                                </div>
 
-                        <div className="border-t border-gray-200/60 pt-4">
-                            <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-2 block">
-                                Key realization or takeaway
-                            </label>
-                            <textarea
-                                value={outcome}
-                                onChange={(e) => setOutcome(e.target.value)}
-                                placeholder="I learned that consistent daily execution beats big plans..."
-                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:ring-2 focus:ring-[#0E7850] focus:border-[#0E7850] outline-none transition-all resize-none h-20"
-                            />
-                        </div>
-                    </div>
+                                <div className="pt-1">
+                                    <h4 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight leading-snug">
+                                        Want to share what this sprint helped you with?
+                                    </h4>
+                                    <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                                        Your response helps us improve the experience.
+                                    </p>
+                                </div>
+
+                                <textarea
+                                    value={outcome}
+                                    onChange={(e) => setOutcome(e.target.value)}
+                                    placeholder="Share your experience..."
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:ring-2 focus:ring-[#0E7850] focus:border-[#0E7850] outline-none transition-all resize-none h-24 text-gray-800 placeholder:text-gray-400"
+                                    autoFocus
+                                />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 {/* Footer CTAs */}
@@ -164,14 +274,6 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                     >
                         <span>Start your next sprint</span>
                         <ArrowRight className="w-4 h-4 text-white" />
-                    </button>
-                    
-                    <button 
-                        type="button"
-                        onClick={onClose}
-                        className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-black uppercase tracking-widest text-[10px] transition-colors cursor-pointer text-center block"
-                    >
-                        I'll decide later
                     </button>
                 </div>
             </div>
@@ -187,3 +289,4 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
 };
 
 export default SprintCompletionModal;
+
