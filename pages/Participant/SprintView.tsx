@@ -4403,10 +4403,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         isOpen={isRestartModalOpen}
         onClose={() => !isRestarting && setIsRestartModalOpen(false)}
         onConfirm={handleRestartSprint}
-        title="Restart Sprint?"
-        message="All your task submissions, progress, and completed days for this sprint will be cleared to start fresh from Day 1. Are you sure you want to restart?"
-        confirmText={isRestarting ? "Restarting..." : "Restart Sprint"}
-        cancelText="Keep Progress"
+        title="Are you sure you want to restart the sprint?"
+        message="This will clear your current progress and start afresh."
+        confirmText={isRestarting ? "Restarting..." : "Yes"}
+        cancelText="No"
         variant="danger"
       />
       <ParticipantDrawerMenu

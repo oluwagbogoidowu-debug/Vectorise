@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins } from 'lucide-react';
+import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import LocalLogo from '../../components/LocalLogo';
@@ -103,6 +103,11 @@ export const NextSprintRecommendation: React.FC = () => {
                 toast.error('Could not copy link');
             }
         }
+    };
+
+    const handleClaimMilestones = () => {
+        setIsKebabMenuOpen(false);
+        navigate('/profile/hall-of-rise');
     };
 
     const handleBuyCoins = () => {
@@ -385,6 +390,20 @@ export const NextSprintRecommendation: React.FC = () => {
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900">Refer a Friend</span>
                                             <span className="font-normal text-gray-500"> · Earn coins</span>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleClaimMilestones}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                            <Trophy className="w-4 h-4" />
+                                        </div>
+                                        <div className="text-xs truncate">
+                                            <span className="font-bold text-gray-900">Claim Milestones</span>
+                                            <span className="font-normal text-gray-500"> • Earn coin</span>
                                         </div>
                                     </button>
 
