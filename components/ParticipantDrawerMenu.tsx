@@ -105,7 +105,7 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
             {/* Drawer Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <LocalLogo type="green" className="h-6 w-auto object-contain" />
+                <LocalLogo type="green" className="h-9 sm:h-10 w-auto object-contain" />
               </div>
               <button
                 type="button"

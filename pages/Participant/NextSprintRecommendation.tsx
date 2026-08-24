@@ -3,7 +3,6 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
-import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import ParticipantDrawerMenu from '../../components/ParticipantDrawerMenu';
@@ -330,6 +329,13 @@ export const NextSprintRecommendation: React.FC = () => {
     const sprintCost = sprint?.pointCost || 10;
     const sprintPrice = sprint?.price || 1000;
 
+    // Default to pkg_100 if user balance is lower than sprint cost
+    useEffect(() => {
+        if (isPaymentModalOpen && userBalance < sprintCost && (paymentMethod === 'coins' || !paymentMethod)) {
+            setPaymentMethod('pkg_100');
+        }
+    }, [isPaymentModalOpen, userBalance, sprintCost, paymentMethod]);
+
     return (
         <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-white text-gray-900 relative overflow-hidden">
             {/* Navigation Header */}
@@ -342,8 +348,6 @@ export const NextSprintRecommendation: React.FC = () => {
                 >
                     <Menu className="w-5 h-5" />
                 </button>
-
-                <LocalLogo type="green" className="h-5 w-auto" />
 
                 <div className="relative" ref={kebabMenuRef}>
                     <button
