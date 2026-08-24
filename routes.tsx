@@ -138,8 +138,8 @@ export const AppRoutes: React.FC = () => {
         {/* Consolidated Onboarding Paths */}
         <Route path="/onboarding/welcome" element={<Welcome />} />
         <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
-        <Route path="/onboarding/start-here" element={<Navigate to="/participant/next-sprint" replace />} />
-        <Route path="/onboarding/start-here/:sprintId" element={<Navigate to="/participant/next-sprint" replace />} />
+        <Route path="/onboarding/start-here" element={<StartHerePage />} />
+        <Route path="/onboarding/start-here/:sprintId" element={<StartHerePage />} />
         <Route path="/onboarding/description/:sprintId" element={<SprintLandingPage />} />
         <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
         <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />
