@@ -53,6 +53,7 @@ const DiscoverSprints: React.FC = () => {
     const [allSprints, setAllSprints] = useState<Sprint[]>([]);
     const [tracks, setTracks] = useState<Track[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
+    const [sprintLinks, setSprintLinks] = useState<any[]>([]);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
     const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isSprintsLoaded, setIsSprintsLoaded] = useState(false);
@@ -89,14 +90,16 @@ const DiscoverSprints: React.FC = () => {
 
         const loadCoachesAndOrchestration = async () => {
             try {
-                const [dbCoaches, mapping, dbTracks] = await Promise.all([
+                const [dbCoaches, mapping, dbTracks, links] = await Promise.all([
                     userService.getCoaches(),
                     sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>,
-                    trackService.getAllTracks()
+                    trackService.getAllTracks(),
+                    sprintService.getSprintLinks().catch(() => [])
                 ]);
                 setCoaches(dbCoaches);
                 setOrchestration(mapping);
                 setTracks(dbTracks.filter(t => t.published));
+                setSprintLinks(links);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -328,10 +331,10 @@ const DiscoverSprints: React.FC = () => {
     }, [orchestration, user, sprints, tracks, enrolledSprintIds]);
 
     const nextSteps = useMemo(() => {
-        const fullList = getExploreNextSteps(sprints, user, orchestration, enrolledSprintIds);
+        const fullList = getExploreNextSteps(sprints, user, orchestration, enrolledSprintIds, userEnrollments, sprintLinks);
         const overrideCount = sprints.filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id)).length;
         return fullList.slice(0, Math.max(3, overrideCount));
-    }, [sprints, user, orchestration, enrolledSprintIds]);
+    }, [sprints, user, orchestration, enrolledSprintIds, userEnrollments, sprintLinks]);
 
     if (isLoading) {
         return null;

@@ -309,6 +309,8 @@ export interface Sprint {
   audience?: string[];
   overrideOrchestrator?: boolean;
   overrideOrder?: number;
+  nextSprintId?: string;
+  linkedSprintId?: string;
   duration: number;
   price: number;
   currency: string;

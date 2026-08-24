@@ -125,10 +125,11 @@ export const NextSprintRecommendation: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const [allPublished, dbCoaches, orchestration] = await Promise.all([
+            const [allPublished, dbCoaches, orchestration, sprintLinks] = await Promise.all([
                 sprintService.getPublishedSprints().catch(() => []),
                 userService.getCoaches().catch(() => []),
-                (sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>).catch(() => ({} as Record<string, LifecycleSlotAssignment>))
+                (sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>).catch(() => ({} as Record<string, LifecycleSlotAssignment>)),
+                sprintService.getSprintLinks().catch(() => [])
             ]);
             
             if (sprintId) {
@@ -150,11 +151,12 @@ export const NextSprintRecommendation: React.FC = () => {
                 }
             }
 
+            let userEnrollments: any[] = [];
             let userEnrolledIds: string[] = [];
             if (user) {
                 try {
-                    const enrollments = await sprintService.getUserEnrollments(user.id);
-                    userEnrolledIds = enrollments.map(e => e.sprint_id);
+                    userEnrollments = await sprintService.getUserEnrollments(user.id);
+                    userEnrolledIds = userEnrollments.map(e => e.sprint_id);
                 } catch (e) {
                     console.error("Error fetching enrollments:", e);
                 }
@@ -165,8 +167,16 @@ export const NextSprintRecommendation: React.FC = () => {
                 enrolledSet.add(completedSprintId);
             }
 
-            // Pick the exact first sprint shown on the Explore page
-            const candidateSprint = getExploreFirstSprint(allPublished, user, orchestration, enrolledSet);
+            // Sprint-to-Sprint Option Linking is senior brother to all other orchestrator logic
+            const candidateSprint = getExploreFirstSprint(
+                allPublished, 
+                user, 
+                orchestration, 
+                enrolledSet, 
+                userEnrollments, 
+                sprintLinks, 
+                completedSprintId
+            );
 
             if (candidateSprint) {
                 setSprint(candidateSprint);

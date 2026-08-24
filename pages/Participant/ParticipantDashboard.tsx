@@ -30,6 +30,7 @@ import { paymentService } from '../../services/paymentService';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
 import { shineService } from '../../services/shineService';
 import { localNotificationScheduler } from '../../services/localNotificationScheduler';
+import { getExploreFirstSprint } from '../../utils/sprintUtils';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -132,6 +133,7 @@ const ParticipantDashboard: React.FC = () => {
   const [publishedSprints, setPublishedSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [orchestration, setOrchestration] = useState<Record<string, any>>({});
+  const [sprintLinks, setSprintLinks] = useState<any[]>([]);
   const [activePlayIgnite, setActivePlayIgnite] = useState<Sprint | null>(null);
   const [showPulse, setShowPulse] = useState(false);
   const [checkedIgnites, setCheckedIgnites] = useState<Record<string, boolean>>({});
@@ -364,65 +366,15 @@ const ParticipantDashboard: React.FC = () => {
   const recommendedNextSprint = useMemo(() => {
     if (publishedSprints.length === 0) return null;
     const enrolledSprintIds = new Set(allEnrollments.map(e => e.sprint_id));
-    const participant = user as Participant;
-    const list: Sprint[] = [];
-    const seenIds = new Set<string>();
-
-    const addSprint = (sprint: Sprint | undefined) => {
-      if (sprint && !enrolledSprintIds.has(sprint.id) && !seenIds.has(sprint.id)) {
-        list.push(sprint);
-        seenIds.add(sprint.id);
-      }
-    };
-
-    // 0. Include sprints that override orchestrator
-    const overrideSprintsActive = publishedSprints
-      .filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id))
-      .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
-    overrideSprintsActive.forEach(s => {
-      addSprint(s);
-    });
-
-    const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
-                     Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
-
-    // 1. Prioritization list from the orchestrator in direction session (slot_dir_sprint) first
-    const directionMapping = orchestration['slot_dir_sprint'];
-    if (directionMapping) {
-      const focusMap = directionMapping.sprintFocusMap || {};
-      const prioritiesMap = directionMapping.focusOptionPriorityMap || {};
-      const assignedIds = directionMapping.sprintIds || (directionMapping.sprintId ? [directionMapping.sprintId] : []);
-
-      if (userFocus) {
-        // Sprints mapped to slot_dir_sprint that have the user's active focus tag
-        const matches = assignedIds.filter((id: string) => focusMap[id]?.includes(userFocus));
-        const priorities = prioritiesMap[userFocus] || [];
-        if (matches.length > 0) {
-          matches.sort((a: string, b: string) => {
-            const idxA = priorities.indexOf(a);
-            const idxB = priorities.indexOf(b);
-            if (idxA > -1 && idxB > -1) return idxA - idxB;
-            if (idxA > -1) return -1;
-            if (idxB > -1) return 1;
-            return 0;
-          });
-          
-          matches.forEach((sId: string) => {
-            const s = publishedSprints.find(sp => sp.id === sId);
-            if (s) addSprint(s);
-          });
-        }
-      }
-
-      // Fallback: If space permits, add any other assigned sprint ids from slot_dir_sprint in original priority order
-      assignedIds.forEach((sId: string) => {
-        const s = publishedSprints.find(sp => sp.id === sId);
-        if (s) addSprint(s);
-      });
-    }
-
-    return list[0] || null;
-  }, [publishedSprints, allEnrollments, user, orchestration]);
+    return getExploreFirstSprint(
+      publishedSprints,
+      user,
+      orchestration,
+      enrolledSprintIds,
+      allEnrollments,
+      sprintLinks
+    );
+  }, [publishedSprints, allEnrollments, user, orchestration, sprintLinks]);
 
   // Set default payment method when overview sheet is shown
   useEffect(() => {
@@ -644,16 +596,18 @@ const ParticipantDashboard: React.FC = () => {
     return () => unsubscribe();
   }, [user]);
 
-  // Fetch coaches and orchestration on mount
+  // Fetch coaches, orchestration and sprint links on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dbCoaches, mapping] = await Promise.all([
+        const [dbCoaches, mapping, links] = await Promise.all([
           userService.getCoaches(),
-          sprintService.getOrchestration()
+          sprintService.getOrchestration(),
+          sprintService.getSprintLinks().catch(() => [])
         ]);
         setCoaches(dbCoaches || []);
         setOrchestration(mapping || {});
+        setSprintLinks(links || []);
       } catch (err) {
         console.error("Failed to load coaches/orchestration data", err);
       }

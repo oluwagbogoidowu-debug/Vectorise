@@ -16,6 +16,7 @@ import { AppRoutes } from './routes';
 import { UserRole } from './types';
 import { localNotificationScheduler } from './services/localNotificationScheduler';
 import OfflineBanner from './components/OfflineBanner';
+import FloatingSprintBar from './components/FloatingSprintBar';
 
 const AppContent: React.FC = () => {
   const { user, activeRole, loading, logout } = useAuth();
@@ -184,6 +185,7 @@ const AppContent: React.FC = () => {
       <OfflineBanner />
       <DormancyPrompt />
       <PWAInstallPrompt deferredPrompt={deferredPrompt} />
+      <FloatingSprintBar />
 
 
     </div>

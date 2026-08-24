@@ -1,6 +1,119 @@
-import { Sprint, UserRole, Participant, LifecycleSlotAssignment, User } from '../types';
+import { Sprint, UserRole, Participant, LifecycleSlotAssignment, User, ParticipantSprint } from '../types';
 import { FOCUS_OPTIONS } from '../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../constants';
+
+export const parseOptionCodeHelper = (code: string, sprint?: Sprint | null) => {
+    if (!code) return null;
+    const clean = code.trim().replace(/^\{|\}$/g, '').trim();
+    
+    let dayNum = 1;
+    let stepNum = 1;
+    let opNum = 1;
+
+    const mMatch = clean.match(/M(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
+    const dMatch = clean.match(/Day\s+(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
+    const sMatch = clean.match(/Step\s+(\d+)\s+op(\d+)/i);
+    const shortMatch = clean.match(/M(\d+)\s+S(\d+)\s+O(\d+)/i);
+
+    if (mMatch) {
+        dayNum = parseInt(mMatch[1], 10);
+        stepNum = parseInt(mMatch[2], 10);
+        opNum = parseInt(mMatch[3], 10);
+    } else if (dMatch) {
+        dayNum = parseInt(dMatch[1], 10);
+        stepNum = parseInt(dMatch[2], 10);
+        opNum = parseInt(dMatch[3], 10);
+    } else if (shortMatch) {
+        dayNum = parseInt(shortMatch[1], 10);
+        stepNum = parseInt(shortMatch[2], 10);
+        opNum = parseInt(shortMatch[3], 10);
+    } else if (sMatch) {
+        stepNum = parseInt(sMatch[1], 10);
+        opNum = parseInt(sMatch[2], 10);
+    } else {
+        return null;
+    }
+
+    const stepIdx = stepNum - 1;
+    const optionIdx = opNum - 1;
+
+    let optionText = '';
+    if (sprint && sprint.dailyContent) {
+        const dc = sprint.dailyContent.find(d => Number(d.day) === Number(dayNum)) || sprint.dailyContent[dayNum - 1];
+        if (dc && dc.taskPollOptions && dc.taskPollOptions[stepIdx]) {
+            const rawOpts = dc.taskPollOptions[stepIdx];
+            let optionsList: string[] = [];
+            try {
+                if (typeof rawOpts === 'string' && rawOpts.trim().startsWith('[')) {
+                    optionsList = JSON.parse(rawOpts);
+                } else if (typeof rawOpts === 'string') {
+                    optionsList = rawOpts.split(',').map(s => s.trim());
+                } else if (Array.isArray(rawOpts)) {
+                    optionsList = rawOpts;
+                }
+            } catch (e) {
+                optionsList = String(rawOpts).split(',').map(s => s.trim());
+            }
+            optionText = optionsList[optionIdx] || '';
+        }
+    }
+
+    return { dayNum, stepIdx, optionIdx, optionText };
+};
+
+/**
+ * Checks if a participant's recorded answers in their enrollment match a configured sprint link.
+ */
+export const isOptionLinkMatchedByUser = (
+    enrollment: ParticipantSprint | undefined | null,
+    sourceSprint: Sprint | undefined | null,
+    link: any
+): boolean => {
+    if (!enrollment || !link) return false;
+    const parsed = parseOptionCodeHelper(link.optionCode, sourceSprint);
+    const targetOptionText = (link.optionText || parsed?.optionText || '').trim().toLowerCase();
+
+    const progressList = Array.isArray(enrollment.progress) ? enrollment.progress : [];
+
+    // Check specific day/step if parsed
+    if (parsed) {
+        const dayProg = progressList.find(p => Number(p.day) === Number(parsed.dayNum));
+        if (dayProg) {
+            const answer = dayProg.answers?.[parsed.stepIdx];
+            if (answer && typeof answer === 'string') {
+                const cleanAns = answer.trim().toLowerCase();
+                if (targetOptionText && (cleanAns === targetOptionText || cleanAns.includes(targetOptionText) || targetOptionText.includes(cleanAns))) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Check across all progress answers and submissions
+    for (const p of progressList) {
+        if (Array.isArray(p.answers)) {
+            for (const ans of p.answers) {
+                if (typeof ans === 'string' && ans.trim()) {
+                    const cleanAns = ans.trim().toLowerCase();
+                    if (targetOptionText && (cleanAns === targetOptionText || cleanAns.includes(targetOptionText) || targetOptionText.includes(cleanAns))) {
+                        return true;
+                    }
+                    if (link.optionCode && cleanAns.includes(link.optionCode.toLowerCase())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        if (typeof p.submission === 'string' && targetOptionText) {
+            const cleanSub = p.submission.toLowerCase();
+            if (cleanSub.includes(targetOptionText)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+};
 
 export const getSprintOutcomes = (sprint: Sprint | string) => {
     const category = typeof sprint === 'string' ? sprint : sprint.category;
@@ -191,14 +304,22 @@ export const filterAllowedSprintsForUser = (allSprints: Sprint[], user: User | P
 
 /**
  * Returns the exact list of recommended sprints for the Explore page,
- * respecting orchestrator override, slot_dir_sprint mapping with user focus,
- * growth areas, rise pathways, and fallbacks.
+ * respecting:
+ * 0. Sprint-to-Sprint Option Linking (Senior Brother: Option match via Orchestrator Lifecycle or Sprint Setting Bypass)
+ * 1. Orchestrator Override Sprints (overrideOrchestrator flag)
+ * 2. Lifecycle Orchestrator slots (slot_dir_sprint mapping with user focus)
+ * 3. Growth Areas (from identity setup)
+ * 4. Rise Pathway
+ * 5. Fallbacks to remaining available sprints
  */
 export const getExploreNextSteps = (
     sprints: Sprint[],
     user: Participant | User | null,
     orchestration: Record<string, LifecycleSlotAssignment> = {},
-    enrolledSprintIds: Set<string> = new Set()
+    enrolledSprintIds: Set<string> = new Set(),
+    userEnrollments: ParticipantSprint[] = [],
+    sprintLinks: any[] = [],
+    currentOrCompletedSprintId?: string
 ): Sprint[] => {
     const participant = user as Participant;
     const list: Sprint[] = [];
@@ -211,7 +332,77 @@ export const getExploreNextSteps = (
         }
     };
 
-    // 0. Include sprints that override orchestrator
+    // =========================================================================
+    // 0. SENIOR BROTHER: Sprint-to-Sprint Option Linking & Sprint Setting Bypass
+    // =========================================================================
+    let sourceSprintId = currentOrCompletedSprintId;
+    let sourceEnrollment: ParticipantSprint | undefined = undefined;
+
+    if (userEnrollments && userEnrollments.length > 0) {
+        if (sourceSprintId) {
+            sourceEnrollment = userEnrollments.find(e => e.sprint_id === sourceSprintId);
+        } else {
+            // Find most recently completed or active enrollment
+            const completed = userEnrollments
+                .filter(e => e.completed_at || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed)))
+                .sort((a, b) => new Date(b.completed_at || b.started_at || 0).getTime() - new Date(a.completed_at || a.started_at || 0).getTime());
+            
+            if (completed.length > 0) {
+                sourceEnrollment = completed[0];
+                sourceSprintId = completed[0].sprint_id;
+            } else {
+                const active = [...userEnrollments].sort((a, b) => 
+                    new Date(b.last_activity_at || b.started_at || 0).getTime() - new Date(a.last_activity_at || a.started_at || 0).getTime()
+                );
+                if (active.length > 0) {
+                    sourceEnrollment = active[0];
+                    sourceSprintId = active[0].sprint_id;
+                }
+            }
+        }
+    }
+
+    if (sourceSprintId) {
+        const sourceSprint = sprints.find(s => s.id === sourceSprintId);
+
+        // A. Check Option-based linking configured in Lifecycle Orchestrator
+        if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
+            const relevantLinks = sprintLinks.filter(l => l.sourceSprintId === sourceSprintId);
+            
+            // First check for links where participant answers actually matched the option choice
+            for (const link of relevantLinks) {
+                if (isOptionLinkMatchedByUser(sourceEnrollment, sourceSprint, link)) {
+                    const target = sprints.find(s => s.id === link.targetSprintId);
+                    if (target) {
+                        addSprint(target);
+                    }
+                }
+            }
+
+            // Fallback: If user had no specific poll match but source sprint has direct link rules
+            for (const link of relevantLinks) {
+                const target = sprints.find(s => s.id === link.targetSprintId);
+                if (target) {
+                    addSprint(target);
+                }
+            }
+        }
+
+        // B. Check Sprint Setting Bypass (Direct linked sprint set on source sprint itself)
+        if (sourceSprint) {
+            const directLinkedId = sourceSprint.nextSprintId || sourceSprint.linkedSprintId;
+            if (directLinkedId) {
+                const target = sprints.find(s => s.id === directLinkedId);
+                if (target) {
+                    addSprint(target);
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 1. Sprints that override orchestrator
+    // =========================================================================
     const overrideSprintsActive = sprints
         .filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id))
         .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
@@ -222,7 +413,9 @@ export const getExploreNextSteps = (
     const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
                      Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
 
-    // 1. Prioritization list from the orchestrator in direction session (slot_dir_sprint) first
+    // =========================================================================
+    // 2. Prioritization list from orchestrator direction session (slot_dir_sprint)
+    // =========================================================================
     const directionMapping = orchestration['slot_dir_sprint'];
     if (directionMapping) {
         const focusMap = directionMapping.sprintFocusMap || {};
@@ -257,9 +450,11 @@ export const getExploreNextSteps = (
         });
     }
 
-    // 2. If list is still empty, check Growth Areas (from identity setup)
+    // =========================================================================
+    // 3. Growth Areas (from identity setup)
+    // =========================================================================
     const growthAreas = participant?.growthAreas || [];
-    if (list.length === 0 && growthAreas.length > 0) {
+    if (growthAreas.length > 0) {
         const matchedGroups = GROWTH_AREAS.filter(g => 
             g.options.some(opt => growthAreas.includes(opt))
         );
@@ -272,9 +467,11 @@ export const getExploreNextSteps = (
         }
     }
 
-    // 3. If list is still empty, check Rise Pathway
+    // =========================================================================
+    // 4. Rise Pathway
+    // =========================================================================
     const pathwayId = participant?.risePathway;
-    if (list.length === 0 && pathwayId) {
+    if (pathwayId) {
         const pathwaySprintMap: Record<string, string[]> = {
             'student': ['Clarity Sprint', 'Direction Sprint'],
             'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
@@ -289,7 +486,9 @@ export const getExploreNextSteps = (
         if (matchedSprint) addSprint(matchedSprint);
     }
 
-    // 4. Fallback to any remaining non-enrolled sprints
+    // =========================================================================
+    // 5. Fallback to any remaining non-enrolled sprints
+    // =========================================================================
     sprints.forEach(s => {
         if (!enrolledSprintIds.has(s.id)) {
             addSprint(s);
@@ -300,16 +499,27 @@ export const getExploreNextSteps = (
 };
 
 /**
- * Returns the first sprint displayed on the Explore page for the user.
+ * Returns the first sprint displayed on the Explore page / Next Sprint Recommendation for the user.
  */
 export const getExploreFirstSprint = (
     allPublishedSprints: Sprint[],
     user: Participant | User | null,
     orchestration: Record<string, LifecycleSlotAssignment> = {},
-    enrolledSprintIds: Set<string> = new Set()
+    enrolledSprintIds: Set<string> = new Set(),
+    userEnrollments: ParticipantSprint[] = [],
+    sprintLinks: any[] = [],
+    currentOrCompletedSprintId?: string
 ): Sprint | null => {
     const allowedSprints = filterAllowedSprintsForUser(allPublishedSprints, user);
     const sprintPool = allowedSprints.length > 0 ? allowedSprints : allPublishedSprints;
-    const nextSteps = getExploreNextSteps(sprintPool, user, orchestration, enrolledSprintIds);
+    const nextSteps = getExploreNextSteps(
+        sprintPool, 
+        user, 
+        orchestration, 
+        enrolledSprintIds, 
+        userEnrollments, 
+        sprintLinks, 
+        currentOrCompletedSprintId
+    );
     return nextSteps[0] || sprintPool.find(s => !enrolledSprintIds.has(s.id)) || sprintPool[0] || null;
 };
