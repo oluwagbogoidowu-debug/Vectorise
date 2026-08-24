@@ -575,9 +575,14 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                     className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
                                 >
                                     <option value="">-- Choose Target Linked Sprint --</option>
-                                    {allSprints.filter(s => s.id !== linkSourceSprintId).map(s => (
-                                        <option key={s.id} value={s.id}>{s.title} ({s.category})</option>
-                                    ))}
+                                    {allSprints.map(s => {
+                                        const isSame = s.id === linkSourceSprintId;
+                                        return (
+                                            <option key={s.id} value={s.id}>
+                                                {s.title} ({s.category}){isSame ? ' — 🔁 [Repeat This Sprint]' : ''}
+                                            </option>
+                                        );
+                                    })}
                                 </select>
                             </div>
 
@@ -585,13 +590,24 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                             {linkTargetSprintId && (() => {
                                 const tgt = allSprints.find(s => s.id === linkTargetSprintId);
                                 if (!tgt) return null;
+                                const isSame = tgt.id === linkSourceSprintId;
                                 return (
-                                    <div className="p-5 rounded-2xl bg-orange-50 border border-orange-100 flex items-center gap-4 animate-fade-in">
-                                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-orange-200 shadow-sm">
+                                    <div className={`p-5 rounded-2xl border flex items-center gap-4 animate-fade-in ${
+                                        isSame 
+                                            ? 'bg-emerald-50/80 border-emerald-200' 
+                                            : 'bg-orange-50 border-orange-100'
+                                    }`}>
+                                        <div className={`w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border shadow-sm ${
+                                            isSame ? 'border-emerald-300' : 'border-orange-200'
+                                        }`}>
                                             <img src={tgt.coverImageUrl} className="w-full h-full object-cover" alt="" />
                                         </div>
                                         <div>
-                                            <p className="text-[9px] font-black text-orange-600 uppercase tracking-widest">Linked Target Sprint (Recommendation)</p>
+                                            <p className={`text-[9px] font-black uppercase tracking-widest ${
+                                                isSame ? 'text-emerald-700' : 'text-orange-600'
+                                            }`}>
+                                                {isSame ? '🔁 Direct Repeat Recommendation (Same Sprint)' : 'Linked Target Sprint (Recommendation)'}
+                                            </p>
                                             <h6 className="text-base font-black text-gray-900">{tgt.title}</h6>
                                             <p className="text-xs text-gray-500 mt-0.5">{tgt.duration} Days • {tgt.category}</p>
                                         </div>
@@ -630,7 +646,13 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[8px] font-black uppercase tracking-widest">{srcSprint?.title || 'Unknown Source'}</span>
                                                         <span className="text-gray-300">→</span>
-                                                        <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md text-[8px] font-black uppercase tracking-widest">{tgtSprint?.title || 'Unknown Target'}</span>
+                                                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                                            srcSprint?.id === tgtSprint?.id 
+                                                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                                                                : 'bg-orange-100 text-orange-700'
+                                                        }`}>
+                                                            {srcSprint?.id === tgtSprint?.id ? '🔁 Repeat Sprint' : (tgtSprint?.title || 'Unknown Target')}
+                                                        </span>
                                                     </div>
                                                     <p className="text-xs font-black text-gray-900 font-mono bg-white px-2.5 py-1 rounded-xl border border-gray-200 inline-block">
                                                         {link.optionCode}

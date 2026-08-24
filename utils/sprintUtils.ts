@@ -325,8 +325,8 @@ export const getExploreNextSteps = (
     const list: Sprint[] = [];
     const seenIds = new Set<string>();
 
-    const addSprint = (sprint: Sprint | undefined | null) => {
-        if (sprint && !enrolledSprintIds.has(sprint.id) && !seenIds.has(sprint.id)) {
+    const addSprint = (sprint: Sprint | undefined | null, forceAllowRepeat: boolean = false) => {
+        if (sprint && (!enrolledSprintIds.has(sprint.id) || forceAllowRepeat) && !seenIds.has(sprint.id)) {
             list.push(sprint);
             seenIds.add(sprint.id);
         }
@@ -374,7 +374,7 @@ export const getExploreNextSteps = (
                 if (isOptionLinkMatchedByUser(sourceEnrollment, sourceSprint, link)) {
                     const target = sprints.find(s => s.id === link.targetSprintId);
                     if (target) {
-                        addSprint(target);
+                        addSprint(target, true); // Allow repeat for explicitly linked same-sprint
                     }
                 }
             }
@@ -383,7 +383,7 @@ export const getExploreNextSteps = (
             for (const link of relevantLinks) {
                 const target = sprints.find(s => s.id === link.targetSprintId);
                 if (target) {
-                    addSprint(target);
+                    addSprint(target, true); // Allow repeat for explicitly linked same-sprint
                 }
             }
         }
@@ -394,7 +394,7 @@ export const getExploreNextSteps = (
             if (directLinkedId) {
                 const target = sprints.find(s => s.id === directLinkedId);
                 if (target) {
-                    addSprint(target);
+                    addSprint(target, true); // Allow repeat for explicitly linked same-sprint
                 }
             }
         }

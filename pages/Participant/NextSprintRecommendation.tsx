@@ -7,6 +7,7 @@ import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import ParticipantDrawerMenu from '../../components/ParticipantDrawerMenu';
+import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { paymentService } from '../../services/paymentService';
@@ -29,14 +30,29 @@ export const NextSprintRecommendation: React.FC = () => {
     const [sprint, setSprint] = useState<Sprint | null>(initialSprint);
     const [fetchedCoach, setFetchedCoach] = useState<Coach | null>(null);
     const [isLoading, setIsLoading] = useState(!initialSprint);
+    const [sprintLinks, setSprintLinks] = useState<any[]>([]);
 
-    // Payment Modal State
+    // Overview & Payment Modal State
+    const [showOverviewModal, setShowOverviewModal] = useState<boolean>(false);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<string>('coins');
     const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
     const kebabMenuRef = useRef<HTMLDivElement>(null);
+
+    // Detect if the recommended sprint is a same-sprint link (repeat recommendation)
+    const isSameSprintLinked = useMemo(() => {
+        if (!sprint) return false;
+        if (completedSprintId && sprint.id === completedSprintId) return true;
+        if (sprint.nextSprintId === sprint.id || sprint.linkedSprintId === sprint.id) return true;
+        if (Array.isArray(sprintLinks) && sprintLinks.some(l => 
+            (l.sourceSprintId === (completedSprintId || sprint.id)) && l.targetSprintId === sprint.id
+        )) {
+            return true;
+        }
+        return false;
+    }, [sprint, completedSprintId, sprintLinks]);
 
     // Close kebab menu when clicking outside
     useEffect(() => {
@@ -125,12 +141,13 @@ export const NextSprintRecommendation: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const [allPublished, dbCoaches, orchestration, sprintLinks] = await Promise.all([
+            const [allPublished, dbCoaches, orchestration, links] = await Promise.all([
                 sprintService.getPublishedSprints().catch(() => []),
                 userService.getCoaches().catch(() => []),
                 (sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>).catch(() => ({} as Record<string, LifecycleSlotAssignment>)),
                 sprintService.getSprintLinks().catch(() => [])
             ]);
+            setSprintLinks(links || []);
             
             if (sprintId) {
                 const target = allPublished.find(s => s.id === sprintId) || await sprintService.getSprintById(sprintId);
@@ -174,7 +191,7 @@ export const NextSprintRecommendation: React.FC = () => {
                 orchestration, 
                 enrolledSet, 
                 userEnrollments, 
-                sprintLinks, 
+                links, 
                 completedSprintId
             );
 
@@ -406,7 +423,7 @@ export const NextSprintRecommendation: React.FC = () => {
                             <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
                         </div>
                     ) : sprint ? (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             <SprintCard 
                                 sprint={sprint} 
                                 coach={fetchedCoach || vectoriseCoach} 
@@ -414,6 +431,17 @@ export const NextSprintRecommendation: React.FC = () => {
                                 hideFooterDetails={false}
                                 variant="light"
                             />
+                            {isSameSprintLinked && (
+                                <div className="flex justify-end pr-1 pt-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowOverviewModal(true)}
+                                        className="text-xs font-bold text-[#0E7850] hover:text-[#085C3D] hover:underline transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                                    >
+                                        View overview.
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="p-8 text-center bg-gray-50 rounded-2xl border border-gray-200">
@@ -445,6 +473,71 @@ export const NextSprintRecommendation: React.FC = () => {
             <footer className="w-full text-center pb-4 opacity-40 z-10">
                 <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">GET 1% BETTER DAILY</p>
             </footer>
+
+            {/* Bottom Modal Bar for Overview */}
+            <AnimatePresence>
+                {showOverviewModal && sprint && (
+                    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                            className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-7 max-w-md w-full text-gray-900 relative shadow-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto text-left"
+                        >
+                            {/* Drag Handle indicator */}
+                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+
+                            {/* Close Button */}
+                            <button
+                                type="button"
+                                onClick={() => setShowOverviewModal(false)}
+                                className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+
+                            {/* Category / Duration / Repeat badges */}
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
+                                    {sprint.category || "Growth"}
+                                </span>
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
+                                    {sprint.duration || 7} Days
+                                </span>
+                                {isSameSprintLinked && (
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200">
+                                        🔁 Repeat Sprint
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Sprint Title */}
+                            <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-gray-950 mb-3">
+                                {sprint.title}
+                            </h3>
+
+                            {/* Description with Paged Slides / Formatted Text */}
+                            <div className="mb-6">
+                                <PagedSprintDescription text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
+                            </div>
+
+                            {/* Continue CTA */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowOverviewModal(false);
+                                    setIsPaymentModalOpen(true);
+                                }}
+                                className="w-full py-4 bg-[#0E7850] hover:bg-[#085C3D] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-[#0E7850]/20 hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-4"
+                            >
+                                <span>Continue</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Bottom Modal Bar for Payment */}
             <AnimatePresence>
