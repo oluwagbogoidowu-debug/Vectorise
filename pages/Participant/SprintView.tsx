@@ -34,7 +34,7 @@ import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, ge
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
@@ -1127,6 +1127,124 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isSprintCardModalOpen, setIsSprintCardModalOpen] = useState(false);
   const [isSprintOverviewOpen, setIsSprintOverviewOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
+  const [isRestartModalOpen, setIsRestartModalOpen] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+  const kebabMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close kebab menu when clicking outside
+  useEffect(() => {
+    if (!isKebabMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (kebabMenuRef.current && !kebabMenuRef.current.contains(event.target as Node)) {
+        setIsKebabMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isKebabMenuOpen]);
+
+  const handleShareSprint = async () => {
+    setIsKebabMenuOpen(false);
+    const sprintTitle = sprint?.title || "Sprint";
+    const shareUrl = `${window.location.origin}/sprints/${sprint?.id || previewSprintId || ""}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: sprintTitle,
+          text: `Check out the "${sprintTitle}" sprint on Vectorise!`,
+          url: shareUrl,
+        });
+        return;
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            toast.success("Sprint link copied to clipboard!");
+          } catch (e) {}
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Sprint link copied to clipboard!");
+      } catch (e) {
+        toast.error("Could not copy link");
+      }
+    }
+  };
+
+  const handleRestartSprint = async () => {
+    setIsRestarting(true);
+    try {
+      const duration = sprint?.duration || enrollment?.progress?.length || 5;
+      const freshProgress = Array.from({ length: duration }, (_, i) => ({
+        day: i + 1,
+        completed: false,
+        answers: [],
+        submission: "",
+      }));
+
+      if (isPreview) {
+        const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id || "preview-sprint";
+        try {
+          sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
+        } catch (e) {}
+        setEnrollment((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "active",
+                progress: freshProgress,
+              }
+            : ({
+                id: "preview-enrollment",
+                sprint_id: targetSprintId,
+                user_id: user?.id || "preview-user",
+                status: "active",
+                progress: freshProgress,
+              } as any),
+        );
+      } else if (enrollment && user) {
+        try {
+          localStorage.removeItem(`draft_task_${enrollment.id}`);
+        } catch (e) {}
+
+        await sprintService.updateEnrollment(enrollment.id, {
+          status: "active",
+          started_at: new Date().toISOString(),
+          completed_at: null as any,
+          progress: freshProgress,
+        });
+
+        setEnrollment((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "active",
+                completed_at: undefined,
+                progress: freshProgress,
+              }
+            : null,
+        );
+      }
+
+      setTaskInputs(["", "", ""]);
+      setActiveTaskIndex(0);
+      setViewingDay(1);
+      setIsRestartModalOpen(false);
+      toast.success("Sprint restarted from Day 1!");
+      triggerHaptic(hapticPatterns.success);
+    } catch (error) {
+      console.error("Error restarting sprint:", error);
+      toast.error("Failed to restart sprint. Please try again.");
+    } finally {
+      setIsRestarting(false);
+    }
+  };
 
   useEffect(() => {
     if (sprint?.coachId) {
@@ -2525,26 +2643,99 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 {sprint.title}
               </h1>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsSprintOverviewOpen(true)}
-              className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
-              title="Sprint Description"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
+            <div className="relative" ref={kebabMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                title="Sprint options"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </button>
+                <MoreVertical className="w-5 h-5" />
+              </button>
+
+              <AnimatePresence>
+                {isKebabMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                  >
+                    {sprint?.title && (
+                      <div className="px-3 pt-2 pb-2 border-b border-gray-100/70 mb-1">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                          Sprint Menu
+                        </p>
+                        <p className="text-xs font-bold text-gray-800 truncate">
+                          {sprint.title}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsKebabMenuOpen(false);
+                          setIsSprintOverviewOpen(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+                          <BookOpen className="w-4 h-4" />
+                        </div>
+                        <span className="truncate">View Sprint Overview</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleShareSprint}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+                          <Share2 className="w-4 h-4" />
+                        </div>
+                        <span className="truncate">Share Sprint</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsKebabMenuOpen(false);
+                          setIsRestartModalOpen(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+                          <RotateCcw className="w-4 h-4" />
+                        </div>
+                        <span className="truncate">Restart Sprint</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsKebabMenuOpen(false);
+                          setIsChatModalOpen(true);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+                            <MessageCircle className="w-4 h-4" />
+                          </div>
+                          <span className="truncate">Request Guidance</span>
+                        </div>
+                        {hasUnreadMessages && (
+                          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse"></span>
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </header>
 
@@ -3401,22 +3592,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       </div>
                                     )}
 
-                                  {/* Request guidance small text CTA at bottom right of action step card */}
-                                  <div className="flex justify-end pt-2 mt-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsChatModalOpen(true)}
-                                      disabled={dayLockDetails.isLocked}
-                                      className={`inline-flex items-center gap-1.5 ${isFullBleed ? 'text-sm font-semibold' : 'text-xs font-medium'} text-gray-400 hover:text-[#0E7850] transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
-                                      title={dayLockDetails.isLocked ? "Complete previous day first" : "Request guidance"}
-                                    >
-                                      <MessageCircle className={isFullBleed ? "w-4 h-4" : "w-3.5 h-3.5"} />
-                                      <span>Request guidance</span>
-                                      {!dayLockDetails.isLocked && hasUnreadMessages && (
-                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-                                      )}
-                                    </button>
-                                  </div>
+
                                 </div>
                               )}
                               {isFullBleed && getNextVisibleStepIndex(i) === -1 && (
@@ -3889,22 +4065,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           </div>
                         )}
 
-                        {/* Request guidance small text CTA at bottom right of action step card */}
-                        <div className="flex justify-end pt-3 mt-1">
-                          <button
-                            type="button"
-                            onClick={() => setIsChatModalOpen(true)}
-                            disabled={dayLockDetails.isLocked}
-                            className={`inline-flex items-center gap-1.5 ${isFullBleed ? 'text-sm font-semibold' : 'text-xs font-medium'} text-gray-400 hover:text-[#0E7850] transition-all cursor-pointer ${dayLockDetails.isLocked ? "opacity-40 cursor-not-allowed" : "active:scale-95"}`}
-                            title={dayLockDetails.isLocked ? "Complete previous day first" : "Request guidance"}
-                          >
-                            <MessageCircle className={isFullBleed ? "w-4 h-4" : "w-3.5 h-3.5"} />
-                            <span>Request guidance</span>
-                            {!dayLockDetails.isLocked && hasUnreadMessages && (
-                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
-                            )}
-                          </button>
-                        </div>
+
                         </div>
                       </div>
                     )}
@@ -4237,6 +4398,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           }
         }}
         onCancel={() => setConfirmMarkStepIndex(null)}
+      />
+      <ConfirmModal
+        isOpen={isRestartModalOpen}
+        onClose={() => !isRestarting && setIsRestartModalOpen(false)}
+        onConfirm={handleRestartSprint}
+        title="Restart Sprint?"
+        message="All your task submissions, progress, and completed days for this sprint will be cleared to start fresh from Day 1. Are you sure you want to restart?"
+        confirmText={isRestarting ? "Restarting..." : "Restart Sprint"}
+        cancelText="Keep Progress"
+        variant="danger"
       />
       <ParticipantDrawerMenu
         isOpen={isMenuOpen}

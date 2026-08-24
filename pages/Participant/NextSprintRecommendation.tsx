@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu } from 'lucide-react';
+import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import LocalLogo from '../../components/LocalLogo';
@@ -33,8 +33,66 @@ export const NextSprintRecommendation: React.FC = () => {
     // Payment Modal State
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<string>('coins');
     const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
+    const kebabMenuRef = useRef<HTMLDivElement>(null);
+
+    // Close kebab menu when clicking outside
+    useEffect(() => {
+        if (!isKebabMenuOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (kebabMenuRef.current && !kebabMenuRef.current.contains(event.target as Node)) {
+                setIsKebabMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isKebabMenuOpen]);
+
+    const handleReadBlog = () => {
+        setIsKebabMenuOpen(false);
+        navigate('/blog');
+    };
+
+    const handleReferFriend = async () => {
+        setIsKebabMenuOpen(false);
+        const p = user as Participant;
+        const refCode = p?.referralCode || user?.id || '';
+        const shareUrl = refCode ? `${window.location.origin}/?ref=${refCode}` : window.location.origin;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Join me on Vectorise',
+                    text: 'Start rapid micro-sprints on Vectorise to build momentum and grow your career!',
+                    url: shareUrl,
+                });
+                return;
+            } catch (err: any) {
+                if (err?.name !== 'AbortError') {
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        toast.success('Referral link copied to clipboard!');
+                    } catch (e) {}
+                }
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                toast.success('Referral link copied to clipboard!');
+            } catch (e) {
+                toast.error('Could not copy link');
+            }
+        }
+    };
+
+    const handleBuyCoins = () => {
+        setIsKebabMenuOpen(false);
+        navigate('/buy-coins', { state: { from: location.pathname } });
+    };
 
     const vectoriseCoach: Coach = useMemo(() => ({
         id: 'vectorise',
@@ -243,25 +301,94 @@ export const NextSprintRecommendation: React.FC = () => {
     return (
         <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-white text-gray-900 relative overflow-hidden">
             {/* Navigation Header */}
-            <header className="w-full max-w-[340px] sm:max-w-[380px] z-10 flex items-center justify-between pt-2">
-                <div className="flex items-center gap-3">
+            <header className="w-full max-w-[340px] sm:max-w-[380px] z-20 flex items-center justify-between pt-2">
+                <button
+                    type="button"
+                    onClick={() => setIsMenuOpen(true)}
+                    className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                    title="Open menu"
+                >
+                    <Menu className="w-5 h-5" />
+                </button>
+
+                <LocalLogo type="green" className="h-5 w-auto" />
+
+                <div className="relative" ref={kebabMenuRef}>
                     <button
                         type="button"
-                        onClick={() => setIsMenuOpen(true)}
-                        className="p-2 -ml-2 rounded-xl text-gray-800 hover:text-gray-950 hover:bg-gray-100/80 active:scale-95 transition-all cursor-pointer"
-                        title="Open menu"
+                        onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                        className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                        title="Options"
                     >
-                        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+                        <MoreVertical className="w-5 h-5" />
                     </button>
-                    <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
-                        Recommended Next Sprint
-                    </h1>
+
+                    <AnimatePresence>
+                        {isKebabMenuOpen && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                                transition={{ duration: 0.16, ease: "easeOut" }}
+                                className="absolute right-0 mt-2 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                            >
+                                <div className="space-y-1">
+                                    <button
+                                        type="button"
+                                        onClick={handleReadBlog}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                            <BookOpen className="w-4 h-4" />
+                                        </div>
+                                        <div className="text-xs truncate">
+                                            <span className="font-bold text-gray-900">Read Rise Blog</span>
+                                            <span className="font-normal text-gray-500"> · Earn coins</span>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleReferFriend}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                            <UserPlus className="w-4 h-4" />
+                                        </div>
+                                        <div className="text-xs truncate">
+                                            <span className="font-bold text-gray-900">Refer a Friend</span>
+                                            <span className="font-normal text-gray-500"> · Earn coins</span>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleBuyCoins}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                            <Coins className="w-4 h-4" />
+                                        </div>
+                                        <div className="text-xs truncate">
+                                            <span className="font-bold text-gray-900">Buy Coins</span>
+                                            <span className="font-normal text-gray-500"> • Progress faster</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-                <LocalLogo type="green" className="h-5 w-auto" />
             </header>
 
             {/* Main Content */}
-            <main className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-5 text-center">
+            <main className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-6 text-center">
+                <div className="space-y-2">
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950">
+                        Your Next Sprint
+                    </h1>
+                </div>
+
                 {/* Sprint Card with Price Badge visible */}
                 <div className="w-full text-left">
                     {isLoading ? (

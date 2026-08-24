@@ -45,7 +45,7 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
       badge: null
     },
     {
-      label: 'Recommended Next Sprint',
+      label: 'Your Next Sprint',
       path: '/participant/next-sprint',
       icon: Sparkles,
       badge: hasUnread ? 'New' : null
