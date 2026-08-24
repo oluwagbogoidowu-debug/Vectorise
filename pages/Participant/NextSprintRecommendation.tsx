@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy } from 'lucide-react';
+import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import SprintCard from '../../components/SprintCard';
@@ -38,7 +38,27 @@ export const NextSprintRecommendation: React.FC = () => {
     const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<string>('coins');
     const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
+    const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
     const kebabMenuRef = useRef<HTMLDivElement>(null);
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    useEffect(() => {
+        setIsDarkMode(document.documentElement.classList.contains('dark'));
+    }, []);
+
+    const toggleDarkMode = () => {
+        const nextVal = !isDarkMode;
+        setIsDarkMode(nextVal);
+        if (nextVal) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+        setIsThemeModalOpen(false);
+        setIsKebabMenuOpen(false);
+    };
 
     // Detect if the recommended sprint is a same-sprint link (repeat recommendation)
     const isSameSprintLinked = useMemo(() => {
@@ -413,6 +433,23 @@ export const NextSprintRecommendation: React.FC = () => {
 
                                     <button
                                         type="button"
+                                        onClick={() => {
+                                            setIsKebabMenuOpen(false);
+                                            setIsThemeModalOpen(true);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                                        </div>
+                                        <div className="text-xs truncate">
+                                            <span className="font-bold text-gray-900">Switch Mode</span>
+                                            <span className="font-normal text-gray-500"> • {isDarkMode ? 'Light' : 'Dark'}</span>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
                                         onClick={handleBuyCoins}
                                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
                                     >
@@ -712,6 +749,47 @@ export const NextSprintRecommendation: React.FC = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {isThemeModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsThemeModalOpen(false)}></div>
+                    <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
+                        <div className="p-8">
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100 tracking-tight mb-2">Switch Mode</h2>
+                            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-8">Select your preferred view.</p>
+                            
+                            <div className="grid grid-cols-1 gap-3">
+                                <button 
+                                    onClick={toggleDarkMode}
+                                    className={`flex items-center gap-4 p-4 rounded-3xl border transition-all active:scale-95 ${!isDarkMode ? 'bg-primary/5 border-primary/20' : 'bg-gray-50 dark:bg-zinc-800 border-gray-100 dark:border-zinc-700 hover:border-gray-200 dark:hover:border-zinc-600'}`}
+                                >
+                                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-yellow-100 dark:bg-zinc-700 shadow-lg">☀️</div>
+                                    <div className="text-left">
+                                        <h4 className="text-xs font-black text-gray-900 dark:text-gray-100">Light Mode</h4>
+                                        <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Bright and clear</p>
+                                    </div>
+                                </button>
+                                <button 
+                                    onClick={toggleDarkMode}
+                                    className={`flex items-center gap-4 p-4 rounded-3xl border transition-all active:scale-95 ${isDarkMode ? 'bg-primary/5 border-primary/20' : 'bg-gray-50 dark:bg-zinc-800 border-gray-100 dark:border-zinc-700 hover:border-gray-200 dark:hover:border-zinc-600'}`}
+                                >
+                                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-indigo-900 dark:bg-zinc-700 shadow-lg">🌙</div>
+                                    <div className="text-left">
+                                        <h4 className="text-xs font-black text-gray-900 dark:text-gray-100">Dark Mode</h4>
+                                        <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Easy on eyes</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => setIsThemeModalOpen(false)}
+                            className="w-full py-5 bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-black uppercase tracking-[0.3em] text-[10px]"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Participant Drawer Menu */}
             <ParticipantDrawerMenu 

@@ -3484,10 +3484,10 @@ const EditSprint: React.FC = () => {
                                                             const precedingDaysPollOnlySteps = precedingDaysSteps.filter(item => item.type === 'poll');
                                                             const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
 
-                                                            const hasPrecedingForTagLink = activeInputType === 'poll'
-                                                                ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0)
+                                                            const hasPrecedingForTagLink = activeInputType === 'poll' || activeInputType === 'tags'
+                                                                ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0)
                                                                 : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
-                                                            const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
+                                                            const hasPrecedingTexts = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0 || precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
                                                             const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
                                                             const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
@@ -3597,7 +3597,9 @@ const EditSprint: React.FC = () => {
                                                             onClick={() => {
                                                                 const currentLabels = currentContent.taskMultiTextLabels?.[index];
                                                                 if (!currentLabels || currentLabels.length === 0) {
-                                                                    handleTaskMultiTextLabelsChange(index, ['Label 1']);
+                                                                    const connectedTags = getAvailableConnectedTags(index);
+                                                                    const labelsToUse = connectedTags.length > 0 ? connectedTags : ['Label 1'];
+                                                                    handleTaskMultiTextLabelsChange(index, labelsToUse);
                                                                 } else {
                                                                     handleTaskMultiTextLabelsChange(index, null as any);
                                                                 }
