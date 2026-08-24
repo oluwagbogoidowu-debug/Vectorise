@@ -166,27 +166,9 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
     <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
       {/* Main content area: overflow-y-auto enables scrolling for the whole view */}
       {showHeader && <Header />}
-      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-2' : ''} ${isFullBleedPage ? 'pb-0' : (user ? 'pb-24' : 'pb-28')}`}>
+      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-2' : ''} ${isFullBleedPage ? 'pb-0' : 'pb-8'}`}>
         {children || <Outlet />}
       </main>
-      
-      {!isFullBleedPage && (user ? (
-        <BottomNavigation />
-      ) : (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-xs bg-[#0E7850] text-white rounded-[2rem] shadow-xl z-50 p-4 flex items-center justify-between gap-4 border border-emerald-600/20">
-          <div className="pl-2">
-            <p className="text-[10px] font-black uppercase tracking-wider text-emerald-100">Ready to execute?</p>
-            <p className="text-[9px] font-semibold text-emerald-200/90 leading-tight">Join a sprint to level up.</p>
-          </div>
-          <button 
-            type="button"
-            onClick={() => navigate('/login')}
-            className="px-4 py-2.5 bg-white text-[#0E7850] hover:bg-emerald-50 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all duration-200 active:scale-95 whitespace-nowrap cursor-pointer"
-          >
-            Get Started
-          </button>
-        </div>
-      ))}
       
       {showCoinPopup && pendingSprint && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">

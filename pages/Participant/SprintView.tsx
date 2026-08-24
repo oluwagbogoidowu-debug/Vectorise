@@ -34,7 +34,8 @@ import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, ge
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu } from "lucide-react";
+import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
 import { motion, AnimatePresence } from "motion/react";
@@ -1125,6 +1126,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [coach, setCoach] = useState<Coach | null>(null);
   const [isSprintCardModalOpen, setIsSprintCardModalOpen] = useState(false);
   const [isSprintOverviewOpen, setIsSprintOverviewOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (sprint?.coachId) {
@@ -2511,34 +2513,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => {
-                if (isPreview) {
-                  const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
-                  if (targetSprintId) {
-                    try {
-                      sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
-                    } catch (e) {}
-                  }
-                  navigate(-1);
-                } else {
-                  navigate("/dashboard");
-                }
-              }}
-              className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
+              type="button"
+              onClick={() => setIsMenuOpen(true)}
+              className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+              title="Open menu"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={3}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+              <Menu className="w-5 h-5" />
             </button>
             <div className="text-center flex-1 mx-4 min-w-0">
               <h1 className="text-lg font-black text-gray-900 truncate">
@@ -4257,6 +4237,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           }
         }}
         onCancel={() => setConfirmMarkStepIndex(null)}
+      />
+      <ParticipantDrawerMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
       />
     </>
   );

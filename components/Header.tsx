@@ -1,12 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
 import { userService } from '../services/userService';
 import { sprintService } from '../services/sprintService';
 import { Notification, Participant } from '../types';
 import LocalLogo from './LocalLogo';
+import ParticipantDrawerMenu from './ParticipantDrawerMenu';
 import { toast } from 'sonner';
 
 const Header: React.FC = () => {
@@ -15,6 +17,7 @@ const Header: React.FC = () => {
   const location = useLocation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [hasPendingTask, setHasPendingTask] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -145,10 +148,20 @@ const Header: React.FC = () => {
     <header className="relative w-full z-[100] px-4 pt-4 pointer-events-none">
       <div className="max-w-md mx-auto bg-white rounded-full border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex items-center justify-between px-6 py-2.5 pointer-events-auto relative">
         
-        {/* LOGO */}
-        <Link to={user ? "/dashboard" : "/"} className="flex-shrink-0 transition-transform active:scale-95">
-          <LocalLogo type="green" className="h-[2.125rem] w-auto object-contain" />
-        </Link>
+        {/* MENU & LOGO */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button 
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            className="p-2 -ml-2 rounded-2xl text-gray-600 hover:text-gray-950 hover:bg-gray-100/80 active:scale-95 transition-all cursor-pointer"
+            title="Open menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <Link to={user ? "/dashboard" : "/"} className="flex-shrink-0 transition-transform active:scale-95">
+            <LocalLogo type="green" className="h-[2.125rem] w-auto object-contain" />
+          </Link>
+        </div>
 
         {/* SEARCH AREA SEPARATOR & BUTTON */}
         {!hasPendingTask ? (
@@ -243,6 +256,10 @@ const Header: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
       `}</style>
+      <ParticipantDrawerMenu 
+        isOpen={isDrawerOpen} 
+        onClose={() => setIsDrawerOpen(false)} 
+      />
     </header>
   );
 };

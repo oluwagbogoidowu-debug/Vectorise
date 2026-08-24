@@ -2673,14 +2673,11 @@ const EditSprint: React.FC = () => {
                         <Button 
                             onClick={handleSubmitForReview} 
                             isLoading={isSubmittingReview}
-                            disabled={isSubmittingReview || curriculumIncomplete} 
+                            disabled={isSubmittingReview} 
                             className="font-black uppercase tracking-widest text-[10px] rounded-xl px-6 py-3.5 animate-fade-in"
-                            title={curriculumIncomplete 
-                              ? `Cannot submit yet. Every day in the curriculum must have a completed lesson text and action step (all green dots must be showing). (Registry is currently ${registryIncomplete ? 'Incomplete' : 'Complete'})`
-                              : `Submit Review: Submit the fully completed curriculum to the Admin workspace for review and approval. (Registry: ${registryIncomplete ? 'Incomplete' : 'Complete'})`
-                            }
+                            title={`Submit Review: Submit the sprint curriculum to the Admin workspace for review and approval.`}
                         >
-                        {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                        {isSubmittingReview ? 'Submitting...' : 'Submit for Review'}
                         </Button>
                     )}
                 </>

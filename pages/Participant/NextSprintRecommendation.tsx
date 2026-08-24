@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowRight, X, Sparkles, Star, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
+import ParticipantDrawerMenu from '../../components/ParticipantDrawerMenu';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { paymentService } from '../../services/paymentService';
@@ -31,6 +32,7 @@ export const NextSprintRecommendation: React.FC = () => {
 
     // Payment Modal State
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState<string>('coins');
     const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
 
@@ -242,9 +244,19 @@ export const NextSprintRecommendation: React.FC = () => {
         <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-white text-gray-900 relative overflow-hidden">
             {/* Navigation Header */}
             <header className="w-full max-w-[340px] sm:max-w-[380px] z-10 flex items-center justify-between pt-2">
-                <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
-                    Recommended Next Sprint
-                </h1>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setIsMenuOpen(true)}
+                        className="p-2 -ml-2 rounded-xl text-gray-800 hover:text-gray-950 hover:bg-gray-100/80 active:scale-95 transition-all cursor-pointer"
+                        title="Open menu"
+                    >
+                        <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </button>
+                    <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
+                        Recommended Next Sprint
+                    </h1>
+                </div>
                 <LocalLogo type="green" className="h-5 w-auto" />
             </header>
 
@@ -447,6 +459,12 @@ export const NextSprintRecommendation: React.FC = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Participant Drawer Menu */}
+            <ParticipantDrawerMenu 
+                isOpen={isMenuOpen} 
+                onClose={() => setIsMenuOpen(false)} 
+            />
         </div>
     );
 };
