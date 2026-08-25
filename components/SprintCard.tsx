@@ -1,6 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Info } from 'lucide-react';
 import { Sprint, Coach, UserRole, Participant } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { MOCK_PARTICIPANT_SPRINTS } from '../services/mockData';
@@ -14,9 +15,10 @@ interface SprintCardProps {
     isStatic?: boolean; // New prop to disable navigation
     hideFooterDetails?: boolean; // Hide Guided By and Price/Coins section
     variant?: 'light' | 'dark' | 'glass';
+    onOpenOverview?: () => void;
 }
 
-const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false, hideFooterDetails = false, variant = 'light' }) => {
+const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false, hideFooterDetails = false, variant = 'light', onOpenOverview }) => {
     const { user, updateProfile } = useAuth();
     const [isProcessingSave, setIsProcessingSave] = useState(false);
 
@@ -179,8 +181,24 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                                         <p className="text-[9px] font-black text-white uppercase tracking-tight">{displayCoach.name}</p>
                                     </div>
                                 </div>
-                                <div className="px-3 py-1.5 rounded-xl bg-white/20 text-white font-black text-[9px] uppercase tracking-widest">
-                                    {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost ?? 10}` : `₦${(sprint.price ?? 1000).toLocaleString()}`}
+                                <div className="flex items-center gap-2">
+                                    {onOpenOverview && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onOpenOverview();
+                                            }}
+                                            className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all flex items-center justify-center border border-white/10 cursor-pointer"
+                                            title="Sprint Overview"
+                                        >
+                                            <Info className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                    <div className="px-3 py-1.5 rounded-xl bg-white/20 text-white font-black text-[9px] uppercase tracking-widest">
+                                        {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost ?? 10}` : `₦${(sprint.price ?? 1000).toLocaleString()}`}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -256,12 +274,28 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                     
                     {!hideFooterDetails && (
                         <div className="pt-3 border-t border-gray-50 mt-auto">
-                            <div className="flex items-center gap-2 mb-3">
-                                <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-7 h-7 rounded-lg object-cover border-2 border-white shadow-sm ring-1 ring-gray-100" />
-                                <div className="min-w-0">
-                                    <p className="text-[6px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
-                                    <p className="text-[9px] font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-7 h-7 rounded-lg object-cover border-2 border-white shadow-sm ring-1 ring-gray-100" />
+                                    <div className="min-w-0">
+                                        <p className="text-[6px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
+                                        <p className="text-[9px] font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
+                                    </div>
                                 </div>
+                                {onOpenOverview && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onOpenOverview();
+                                        }}
+                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-primary/10 text-gray-400 hover:text-primary transition-all flex items-center justify-center border border-gray-100 cursor-pointer"
+                                        title="Sprint Overview"
+                                    >
+                                        <Info className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
                             </div>
 
                             <div className={`py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.25em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-2 ${

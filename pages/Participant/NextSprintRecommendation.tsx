@@ -490,6 +490,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                 isStatic={true} 
                                 hideFooterDetails={false}
                                 variant="light"
+                                onOpenOverview={() => setShowOverviewModal(true)}
                             />
                             {isSameSprintLinked && (
                                 <div className="flex justify-end pr-1 pt-0.5">
