@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { blogService, BlogPost, getBlogPostUrl, slugify } from '../../services/blogService';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
+import { assetService } from '../../services/assetService';
 import { Sprint, Coach } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Clock, Calendar, Heart, Search, Share2, Bookmark, Check, Home } from 'lucide-react';
@@ -470,8 +471,18 @@ export const RiseBlog: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAFA] px-4 pt-6 pb-24">
       {/* Blog header */}
       <div className="max-w-md mx-auto mb-6 text-left">
-        <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em] mb-1">Rise Insights</p>
-        <h1 className="text-3xl font-black text-gray-900 tracking-tighter">RiseBlog</h1>
+        <div className="flex items-center gap-3 mb-2">
+          <img 
+            src={assetService.URLS.RISEBLOG_LOGO} 
+            alt="RiseBlog" 
+            className="h-10 w-auto object-contain rounded-xl"
+            referrerPolicy="no-referrer"
+          />
+          <div>
+            <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em]">Rise Insights</p>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tighter">RiseBlog</h1>
+          </div>
+        </div>
         <p className="text-xs text-gray-400 font-medium leading-relaxed mt-1">
           Bite-sized, science-backed articles to refine your mindset, master daily micro-habits, and elevate your team’s execution.
         </p>
@@ -529,61 +540,47 @@ export const RiseBlog: React.FC = () => {
             </div>
             <div 
               onClick={() => navigate(getBlogPostUrl(featuredPost))}
-              className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 cursor-pointer group"
+              className="relative rounded-[2rem] overflow-hidden group cursor-pointer shadow-lg aspect-[4/5] sm:aspect-[4/4] flex flex-col justify-end bg-gray-950"
             >
-              <div className="relative h-48 overflow-hidden">
+              <div className="absolute inset-0">
                 <img 
                   src={featuredPost.coverImage} 
                   alt={featuredPost.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
                 />
-                <span className="absolute top-4 left-4 px-3 py-1 bg-primary text-[9px] font-black uppercase tracking-widest rounded-full text-white">
-                  {featuredPost.category}
-                </span>
+                <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
               </div>
-              
-              <div className="p-6">
-                <div className="flex items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-gray-300" /> {featuredPost.publishedAt}
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-gray-300" /> {featuredPost.readTime}
-                  </span>
-                </div>
-                
-                <h3 className="text-lg font-black text-gray-950 tracking-tight leading-snug mb-2 group-hover:text-primary transition-colors">
-                  {featuredPost.title}
-                </h3>
-                
-                <p className="text-xs text-gray-500 font-medium leading-relaxed line-clamp-3 mb-6">
-                  {featuredPost.excerpt}
-                </p>
 
-                <div className="flex items-center justify-between border-t border-gray-50 pt-4">
-                  <div className="flex items-center gap-2">
-                    <img 
-                      src={featuredPost.author.avatar} 
-                      alt={featuredPost.author.name} 
-                      className="w-7 h-7 rounded-full object-cover border border-gray-200"
-                    />
-                    <span className="text-[10px] font-black text-gray-800 uppercase tracking-wider">{featuredPost.author.name}</span>
+              <div className="relative p-6 sm:p-8 flex flex-col justify-end h-full z-10">
+                <div className="mb-auto flex justify-between items-center">
+                  <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md text-[9px] font-black uppercase tracking-widest rounded-full text-white border border-white/20">
+                    {featuredPost.category}
+                  </span>
+                  <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+                    <Bookmark className="w-4 h-4" />
                   </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug group-hover:text-primary transition-colors">
+                    {featuredPost.title}
+                  </h3>
                   
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleLike(featuredPost.id, e); }}
-                      className={`p-2 rounded-full transition-all active:scale-90 ${likedPosts[featuredPost.id] ? 'text-rose-500 bg-rose-50' : 'text-gray-300 hover:text-gray-500'}`}
-                    >
-                      <Heart className={`w-4 h-4 ${likedPosts[featuredPost.id] ? 'fill-rose-500' : ''}`} />
-                    </button>
-                    <button 
-                      onClick={(e) => handleShare(featuredPost, e)}
-                      className="p-2 text-gray-300 hover:text-gray-500 rounded-full transition-all active:scale-90"
-                    >
-                      <Share2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center justify-between text-[10px] font-bold text-white/70 uppercase tracking-wider pt-3 border-t border-white/10">
+                    <div className="flex items-center gap-2">
+                      <img 
+                        src={featuredPost.author.avatar} 
+                        alt={featuredPost.author.name} 
+                        className="w-6 h-6 rounded-full object-cover border border-white/20"
+                      />
+                      <span>{featuredPost.author.name}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <span>{featuredPost.readTime}</span>
+                      <span>•</span>
+                      <span>{(featuredPost as any).upvotes || 54} Upvotes</span>
+                    </div>
                   </div>
                 </div>
               </div>

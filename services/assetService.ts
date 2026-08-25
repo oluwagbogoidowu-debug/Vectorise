@@ -45,7 +45,8 @@ export const assetService = {
   KEYS: {
     LOGO_GREEN: 'logo_green',
     LOGO_WHITE: 'logo_white',
-    FAVICON: 'favicon'
+    FAVICON: 'favicon',
+    RISEBLOG_LOGO: 'riseblog_logo'
   },
 
   URLS: {
@@ -54,6 +55,8 @@ export const assetService = {
     LOGO_WHITE: 'https://lh3.googleusercontent.com/d/1iPPiCUwdOmGZ-KScVrvOpOw0LiauXE7X',
     // Icon version for specific usage (Onboarding descriptions)
     FAVICON: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd',
+    // Riseblog custom logo
+    RISEBLOG_LOGO: 'https://lh3.googleusercontent.com/d/17X377Q8c1fBUCcJ7Wsl6sCBpQm8ILi-h',
     // Global standard fallback for sprint covers
     DEFAULT_SPRINT_COVER: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80',
     DEFAULT_COACH_PROFILE: 'https://picsum.photos/seed/coach/100/100'

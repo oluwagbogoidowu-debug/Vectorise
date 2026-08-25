@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy, Sun, Moon } from 'lucide-react';
+import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy, Sun, Moon, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import SprintCard from '../../components/SprintCard';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import ParticipantDrawerMenu from '../../components/ParticipantDrawerMenu';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
+import { SwitchModeModal } from '../../components/SwitchModeModal';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { paymentService } from '../../services/paymentService';
@@ -20,7 +21,7 @@ import { toast } from 'sonner';
 export const NextSprintRecommendation: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, updateProfile } = useAuth();
+    const { user, updateProfile, activeRole, switchRole } = useAuth();
 
     const { sprintId } = useParams();
     const completedSprintId = location.state?.completedSprintId;
@@ -39,8 +40,16 @@ export const NextSprintRecommendation: React.FC = () => {
     const [paymentMethod, setPaymentMethod] = useState<string>('coins');
     const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
     const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+    const [isSwitchModeModalOpen, setIsSwitchModeModalOpen] = useState(false);
     const kebabMenuRef = useRef<HTMLDivElement>(null);
     const [isDarkMode, setIsDarkMode] = useState(false);
+
+    const hasDualOrMultiMode = useMemo(() => {
+        if (!user) return false;
+        const u = user as any;
+        const isApprovedCoach = u.role === UserRole.COACH || u.coachApplicationApproved === true || u.approved === true;
+        return u.role === UserRole.ADMIN || u.role === UserRole.PARTNER || isApprovedCoach;
+    }, [user]);
 
     useEffect(() => {
         setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -796,6 +805,17 @@ export const NextSprintRecommendation: React.FC = () => {
             <ParticipantDrawerMenu 
                 isOpen={isMenuOpen} 
                 onClose={() => setIsMenuOpen(false)} 
+            />
+
+            <SwitchModeModal
+                isOpen={isSwitchModeModalOpen}
+                onClose={() => setIsSwitchModeModalOpen(false)}
+                user={user}
+                activeRole={activeRole}
+                onSelectMode={(role, route) => {
+                    switchRole(role);
+                    navigate(route);
+                }}
             />
         </div>
     );
