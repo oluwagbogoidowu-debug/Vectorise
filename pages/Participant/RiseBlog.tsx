@@ -15,7 +15,6 @@ export const RiseBlog: React.FC = () => {
   const { postId, audienceSlug, blogSlug } = useParams<{ postId?: string; audienceSlug?: string; blogSlug?: string }>();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Record<string, boolean>>({});
 
@@ -102,9 +101,6 @@ export const RiseBlog: React.FC = () => {
     });
   }, [dbSprints, coaches]);
 
-  // Category list
-  const categories = ['All', 'Mindset', 'Execution', 'Micro-Habits', 'Influence'];
-
   // Filtered posts
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
@@ -112,22 +108,20 @@ export const RiseBlog: React.FC = () => {
                             post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             post.content.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesCategory = selectedCategory === 'All' || post.category === selectedCategory;
-      
-      return matchesSearch && matchesCategory;
+      return matchesSearch;
     });
-  }, [posts, searchTerm, selectedCategory]);
+  }, [posts, searchTerm]);
 
   // Featured post (latest / first in list)
   const featuredPost = useMemo(() => posts[0], [posts]);
   
   // Other posts (exclude featured when list is unfiltered)
   const regularPosts = useMemo(() => {
-    if (searchTerm || selectedCategory !== 'All') {
+    if (searchTerm) {
       return filteredPosts;
     }
     return filteredPosts.filter(p => p.id !== featuredPost.id);
-  }, [filteredPosts, featuredPost, searchTerm, selectedCategory]);
+  }, [filteredPosts, featuredPost, searchTerm]);
 
   const handleLike = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -481,27 +475,6 @@ export const RiseBlog: React.FC = () => {
         </div>
       </div>
 
-      {/* Categories */}
-      <div className="max-w-md mx-auto space-y-4 mb-8">
-
-        {/* Categories filters sideways scrolling */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all border ${
-                selectedCategory === cat 
-                ? 'bg-primary border-primary text-white shadow-sm shadow-primary/25' 
-                : 'bg-white border-gray-100 text-gray-400 hover:text-gray-600 hover:border-gray-200'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Blog list content */}
       <div className="max-w-md mx-auto space-y-8">
         {/* Empty state if nothing matches filter */}
@@ -516,10 +489,10 @@ export const RiseBlog: React.FC = () => {
         )}
 
         {/* Featured Card - only show if unfiltered and category is All */}
-        {searchTerm === '' && selectedCategory === 'All' && featuredPost && (
+        {searchTerm === '' && featuredPost && (
           <div className="space-y-3">
             <div className="px-1">
-              <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Featured Spark</p>
+              <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]"></p>
             </div>
             <div 
               onClick={() => navigate(getBlogPostUrl(featuredPost))}
@@ -574,7 +547,7 @@ export const RiseBlog: React.FC = () => {
         {/* Regular cards list */}
         {regularPosts.length > 0 && (
           <div className="space-y-4">
-            {searchTerm === '' && selectedCategory === 'All' && (
+            {searchTerm === '' && (
               <div className="px-1">
                 <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Latest Releases</p>
               </div>
