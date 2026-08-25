@@ -4,6 +4,24 @@ import { sprintService } from './sprintService';
 import { userService } from './userService';
 import { Sprint, Participant } from '../types';
 
+export const calculateReadingTimeStats = (post: { title?: string; excerpt?: string; content: string }) => {
+  const text = `${post.title || ''} ${post.excerpt || ''} ${post.content || ''}`;
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const estimatedMinutes = Math.max(1, Math.ceil(words / 200));
+  // 200 words per minute => (words / 200) * 60 seconds. Minimum sensible floor of 20 seconds.
+  const estimatedTotalSeconds = Math.max(20, Math.round((words / 200) * 60));
+  // 50% of estimated reading time
+  const requiredSeconds = Math.max(10, Math.round(estimatedTotalSeconds * 0.5));
+
+  return {
+    wordCount: words,
+    estimatedMinutes,
+    estimatedTotalSeconds,
+    requiredSeconds,
+    formattedReadTime: `${estimatedMinutes} min read`
+  };
+};
+
 export interface BlogPost {
   id: string;
   title: string;
@@ -401,6 +419,109 @@ export const blogService = {
       currentCycleReads: nextCycleReads,
       readsRemaining: nextRemaining,
       hasRewardToClaim: nextHasReward
+    };
+  },
+
+  isInsightRewarded: async (userId: string | undefined, postId: string): Promise<boolean> => {
+    const fallbackKey = userId || 'guest';
+    const localRewardedKey = `vectorise_rewarded_blog_ids_${fallbackKey}`;
+    let localRewarded: string[] = [];
+    try {
+      localRewarded = JSON.parse(localStorage.getItem(localRewardedKey) || '[]');
+    } catch {
+      localRewarded = [];
+    }
+    if (localRewarded.includes(postId)) return true;
+
+    if (userId) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          const uData = userDoc.data() as Partial<Participant>;
+          if (uData.rewardedBlogIds?.includes(postId)) {
+            localRewarded.push(postId);
+            localStorage.setItem(localRewardedKey, JSON.stringify(Array.from(new Set(localRewarded))));
+            return true;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking isInsightRewarded:', err);
+      }
+    }
+    return false;
+  },
+
+  rewardInsightRead: async (userId: string | undefined, postId: string, postTitle: string): Promise<{
+    success: boolean;
+    earnedCoin: boolean;
+    alreadyRewarded: boolean;
+    readStats?: any;
+  }> => {
+    const fallbackKey = userId || 'guest';
+    const localRewardedKey = `vectorise_rewarded_blog_ids_${fallbackKey}`;
+    let localRewarded: string[] = [];
+    try {
+      localRewarded = JSON.parse(localStorage.getItem(localRewardedKey) || '[]');
+    } catch {
+      localRewarded = [];
+    }
+
+    let remoteRewarded: string[] = [];
+    if (userId) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          const uData = userDoc.data() as Partial<Participant>;
+          remoteRewarded = uData.rewardedBlogIds || [];
+        }
+      } catch (err) {
+        console.error('Error checking remote rewarded blogs:', err);
+      }
+    }
+
+    const allRewarded = Array.from(new Set([...localRewarded, ...remoteRewarded]));
+    if (allRewarded.includes(postId)) {
+      const readStats = await blogService.recordBlogRead(userId, postId);
+      return { success: true, earnedCoin: false, alreadyRewarded: true, readStats };
+    }
+
+    allRewarded.push(postId);
+    localStorage.setItem(localRewardedKey, JSON.stringify(allRewarded));
+
+    if (userId) {
+      try {
+        await userService.processWalletTransaction(userId, {
+          type: 'credit',
+          amount: 1,
+          description: `Read Insight: ${postTitle || postId}`
+        });
+
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+          rewardedBlogIds: arrayUnion(postId),
+          blogReadsCount: increment(1),
+          blogReadIds: arrayUnion(postId)
+        });
+      } catch (err) {
+        console.error('Error processing insight read reward transaction:', err);
+        try {
+          const userRef = doc(db, 'users', userId);
+          await updateDoc(userRef, {
+            walletBalance: increment(1),
+            rewardedBlogIds: arrayUnion(postId)
+          });
+        } catch (e) {
+          console.error('Fallback wallet increment failed:', e);
+        }
+      }
+    }
+
+    const readStats = await blogService.recordBlogRead(userId, postId);
+    return {
+      success: true,
+      earnedCoin: true,
+      alreadyRewarded: false,
+      readStats
     };
   }
 };

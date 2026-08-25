@@ -1,12 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { blogService, BlogPost, getBlogPostUrl, slugify } from '../../services/blogService';
+import { blogService, BlogPost, getBlogPostUrl, slugify, calculateReadingTimeStats } from '../../services/blogService';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { Sprint, Coach } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home, Coins, Sparkles, CheckCircle2, Eye, Award } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -73,8 +73,11 @@ export const RiseBlog: React.FC = () => {
   const posts = useMemo(() => {
     const mappedDbPosts = dbSprints.map((sprint): BlogPost & { createdAt: string } => {
       const coach = coaches.find(c => c.id === sprint.coachId);
-      const words = (sprint.blogBody || sprint.description || '').split(/\s+/).length;
-      const readTimeMin = Math.max(1, Math.round(words / 200));
+      const readStats = calculateReadingTimeStats({
+        title: sprint.title,
+        excerpt: sprint.subtitle,
+        content: sprint.blogBody || sprint.description || ''
+      });
       
       // Format published date
       let publishedAt = 'Recently';
@@ -103,7 +106,7 @@ export const RiseBlog: React.FC = () => {
         excerpt: sprint.subtitle || (sprint.description && sprint.description.slice(0, 150) + '...') || 'No description provided.',
         content: sprint.blogBody || sprint.description || '',
         category: (sprint.category as any) || 'Execution',
-        readTime: `${readTimeMin} min read`,
+        readTime: readStats.formattedReadTime,
         publishedAt,
         author: {
           name: authorName,
@@ -209,6 +212,148 @@ export const RiseBlog: React.FC = () => {
     }
     return null;
   }, [postId, audienceSlug, blogSlug, posts]);
+
+  // Active reading and coin reward state for current article
+  const endMarkerRef = useRef<HTMLDivElement | null>(null);
+  const [activeReadSeconds, setActiveReadSeconds] = useState(0);
+  const [hasReachedEnd, setHasReachedEnd] = useState(false);
+  const [isPostRewarded, setIsPostRewarded] = useState(false);
+  const [isTabActive, setIsTabActive] = useState(typeof document !== 'undefined' ? (!document.hidden && document.hasFocus()) : true);
+  const [isTriggeringReward, setIsTriggeringReward] = useState(false);
+
+  // Calculate dynamic reading time based on blog post content
+  const activePostStats = useMemo(() => {
+    if (!activePost) return null;
+    return calculateReadingTimeStats({
+      title: activePost.title,
+      excerpt: activePost.excerpt,
+      content: activePost.content
+    });
+  }, [activePost]);
+
+  // Reset states and check if current article was previously rewarded
+  useEffect(() => {
+    if (!activePost) return;
+    setActiveReadSeconds(0);
+    setHasReachedEnd(false);
+    setIsTriggeringReward(false);
+
+    let isMounted = true;
+    blogService.isInsightRewarded(user?.id, activePost.id).then((isRew) => {
+      if (isMounted) {
+        setIsPostRewarded(isRew);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activePost?.id, user?.id]);
+
+  // Track active & visible reading time
+  useEffect(() => {
+    if (!activePost) return;
+
+    const handleVisibilityAndFocus = () => {
+      const isVisible = !document.hidden && document.hasFocus();
+      setIsTabActive(isVisible);
+    };
+
+    window.addEventListener('visibilitychange', handleVisibilityAndFocus);
+    window.addEventListener('focus', handleVisibilityAndFocus);
+    window.addEventListener('blur', handleVisibilityAndFocus);
+
+    const interval = setInterval(() => {
+      if (!document.hidden && document.hasFocus()) {
+        setIsTabActive(true);
+        setActiveReadSeconds(prev => prev + 1);
+      } else {
+        setIsTabActive(false);
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleVisibilityAndFocus);
+      window.removeEventListener('focus', handleVisibilityAndFocus);
+      window.removeEventListener('blur', handleVisibilityAndFocus);
+    };
+  }, [activePost?.id]);
+
+  // Track reaching the end of the insight (IntersectionObserver + Scroll check)
+  useEffect(() => {
+    if (!activePost || hasReachedEnd) return;
+
+    const marker = endMarkerRef.current;
+    if (!marker) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0] && entries[0].isIntersecting) {
+          setHasReachedEnd(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(marker);
+
+    const handleScroll = () => {
+      if (!marker) return;
+      const rect = marker.getBoundingClientRect();
+      if (rect.top <= window.innerHeight + 80) {
+        setHasReachedEnd(true);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Check initial position in case already near bottom
+    handleScroll();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [activePost?.id, hasReachedEnd]);
+
+  // Check if conditions for 1 coin reward are met:
+  // 1. User reaches the end of the insight
+  // 2. User has spent at least 50% of estimated reading time
+  // 3. The page was actually active/visible during that time (tracked strictly in activeReadSeconds)
+  useEffect(() => {
+    if (!activePost || !activePostStats) return;
+    if (isPostRewarded || isTriggeringReward) return;
+
+    const timeRequirementMet = activeReadSeconds >= activePostStats.requiredSeconds;
+    const endRequirementMet = hasReachedEnd;
+
+    if (timeRequirementMet && endRequirementMet) {
+      setIsTriggeringReward(true);
+      blogService.rewardInsightRead(user?.id, activePost.id, activePost.title).then((res) => {
+        setIsPostRewarded(true);
+        if (res.earnedCoin) {
+          toast.success('🎉 +1 Coin Earned!', {
+            description: 'You completed 50%+ active reading time and reached the end of this insight.',
+            duration: 4000
+          });
+        }
+        if (res.readStats) {
+          setReadStats(prev => ({
+            ...prev,
+            totalReads: res.readStats.totalReads,
+            claimedCycles: res.readStats.claimedCycles,
+            currentCycleReads: res.readStats.currentCycleReads,
+            readsRemaining: res.readStats.readsRemaining,
+            hasRewardToClaim: res.readStats.hasRewardToClaim
+          }));
+        }
+      }).catch(err => {
+        console.error('Error rewarding insight read:', err);
+      }).finally(() => {
+        setIsTriggeringReward(false);
+      });
+    }
+  }, [activePost, activePostStats, activeReadSeconds, hasReachedEnd, isPostRewarded, isTriggeringReward, user?.id]);
 
   // Record reading progress when an article is opened
   useEffect(() => {
@@ -417,7 +562,7 @@ export const RiseBlog: React.FC = () => {
         {/* Article Container */}
         <div className="max-w-xl mx-auto px-6 py-8">
           {/* Author info */}
-          <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-8">
+          <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-6">
             <div className="flex items-center gap-3">
               <img 
                 src={activePost.author.avatar} 
@@ -440,9 +585,103 @@ export const RiseBlog: React.FC = () => {
             </div>
           </div>
 
+          {/* Deep Reading & 1 Coin Tracker Banner */}
+          {activePostStats && (
+            <div className={`mb-8 p-4 rounded-2xl border transition-all ${
+              isPostRewarded 
+                ? 'bg-emerald-50/60 border-emerald-200/80 text-emerald-950' 
+                : 'bg-white border-gray-200/80 shadow-xs'
+            }`}>
+              <div className="flex items-center justify-between gap-3 mb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                    isPostRewarded ? 'bg-[#0E7850] text-white' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    <Coins className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">
+                      {isPostRewarded ? '1 Coin Earned' : 'Earn 1 Coin'}
+                    </h4>
+                    <p className="text-[10px] text-gray-500 font-medium">
+                      {isPostRewarded 
+                        ? 'Deep reading criteria completed for this insight'
+                        : `Read 50%+ of estimated time (${activePostStats.requiredSeconds}s) & reach the end`
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0">
+                  {isPostRewarded ? (
+                    <span className="px-2.5 py-1 bg-[#0E7850]/15 text-[#0E7850] text-[10px] font-black uppercase tracking-wider rounded-lg flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Claimed
+                    </span>
+                  ) : (
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
+                      isTabActive ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${isTabActive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+                      {isTabActive ? 'Reading' : 'Paused (Tab Hidden)'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress checks */}
+              {!isPostRewarded && (
+                <div className="space-y-2 pt-2 border-t border-gray-100/80">
+                  {/* Time requirement */}
+                  <div>
+                    <div className="flex items-center justify-between text-[10px] font-bold text-gray-600 mb-1">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-gray-400" />
+                        Active reading time: {Math.min(activeReadSeconds, activePostStats.requiredSeconds)}s / {activePostStats.requiredSeconds}s
+                      </span>
+                      <span className={activeReadSeconds >= activePostStats.requiredSeconds ? 'text-emerald-600 font-black' : 'text-gray-400'}>
+                        {activeReadSeconds >= activePostStats.requiredSeconds ? '✓ 50% Time Met' : `${Math.round(Math.min(100, (activeReadSeconds / activePostStats.requiredSeconds) * 100))}%`}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-[#0E7850] transition-all duration-300 rounded-full"
+                        style={{ width: `${Math.min(100, (activeReadSeconds / activePostStats.requiredSeconds) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* End of insight requirement */}
+                  <div className="flex items-center justify-between text-[10px] font-bold">
+                    <span className="text-gray-600 flex items-center gap-1">
+                      <Eye className="w-3 h-3 text-gray-400" />
+                      Reach the end of the insight
+                    </span>
+                    <span className={hasReachedEnd ? 'text-emerald-600 font-black' : 'text-gray-400'}>
+                      {hasReachedEnd ? '✓ End reached' : 'Scroll to complete'}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Article content */}
-          <div className="prose prose-base prose-emerald max-w-none mb-12">
+          <div className="prose prose-base prose-emerald max-w-none mb-6">
             {renderFormattedContent(activePost.content)}
+          </div>
+
+          {/* End of Insight Sentinel Marker */}
+          <div ref={endMarkerRef} id="end-of-insight-marker" className="py-4 mb-6 flex items-center justify-center">
+            {isPostRewarded ? (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 rounded-full text-xs font-bold border border-emerald-100">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>End of insight reached • 1 coin credited to wallet</span>
+              </div>
+            ) : (
+              <div className="text-[11px] text-gray-400 font-medium italic">
+                {hasReachedEnd ? '✓ You reached the end of this insight' : 'Scroll down to finish reading'}
+              </div>
+            )}
           </div>
 
           {/* Action Footer */}
