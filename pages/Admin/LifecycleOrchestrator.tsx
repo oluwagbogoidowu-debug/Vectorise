@@ -102,12 +102,8 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
             toast.error("Please select a source sprint.");
             return;
         }
-        if (!linkOptionCode) {
-            toast.error("Please enter an option code (e.g. {M1 Step 3 op1}).");
-            return;
-        }
         if (!linkTargetSprintId) {
-            toast.error("Please select a target sprint linked to this option.");
+            toast.error("Please select a target sprint.");
             return;
         }
 
@@ -117,15 +113,18 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
             return;
         }
 
-        const parsed = parseOptionCode(linkOptionCode, sourceSprint);
-        const optionText = parsed ? parsed.optionText : linkOptionCode;
+        let optionText = "Direct Sprint-to-Sprint Link";
+        if (linkOptionCode && linkOptionCode.trim()) {
+            const parsed = parseOptionCode(linkOptionCode, sourceSprint);
+            optionText = parsed ? parsed.optionText : linkOptionCode;
+        }
 
         setIsSaving(true);
         try {
             const newLink = {
                 id: '',
                 sourceSprintId: linkSourceSprintId,
-                optionCode: linkOptionCode,
+                optionCode: linkOptionCode ? linkOptionCode.trim() : '',
                 optionText,
                 targetSprintId: linkTargetSprintId,
                 createdAt: new Date().toISOString()
@@ -534,15 +533,15 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
                             {/* 2. Option Code & Proof Display */}
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">2. Option Code (e.g. {'{M1 Step 3 op1}'})</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">2. Option Code (Optional — e.g. {'{M1 Step 3 op1}'})</label>
                                 <input
                                     type="text"
                                     value={linkOptionCode}
                                     onChange={(e) => setLinkOptionCode(e.target.value)}
-                                    placeholder="{M1 Step 3 op1}"
+                                    placeholder="{M1 Step 3 op1} (Optional)"
                                     className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
                                 />
-                                <p className="text-[10px] font-bold text-gray-400 italic">Format example: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{'{M1 Step 3 op1}'}</code> or <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{'{Day 1 Step 2 op 2}'}</code></p>
+                                <p className="text-[10px] font-bold text-gray-400 italic">Format example: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{'{M1 Step 3 op1}'}</code> or leave blank for direct sprint-to-sprint linking.</p>
                             </div>
 
                             {/* Actual Text Proof Display */}
@@ -655,7 +654,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                         </span>
                                                     </div>
                                                     <p className="text-xs font-black text-gray-900 font-mono bg-white px-2.5 py-1 rounded-xl border border-gray-200 inline-block">
-                                                        {link.optionCode}
+                                                        {link.optionCode || 'Direct Sprint Link (No Option Code)'}
                                                     </p>
                                                     <p className="text-xs font-bold text-gray-600 mt-1 italic">
                                                         Proof: "{link.optionText}"

@@ -69,7 +69,8 @@ export const isOptionLinkMatchedByUser = (
     sourceSprint: Sprint | undefined | null,
     link: any
 ): boolean => {
-    if (!enrollment || !link) return false;
+    if (!link || (!link.optionCode || !link.optionCode.trim())) return true;
+    if (!enrollment) return false;
     const parsed = parseOptionCodeHelper(link.optionCode, sourceSprint);
     const targetOptionText = (link.optionText || parsed?.optionText || '').trim().toLowerCase();
 
