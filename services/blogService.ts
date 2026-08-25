@@ -1,7 +1,8 @@
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 import { sprintService } from './sprintService';
-import { Sprint } from '../types';
+import { userService } from './userService';
+import { Sprint, Participant } from '../types';
 
 export interface BlogPost {
   id: string;
@@ -194,6 +195,213 @@ export const blogService = {
     if (post && post.likes) {
       post.likes += 1;
     }
+  },
+
+  getBlogReadStats: async (userId?: string): Promise<{
+    totalReads: number;
+    claimedCycles: number;
+    readBlogIds: string[];
+    currentCycleReads: number;
+    readsRemaining: number;
+    hasRewardToClaim: boolean;
+  }> => {
+    const fallbackUserKey = userId || 'guest';
+    const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
+    const localClaimedKey = `vectorise_blog_claimed_${fallbackUserKey}`;
+    const localIdsKey = `vectorise_blog_read_ids_${fallbackUserKey}`;
+
+    let localReads = parseInt(localStorage.getItem(localReadsKey) || '0', 10);
+    let localClaimed = parseInt(localStorage.getItem(localClaimedKey) || '0', 10);
+    let localIds: string[] = [];
+    try {
+      localIds = JSON.parse(localStorage.getItem(localIdsKey) || '[]');
+    } catch {
+      localIds = [];
+    }
+
+    let remoteReads = 0;
+    let remoteClaimed = 0;
+    let remoteIds: string[] = [];
+
+    if (userId) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          const uData = userDoc.data() as Partial<Participant>;
+          remoteReads = uData.blogReadsCount || 0;
+          remoteClaimed = uData.claimedBlogRewardCycles || 0;
+          remoteIds = uData.blogReadIds || [];
+        }
+      } catch (err) {
+        console.error('Error fetching blog read stats from Firestore:', err);
+      }
+    }
+
+    const totalReads = Math.max(localReads, remoteReads);
+    const claimedCycles = Math.max(localClaimed, remoteClaimed);
+    const allIds = Array.from(new Set([...localIds, ...remoteIds]));
+
+    // Update local storage to stay in sync
+    localStorage.setItem(localReadsKey, String(totalReads));
+    localStorage.setItem(localClaimedKey, String(claimedCycles));
+    localStorage.setItem(localIdsKey, JSON.stringify(allIds));
+
+    // Progress in the current 10-read cycle
+    const effectiveUnclaimed = Math.max(0, totalReads - (claimedCycles * 10));
+    const hasRewardToClaim = effectiveUnclaimed >= 10;
+    
+    // When rewards are ready to claim, display shows 10 / 10 reads.
+    // If not ready, shows current in-cycle reads (0..9)
+    const currentCycleReads = hasRewardToClaim ? 10 : (effectiveUnclaimed % 10);
+    const readsRemaining = hasRewardToClaim ? 0 : Math.max(0, 10 - currentCycleReads);
+
+    return {
+      totalReads,
+      claimedCycles,
+      readBlogIds: allIds,
+      currentCycleReads,
+      readsRemaining,
+      hasRewardToClaim
+    };
+  },
+
+  recordBlogRead: async (userId: string | undefined, postId: string): Promise<{
+    totalReads: number;
+    claimedCycles: number;
+    currentCycleReads: number;
+    readsRemaining: number;
+    hasRewardToClaim: boolean;
+    isFirstReadForPost: boolean;
+  }> => {
+    const fallbackUserKey = userId || 'guest';
+    const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
+    const localClaimedKey = `vectorise_blog_claimed_${fallbackUserKey}`;
+    const localIdsKey = `vectorise_blog_read_ids_${fallbackUserKey}`;
+
+    let localReads = parseInt(localStorage.getItem(localReadsKey) || '0', 10);
+    let localClaimed = parseInt(localStorage.getItem(localClaimedKey) || '0', 10);
+    let localIds: string[] = [];
+    try {
+      localIds = JSON.parse(localStorage.getItem(localIdsKey) || '[]');
+    } catch {
+      localIds = [];
+    }
+
+    const isFirstReadForPost = !localIds.includes(postId);
+    if (isFirstReadForPost) {
+      localIds.push(postId);
+      localReads += 1;
+      localStorage.setItem(localIdsKey, JSON.stringify(localIds));
+      localStorage.setItem(localReadsKey, String(localReads));
+
+      if (userId) {
+        try {
+          const userRef = doc(db, 'users', userId);
+          await updateDoc(userRef, {
+            blogReadsCount: increment(1),
+            blogReadIds: arrayUnion(postId)
+          });
+        } catch (err) {
+          console.error('Error updating blog read in Firestore:', err);
+        }
+      }
+    }
+
+    const effectiveUnclaimed = Math.max(0, localReads - (localClaimed * 10));
+    const hasRewardToClaim = effectiveUnclaimed >= 10;
+    const currentCycleReads = hasRewardToClaim ? 10 : (effectiveUnclaimed % 10);
+    const readsRemaining = hasRewardToClaim ? 0 : Math.max(0, 10 - currentCycleReads);
+
+    return {
+      totalReads: localReads,
+      claimedCycles: localClaimed,
+      currentCycleReads,
+      readsRemaining,
+      hasRewardToClaim,
+      isFirstReadForPost
+    };
+  },
+
+  claimBlogReward: async (userId: string): Promise<{
+    success: boolean;
+    totalReads: number;
+    claimedCycles: number;
+    currentCycleReads: number;
+    readsRemaining: number;
+    hasRewardToClaim: boolean;
+  }> => {
+    if (!userId) {
+      throw new Error('Please log in to claim your 10 coins reward.');
+    }
+
+    const fallbackUserKey = userId;
+    const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
+    const localClaimedKey = `vectorise_blog_claimed_${fallbackUserKey}`;
+
+    let localReads = parseInt(localStorage.getItem(localReadsKey) || '0', 10);
+    let localClaimed = parseInt(localStorage.getItem(localClaimedKey) || '0', 10);
+
+    // Sync from Firestore if available
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const uData = userDoc.data() as Partial<Participant>;
+        localReads = Math.max(localReads, uData.blogReadsCount || 0);
+        localClaimed = Math.max(localClaimed, uData.claimedBlogRewardCycles || 0);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    const effectiveUnclaimed = Math.max(0, localReads - (localClaimed * 10));
+    if (effectiveUnclaimed < 10) {
+      throw new Error('You have not completed 10 reads for this reward yet.');
+    }
+
+    const newClaimed = localClaimed + 1;
+    localStorage.setItem(localClaimedKey, String(newClaimed));
+    localStorage.setItem(localReadsKey, String(localReads));
+
+    // Award 10 coins to user wallet and increment claimed cycles
+    try {
+      await userService.processWalletTransaction(userId, {
+        type: 'credit',
+        amount: 10,
+        description: `RiseBlog Reading Milestone Claim (${newClaimed * 10} reads)`
+      });
+
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        claimedBlogRewardCycles: newClaimed,
+        blogReadsCount: localReads
+      });
+    } catch (err) {
+      console.error('Error claiming blog reward in Firestore:', err);
+      // Fallback update on user doc
+      try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+          walletBalance: increment(10),
+          claimedBlogRewardCycles: newClaimed
+        });
+      } catch (e) {
+        console.error('Fallback wallet increment failed:', e);
+      }
+    }
+
+    const postClaimUnclaimed = Math.max(0, localReads - (newClaimed * 10));
+    const nextHasReward = postClaimUnclaimed >= 10;
+    const nextCycleReads = nextHasReward ? 10 : (postClaimUnclaimed % 10);
+    const nextRemaining = nextHasReward ? 0 : Math.max(0, 10 - nextCycleReads);
+
+    return {
+      success: true,
+      totalReads: localReads,
+      claimedCycles: newClaimed,
+      currentCycleReads: nextCycleReads,
+      readsRemaining: nextRemaining,
+      hasRewardToClaim: nextHasReward
+    };
   }
 };
 

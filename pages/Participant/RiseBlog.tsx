@@ -21,6 +21,30 @@ export const RiseBlog: React.FC = () => {
   const [dbSprints, setDbSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
 
+  // Reading progress and reward state
+  const [readStats, setReadStats] = useState({
+    totalReads: 0,
+    claimedCycles: 0,
+    currentCycleReads: 0,
+    readsRemaining: 10,
+    hasRewardToClaim: false
+  });
+  const [isClaiming, setIsClaiming] = useState(false);
+
+  const fetchReadStats = async () => {
+    try {
+      const stats = await blogService.getBlogReadStats(user?.id);
+      setReadStats(stats);
+    } catch (err) {
+      console.error('Error loading blog read stats:', err);
+    }
+  };
+
+  // Fetch read stats on mount and when user changes
+  useEffect(() => {
+    fetchReadStats();
+  }, [user?.id]);
+
   // Fetch coaches on mount
   useEffect(() => {
     userService.getCoaches().then(allCoaches => {
@@ -185,6 +209,60 @@ export const RiseBlog: React.FC = () => {
     }
     return null;
   }, [postId, audienceSlug, blogSlug, posts]);
+
+  // Record reading progress when an article is opened
+  useEffect(() => {
+    if (!activePost) return;
+
+    let isMounted = true;
+    blogService.recordBlogRead(user?.id, activePost.id).then((res) => {
+      if (isMounted) {
+        setReadStats(prev => ({
+          ...prev,
+          totalReads: res.totalReads,
+          claimedCycles: res.claimedCycles,
+          currentCycleReads: res.currentCycleReads,
+          readsRemaining: res.readsRemaining,
+          hasRewardToClaim: res.hasRewardToClaim
+        }));
+      }
+    }).catch(err => {
+      console.error('Error tracking blog read:', err);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activePost?.id, user?.id]);
+
+  // Handle claiming 10 coins reward
+  const handleClaimReward = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!user) {
+      toast.error('Please log in to claim your 10 coins reward! 🔐');
+      navigate('/login');
+      return;
+    }
+
+    setIsClaiming(true);
+    try {
+      const res = await blogService.claimBlogReward(user.id);
+      setReadStats({
+        totalReads: res.totalReads,
+        claimedCycles: res.claimedCycles,
+        currentCycleReads: res.currentCycleReads,
+        readsRemaining: res.readsRemaining,
+        hasRewardToClaim: res.hasRewardToClaim
+      });
+      toast.success('🎉 10 Coins Claimed!', {
+        description: 'Your reading reward has been added to your balance.'
+      });
+    } catch (err: any) {
+      toast.error(err.message || 'Could not claim reward at this time.');
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   // Helper to parse content with titles/bold lists nicely (Markdown compliant)
   const renderFormattedContent = (content: string) => {
@@ -465,16 +543,38 @@ export const RiseBlog: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAFA] px-4 pt-6 pb-24">
       {/* Blog header */}
       <div className="max-w-md mx-auto mb-6 text-left">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <img 
             src={assetService.URLS.RISEBLOG_LOGO} 
             alt="RiseBlog" 
             className="h-14 sm:h-16 w-auto object-contain"
             referrerPolicy="no-referrer"
           />
-          <div className="text-right">
-             <p className="font-bold text-sm text-gray-900 leading-tight">Read deeply.</p>
-             <p className="font-thin text-xs text-gray-600 leading-tight">Earn 10 coins.</p>
+          <div className="text-right flex items-center justify-end gap-2.5">
+            {readStats.hasRewardToClaim ? (
+              <>
+                <div className="text-right">
+                  <p className="font-bold text-sm text-gray-900 leading-tight">10 / 10 reads</p>
+                  <p className="font-thin text-xs text-gray-600 leading-tight">10 coins unlocked</p>
+                </div>
+                <button
+                  onClick={handleClaimReward}
+                  disabled={isClaiming}
+                  className="px-3.5 py-1.5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white text-[11px] font-black uppercase tracking-wider rounded-xl shadow-sm shadow-[#0E7850]/25 active:scale-95 transition-all flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {isClaiming ? '...' : 'Claim'}
+                </button>
+              </>
+            ) : (
+              <div className="text-right">
+                <p className="font-bold text-sm text-gray-900 leading-tight">
+                  {readStats.currentCycleReads} / 10 reads
+                </p>
+                <p className="font-thin text-xs text-gray-600 leading-tight">
+                  {readStats.readsRemaining} more reads • 10 coins
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

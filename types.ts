@@ -452,6 +452,9 @@ export interface Participant extends User {
     claimedCredit: number;
     processed: boolean;
   }[];
+  blogReadsCount?: number;
+  blogReadIds?: string[];
+  claimedBlogRewardCycles?: number;
   interests?: string[];
   followers?: number;
   following?: number;
