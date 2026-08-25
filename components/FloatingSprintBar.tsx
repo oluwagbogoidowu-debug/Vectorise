@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, MoreHorizontal, History, Bookmark, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
 import { ParticipantSprint, UserRole } from '../types';
@@ -13,6 +14,8 @@ export const FloatingSprintBar: React.FC = () => {
 
   const [activeEnrollment, setActiveEnrollment] = useState<ParticipantSprint | null>(null);
   const [hasLoadedEnrollments, setHasLoadedEnrollments] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) {
@@ -38,6 +41,22 @@ export const FloatingSprintBar: React.FC = () => {
       unsubscribe();
     };
   }, [user]);
+
+  // Click outside to close menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   // Page exclusion logic
   const isExcluded = () => {
@@ -112,6 +131,11 @@ export const FloatingSprintBar: React.FC = () => {
     }
   };
 
+  const handleMenuItemClick = (item: string) => {
+    toast.info(`${item} coming soon!`);
+    setIsMenuOpen(false);
+  };
+
   return (
     <AnimatePresence>
       <motion.div
@@ -119,12 +143,13 @@ export const FloatingSprintBar: React.FC = () => {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 24, scale: 0.94 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-2rem)] select-none pointer-events-auto"
+        className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[calc(100vw-2rem)] select-none pointer-events-auto flex items-center gap-2"
+        ref={menuRef}
       >
         <button
           type="button"
           onClick={handleClick}
-          className="group flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2.5 sm:py-3 bg-gray-950/95 hover:bg-black text-white rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer"
+          className="group flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2.5 sm:py-3 bg-gray-950/95 hover:bg-black text-white rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
           title={primaryText}
         >
           <span className="w-2 h-2 rounded-full bg-[#10b981] shrink-0 animate-pulse shadow-[0_0_8px_#10b981]" />
@@ -143,9 +168,55 @@ export const FloatingSprintBar: React.FC = () => {
 
           <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-0.5" />
         </button>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 shrink-0 ${isMenuOpen ? 'bg-black text-emerald-400' : 'bg-gray-950/95 hover:bg-black text-white'}`}
+            aria-label="More options"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+
+          <AnimatePresence>
+            {isMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-full right-0 mb-3 w-48 bg-white/95 backdrop-blur-xl border border-gray-100 rounded-2xl shadow-xl overflow-hidden py-1.5"
+              >
+                <button
+                  onClick={() => handleMenuItemClick('Read history')}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center gap-2.5"
+                >
+                  <History className="w-4 h-4 text-gray-400" />
+                  Read history
+                </button>
+                <button
+                  onClick={() => handleMenuItemClick('Saved post')}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center gap-2.5"
+                >
+                  <Bookmark className="w-4 h-4 text-gray-400" />
+                  Saved post
+                </button>
+                <button
+                  onClick={() => handleMenuItemClick('Earning record')}
+                  className="w-full text-left px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center gap-2.5"
+                >
+                  <Coins className="w-4 h-4 text-gray-400" />
+                  Earning record
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
 };
 
 export default FloatingSprintBar;
+
