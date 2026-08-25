@@ -1,20 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, MoreHorizontal, History, Bookmark, Coins } from 'lucide-react';
+import { ArrowRight, MoreHorizontal, History, Bookmark, Coins, SlidersHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
 import { ParticipantSprint, UserRole } from '../types';
+import { SwitchModeModal } from './SwitchModeModal';
+import { triggerHaptic, hapticPatterns } from '../utils/haptics';
 
 export const FloatingSprintBar: React.FC = () => {
-  const { user, activeRole } = useAuth();
+  const { user, activeRole, switchRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const [activeEnrollment, setActiveEnrollment] = useState<ParticipantSprint | null>(null);
   const [hasLoadedEnrollments, setHasLoadedEnrollments] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSwitchModeOpen, setIsSwitchModeOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -115,8 +118,8 @@ export const FloatingSprintBar: React.FC = () => {
   const isCurrentlyOnSprintView = activeEnrollment && location.pathname === `/participant/sprint/${activeEnrollment.id}`;
 
   const primaryText = isCurrentSprintActive
-    ? 'Continue your current sprint'
-    : 'Start your next sprint';
+    ? 'Continue Current Sprint'
+    : 'Start Next Sprint';
 
   const handleClick = () => {
     if (isCurrentSprintActive && activeEnrollment) {
@@ -137,9 +140,10 @@ export const FloatingSprintBar: React.FC = () => {
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.94 }}
+    <>
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 24, scale: 0.94 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -167,6 +171,19 @@ export const FloatingSprintBar: React.FC = () => {
           </div>
 
           <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-0.5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic(hapticPatterns.light);
+            setIsSwitchModeOpen(true);
+          }}
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#0E7850] hover:bg-[#0b5d3e] text-white flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 shrink-0"
+          aria-label="Switch Mode"
+          title="Switch Mode"
+        >
+          <SlidersHorizontal className="w-5 h-5 stroke-[2.5]" />
         </button>
 
         <div className="relative">
@@ -215,6 +232,20 @@ export const FloatingSprintBar: React.FC = () => {
         </div>
       </motion.div>
     </AnimatePresence>
+
+    {user && (
+      <SwitchModeModal
+        isOpen={isSwitchModeOpen}
+        onClose={() => setIsSwitchModeOpen(false)}
+        user={user}
+        activeRole={activeRole}
+        onSelectMode={(role, route) => {
+          switchRole(role);
+          navigate(route);
+        }}
+      />
+    )}
+    </>
   );
 };
 
