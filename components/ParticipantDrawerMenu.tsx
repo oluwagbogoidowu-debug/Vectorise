@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Compass, Sparkles, Zap, User, Settings, LogOut, X, ChevronRight, Coins } from 'lucide-react';
+import { Compass, Sparkles, Zap, User, Settings, X, ChevronRight, Coins } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
 import LocalLogo from './LocalLogo';
@@ -70,11 +70,7 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
     }
   ];
 
-  const handleLogout = async () => {
-    onClose();
-    await logout();
-    navigate('/login');
-  };
+
 
   const walletBalance = (user as any)?.walletBalance ?? 50;
 
@@ -189,17 +185,8 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-gray-100 bg-white">
-              {user ? (
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
-                </button>
-              ) : (
+            {!user && (
+              <div className="p-4 border-t border-gray-100 bg-white">
                 <button
                   type="button"
                   onClick={() => {
@@ -210,8 +197,8 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
                 >
                   Log In
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </motion.div>
         </div>
       )}
