@@ -422,106 +422,119 @@ export const blogService = {
     };
   },
 
-  isInsightRewarded: async (userId: string | undefined, postId: string): Promise<boolean> => {
+  isInsightCompleted: async (userId: string | undefined, postId: string): Promise<boolean> => {
     const fallbackKey = userId || 'guest';
-    const localRewardedKey = `vectorise_rewarded_blog_ids_${fallbackKey}`;
-    let localRewarded: string[] = [];
+    const localIdsKey = `vectorise_blog_read_ids_${fallbackKey}`;
+    let localIds: string[] = [];
     try {
-      localRewarded = JSON.parse(localStorage.getItem(localRewardedKey) || '[]');
+      localIds = JSON.parse(localStorage.getItem(localIdsKey) || '[]');
     } catch {
-      localRewarded = [];
+      localIds = [];
     }
-    if (localRewarded.includes(postId)) return true;
+    if (localIds.includes(postId)) return true;
 
     if (userId) {
       try {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
           const uData = userDoc.data() as Partial<Participant>;
-          if (uData.rewardedBlogIds?.includes(postId)) {
-            localRewarded.push(postId);
-            localStorage.setItem(localRewardedKey, JSON.stringify(Array.from(new Set(localRewarded))));
+          if (uData.blogReadIds?.includes(postId)) {
+            localIds.push(postId);
+            localStorage.setItem(localIdsKey, JSON.stringify(Array.from(new Set(localIds))));
             return true;
           }
         }
       } catch (err) {
-        console.error('Error checking isInsightRewarded:', err);
+        console.error('Error checking isInsightCompleted:', err);
       }
     }
     return false;
   },
 
-  rewardInsightRead: async (userId: string | undefined, postId: string, postTitle: string): Promise<{
+  recordCompletedInsightRead: async (userId: string | undefined, postId: string, postTitle?: string): Promise<{
     success: boolean;
-    earnedCoin: boolean;
-    alreadyRewarded: boolean;
-    readStats?: any;
+    isFirstCompletion: boolean;
+    readStats: {
+      totalReads: number;
+      claimedCycles: number;
+      currentCycleReads: number;
+      readsRemaining: number;
+      hasRewardToClaim: boolean;
+    };
   }> => {
-    const fallbackKey = userId || 'guest';
-    const localRewardedKey = `vectorise_rewarded_blog_ids_${fallbackKey}`;
-    let localRewarded: string[] = [];
+    const fallbackUserKey = userId || 'guest';
+    const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
+    const localClaimedKey = `vectorise_blog_claimed_${fallbackUserKey}`;
+    const localIdsKey = `vectorise_blog_read_ids_${fallbackUserKey}`;
+
+    let localReads = parseInt(localStorage.getItem(localReadsKey) || '0', 10);
+    let localClaimed = parseInt(localStorage.getItem(localClaimedKey) || '0', 10);
+    let localIds: string[] = [];
     try {
-      localRewarded = JSON.parse(localStorage.getItem(localRewardedKey) || '[]');
+      localIds = JSON.parse(localStorage.getItem(localIdsKey) || '[]');
     } catch {
-      localRewarded = [];
+      localIds = [];
     }
 
-    let remoteRewarded: string[] = [];
+    let remoteReads = 0;
+    let remoteClaimed = 0;
+    let remoteIds: string[] = [];
+
     if (userId) {
       try {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
           const uData = userDoc.data() as Partial<Participant>;
-          remoteRewarded = uData.rewardedBlogIds || [];
+          remoteReads = uData.blogReadsCount || 0;
+          remoteClaimed = uData.claimedBlogRewardCycles || 0;
+          remoteIds = uData.blogReadIds || [];
         }
       } catch (err) {
-        console.error('Error checking remote rewarded blogs:', err);
+        console.error('Error checking remote user reads:', err);
       }
     }
 
-    const allRewarded = Array.from(new Set([...localRewarded, ...remoteRewarded]));
-    if (allRewarded.includes(postId)) {
-      const readStats = await blogService.recordBlogRead(userId, postId);
-      return { success: true, earnedCoin: false, alreadyRewarded: true, readStats };
-    }
+    let totalReads = Math.max(localReads, remoteReads);
+    let claimedCycles = Math.max(localClaimed, remoteClaimed);
+    let allIds = Array.from(new Set([...localIds, ...remoteIds]));
 
-    allRewarded.push(postId);
-    localStorage.setItem(localRewardedKey, JSON.stringify(allRewarded));
+    const isFirstCompletion = !allIds.includes(postId);
+    if (isFirstCompletion) {
+      allIds.push(postId);
+      totalReads += 1;
 
-    if (userId) {
-      try {
-        await userService.processWalletTransaction(userId, {
-          type: 'credit',
-          amount: 1,
-          description: `Read Insight: ${postTitle || postId}`
-        });
+      localStorage.setItem(localIdsKey, JSON.stringify(allIds));
+      localStorage.setItem(localReadsKey, String(totalReads));
+      localStorage.setItem(localClaimedKey, String(claimedCycles));
 
-        const userRef = doc(db, 'users', userId);
-        await updateDoc(userRef, {
-          rewardedBlogIds: arrayUnion(postId),
-          blogReadsCount: increment(1),
-          blogReadIds: arrayUnion(postId)
-        });
-      } catch (err) {
-        console.error('Error processing insight read reward transaction:', err);
+      if (userId) {
         try {
           const userRef = doc(db, 'users', userId);
           await updateDoc(userRef, {
-            walletBalance: increment(1),
-            rewardedBlogIds: arrayUnion(postId)
+            blogReadsCount: totalReads,
+            blogReadIds: arrayUnion(postId)
           });
-        } catch (e) {
-          console.error('Fallback wallet increment failed:', e);
+        } catch (err) {
+          console.error('Error updating read count in Firestore:', err);
         }
       }
     }
 
-    const readStats = await blogService.recordBlogRead(userId, postId);
+    const effectiveUnclaimed = Math.max(0, totalReads - (claimedCycles * 10));
+    const hasRewardToClaim = effectiveUnclaimed >= 10;
+    const currentCycleReads = hasRewardToClaim ? 10 : (effectiveUnclaimed % 10);
+    const readsRemaining = hasRewardToClaim ? 0 : Math.max(0, 10 - currentCycleReads);
+
     return {
       success: true,
-      earnedCoin: true,
-      alreadyRewarded: false,
-      readStats
+      isFirstCompletion,
+      readStats: {
+        totalReads,
+        claimedCycles,
+        currentCycleReads,
+        readsRemaining,
+        hasRewardToClaim
+      }
     };
   }
 };

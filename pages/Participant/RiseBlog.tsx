@@ -213,13 +213,13 @@ export const RiseBlog: React.FC = () => {
     return null;
   }, [postId, audienceSlug, blogSlug, posts]);
 
-  // Active reading and coin reward state for current article
+  // Active reading and milestone progress state for current article
   const endMarkerRef = useRef<HTMLDivElement | null>(null);
   const [activeReadSeconds, setActiveReadSeconds] = useState(0);
   const [hasReachedEnd, setHasReachedEnd] = useState(false);
-  const [isPostRewarded, setIsPostRewarded] = useState(false);
+  const [isPostCompleted, setIsPostCompleted] = useState(false);
   const [isTabActive, setIsTabActive] = useState(typeof document !== 'undefined' ? (!document.hidden && document.hasFocus()) : true);
-  const [isTriggeringReward, setIsTriggeringReward] = useState(false);
+  const [isRecordingCompletion, setIsRecordingCompletion] = useState(false);
 
   // Calculate dynamic reading time based on blog post content
   const activePostStats = useMemo(() => {
@@ -231,17 +231,17 @@ export const RiseBlog: React.FC = () => {
     });
   }, [activePost]);
 
-  // Reset states and check if current article was previously rewarded
+  // Reset states and check if current article was previously counted
   useEffect(() => {
     if (!activePost) return;
     setActiveReadSeconds(0);
     setHasReachedEnd(false);
-    setIsTriggeringReward(false);
+    setIsRecordingCompletion(false);
 
     let isMounted = true;
-    blogService.isInsightRewarded(user?.id, activePost.id).then((isRew) => {
+    blogService.isInsightCompleted(user?.id, activePost.id).then((isComp) => {
       if (isMounted) {
-        setIsPostRewarded(isRew);
+        setIsPostCompleted(isComp);
       }
     });
 
@@ -316,27 +316,21 @@ export const RiseBlog: React.FC = () => {
     };
   }, [activePost?.id, hasReachedEnd]);
 
-  // Check if conditions for 1 coin reward are met:
+  // Check if conditions for deep reading completion are met:
   // 1. User reaches the end of the insight
   // 2. User has spent at least 50% of estimated reading time
-  // 3. The page was actually active/visible during that time (tracked strictly in activeReadSeconds)
+  // 3. The page was actually active/visible during that time
   useEffect(() => {
     if (!activePost || !activePostStats) return;
-    if (isPostRewarded || isTriggeringReward) return;
+    if (isPostCompleted || isRecordingCompletion) return;
 
     const timeRequirementMet = activeReadSeconds >= activePostStats.requiredSeconds;
     const endRequirementMet = hasReachedEnd;
 
     if (timeRequirementMet && endRequirementMet) {
-      setIsTriggeringReward(true);
-      blogService.rewardInsightRead(user?.id, activePost.id, activePost.title).then((res) => {
-        setIsPostRewarded(true);
-        if (res.earnedCoin) {
-          toast.success('🎉 +1 Coin Earned!', {
-            description: 'You completed 50%+ active reading time and reached the end of this insight.',
-            duration: 4000
-          });
-        }
+      setIsRecordingCompletion(true);
+      blogService.recordCompletedInsightRead(user?.id, activePost.id, activePost.title).then((res) => {
+        setIsPostCompleted(true);
         if (res.readStats) {
           setReadStats(prev => ({
             ...prev,
@@ -346,39 +340,28 @@ export const RiseBlog: React.FC = () => {
             readsRemaining: res.readStats.readsRemaining,
             hasRewardToClaim: res.readStats.hasRewardToClaim
           }));
+
+          if (res.isFirstCompletion) {
+            if (res.readStats.hasRewardToClaim) {
+              toast.success('🎉 10 / 10 Reads Completed!', {
+                description: '10 coins unlocked! Click "Claim" in the top bar to credit your account.',
+                duration: 5000
+              });
+            } else {
+              toast.success(`📖 Read Counted (${res.readStats.currentCycleReads} / 10)`, {
+                description: `${res.readStats.readsRemaining} more ${res.readStats.readsRemaining === 1 ? 'read' : 'reads'} to unlock 10 coins.`,
+                duration: 4000
+              });
+            }
+          }
         }
       }).catch(err => {
-        console.error('Error rewarding insight read:', err);
+        console.error('Error recording completed insight read:', err);
       }).finally(() => {
-        setIsTriggeringReward(false);
+        setIsRecordingCompletion(false);
       });
     }
-  }, [activePost, activePostStats, activeReadSeconds, hasReachedEnd, isPostRewarded, isTriggeringReward, user?.id]);
-
-  // Record reading progress when an article is opened
-  useEffect(() => {
-    if (!activePost) return;
-
-    let isMounted = true;
-    blogService.recordBlogRead(user?.id, activePost.id).then((res) => {
-      if (isMounted) {
-        setReadStats(prev => ({
-          ...prev,
-          totalReads: res.totalReads,
-          claimedCycles: res.claimedCycles,
-          currentCycleReads: res.currentCycleReads,
-          readsRemaining: res.readsRemaining,
-          hasRewardToClaim: res.hasRewardToClaim
-        }));
-      }
-    }).catch(err => {
-      console.error('Error tracking blog read:', err);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activePost?.id, user?.id]);
+  }, [activePost, activePostStats, activeReadSeconds, hasReachedEnd, isPostCompleted, isRecordingCompletion, user?.id]);
 
   // Handle claiming 10 coins reward
   const handleClaimReward = async (e?: React.MouseEvent) => {
@@ -585,37 +568,37 @@ export const RiseBlog: React.FC = () => {
             </div>
           </div>
 
-          {/* Deep Reading & 1 Coin Tracker Banner */}
+          {/* Deep Reading & 10 Coins Milestone Tracker Banner */}
           {activePostStats && (
             <div className={`mb-8 p-4 rounded-2xl border transition-all ${
-              isPostRewarded 
+              isPostCompleted 
                 ? 'bg-emerald-50/60 border-emerald-200/80 text-emerald-950' 
                 : 'bg-white border-gray-200/80 shadow-xs'
             }`}>
               <div className="flex items-center justify-between gap-3 mb-2.5">
                 <div className="flex items-center gap-2">
                   <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${
-                    isPostRewarded ? 'bg-[#0E7850] text-white' : 'bg-amber-100 text-amber-700'
+                    isPostCompleted ? 'bg-[#0E7850] text-white' : 'bg-emerald-100 text-[#0E7850]'
                   }`}>
                     <Coins className="w-4 h-4" />
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-gray-900 uppercase tracking-wider">
-                      {isPostRewarded ? '1 Coin Earned' : 'Earn 1 Coin'}
+                      {isPostCompleted ? 'Read Counted' : 'Deep Reading Progress'}
                     </h4>
                     <p className="text-[10px] text-gray-500 font-medium">
-                      {isPostRewarded 
-                        ? 'Deep reading criteria completed for this insight'
-                        : `Read 50%+ of estimated time (${activePostStats.requiredSeconds}s) & reach the end`
+                      {isPostCompleted 
+                        ? `Counted towards your 10-read goal (${readStats.currentCycleReads} / 10 reads)`
+                        : `Read 50%+ of estimated time (${activePostStats.requiredSeconds}s) & reach the end to count towards 10 coins`
                       }
                     </p>
                   </div>
                 </div>
 
                 <div className="shrink-0">
-                  {isPostRewarded ? (
+                  {isPostCompleted ? (
                     <span className="px-2.5 py-1 bg-[#0E7850]/15 text-[#0E7850] text-[10px] font-black uppercase tracking-wider rounded-lg flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Claimed
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Counted
                     </span>
                   ) : (
                     <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
@@ -629,7 +612,7 @@ export const RiseBlog: React.FC = () => {
               </div>
 
               {/* Progress checks */}
-              {!isPostRewarded && (
+              {!isPostCompleted && (
                 <div className="space-y-2 pt-2 border-t border-gray-100/80">
                   {/* Time requirement */}
                   <div>
@@ -672,10 +655,10 @@ export const RiseBlog: React.FC = () => {
 
           {/* End of Insight Sentinel Marker */}
           <div ref={endMarkerRef} id="end-of-insight-marker" className="py-4 mb-6 flex items-center justify-center">
-            {isPostRewarded ? (
+            {isPostCompleted ? (
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 rounded-full text-xs font-bold border border-emerald-100">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>End of insight reached • 1 coin credited to wallet</span>
+                <span>End of insight reached • Counted towards your 10 coins goal ({readStats.currentCycleReads}/10)</span>
               </div>
             ) : (
               <div className="text-[11px] text-gray-400 font-medium italic">
