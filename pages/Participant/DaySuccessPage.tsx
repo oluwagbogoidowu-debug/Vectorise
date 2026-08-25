@@ -266,8 +266,8 @@ const DaySuccessPage: React.FC = () => {
     : '';
 
   const displayBridgeNote = formattedBridgeNote
-    ? `${formattedBridgeNote}${unclaimedText}`
-    : (unclaimedText.trim() ? unclaimedText.trim() : (isSprintLastDay ? '' : ''));
+    ? formattedBridgeNote
+    : (isSprintLastDay ? '' : '');
 
   // Real-time local midnight countdown timer
   const [countdown, setCountdown] = useState('00:00:00');

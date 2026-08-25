@@ -710,6 +710,8 @@ export function resolveProgressiveStepSelections(
   // 2. Explicit poll-to-poll / step links to source step(s)
   // When multiple tag or poll steps are connected, collect from each and every one of them to turn all tags into polls
   const validExplicitLinks = explicitLinks.filter(link => {
+    // Hide mode ('hide' / 'h') and disconnect mode ('disconnect' / 'd') are branching / suppression modes and do not feed poll options
+    if (link.mode === 'hide' || link.mode === 'disconnect') return false;
     const sDay = link.day;
     const sStep = link.stepIdx;
     const sDC = (sDay === currentDayNum || !allDaysContent)
@@ -977,6 +979,11 @@ export function formatInterpolatedText(
       return cleaned.map(c => c.toLowerCase()).join(', ');
     };
 
+    // Hide mode, disconnect mode, or main mode immediately return empty string (suppress display text)
+    if (mode === 'hide' || mode === 'disconnect' || mode === 'main') {
+      return '';
+    }
+
     // CASE 1: Explicit Option Reference e.g. {M2 Step 4 Op1} or {Step 6 Op1}
     if (opNum !== undefined) {
       let activeDC = targetDC;
@@ -1076,15 +1083,8 @@ export function formatInterpolatedText(
     // CASE 2: General Step Reference e.g. {M1 Step 3} or {Step 6}
     let items: string[] = [];
 
-    // Only run progressive/main linking when the placeholder explicitly requests it (mode === 'main')
-    if (mode === 'main') {
-      const progRes = resolveProgressiveStepSelections(stepIndex, targetDC, taskInputs, allDaysContent, allDaysInputs);
-      if (progRes.isNarrowed && progRes.allSelections.length > 0) {
-        items = progRes.allSelections;
-      }
-    } else {
-      // Normal placeholders: return the target step's direct value (or its configured poll options) and skip resolveProgressiveStepSelections
-      let val = getTargetInputValue(targetDay, stepIndex);
+    // Normal placeholders: return the target step's direct value (or its configured poll options)
+    let val = getTargetInputValue(targetDay, stepIndex);
 
       if (val !== undefined && val !== null) {
         if (typeof val === 'boolean') {
@@ -1127,7 +1127,6 @@ export function formatInterpolatedText(
           if (promptText) items = [promptText];
         }
       }
-    }
 
     return formatOutput(items);
   });
@@ -1656,14 +1655,27 @@ export function isStepVisibleForSprint(
 
   // 2. Implicit placeholder branch checking
   const rawPrompt = dayContent.taskPrompts?.[stepIndex] || (stepIndex === 0 ? dayContent.taskPrompt : undefined);
-  if (!rawPrompt) return true;
+  const rawHint = dayContent.taskHints?.[stepIndex];
+  const rawFootnote = dayContent.taskFootnotes?.[stepIndex];
+  const rawTagNote = dayContent.taskTagNotes?.[stepIndex];
 
-  const promptVersions = parseStepVersions(rawPrompt);
-  const activeVerIdx = promptVersions.length > 1
-    ? resolveStepVersionIndex(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs)
-    : 0;
+  const textsToScan: string[] = [];
+  if (rawPrompt) {
+    const promptVersions = parseStepVersions(rawPrompt);
+    if (promptVersions.length > 1) {
+      const activeVerIdx = resolveStepVersionIndex(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
+      textsToScan.push(promptVersions[activeVerIdx] || promptVersions[0]);
+    } else {
+      textsToScan.push(rawPrompt);
+    }
+  }
+  if (rawHint) textsToScan.push(rawHint);
+  if (rawFootnote) textsToScan.push(rawFootnote);
+  if (rawTagNote) textsToScan.push(rawTagNote);
 
-  const checkPromptVisibility = (promptText: string): boolean => {
+  if (textsToScan.length === 0) return true;
+
+  const checkTextVisibility = (promptText: string): boolean => {
     if (!promptText) return true;
     const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
     let match: RegExpExecArray | null;
@@ -1750,12 +1762,7 @@ export function isStepVisibleForSprint(
           }
           userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
 
-          let writtenOpts: string[] = [];
-          if (targetDC.taskPollOptions?.[targetIdx]) {
-            try {
-              writtenOpts = JSON.parse(targetDC.taskPollOptions[targetIdx]).map((s: any) => String(s).trim()).filter(Boolean);
-            } catch (e) {}
-          }
+          const writtenOpts = getAllStepPollOptions(targetDC, targetIdx, taskInputs, allDaysContent, allDaysInputs);
 
           const isOptionSelected = (oNum: number) => {
             const optIndex = oNum - 1;
@@ -1767,9 +1774,9 @@ export function isStepVisibleForSprint(
               return false;
             }
             return userChoices.some(c => {
-              const lowerC = c.toLowerCase();
-              if (targetWrittenText && lowerC === targetWrittenText.toLowerCase()) return true;
-              if (lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
+              const lowerC = c.toLowerCase().trim();
+              if (targetWrittenText && lowerC === targetWrittenText.toLowerCase().trim()) return true;
+              if (lowerC === `option ${oNum}` || lowerC === `option${oNum}` || lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
               return false;
             });
           };
@@ -1790,15 +1797,7 @@ export function isStepVisibleForSprint(
     return true;
   };
 
-  if (promptVersions.length > 1) {
-    const activeVersionPrompt = promptVersions[activeVerIdx] || promptVersions[0];
-    if (checkPromptVisibility(activeVersionPrompt)) {
-      return true;
-    }
-    return promptVersions.some(vPrompt => checkPromptVisibility(vPrompt));
-  } else {
-    return checkPromptVisibility(rawPrompt);
-  }
+  return textsToScan.every(text => checkTextVisibility(text));
 }
 
 /**

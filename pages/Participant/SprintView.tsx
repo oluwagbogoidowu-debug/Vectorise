@@ -1526,7 +1526,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
     // Strictly no step with no linking should send or receive poll or poll option or action steps
     const explicitLinks = getExplicitLinkedSteps(stepIndex, dayContent, sprint?.dailyContent);
-    if (explicitLinks.length === 0) {
+    const activeLinks = explicitLinks.filter(l => l.mode !== 'hide' && l.mode !== 'disconnect');
+    if (activeLinks.length === 0) {
       return [];
     }
 

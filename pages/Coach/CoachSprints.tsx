@@ -946,11 +946,11 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('sprint');
                     setFilter('all');
                 }}
-                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Flame className="w-3.5 h-3.5" />
+                <Flame className="w-3 h-3" />
                 <span>Sprint</span>
             </button>
             <button
@@ -959,12 +959,12 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('blog');
                     setFilter('all');
                 }}
-                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>RiseBlog</span>
+                <BookOpen className="w-3 h-3" />
+                <span>Riseblog</span>
             </button>
             <button
                 type="button"
@@ -972,11 +972,11 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('ignite');
                     setFilter('all');
                 }}
-                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3 h-3" />
                 <span>Ignite</span>
             </button>
             <button
@@ -985,11 +985,11 @@ const CoachSprints: React.FC = () => {
                     setActiveTab('challenge');
                     setFilter('all');
                 }}
-                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                     activeTab === 'challenge' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                 }`}
             >
-                <Trophy className="w-3.5 h-3.5" />
+                <Trophy className="w-3 h-3" />
                 <span>Challenge</span>
             </button>
         </div>
