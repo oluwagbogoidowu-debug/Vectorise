@@ -465,16 +465,16 @@ export const RiseBlog: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAFA] px-4 pt-6 pb-24">
       {/* Blog header */}
       <div className="max-w-md mx-auto mb-6 text-left">
-        <div className="flex items-center">
+        <div className="flex items-center justify-between">
           <img 
             src={assetService.URLS.RISEBLOG_LOGO} 
             alt="RiseBlog" 
             className="h-14 sm:h-16 w-auto object-contain"
             referrerPolicy="no-referrer"
           />
-          <div className="ml-3">
-             <p className="font-bold text-sm text-gray-900">Read deeply.</p>
-             <p className="font-thin text-xs text-gray-600">Earn 10 coins.</p>
+          <div className="text-right">
+             <p className="font-bold text-sm text-gray-900 leading-tight">Read deeply.</p>
+             <p className="font-thin text-xs text-gray-600 leading-tight">Earn 10 coins.</p>
           </div>
         </div>
       </div>
