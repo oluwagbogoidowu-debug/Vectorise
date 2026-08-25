@@ -25,11 +25,10 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
 
     // Admin mode is activated if the user's base role is ADMIN
     if (user.role === UserRole.ADMIN) {
-      modes.push({
+        modes.push({
         id: UserRole.ADMIN,
         label: 'Admin',
         role: UserRole.ADMIN,
-        desc: 'Full System Control & Settings',
         icon: Shield,
         colorClass: activeRole === UserRole.ADMIN 
           ? 'bg-rose-50 text-rose-600 border-rose-200 ring-2 ring-rose-500/20' 
@@ -48,7 +47,6 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
         id: UserRole.COACH,
         label: 'Coach',
         role: UserRole.COACH,
-        desc: 'Active Coaching Space & Tools',
         icon: Users,
         colorClass: activeRole === UserRole.COACH 
           ? 'bg-blue-50 text-blue-600 border-blue-200 ring-2 ring-blue-500/20' 
@@ -66,7 +64,6 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
         id: UserRole.PARTNER,
         label: 'Partner',
         role: UserRole.PARTNER,
-        desc: 'Partner Collaboration Portal',
         icon: Handshake,
         colorClass: activeRole === UserRole.PARTNER 
           ? 'bg-emerald-50 text-emerald-600 border-emerald-200 ring-2 ring-emerald-500/20' 
@@ -83,12 +80,11 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
       id: UserRole.PARTICIPANT,
       label: 'User',
       role: UserRole.PARTICIPANT,
-      desc: 'Sprints, Consistency & Reflections',
       icon: UserIcon,
       colorClass: activeRole === UserRole.PARTICIPANT 
         ? 'bg-orange-50 text-orange-600 border-orange-200 ring-2 ring-orange-500/20' 
         : 'bg-white text-gray-700 border-gray-100 hover:border-orange-100 hover:bg-orange-50/10',
-      iconBgClass: activeRole === UserRole.PARTICIPANT
+        iconBgClass: activeRole === UserRole.PARTICIPANT
         ? 'bg-orange-500 text-white'
         : 'bg-orange-50 text-orange-500 group-hover:bg-orange-500 group-hover:text-white',
       route: '/dashboard'
@@ -144,9 +140,6 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
               <h3 className="text-base font-black text-gray-900 tracking-tight leading-tight">
                 Switch Active Mode
               </h3>
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                Select your perspective for this session
-              </p>
             </div>
 
             {/* List of activated modes */}
@@ -179,9 +172,6 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-gray-400 font-medium truncate mt-0.5">
-                        {mode.desc}
-                      </p>
                     </div>
                   </button>
                 );

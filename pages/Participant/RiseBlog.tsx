@@ -471,17 +471,13 @@ export const RiseBlog: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAFA] px-4 pt-6 pb-24">
       {/* Blog header */}
       <div className="max-w-md mx-auto mb-6 text-left">
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center">
           <img 
             src={assetService.URLS.RISEBLOG_LOGO} 
             alt="RiseBlog" 
-            className="h-10 w-auto object-contain rounded-xl"
+            className="h-11 w-auto object-contain rounded-xl"
             referrerPolicy="no-referrer"
           />
-          <div>
-            <p className="text-[9px] font-black text-primary uppercase tracking-[0.25em]">Rise Insights</p>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tighter">RiseBlog</h1>
-          </div>
         </div>
       </div>
 
