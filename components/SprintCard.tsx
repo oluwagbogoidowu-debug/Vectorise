@@ -153,7 +153,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                                 referrerPolicy="no-referrer"
                             />
                             <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black text-white/90 uppercase tracking-[0.2em] border border-white/10">
-                                {sprint.duration} Days
+                                {sprint.duration} {sprint.duration === 1 ? 'Move' : 'Moves'}
                             </div>
                             {forceShowOutcomeTag && sprint.outcomeTag && (
                                 <div className="absolute top-3 left-3 bg-primary text-white px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest italic shadow-lg z-10 border border-white/20">
@@ -245,7 +245,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         referrerPolicy="no-referrer"
                     />
                     <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!isStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
-                    <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} Days</div>
+                    <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} {sprint.duration === 1 ? 'Move' : 'Moves'}</div>
                     
                     {/* Archive Badge Preview */}
                     {forceShowOutcomeTag && sprint.outcomeTag && (
