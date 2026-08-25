@@ -7,7 +7,9 @@ import SprintCard from '../../components/SprintCard';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import ParticipantDrawerMenu from '../../components/ParticipantDrawerMenu';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
-import { SwitchModeModal } from '../../components/SwitchModeModal';
+import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
+import { db } from '../../services/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { paymentService } from '../../services/paymentService';
@@ -46,15 +48,71 @@ export const NextSprintRecommendation: React.FC = () => {
     const [isDarkMode, setIsDarkMode] = useState(false);
 
     const hasDualOrMultiMode = useMemo(() => {
-        if (!user) return false;
-        const u = user as any;
-        const isApprovedCoach = u.role === UserRole.COACH || u.coachApplicationApproved === true || u.approved === true;
-        return u.role === UserRole.ADMIN || u.role === UserRole.PARTNER || isApprovedCoach;
+        return hasMultipleModes(user);
     }, [user]);
 
     useEffect(() => {
         setIsDarkMode(document.documentElement.classList.contains('dark'));
     }, []);
+
+    // Failsafe: Automatically fulfill and save any pending preview action when landing on dashboard
+    useEffect(() => {
+        if (!user) return;
+        const pendingRaw = localStorage.getItem('pending_first_action');
+        if (!pendingRaw) return;
+        try {
+            const pending = JSON.parse(pendingRaw);
+            if (pending && pending.sprintId) {
+                sprintService.getSprintById(pending.sprintId).then(async (targetSprint) => {
+                    if (targetSprint) {
+                        const effectiveInputs = pending.taskInputs || (pending.firstActionInput ? [pending.firstActionInput] : []);
+                        const firstInput = effectiveInputs[0] || pending.firstActionInput || "";
+                        const enrollment = await sprintService.enrollUser(user.id, targetSprint.id, targetSprint.duration, {
+                            firstActionInput: firstInput,
+                            taskInputs: effectiveInputs
+                        } as any);
+
+                        await userService.addUserEnrollment(user.id, targetSprint.id);
+
+                        if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                            const updatedProgress = [...enrollment.progress];
+                            updatedProgress[0] = {
+                                ...updatedProgress[0],
+                                completed: true,
+                                completedAt: new Date().toISOString(),
+                                answers: effectiveInputs,
+                                submission: firstInput
+                            };
+                            const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                            await updateDoc(enrollmentRef, { 
+                                progress: updatedProgress,
+                                last_activity_at: new Date().toISOString()
+                            });
+                        }
+                        console.log("[NextSprintRecommendation] Auto-fulfilled pending preview action and saved to database for sprint:", targetSprint.id);
+                        localStorage.removeItem('pending_first_action');
+                        localStorage.removeItem('vectorise_last_sprint');
+                        const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+                        navigate('/participant/day-success', {
+                            replace: true,
+                            state: {
+                                day: 1,
+                                coinsUnlocked: 10,
+                                bridgeNote: d1Content?.bridgeNote,
+                                sprintId: targetSprint.id,
+                                sprint: targetSprint,
+                                enrollmentId: enrollment?.id,
+                                taskInputs: effectiveInputs,
+                                redirectToDaySuccess: true
+                            }
+                        });
+                    }
+                }).catch(err => console.error("Error auto-fulfilling pending action on dashboard:", err));
+            }
+        } catch (e) {
+            console.error("Error reading pending action in NextSprintRecommendation:", e);
+        }
+    }, [user, navigate]);
 
     const toggleDarkMode = () => {
         const nextVal = !isDarkMode;

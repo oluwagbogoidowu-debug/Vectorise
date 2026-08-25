@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { SwitchModeModal } from './SwitchModeModal';
+import { SwitchModeModal, hasMultipleModes } from './SwitchModeModal';
 import { SlidersHorizontal } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
 
@@ -10,6 +10,7 @@ const CoachBottomNavigation: React.FC = () => {
   const { user, activeRole, switchRole } = useAuth();
   const navigate = useNavigate();
   const [isSwitchModeOpen, setIsSwitchModeOpen] = useState(false);
+  const showModeChanger = hasMultipleModes(user);
 
   const leftNavItems = [
     {
@@ -62,72 +63,98 @@ const CoachBottomNavigation: React.FC = () => {
     <>
       <div className="fixed bottom-0 left-0 z-50 w-full bg-white border-t border-gray-200/80 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] safe-area-pb">
         <div className="flex justify-between items-center h-16 max-w-lg mx-auto px-4 relative">
-          {/* Left Items */}
-          <div className="flex items-center justify-around flex-1">
-            {leftNavItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center w-16 h-full space-y-1 transition-colors duration-200 ${
-                    isActive ? 'text-primary font-bold' : 'text-gray-400 hover:text-gray-600'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {item.icon(isActive)}
-                    <span className="text-[9px] md:text-[10px] font-medium tracking-wide">{item.label}</span>
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </div>
-
-          {/* Elevated Center Switch Mode Button */}
-          <div className="relative flex flex-col items-center justify-center px-3">
-            <button
-              type="button"
-              onClick={handleOpenSwitchMode}
-              aria-label="Switch Mode"
-              title="Switch Mode"
-              className="relative -top-5 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary text-white shadow-xl shadow-primary/30 border-4 border-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-90 hover:shadow-2xl hover:shadow-primary/40 cursor-pointer group"
-            >
-              <div className="w-7 h-7 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12">
-                <SlidersHorizontal className="w-6 h-6 text-white stroke-[2.5]" />
+          {showModeChanger ? (
+            <>
+              {/* Left Items */}
+              <div className="flex items-center justify-around flex-1">
+                {leftNavItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `flex flex-col items-center justify-center w-16 h-full space-y-1 transition-colors duration-200 ${
+                        isActive ? 'text-primary font-bold' : 'text-gray-400 hover:text-gray-600'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {item.icon(isActive)}
+                        <span className="text-[9px] md:text-[10px] font-medium tracking-wide">{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                ))}
               </div>
-            </button>
-            <span className="-mt-3.5 text-[9px] font-bold text-gray-500 uppercase tracking-widest">
-              Mode
-            </span>
-          </div>
 
-          {/* Right Items */}
-          <div className="flex items-center justify-around flex-1">
-            {rightNavItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center w-16 h-full space-y-1 transition-colors duration-200 ${
-                    isActive ? 'text-primary font-bold' : 'text-gray-400 hover:text-gray-600'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {item.icon(isActive)}
-                    <span className="text-[9px] md:text-[10px] font-medium tracking-wide">{item.label}</span>
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </div>
+              {/* Elevated Center Switch Mode Button & Label (Only shown if at least 2 modes of existence) */}
+              <div className="relative flex flex-col items-center justify-center px-3">
+                <button
+                  type="button"
+                  onClick={handleOpenSwitchMode}
+                  aria-label="Switch Mode"
+                  title="Switch Mode"
+                  className="relative -top-5 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary text-white shadow-xl shadow-primary/30 border-4 border-white flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-90 hover:shadow-2xl hover:shadow-primary/40 cursor-pointer group"
+                >
+                  <div className="w-7 h-7 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12">
+                    <SlidersHorizontal className="w-6 h-6 text-white stroke-[2.5]" />
+                  </div>
+                </button>
+                <span className="-mt-3.5 text-[9px] font-bold text-gray-500 uppercase tracking-widest">
+                  Mode
+                </span>
+              </div>
+
+              {/* Right Items */}
+              <div className="flex items-center justify-around flex-1">
+                {rightNavItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `flex flex-col items-center justify-center w-16 h-full space-y-1 transition-colors duration-200 ${
+                        isActive ? 'text-primary font-bold' : 'text-gray-400 hover:text-gray-600'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {item.icon(isActive)}
+                        <span className="text-[9px] md:text-[10px] font-medium tracking-wide">{item.label}</span>
+                      </>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            </>
+          ) : (
+            /* Flat layout for 1-mode users */
+            <div className="flex items-center justify-around w-full">
+              {[...leftNavItems, ...rightNavItems].map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex flex-col items-center justify-center w-16 h-full space-y-1 transition-colors duration-200 ${
+                      isActive ? 'text-primary font-bold' : 'text-gray-400 hover:text-gray-600'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {item.icon(isActive)}
+                      <span className="text-[9px] md:text-[10px] font-medium tracking-wide">{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Switch Mode Modal */}
-      {user && (
+      {user && showModeChanger && (
         <SwitchModeModal
           isOpen={isSwitchModeOpen}
           onClose={() => setIsSwitchModeOpen(false)}

@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Coach, Sprint, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
-import { SwitchModeModal } from '../../components/SwitchModeModal';
+import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
 
 const CoachProfile: React.FC = () => {
     const { user, logout, switchRole, activeRole } = useAuth();
@@ -67,15 +67,17 @@ const CoachProfile: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button 
-                            onClick={() => setIsSwitchModalOpen(true)} 
-                            className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"
-                            id="coach-switch-mode-btn"
-                        >
-                            <span>🎛️</span> Switch Mode
-                        </button>
-                    </div>
+                    {user && hasMultipleModes(user) && (
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => setIsSwitchModalOpen(true)} 
+                                className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"
+                                id="coach-switch-mode-btn"
+                            >
+                                <span>🎛️</span> Switch Mode
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

@@ -6,6 +6,7 @@ import { auth, db } from '../../services/firebase';
 import { signInWithEmailAndPassword, sendEmailVerification, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../../services/sprintService';
+import { userService } from '../../services/userService';
 import { UserRole } from '../../types';
 import { toast } from 'sonner';
 
@@ -103,147 +104,154 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
       const handleUserRedirect = async () => {
           if (user) {
-              // 1. Admin Redirection
+              // Priority 1: Check for pending preview action from Sprint Preview
+              const latestSavedSprint = localStorage.getItem('vectorise_last_sprint');
+              const latestPendingRaw = localStorage.getItem('pending_first_action');
+              let latestPendingObj: any = null;
+              try {
+                  if (latestPendingRaw) latestPendingObj = JSON.parse(latestPendingRaw);
+              } catch (e) {
+                  console.error("[LoginPage] Error parsing pending_first_action:", e);
+              }
+
+              const effectiveTargetSprintId = location.state?.targetSprintId || location.state?.sprintId || location.state?.sprint?.id || latestPendingObj?.sprintId || latestSavedSprint;
+
+              // 0. Claim payment if applicable
+              if (tx_ref) {
+                  try {
+                      const paymentRef = doc(db, 'payments', tx_ref);
+                      await updateDoc(paymentRef, {
+                          userId: user.id,
+                          claimedAt: new Date().toISOString()
+                      });
+                  } catch (claimError) {
+                      console.error("Failed to claim payment:", claimError);
+                  }
+              }
+
+              if (effectiveTargetSprintId && (latestPendingObj || location.state?.targetSprintId || location.state?.sprintId)) {
+                  try {
+                      const sprint = await sprintService.getSprintById(effectiveTargetSprintId);
+                      if (sprint) {
+                          const enrollments = await sprintService.getUserEnrollments(user.id);
+                          const existing = enrollments.find(e => e.sprint_id === effectiveTargetSprintId);
+                          let enrollmentId = existing?.id;
+
+                          const effectiveInputs = latestPendingObj?.taskInputs || (latestPendingObj?.firstActionInput ? [latestPendingObj.firstActionInput] : []);
+                          const firstInput = effectiveInputs[0] || latestPendingObj?.firstActionInput || "";
+
+                          if (!existing) {
+                              const enrollment = await sprintService.enrollUser(user.id, effectiveTargetSprintId, sprint.duration, {
+                                  firstActionInput: firstInput,
+                                  taskInputs: effectiveInputs
+                              });
+                              enrollmentId = enrollment?.id;
+
+                              if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                                  const updatedProgress = [...enrollment.progress];
+                                  updatedProgress[0] = {
+                                      ...updatedProgress[0],
+                                      completed: true,
+                                      completedAt: new Date().toISOString(),
+                                      answers: effectiveInputs,
+                                      submission: firstInput
+                                  };
+                                  const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                                  await updateDoc(enrollmentRef, { 
+                                      progress: updatedProgress,
+                                      last_activity_at: new Date().toISOString()
+                                  });
+                              }
+                          } else if (effectiveInputs.length > 0) {
+                              if (existing.progress && existing.progress[0]) {
+                                  const updatedProgress = [...existing.progress];
+                                  updatedProgress[0] = {
+                                      ...updatedProgress[0],
+                                      completed: true,
+                                      completedAt: new Date().toISOString(),
+                                      answers: effectiveInputs,
+                                      submission: firstInput
+                                  };
+                                  const enrollmentRef = doc(db, "users", user.id, "enrollments", existing.id);
+                                  await updateDoc(enrollmentRef, { 
+                                      progress: updatedProgress,
+                                      last_activity_at: new Date().toISOString()
+                                  });
+                              }
+                          }
+
+                          await userService.addUserEnrollment(user.id, effectiveTargetSprintId);
+
+                          if (enrollmentId) {
+                              console.log("[LoginPage] Confirmed enrollment created/updated:", enrollmentId, "Removing pending_first_action");
+                              localStorage.removeItem('pending_first_action');
+                              localStorage.removeItem('vectorise_last_sprint');
+                          }
+
+                          const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+                          const daySuccessState = {
+                              redirectToDaySuccess: true,
+                              day: 1,
+                              coinsUnlocked: 10,
+                              bridgeNote: d1Content?.bridgeNote,
+                              sprintId: effectiveTargetSprintId,
+                              sprint: sprint,
+                              enrollmentId: enrollmentId,
+                              taskInputs: effectiveInputs
+                          };
+
+                          navigate('/participant/day-success', { state: daySuccessState, replace: true });
+                          return;
+                      }
+                  } catch (e) {
+                      console.error("Error fulfilling pending sprint on LoginPage:", e);
+                  }
+              }
+
+              // Role Redirections
               if (user.role === UserRole.ADMIN) {
                   navigate('/admin/dashboard', { replace: true });
                   return;
               }
 
-              // 2. Coach Redirection
               if (user.role === UserRole.COACH) {
                   navigate('/coach/dashboard', { replace: true });
                   return;
               }
 
-              // 3. Partner Redirection
               if (user.role === UserRole.PARTNER) {
                   navigate('/partner/dashboard', { replace: true });
                   return;
               }
 
-              // 4. Participant Redirection (with complex resume logic)
-              if (user.role === UserRole.PARTICIPANT) {
-                  try {
-                      // Re-read localStorage directly at the moment user object becomes available
-                      const latestSavedSprint = localStorage.getItem('vectorise_last_sprint');
-                      const latestPendingRaw = localStorage.getItem('pending_first_action');
-                      let latestPendingObj: any = null;
-                      try {
-                          if (latestPendingRaw) latestPendingObj = JSON.parse(latestPendingRaw);
-                      } catch (e) {
-                          console.error("[LoginPage] Error parsing pending_first_action:", e);
-                      }
+              // Participant Redirection (with resume logic)
+              try {
+                  const enrollments = await sprintService.getUserEnrollments(user.id);
 
-                      const effectiveTargetSprintId = location.state?.targetSprintId || location.state?.sprintId || location.state?.sprint?.id || latestPendingObj?.sprintId || latestSavedSprint;
-
-                      const enrollments = await sprintService.getUserEnrollments(user.id);
-
-                      // 0. Claim payment if applicable
-                      if (tx_ref) {
-                          try {
-                              const paymentRef = doc(db, 'payments', tx_ref);
-                              await updateDoc(paymentRef, {
-                                  userId: user.id,
-                                  claimedAt: new Date().toISOString()
-                              });
-                          } catch (claimError) {
-                              console.error("Failed to claim payment:", claimError);
-                          }
-                      }
-
-                      // 1. Check for payment-driven enrollment intent - Use replace: true
-                      if (targetTrackId) {
-                          navigate('/participant/dashboard', { replace: true });
-                          return;
-                      } else if (effectiveTargetSprintId) {
-                          const sprint = await sprintService.getSprintById(effectiveTargetSprintId);
-                          if (sprint) {
-                              const existing = enrollments.find(e => e.sprint_id === effectiveTargetSprintId);
-                              let enrollmentId = existing?.id;
-
-                              if (!existing) {
-                                  const enrollment = await sprintService.enrollUser(user.id, effectiveTargetSprintId, sprint.duration, {
-                                      firstActionInput: latestPendingObj?.firstActionInput,
-                                      taskInputs: latestPendingObj?.taskInputs
-                                  });
-                                  enrollmentId = enrollment?.id;
-
-                                  if (enrollment && enrollment.progress && enrollment.progress[0]) {
-                                      const updatedProgress = [...enrollment.progress];
-                                      updatedProgress[0] = {
-                                          ...updatedProgress[0],
-                                          completed: true,
-                                          completedAt: new Date().toISOString(),
-                                          answers: latestPendingObj?.taskInputs || (latestPendingObj?.firstActionInput ? [latestPendingObj.firstActionInput] : []),
-                                          submission: latestPendingObj?.taskInputs?.[0] || latestPendingObj?.firstActionInput || ""
-                                      };
-                                      const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
-                                      await updateDoc(enrollmentRef, { 
-                                          progress: updatedProgress,
-                                          last_activity_at: new Date().toISOString()
-                                      });
-                                  }
-                              } else if (latestPendingObj && (latestPendingObj.taskInputs || latestPendingObj.firstActionInput)) {
-                                  if (existing.progress && existing.progress[0]) {
-                                      const updatedProgress = [...existing.progress];
-                                      updatedProgress[0] = {
-                                          ...updatedProgress[0],
-                                          completed: true,
-                                          completedAt: new Date().toISOString(),
-                                          answers: latestPendingObj?.taskInputs || (latestPendingObj?.firstActionInput ? [latestPendingObj.firstActionInput] : []),
-                                          submission: latestPendingObj?.taskInputs?.[0] || latestPendingObj?.firstActionInput || ""
-                                      };
-                                      const enrollmentRef = doc(db, "users", user.id, "enrollments", existing.id);
-                                      await updateDoc(enrollmentRef, { 
-                                          progress: updatedProgress,
-                                          last_activity_at: new Date().toISOString()
-                                      });
-                                  }
-                              }
-
-                              if (enrollmentId) {
-                                  console.log("[LoginPage] Confirmed enrollment created/updated:", enrollmentId, "Removing pending_first_action");
-                                  localStorage.removeItem('pending_first_action');
-                                  localStorage.removeItem('vectorise_last_sprint');
-                              } else {
-                                  console.warn("[LoginPage] Enrollment ID not confirmed, keeping pending_first_action");
-                              }
-
-                              const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
-                              const daySuccessState = {
-                                  redirectToDaySuccess: true,
-                                  day: 1,
-                                  coinsUnlocked: 10,
-                                  bridgeNote: d1Content?.bridgeNote,
-                                  sprintId: effectiveTargetSprintId,
-                                  enrollmentId: enrollmentId
-                              };
-
-                              navigate('/participant/day-success', { state: daySuccessState, replace: true });
-                              return;
-                          }
-                      }
-
-                      // 2. Resume active journey
-                      const active = enrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
-                      if (active) {
-                          navigate(`/participant/sprint/${active.id}`, { replace: true });
-                          return;
-                      }
-
-                      // 3. Check for queued sprints
-                      const queued = enrollments.find(e => e.status === 'queued');
-                      if (queued) {
-                          navigate('/dashboard', { replace: true, state: { showNextSprintPopup: true } });
-                          return;
-                      }
-
-                      // 4. No active or queued sprints - go to explore
-                      navigate('/explore', { replace: true });
+                  if (targetTrackId) {
+                      navigate('/participant/dashboard', { replace: true });
                       return;
-                  } catch (e) {
-                      console.error("Redirect tracking error", e);
                   }
+
+                  // 2. Resume active journey
+                  const active = enrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
+                  if (active) {
+                      navigate(`/participant/sprint/${active.id}`, { replace: true });
+                      return;
+                  }
+
+                  // 3. Check for queued sprints
+                  const queued = enrollments.find(e => e.status === 'queued');
+                  if (queued) {
+                      navigate('/dashboard', { replace: true, state: { showNextSprintPopup: true } });
+                      return;
+                  }
+
+                  // 4. No active or queued sprints - go to explore
+                  navigate('/explore', { replace: true });
+                  return;
+              } catch (e) {
+                  console.error("Redirect tracking error", e);
               }
 
               // Default fallback

@@ -8,7 +8,7 @@ import Button from '../../components/Button';
 import { Participant, Sprint, UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { sanitizeData } from '../../services/userService';
-import { SwitchModeModal } from '../../components/SwitchModeModal';
+import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
 
 type PartnerTab = 'overview' | 'links' | 'earnings' | 'referrals' | 'settings';
 
@@ -148,7 +148,7 @@ const PartnerDashboard: React.FC = () => {
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Partner Portal</p>
         </div>
         <div className="flex items-center gap-4">
-          {user?.role === UserRole.ADMIN && (
+          {user && hasMultipleModes(user) && (
             <button 
               onClick={() => setIsSwitchModalOpen(true)} 
               className="px-4 py-2 text-xs font-black text-white bg-dark rounded-lg uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"

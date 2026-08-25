@@ -13,7 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const SignUpPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { checkVerification, resetVerificationDeferral } = useAuth();
+  const { user, checkVerification, resetVerificationDeferral } = useAuth();
   
   const onboardingState = location.state || {};
   
@@ -226,6 +226,38 @@ const SignUpPage: React.FC = () => {
     if (prefilledFirstName) setFirstName(prefilledFirstName);
     if (prefilledLastName) setLastName(prefilledLastName);
   }, [prefilledEmail, prefilledFirstName, prefilledLastName]);
+
+  useEffect(() => {
+    const handleExistingUserRedirect = async () => {
+      if (!user) return;
+      const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
+      let pendingFirstAction: any = null;
+      try {
+        if (pendingFirstActionRaw) pendingFirstAction = JSON.parse(pendingFirstActionRaw);
+      } catch (err) {}
+
+      const effectiveSprintId = targetSprintId || pendingFirstAction?.sprintId || savedSprint;
+      if (effectiveSprintId && pendingFirstAction) {
+        const daySuccessState = await enrollAndPrepareDaySuccess(user.id, effectiveSprintId, pendingFirstAction);
+        if (daySuccessState) {
+          navigate('/participant/day-success', { state: daySuccessState, replace: true });
+          return;
+        }
+      }
+
+      if (user.role === UserRole.ADMIN) {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user.role === UserRole.COACH) {
+        navigate('/coach/dashboard', { replace: true });
+      } else if (user.role === UserRole.PARTNER) {
+        navigate('/partner/dashboard', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    };
+
+    handleExistingUserRedirect();
+  }, [user]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();

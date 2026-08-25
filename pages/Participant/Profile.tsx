@@ -14,7 +14,7 @@ import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS, PERSONA_QUIZZES, INITIAL_OPTIO
 import { ShinePost } from '../../types';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
 import { CoachWelcome } from '../Onboarding/CoachWelcome';
-import { SwitchModeModal } from '../../components/SwitchModeModal';
+import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
 
 const Profile: React.FC = () => {
   const { user, logout, updateProfile, mustVerifyEmail, activeRole, switchRole } = useAuth();
@@ -363,7 +363,7 @@ const Profile: React.FC = () => {
           </div>
           {/* Role Switching & Onboarding Actions */}
           <div className="flex flex-col gap-2">
-            {user && (user.role === UserRole.ADMIN || ((user.role === UserRole.COACH || user.coachApplicationApproved) && ((user as any).approved || (user as any).coachApplicationApproved))) && (
+            {user && hasMultipleModes(user) && (
               <button 
                 onClick={() => setIsSwitchModalOpen(true)} 
                 className="px-4 py-2 text-xs font-black text-white bg-dark rounded-xl uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"

@@ -3,6 +3,95 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Shield, Users, Handshake, User as UserIcon, X } from 'lucide-react';
 import { UserRole } from '../types';
 
+export interface UserModeOption {
+  id: UserRole;
+  label: string;
+  role: UserRole;
+  icon: any;
+  colorClass: string;
+  iconBgClass: string;
+  route: string;
+}
+
+export const getActivatedModes = (user: any, activeRole?: UserRole): UserModeOption[] => {
+  if (!user) return [];
+  const modes: UserModeOption[] = [];
+
+  // Admin mode is activated if the user's base role is ADMIN
+  if (user.role === UserRole.ADMIN) {
+    modes.push({
+      id: UserRole.ADMIN,
+      label: 'Admin',
+      role: UserRole.ADMIN,
+      icon: Shield,
+      colorClass: activeRole === UserRole.ADMIN 
+        ? 'bg-rose-50 text-rose-600 border-rose-200 ring-2 ring-rose-500/20' 
+        : 'bg-white text-gray-700 border-gray-100 hover:border-rose-100 hover:bg-rose-50/10',
+      iconBgClass: activeRole === UserRole.ADMIN
+        ? 'bg-rose-500 text-white'
+        : 'bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white',
+      route: '/admin/dashboard'
+    });
+  }
+
+  // Coach mode is activated if they are an admin OR if they are a coach or have an approved coach application
+  const isApprovedCoach = user.role === UserRole.COACH || user.coachApplicationApproved === true || user.approved === true;
+  if (user.role === UserRole.ADMIN || isApprovedCoach) {
+    modes.push({
+      id: UserRole.COACH,
+      label: 'Coach',
+      role: UserRole.COACH,
+      icon: Users,
+      colorClass: activeRole === UserRole.COACH 
+        ? 'bg-blue-50 text-blue-600 border-blue-200 ring-2 ring-blue-500/20' 
+        : 'bg-white text-gray-700 border-gray-100 hover:border-blue-100 hover:bg-blue-50/10',
+      iconBgClass: activeRole === UserRole.COACH
+        ? 'bg-blue-500 text-white'
+        : 'bg-blue-50 text-blue-500 group-hover:bg-blue-500 group-hover:text-white',
+      route: '/coach/dashboard'
+    });
+  }
+
+  // Partner mode is activated if they are an admin OR if their role is partner
+  if (user.role === UserRole.ADMIN || user.role === UserRole.PARTNER) {
+    modes.push({
+      id: UserRole.PARTNER,
+      label: 'Partner',
+      role: UserRole.PARTNER,
+      icon: Handshake,
+      colorClass: activeRole === UserRole.PARTNER 
+        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 ring-2 ring-emerald-500/20' 
+        : 'bg-white text-gray-700 border-gray-100 hover:border-emerald-100 hover:bg-emerald-50/10',
+      iconBgClass: activeRole === UserRole.PARTNER
+        ? 'bg-emerald-500 text-white'
+        : 'bg-emerald-50 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white',
+      route: '/partner/dashboard'
+    });
+  }
+
+  // Participant/User mode is always activated for everyone
+  modes.push({
+    id: UserRole.PARTICIPANT,
+    label: 'User',
+    role: UserRole.PARTICIPANT,
+    icon: UserIcon,
+    colorClass: activeRole === UserRole.PARTICIPANT 
+      ? 'bg-orange-50 text-orange-600 border-orange-200 ring-2 ring-orange-500/20' 
+      : 'bg-white text-gray-700 border-gray-100 hover:border-orange-100 hover:bg-orange-50/10',
+    iconBgClass: activeRole === UserRole.PARTICIPANT
+      ? 'bg-orange-500 text-white'
+      : 'bg-orange-50 text-orange-500 group-hover:bg-orange-500 group-hover:text-white',
+    route: '/dashboard'
+  });
+
+  return modes;
+};
+
+export const hasMultipleModes = (user: any): boolean => {
+  if (!user) return false;
+  return getActivatedModes(user).length >= 2;
+};
+
 interface SwitchModeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,80 +109,8 @@ export const SwitchModeModal: React.FC<SwitchModeModalProps> = ({
 }) => {
   if (!user) return null;
 
-  const getActivatedModes = () => {
-    const modes = [];
-
-    // Admin mode is activated if the user's base role is ADMIN
-    if (user.role === UserRole.ADMIN) {
-        modes.push({
-        id: UserRole.ADMIN,
-        label: 'Admin',
-        role: UserRole.ADMIN,
-        icon: Shield,
-        colorClass: activeRole === UserRole.ADMIN 
-          ? 'bg-rose-50 text-rose-600 border-rose-200 ring-2 ring-rose-500/20' 
-          : 'bg-white text-gray-700 border-gray-100 hover:border-rose-100 hover:bg-rose-50/10',
-        iconBgClass: activeRole === UserRole.ADMIN
-          ? 'bg-rose-500 text-white'
-          : 'bg-rose-50 text-rose-500 group-hover:bg-rose-500 group-hover:text-white',
-        route: '/admin/dashboard'
-      });
-    }
-
-    // Coach mode is activated if they are an admin OR if they are a coach or have an approved coach application
-    const isApprovedCoach = user.role === UserRole.COACH || user.coachApplicationApproved === true || user.approved === true;
-    if (user.role === UserRole.ADMIN || isApprovedCoach) {
-      modes.push({
-        id: UserRole.COACH,
-        label: 'Coach',
-        role: UserRole.COACH,
-        icon: Users,
-        colorClass: activeRole === UserRole.COACH 
-          ? 'bg-blue-50 text-blue-600 border-blue-200 ring-2 ring-blue-500/20' 
-          : 'bg-white text-gray-700 border-gray-100 hover:border-blue-100 hover:bg-blue-50/10',
-        iconBgClass: activeRole === UserRole.COACH
-          ? 'bg-blue-500 text-white'
-          : 'bg-blue-50 text-blue-500 group-hover:bg-blue-500 group-hover:text-white',
-        route: '/coach/dashboard'
-      });
-    }
-
-    // Partner mode is activated if they are an admin OR if their role is partner
-    if (user.role === UserRole.ADMIN || user.role === UserRole.PARTNER) {
-      modes.push({
-        id: UserRole.PARTNER,
-        label: 'Partner',
-        role: UserRole.PARTNER,
-        icon: Handshake,
-        colorClass: activeRole === UserRole.PARTNER 
-          ? 'bg-emerald-50 text-emerald-600 border-emerald-200 ring-2 ring-emerald-500/20' 
-          : 'bg-white text-gray-700 border-gray-100 hover:border-emerald-100 hover:bg-emerald-50/10',
-        iconBgClass: activeRole === UserRole.PARTNER
-          ? 'bg-emerald-500 text-white'
-          : 'bg-emerald-50 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white',
-        route: '/partner/dashboard'
-      });
-    }
-
-    // Participant/User mode is always activated for everyone
-    modes.push({
-      id: UserRole.PARTICIPANT,
-      label: 'User',
-      role: UserRole.PARTICIPANT,
-      icon: UserIcon,
-      colorClass: activeRole === UserRole.PARTICIPANT 
-        ? 'bg-orange-50 text-orange-600 border-orange-200 ring-2 ring-orange-500/20' 
-        : 'bg-white text-gray-700 border-gray-100 hover:border-orange-100 hover:bg-orange-50/10',
-        iconBgClass: activeRole === UserRole.PARTICIPANT
-        ? 'bg-orange-500 text-white'
-        : 'bg-orange-50 text-orange-500 group-hover:bg-orange-500 group-hover:text-white',
-      route: '/dashboard'
-    });
-
-    return modes;
-  };
-
-  const activatedModes = getActivatedModes();
+  const activatedModes = getActivatedModes(user, activeRole);
+  if (activatedModes.length < 2) return null;
 
   return (
     <AnimatePresence>

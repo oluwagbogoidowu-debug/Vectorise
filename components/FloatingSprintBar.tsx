@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
 import { ParticipantSprint, UserRole } from '../types';
-import { SwitchModeModal } from './SwitchModeModal';
+import { SwitchModeModal, hasMultipleModes } from './SwitchModeModal';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
 
 export const FloatingSprintBar: React.FC = () => {
@@ -149,22 +149,24 @@ export const FloatingSprintBar: React.FC = () => {
           <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all shrink-0 ml-0.5" />
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            triggerHaptic(hapticPatterns.light);
-            setIsSwitchModeOpen(true);
-          }}
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#0E7850] hover:bg-[#0b5d3e] text-white flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 shrink-0"
-          aria-label="Switch Mode"
-          title="Switch Mode"
-        >
-          <SlidersHorizontal className="w-5 h-5 stroke-[2.5]" />
-        </button>
+        {hasMultipleModes(user) && (
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic(hapticPatterns.light);
+              setIsSwitchModeOpen(true);
+            }}
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-[#0E7850] hover:bg-[#0b5d3e] text-white flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 shrink-0"
+            aria-label="Switch Mode"
+            title="Switch Mode"
+          >
+            <SlidersHorizontal className="w-5 h-5 stroke-[2.5]" />
+          </button>
+        )}
       </motion.div>
     </AnimatePresence>
 
-    {user && (
+    {user && hasMultipleModes(user) && (
       <SwitchModeModal
         isOpen={isSwitchModeOpen}
         onClose={() => setIsSwitchModeOpen(false)}

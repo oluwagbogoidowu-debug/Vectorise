@@ -450,16 +450,21 @@ const SprintPreview: React.FC = () => {
     // Helper to get effective task inputs from state or localStorage
     const getEffectiveTaskInputs = () => {
         let inputs = [...taskInputs];
-        if (!inputs.some(Boolean)) {
-            const raw = localStorage.getItem('pending_first_action');
-            if (raw) {
-                try {
-                    const parsed = JSON.parse(raw);
-                    if (parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
-                        inputs = parsed.taskInputs;
+        const raw = localStorage.getItem('pending_first_action');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                    const maxLen = Math.max(inputs.length, parsed.taskInputs.length);
+                    const merged: string[] = [];
+                    for (let i = 0; i < maxLen; i++) {
+                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputs[i] || "");
                     }
-                } catch(e) {}
-            }
+                    inputs = merged;
+                } else if (parsed?.firstActionInput && (!inputs[0] || String(inputs[0]).trim().length === 0)) {
+                    inputs[0] = parsed.firstActionInput;
+                }
+            } catch(e) {}
         }
         return inputs;
     };
@@ -478,6 +483,31 @@ const SprintPreview: React.FC = () => {
             const targetSprintId = sprint?.id || sprintId;
             if (!targetSprint && targetSprintId) {
                 targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            const existingDoc = await userService.getUserDocument(firebaseUser.uid);
+            const storedRef = localStorage.getItem('vectorise_ref') || undefined;
+            if (!existingDoc) {
+                const isCoachRegistration = !!(targetSprint?.audience && targetSprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
+                const nameParts = (firebaseUser.displayName || 'Rise Seeker').split(' ');
+                const newUser: Partial<any> = {
+                    id: firebaseUser.uid,
+                    name: firebaseUser.displayName || 'Rise Seeker',
+                    email: firebaseUser.email || '',
+                    role: isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT,
+                    profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${nameParts[0]}+${nameParts[1] || ''}&background=0E7850&color=fff`,
+                    persona: isCoachRegistration ? 'Coach' : 'Seeker',
+                    onboardingAnswers: {},
+                    enrolledSprintIds: targetSprint?.id ? [targetSprint.id] : [],
+                    isPartner: false,
+                    partnerData: null,
+                    walletBalance: 0,
+                    referrerId: storedRef || null,
+                    referralFirstTouch: storedRef || null,
+                    defaultLoginMode: undefined,
+                    bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow."
+                };
+                await userService.createUserDocument(firebaseUser.uid, newUser);
             }
 
             if (targetSprint) {
@@ -509,17 +539,19 @@ const SprintPreview: React.FC = () => {
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
                     localStorage.removeItem('pending_first_action');
+                    localStorage.removeItem('vectorise_last_sprint');
                 }
                 const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
                 setShowLockModal(false);
                 navigate('/participant/day-success', { 
                     state: { 
                         day: 1, 
-                        coinsUnlocked: 10,
+                        coinsUnlocked: 10, 
                         bridgeNote: d1Content?.bridgeNote,
                         sprintId: targetSprint.id,
                         sprint: targetSprint,
                         enrollmentId: enrollment?.id,
+                        taskInputs: effectiveInputs,
                         redirectToDaySuccess: true
                     },
                     replace: true
@@ -566,6 +598,7 @@ const SprintPreview: React.FC = () => {
                 targetSprint = await sprintService.getSprintById(targetSprintId);
             }
 
+            const storedRef = localStorage.getItem('vectorise_ref') || undefined;
             const isCoachRegistration = !!(targetSprint?.audience && targetSprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
             const newUser: Partial<any> = {
                 id: firebaseUser.uid,
@@ -581,8 +614,8 @@ const SprintPreview: React.FC = () => {
                 isPartner: false,
                 partnerData: null,
                 walletBalance: 0,
-                referrerId: null,
-                referralFirstTouch: null,
+                referrerId: storedRef || null,
+                referralFirstTouch: storedRef || null,
                 defaultLoginMode: undefined,
                 coachApplicationSubmitted: isCoachRegistration ? false : undefined,
                 coachApplicationApproved: isCoachRegistration ? false : undefined,
@@ -596,8 +629,9 @@ const SprintPreview: React.FC = () => {
             let enrollmentId = "";
             const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
             let day1BridgeNote = d1Content?.bridgeNote;
+            let effectiveInputs: string[] = [];
             if (targetSprint) {
-                const effectiveInputs = getEffectiveTaskInputs();
+                effectiveInputs = getEffectiveTaskInputs();
                 const firstInput = effectiveInputs[0] || "";
                 // Auto enroll and complete Day 1 in database
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
@@ -627,6 +661,7 @@ const SprintPreview: React.FC = () => {
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:EmailSignUp] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
                     localStorage.removeItem('pending_first_action');
+                    localStorage.removeItem('vectorise_last_sprint');
                 }
             }
 
@@ -637,7 +672,8 @@ const SprintPreview: React.FC = () => {
                 bridgeNote: day1BridgeNote,
                 enrollmentId,
                 sprintId: targetSprint?.id || targetSprintId,
-                sprint: targetSprint
+                sprint: targetSprint,
+                taskInputs: effectiveInputs
             };
 
             toast.success("Account created successfully!");
@@ -706,6 +742,7 @@ const SprintPreview: React.FC = () => {
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:EmailLogin] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
                     localStorage.removeItem('pending_first_action');
+                    localStorage.removeItem('vectorise_last_sprint');
                 }
 
                 setShowLockModal(false);
@@ -716,6 +753,7 @@ const SprintPreview: React.FC = () => {
                     enrollmentId: enrollment.id,
                     sprintId: targetSprint.id,
                     sprint: targetSprint,
+                    taskInputs: effectiveInputs,
                     redirectToDaySuccess: true
                 };
 
