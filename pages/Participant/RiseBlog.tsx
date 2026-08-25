@@ -368,7 +368,7 @@ export const RiseBlog: React.FC = () => {
           </div>
 
           {/* Article content */}
-          <div className="prose prose-sm prose-emerald max-w-none mb-12">
+          <div className="prose prose-base prose-emerald max-w-none mb-12">
             {renderFormattedContent(activePost.content)}
           </div>
 

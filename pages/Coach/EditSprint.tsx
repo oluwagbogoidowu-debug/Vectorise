@@ -348,10 +348,12 @@ const EditSprint: React.FC = () => {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [activeStepIndices, setActiveStepIndices] = useState<Record<number, number>>({});
   const [showAddVersionFullBleed, setShowAddVersionFullBleed] = useState(false);
-  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
-  const [showCreatedPopup, setShowCreatedPopup] = useState(false);
-  const [newlyCreatedSprintId, setNewlyCreatedSprintId] = useState('');
-  const [allVersions, setAllVersions] = useState<Sprint[]>([]);
+  const [otherSprints, setOtherSprints] = useState<Sprint[]>([]);
+  const [showLinkSprintModal, setShowLinkSprintModal] = useState(false);
+  
+  useEffect(() => {
+    sprintService.getCoachSprints(user?.id || '').then(setOtherSprints);
+  }, [user?.id]);
   const [versionSettings, setVersionSettings] = useState({
       duration: 7,
       category: '',
@@ -5648,6 +5650,43 @@ const EditSprint: React.FC = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
+            
+            {/* NEW LINK SPRINTS SECTION */}
+            <div className="mb-12">
+                <h4 className="text-sm font-black text-gray-900 mb-4">Sprint Linking</h4>
+                <button 
+                    onClick={() => setShowLinkSprintModal(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-bold shadow-md hover:bg-primary/90 transition-all"
+                >
+                    Link to another Sprint
+                </button>
+            </div>
+
+            {showLinkSprintModal && (
+                <div className="fixed inset-0 z-[70] bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-3xl w-full max-w-lg shadow-xl">
+                        <h3 className="text-lg font-black mb-4">Select Sprint to Link</h3>
+                        <div className="max-h-60 overflow-y-auto space-y-2 mb-6">
+                            {otherSprints.filter(s => s.id !== sprintId).map(s => (
+                                <button 
+                                    key={s.id}
+                                    onClick={() => {
+                                        // Logic to link sprint
+                                        console.log("Linking to", s.id);
+                                        setShowLinkSprintModal(false);
+                                        alert(`Linked to ${s.title}`);
+                                    }}
+                                    className="w-full text-left p-3 rounded-xl hover:bg-gray-100 border border-gray-100 text-sm font-medium"
+                                >
+                                    {s.title}
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={() => setShowLinkSprintModal(false)} className="w-full py-3 bg-gray-100 rounded-xl text-sm font-bold">Cancel</button>
+                    </div>
+                </div>
+            )}
+            
             <div className="space-y-16">
                 
                 {isAdmin && !isFoundational ? (

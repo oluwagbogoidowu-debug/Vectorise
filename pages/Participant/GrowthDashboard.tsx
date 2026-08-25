@@ -620,7 +620,7 @@ const GrowthDashboard: React.FC = () => {
                             <div className="bg-dark rounded-[3rem] p-10 md:p-12 text-white flex flex-col justify-center relative overflow-hidden min-h-[280px]">
                                 <div className="relative z-10">
                                     <h3 className="text-[10px] font-black text-primary uppercase tracking-widest mb-6">Strategic Insight</h3>
-                                    <p className="text-2xl md:text-3xl lg:text-4xl font-black italic tracking-tight leading-tight text-[#FAFAFA]">
+                                    <p className="text-3xl md:text-4xl lg:text-5xl font-black italic tracking-tight leading-tight text-[#FAFAFA]">
                                         "{currentGrowthPhase.insight}"
                                     </p>
                                 </div>

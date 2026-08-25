@@ -2877,9 +2877,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                                 >
                                   {isFullBleed ? (
-                                    <Minimize2 className="h-5 w-5" />
+                                    <Minimize2 className="h-4 w-4" />
                                   ) : (
-                                    <Maximize2 className="h-4 w-4" />
+                                    <Maximize2 className="h-3 w-3" />
                                   )}
                                 </button>
                               </div>
