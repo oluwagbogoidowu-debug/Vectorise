@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { blogService, BlogPost, getBlogPostUrl, slugify, calculateReadingTimeStats } from '../../services/blogService';
+import { blogService, BlogPost, getBlogPostUrl, slugify, calculateReadingTimeStats, SEED_BLOG_SPRINTS } from '../../services/blogService';
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
@@ -9,6 +9,131 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home, Coins, Sparkles, CheckCircle2, Eye, Award, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+
+// Wireframe Skeleton Loader for RiseBlog Homepage
+const BlogHomeSkeleton: React.FC = () => (
+  <div className="min-h-screen bg-[#FAFAFA] px-4 pt-6 pb-24 animate-pulse">
+    {/* Header Skeleton */}
+    <div className="max-w-md mx-auto mb-6 flex items-center justify-between gap-3">
+      <div className="h-12 sm:h-14 w-32 bg-gray-200 rounded-2xl" />
+      <div className="flex flex-col items-end gap-1.5">
+        <div className="h-4 w-20 bg-gray-200 rounded-md" />
+        <div className="h-2.5 w-28 bg-gray-100 rounded-md" />
+        <div className="h-1.5 w-24 bg-gray-200 rounded-full" />
+      </div>
+    </div>
+
+    <div className="max-w-md mx-auto space-y-8">
+      {/* Featured Card Skeleton */}
+      <div className="space-y-3">
+        <div className="relative rounded-[2rem] overflow-hidden bg-gray-200/90 aspect-[4/5] sm:aspect-[4/4] flex flex-col justify-end p-6 sm:p-8 shadow-sm border border-gray-100">
+          <div className="mb-auto flex justify-between items-center w-full">
+            <div className="h-6 w-24 bg-gray-300 rounded-full" />
+            <div className="w-8 h-8 rounded-full bg-gray-300" />
+          </div>
+          <div className="space-y-3 w-full">
+            <div className="h-6 bg-gray-300 rounded-lg w-11/12" />
+            <div className="h-6 bg-gray-300 rounded-lg w-3/4" />
+            <div className="flex items-center justify-between pt-4 border-t border-gray-300/50">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-gray-300" />
+                <div className="h-3 w-20 bg-gray-300 rounded" />
+              </div>
+              <div className="h-3 w-20 bg-gray-300 rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Latest Releases Skeleton List */}
+      <div className="space-y-4">
+        <div className="h-3 w-28 bg-gray-200 rounded" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm flex gap-4">
+            <div className="w-24 h-24 rounded-2xl bg-gray-200 shrink-0" />
+            <div className="flex-1 flex flex-col justify-between py-0.5">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-2.5 w-14 bg-emerald-100 rounded-full" />
+                  <div className="h-2.5 w-10 bg-gray-100 rounded-full" />
+                </div>
+                <div className="h-3.5 bg-gray-200 rounded w-full" />
+                <div className="h-3.5 bg-gray-200 rounded w-4/5" />
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
+                <div className="h-2.5 w-16 bg-gray-200 rounded" />
+                <div className="flex gap-2">
+                  <div className="w-4 h-4 bg-gray-100 rounded-full" />
+                  <div className="w-4 h-4 bg-gray-100 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tags Skeleton */}
+      <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+        <div className="h-8 w-28 bg-gray-200 rounded-full" />
+        <div className="h-8 w-24 bg-gray-200 rounded-full" />
+        <div className="h-8 w-28 bg-gray-200 rounded-full" />
+      </div>
+    </div>
+  </div>
+);
+
+// Wireframe Skeleton Loader for RiseBlog Article Detail
+const BlogDetailSkeleton: React.FC = () => (
+  <div className="min-h-screen bg-[#FAFAFA] pb-24 animate-pulse">
+    {/* Detail Hero Header Skeleton */}
+    <div className="relative h-64 md:h-96 w-full bg-gray-200">
+      <div className="absolute top-6 left-6 w-10 h-10 bg-white/70 rounded-full" />
+      <div className="absolute bottom-6 left-6 right-6 max-w-2xl space-y-3">
+        <div className="h-5 w-20 bg-gray-300 rounded-full" />
+        <div className="h-7 w-5/6 bg-gray-300 rounded-lg" />
+        <div className="h-7 w-3/5 bg-gray-300 rounded-lg" />
+      </div>
+    </div>
+
+    {/* Article Container Skeleton */}
+    <div className="max-w-xl mx-auto px-6 py-8">
+      {/* Author info row skeleton */}
+      <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-gray-200" />
+          <div className="space-y-1.5">
+            <div className="h-3.5 w-24 bg-gray-200 rounded" />
+            <div className="h-2.5 w-32 bg-gray-100 rounded" />
+          </div>
+        </div>
+        <div className="space-y-1.5 text-right">
+          <div className="h-2.5 w-20 bg-gray-100 rounded" />
+          <div className="h-2.5 w-16 bg-gray-100 rounded" />
+        </div>
+      </div>
+
+      {/* Paragraph Wireframe Skeleton Lines */}
+      <div className="space-y-6">
+        <div className="space-y-2.5">
+          <div className="h-4 bg-gray-200 rounded w-full" />
+          <div className="h-4 bg-gray-200 rounded w-11/12" />
+          <div className="h-4 bg-gray-200 rounded w-5/6" />
+        </div>
+        <div className="h-6 w-1/3 bg-gray-200 rounded-lg mt-6" />
+        <div className="space-y-2.5">
+          <div className="h-4 bg-gray-200 rounded w-full" />
+          <div className="h-4 bg-gray-200 rounded w-full" />
+          <div className="h-4 bg-gray-200 rounded w-4/5" />
+        </div>
+        <div className="h-6 w-2/5 bg-gray-200 rounded-lg mt-6" />
+        <div className="space-y-2.5">
+          <div className="h-4 bg-gray-200 rounded w-full" />
+          <div className="h-4 bg-gray-200 rounded w-3/4" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 export const RiseBlog: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +145,7 @@ export const RiseBlog: React.FC = () => {
 
   const [dbSprints, setDbSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Reading progress and reward state
   const [readStats, setReadStats] = useState({
@@ -62,16 +188,34 @@ export const RiseBlog: React.FC = () => {
         s => s.contentType === 'blog' && s.approvalStatus === 'approved'
       );
       setDbSprints(approvedBlogs);
+      setIsLoading(false);
     }, (err) => {
       console.error('Error subscribing to blog posts:', err);
+      setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    // Fallback timer to ensure wireframe loader completes smoothly even on slow networks
+    const fallbackTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(fallbackTimer);
+    };
   }, []);
 
-  // Derive blog posts purely from database sprints, sorted descending by creation/publish date
+  // Derive blog posts from database sprints, blending with seed fallback blogs so RiseBlog is ALWAYS loaded with rich content
   const posts = useMemo(() => {
-    const mappedDbPosts = dbSprints.map((sprint): BlogPost & { createdAt: string } => {
+    const allSprints: Sprint[] = [...dbSprints];
+    const existingIds = new Set(dbSprints.map(s => s.id));
+    for (const seed of SEED_BLOG_SPRINTS) {
+      if (!existingIds.has(seed.id)) {
+        allSprints.push(seed);
+      }
+    }
+
+    const mappedDbPosts = allSprints.map((sprint): BlogPost & { createdAt: string } => {
       const coach = coaches.find(c => c.id === sprint.coachId);
       const readStats = calculateReadingTimeStats({
         title: sprint.title,
@@ -504,6 +648,13 @@ export const RiseBlog: React.FC = () => {
     });
   };
 
+  if (isLoading) {
+    if (postId || blogSlug) {
+      return <BlogDetailSkeleton />;
+    }
+    return <BlogHomeSkeleton />;
+  }
+
   if (activePost) {
     const isLiked = likedPosts[activePost.id];
     const isBookmarked = bookmarkedPosts[activePost.id];
@@ -860,7 +1011,7 @@ export const RiseBlog: React.FC = () => {
       </div>
 
       {/* RiseBlog Homepage Tags (Read history, Saved post, Earning record) */}
-      {!activePostId && (
+      {!activePost && (
         <div className="max-w-md mx-auto mt-10 mb-8 px-2 flex flex-wrap items-center justify-center gap-3">
           <button 
             onClick={() => toast.info('Read history coming soon!')}
