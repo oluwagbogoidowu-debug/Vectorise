@@ -472,6 +472,10 @@ export const RiseBlog: React.FC = () => {
             className="h-14 sm:h-16 w-auto object-contain"
             referrerPolicy="no-referrer"
           />
+          <div className="ml-3">
+             <p className="font-bold text-sm text-gray-900">Read deeply.</p>
+             <p className="font-thin text-xs text-gray-600">Earn 10 coins.</p>
+          </div>
         </div>
       </div>
 
