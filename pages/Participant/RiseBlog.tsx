@@ -6,7 +6,7 @@ import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { Sprint, Coach } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home, Coins, Sparkles, CheckCircle2, Eye, Award } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home, Coins, Sparkles, CheckCircle2, Eye, Award, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -858,6 +858,33 @@ export const RiseBlog: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* RiseBlog Homepage Tags (Read history, Saved post, Earning record) */}
+      {!activePostId && (
+        <div className="max-w-md mx-auto mt-10 mb-8 px-2 flex flex-wrap items-center justify-center gap-3">
+          <button 
+            onClick={() => toast.info('Read history coming soon!')}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 rounded-full text-[10px] font-bold text-gray-600 shadow-sm hover:shadow-md hover:border-emerald-200 hover:text-emerald-700 transition-all active:scale-95"
+          >
+            <History className="w-3.5 h-3.5" />
+            Read history
+          </button>
+          <button 
+            onClick={() => toast.info('Saved post coming soon!')}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 rounded-full text-[10px] font-bold text-gray-600 shadow-sm hover:shadow-md hover:border-emerald-200 hover:text-emerald-700 transition-all active:scale-95"
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+            Saved post
+          </button>
+          <button 
+            onClick={() => toast.info('Earning record coming soon!')}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 rounded-full text-[10px] font-bold text-gray-600 shadow-sm hover:shadow-md hover:border-emerald-200 hover:text-emerald-700 transition-all active:scale-95"
+          >
+            <Coins className="w-3.5 h-3.5" />
+            Earning record
+          </button>
+        </div>
+      )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar {

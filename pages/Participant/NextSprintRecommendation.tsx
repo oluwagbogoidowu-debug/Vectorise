@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy, Sun, Moon, Users } from 'lucide-react';
+import { ArrowRight, X, Sparkles, Star, CheckCircle2, Menu, MoreVertical, BookOpen, UserPlus, Coins, Trophy, Sun, Moon, Users, SlidersHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import SprintCard from '../../components/SprintCard';
@@ -17,6 +17,7 @@ import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import { getExploreFirstSprint } from '../../utils/sprintUtils';
 import { toast } from 'sonner';
+import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 
 export const NextSprintRecommendation: React.FC = () => {
     const navigate = useNavigate();
@@ -378,7 +379,22 @@ export const NextSprintRecommendation: React.FC = () => {
                     <Menu className="w-5 h-5" />
                 </button>
 
-                <div className="relative" ref={kebabMenuRef}>
+                <div className="flex items-center gap-2">
+                    {hasDualOrMultiMode && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                triggerHaptic(hapticPatterns.light);
+                                setIsSwitchModeModalOpen(true);
+                            }}
+                            className="p-2.5 bg-[#0E7850] border border-[#0E7850] rounded-2xl shadow-sm text-white hover:bg-[#0b5d3e] active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+                            title="Switch Mode"
+                        >
+                            <SlidersHorizontal className="w-5 h-5 stroke-[2.5]" />
+                        </button>
+                    )}
+
+                    <div className="relative" ref={kebabMenuRef}>
                     <button
                         type="button"
                         onClick={() => setIsKebabMenuOpen((prev) => !prev)}
@@ -474,6 +490,7 @@ export const NextSprintRecommendation: React.FC = () => {
                             </motion.div>
                         )}
                     </AnimatePresence>
+                </div>
                 </div>
             </header>
 
