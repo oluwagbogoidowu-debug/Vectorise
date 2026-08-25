@@ -475,7 +475,7 @@ export const RiseBlog: React.FC = () => {
           <img 
             src={assetService.URLS.RISEBLOG_LOGO} 
             alt="RiseBlog" 
-            className="h-11 w-auto object-contain rounded-xl"
+            className="h-14 sm:h-16 w-auto object-contain"
             referrerPolicy="no-referrer"
           />
         </div>
