@@ -569,7 +569,7 @@ export const RiseBlog: React.FC = () => {
           </div>
 
           {/* Article content */}
-          <div className="prose prose-base prose-emerald max-w-none mb-6">
+          <div className="prose prose-lg prose-emerald max-w-none mb-6">
             {renderFormattedContent(activePost.content)}
           </div>
 
@@ -691,9 +691,12 @@ export const RiseBlog: React.FC = () => {
           <div className="text-right flex items-center justify-end gap-2.5">
             {readStats.hasRewardToClaim ? (
               <>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end">
                   <p className="font-bold text-sm text-gray-900 leading-tight">10 / 10 reads</p>
-                  <p className="font-thin text-xs text-gray-600 leading-tight">10 coins unlocked</p>
+                  <p className="font-thin text-xs text-gray-600 leading-tight mb-1.5">10 coins unlocked</p>
+                  <div className="w-full h-1 bg-emerald-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full w-full" />
+                  </div>
                 </div>
                 <button
                   onClick={handleClaimReward}
@@ -704,13 +707,19 @@ export const RiseBlog: React.FC = () => {
                 </button>
               </>
             ) : (
-              <div className="text-right">
+              <div className="text-right flex flex-col items-end">
                 <p className="font-bold text-sm text-gray-900 leading-tight">
                   {readStats.currentCycleReads} / 10 reads
                 </p>
-                <p className="font-thin text-xs text-gray-600 leading-tight">
+                <p className="font-thin text-xs text-gray-600 leading-tight mb-1.5">
                   {readStats.readsRemaining} more reads • 10 coins
                 </p>
+                <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#0E7850] transition-all duration-500 rounded-full"
+                    style={{ width: `${(readStats.currentCycleReads / 10) * 100}%` }}
+                  />
+                </div>
               </div>
             )}
           </div>

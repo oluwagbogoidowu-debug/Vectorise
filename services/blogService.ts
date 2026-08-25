@@ -255,9 +255,10 @@ export const blogService = {
       }
     }
 
-    const totalReads = Math.max(localReads, remoteReads);
+    const allIds = Array.from(new Set([...localIds, ...remoteIds].filter(Boolean)));
     const claimedCycles = Math.max(localClaimed, remoteClaimed);
-    const allIds = Array.from(new Set([...localIds, ...remoteIds]));
+    // Count is strictly the number of unique blog posts completed (or preserved cycle offset)
+    const totalReads = Math.max(allIds.length, claimedCycles * 10);
 
     // Update local storage to stay in sync
     localStorage.setItem(localReadsKey, String(totalReads));
@@ -283,63 +284,6 @@ export const blogService = {
     };
   },
 
-  recordBlogRead: async (userId: string | undefined, postId: string): Promise<{
-    totalReads: number;
-    claimedCycles: number;
-    currentCycleReads: number;
-    readsRemaining: number;
-    hasRewardToClaim: boolean;
-    isFirstReadForPost: boolean;
-  }> => {
-    const fallbackUserKey = userId || 'guest';
-    const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
-    const localClaimedKey = `vectorise_blog_claimed_${fallbackUserKey}`;
-    const localIdsKey = `vectorise_blog_read_ids_${fallbackUserKey}`;
-
-    let localReads = parseInt(localStorage.getItem(localReadsKey) || '0', 10);
-    let localClaimed = parseInt(localStorage.getItem(localClaimedKey) || '0', 10);
-    let localIds: string[] = [];
-    try {
-      localIds = JSON.parse(localStorage.getItem(localIdsKey) || '[]');
-    } catch {
-      localIds = [];
-    }
-
-    const isFirstReadForPost = !localIds.includes(postId);
-    if (isFirstReadForPost) {
-      localIds.push(postId);
-      localReads += 1;
-      localStorage.setItem(localIdsKey, JSON.stringify(localIds));
-      localStorage.setItem(localReadsKey, String(localReads));
-
-      if (userId) {
-        try {
-          const userRef = doc(db, 'users', userId);
-          await updateDoc(userRef, {
-            blogReadsCount: increment(1),
-            blogReadIds: arrayUnion(postId)
-          });
-        } catch (err) {
-          console.error('Error updating blog read in Firestore:', err);
-        }
-      }
-    }
-
-    const effectiveUnclaimed = Math.max(0, localReads - (localClaimed * 10));
-    const hasRewardToClaim = effectiveUnclaimed >= 10;
-    const currentCycleReads = hasRewardToClaim ? 10 : (effectiveUnclaimed % 10);
-    const readsRemaining = hasRewardToClaim ? 0 : Math.max(0, 10 - currentCycleReads);
-
-    return {
-      totalReads: localReads,
-      claimedCycles: localClaimed,
-      currentCycleReads,
-      readsRemaining,
-      hasRewardToClaim,
-      isFirstReadForPost
-    };
-  },
-
   claimBlogReward: async (userId: string): Promise<{
     success: boolean;
     totalReads: number;
@@ -355,30 +299,44 @@ export const blogService = {
     const fallbackUserKey = userId;
     const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
     const localClaimedKey = `vectorise_blog_claimed_${fallbackUserKey}`;
+    const localIdsKey = `vectorise_blog_read_ids_${fallbackUserKey}`;
 
-    let localReads = parseInt(localStorage.getItem(localReadsKey) || '0', 10);
     let localClaimed = parseInt(localStorage.getItem(localClaimedKey) || '0', 10);
+    let localIds: string[] = [];
+    try {
+      localIds = JSON.parse(localStorage.getItem(localIdsKey) || '[]');
+    } catch {
+      localIds = [];
+    }
+
+    let remoteClaimed = 0;
+    let remoteIds: string[] = [];
 
     // Sync from Firestore if available
     try {
       const userDoc = await getDoc(doc(db, 'users', userId));
       if (userDoc.exists()) {
         const uData = userDoc.data() as Partial<Participant>;
-        localReads = Math.max(localReads, uData.blogReadsCount || 0);
-        localClaimed = Math.max(localClaimed, uData.claimedBlogRewardCycles || 0);
+        remoteClaimed = uData.claimedBlogRewardCycles || 0;
+        remoteIds = uData.blogReadIds || [];
       }
     } catch (e) {
       console.error(e);
     }
 
-    const effectiveUnclaimed = Math.max(0, localReads - (localClaimed * 10));
+    const allIds = Array.from(new Set([...localIds, ...remoteIds].filter(Boolean)));
+    const claimedCycles = Math.max(localClaimed, remoteClaimed);
+    const totalReads = Math.max(allIds.length, claimedCycles * 10);
+
+    const effectiveUnclaimed = Math.max(0, totalReads - (claimedCycles * 10));
     if (effectiveUnclaimed < 10) {
       throw new Error('You have not completed 10 reads for this reward yet.');
     }
 
-    const newClaimed = localClaimed + 1;
+    const newClaimed = claimedCycles + 1;
     localStorage.setItem(localClaimedKey, String(newClaimed));
-    localStorage.setItem(localReadsKey, String(localReads));
+    localStorage.setItem(localReadsKey, String(totalReads));
+    localStorage.setItem(localIdsKey, JSON.stringify(allIds));
 
     // Award 10 coins to user wallet and increment claimed cycles
     try {
@@ -391,7 +349,7 @@ export const blogService = {
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         claimedBlogRewardCycles: newClaimed,
-        blogReadsCount: localReads
+        blogReadsCount: totalReads
       });
     } catch (err) {
       console.error('Error claiming blog reward in Firestore:', err);
@@ -407,14 +365,14 @@ export const blogService = {
       }
     }
 
-    const postClaimUnclaimed = Math.max(0, localReads - (newClaimed * 10));
+    const postClaimUnclaimed = Math.max(0, totalReads - (newClaimed * 10));
     const nextHasReward = postClaimUnclaimed >= 10;
     const nextCycleReads = nextHasReward ? 10 : (postClaimUnclaimed % 10);
     const nextRemaining = nextHasReward ? 0 : Math.max(0, 10 - nextCycleReads);
 
     return {
       success: true,
-      totalReads: localReads,
+      totalReads,
       claimedCycles: newClaimed,
       currentCycleReads: nextCycleReads,
       readsRemaining: nextRemaining,
@@ -463,11 +421,10 @@ export const blogService = {
     };
   }> => {
     const fallbackUserKey = userId || 'guest';
-    const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
     const localClaimedKey = `vectorise_blog_claimed_${fallbackUserKey}`;
     const localIdsKey = `vectorise_blog_read_ids_${fallbackUserKey}`;
+    const localReadsKey = `vectorise_blog_reads_${fallbackUserKey}`;
 
-    let localReads = parseInt(localStorage.getItem(localReadsKey) || '0', 10);
     let localClaimed = parseInt(localStorage.getItem(localClaimedKey) || '0', 10);
     let localIds: string[] = [];
     try {
@@ -476,7 +433,6 @@ export const blogService = {
       localIds = [];
     }
 
-    let remoteReads = 0;
     let remoteClaimed = 0;
     let remoteIds: string[] = [];
 
@@ -485,7 +441,6 @@ export const blogService = {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
           const uData = userDoc.data() as Partial<Participant>;
-          remoteReads = uData.blogReadsCount || 0;
           remoteClaimed = uData.claimedBlogRewardCycles || 0;
           remoteIds = uData.blogReadIds || [];
         }
@@ -494,24 +449,22 @@ export const blogService = {
       }
     }
 
-    let totalReads = Math.max(localReads, remoteReads);
     let claimedCycles = Math.max(localClaimed, remoteClaimed);
-    let allIds = Array.from(new Set([...localIds, ...remoteIds]));
+    let allIds = Array.from(new Set([...localIds, ...remoteIds].filter(Boolean)));
 
+    // STRICT UNIQUE CHECK: A blog post can only ever be counted ONCE per user
     const isFirstCompletion = !allIds.includes(postId);
     if (isFirstCompletion) {
       allIds.push(postId);
-      totalReads += 1;
 
       localStorage.setItem(localIdsKey, JSON.stringify(allIds));
-      localStorage.setItem(localReadsKey, String(totalReads));
       localStorage.setItem(localClaimedKey, String(claimedCycles));
 
       if (userId) {
         try {
           const userRef = doc(db, 'users', userId);
           await updateDoc(userRef, {
-            blogReadsCount: totalReads,
+            blogReadsCount: Math.max(allIds.length, claimedCycles * 10),
             blogReadIds: arrayUnion(postId)
           });
         } catch (err) {
@@ -519,6 +472,9 @@ export const blogService = {
         }
       }
     }
+
+    const totalReads = Math.max(allIds.length, claimedCycles * 10);
+    localStorage.setItem(localReadsKey, String(totalReads));
 
     const effectiveUnclaimed = Math.max(0, totalReads - (claimedCycles * 10));
     const hasRewardToClaim = effectiveUnclaimed >= 10;
