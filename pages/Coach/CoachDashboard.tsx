@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
@@ -8,6 +8,8 @@ import { userService } from '../../services/userService';
 import { Sprint, Notification, Review, UserRole } from '../../types';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import CreateTypeModal from '../../components/CreateTypeModal';
+import { MoreVertical, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +22,20 @@ const CoachDashboard: React.FC = () => {
   const [isUpdatesExpanded, setIsUpdatesExpanded] = useState(false);
   const [totalStudentsCount, setTotalStudentsCount] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
+  const kebabMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close kebab menu when clicking outside
+  useEffect(() => {
+    if (!isKebabMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (kebabMenuRef.current && !kebabMenuRef.current.contains(event.target as Node)) {
+        setIsKebabMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isKebabMenuOpen]);
 
   useEffect(() => {
       let unsubscribeNotifs = () => {};
@@ -203,7 +219,10 @@ const CoachDashboard: React.FC = () => {
               <div className="h-8 w-40 bg-gray-200 rounded-xl mb-2"></div>
               <div className="h-4 w-60 bg-gray-100 rounded-lg"></div>
            </div>
-           <div className="h-10 w-28 bg-gray-200 rounded-2xl"></div>
+           <div className="flex items-center gap-2">
+              <div className="h-10 w-10 bg-gray-200 rounded-2xl"></div>
+              <div className="h-10 w-10 bg-gray-200 rounded-2xl"></div>
+           </div>
         </div>
 
         {/* Quick Stats skeleton */}
@@ -262,13 +281,57 @@ const CoachDashboard: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Dashboard</h1>
             <p className="text-gray-500 font-medium text-xs sm:text-sm">Empowering growth through focused sprints.</p>
          </div>
-         <button 
-            type="button" 
-            onClick={() => setIsCreateModalOpen(true)} 
-            className="bg-primary text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95 cursor-pointer"
-         >
-            + New Sprint
-         </button>
+         <div className="flex items-center gap-2">
+           <button 
+              type="button" 
+              onClick={() => setIsCreateModalOpen(true)} 
+              className="bg-primary text-white w-10 h-10 rounded-2xl font-black uppercase text-base shadow-lg shadow-primary/20 hover:bg-primary-hover transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+              title="Create New Sprint"
+           >
+              +
+           </button>
+
+           <div className="relative" ref={kebabMenuRef}>
+             <button
+               type="button"
+               onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+               className={`w-10 h-10 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-primary/20' : ''}`}
+               title="Options"
+             >
+               <MoreVertical className="w-5 h-5" />
+             </button>
+
+             <AnimatePresence>
+               {isKebabMenuOpen && (
+                 <motion.div
+                   initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                   animate={{ opacity: 1, scale: 1, y: 0 }}
+                   exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                   transition={{ duration: 0.16, ease: "easeOut" }}
+                   className="absolute right-0 mt-2 w-52 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                 >
+                   <div className="space-y-1">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setIsKebabMenuOpen(false);
+                         navigate('/coach/profile');
+                       }}
+                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                     >
+                       <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                         <User className="w-4 h-4" />
+                       </div>
+                       <div className="text-xs truncate">
+                         <span className="font-bold text-gray-900">View profile</span>
+                       </div>
+                     </button>
+                   </div>
+                 </motion.div>
+               )}
+             </AnimatePresence>
+           </div>
+         </div>
       </div>
 
       {/* Quick Stats Row */}

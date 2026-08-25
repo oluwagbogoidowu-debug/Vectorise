@@ -6,7 +6,7 @@ import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { Sprint, Coach } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, Calendar, Heart, Search, Share2, Bookmark, Check, Home } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -483,23 +483,10 @@ export const RiseBlog: React.FC = () => {
             <h1 className="text-2xl font-black text-gray-900 tracking-tighter">RiseBlog</h1>
           </div>
         </div>
-        <p className="text-xs text-gray-400 font-medium leading-relaxed mt-1">
-          Bite-sized, science-backed articles to refine your mindset, master daily micro-habits, and elevate your team’s execution.
-        </p>
       </div>
 
-      {/* Search and Categories */}
+      {/* Categories */}
       <div className="max-w-md mx-auto space-y-4 mb-8">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4.5 h-4.5" />
-          <input 
-            type="text" 
-            placeholder="Search articles, tactics, systems..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-gray-100 text-sm pl-11 pr-4 py-3.5 rounded-2xl focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-medium text-gray-900 placeholder:text-gray-300 transition-all shadow-sm"
-          />
-        </div>
 
         {/* Categories filters sideways scrolling */}
         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
