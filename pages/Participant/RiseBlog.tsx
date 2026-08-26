@@ -905,7 +905,7 @@ export const RiseBlog: React.FC = () => {
             onMouseLeave={() => setIsSliderPaused(false)}
           >
             {/* Carousel Container */}
-            <div className="relative rounded-[2.5rem] overflow-hidden group shadow-xl aspect-[4/5.2] sm:aspect-[4/4.5] flex flex-col justify-end bg-gray-950 select-none">
+            <div className="relative rounded-[2.5rem] overflow-hidden group shadow-xl aspect-[4/5.2] sm:aspect-[4/4.5] flex flex-col justify-end bg-gray-950 select-none pb-4">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={sliderPosts[activeSlideIndex]?.id || activeSlideIndex}
@@ -921,19 +921,19 @@ export const RiseBlog: React.FC = () => {
                     alt={sliderPosts[activeSlideIndex].title} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/45 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent" />
 
-                  <div className="relative p-6 sm:p-8 flex flex-col justify-end h-full z-10">
+                  <div className="relative p-6 sm:p-8 pb-8 flex flex-col justify-end h-full z-10">
                     <div className="mb-auto flex justify-between items-center">
-                      <span className="inline-block px-4 py-2 bg-white/20 backdrop-blur-md text-[11px] font-black uppercase tracking-widest rounded-full text-white border border-white/10 shadow-sm">
+                      <span className="inline-block px-4 py-2 bg-white/20 backdrop-blur-md text-[11px] font-black uppercase tracking-widest rounded-full text-white shadow-sm">
                         {sliderPosts[activeSlideIndex].category}
                       </span>
                       <div 
                         onClick={(e) => handleBookmark(sliderPosts[activeSlideIndex].id, e)}
-                        className={`w-11 h-11 rounded-full backdrop-blur-md flex items-center justify-center border transition-all active:scale-90 ${
+                        className={`w-11 h-11 rounded-full backdrop-blur-md flex items-center justify-center transition-all active:scale-90 ${
                           bookmarkedPosts[sliderPosts[activeSlideIndex].id]
-                            ? 'bg-primary text-white border-primary'
-                            : 'bg-white/20 text-white border-white/10 hover:bg-white/30'
+                            ? 'bg-primary text-white'
+                            : 'bg-white/20 text-white hover:bg-white/30'
                         }`}
                       >
                         <Bookmark className={`w-5 h-5 ${bookmarkedPosts[sliderPosts[activeSlideIndex].id] ? 'fill-white' : ''}`} />
@@ -945,7 +945,9 @@ export const RiseBlog: React.FC = () => {
                         {sliderPosts[activeSlideIndex].title}
                       </h3>
                       
-                      <div className="flex items-center gap-3 pt-2 text-xs font-bold text-white/90 uppercase tracking-wider">
+                      <div className="h-px w-full bg-white/20" />
+                      
+                      <div className="flex items-center gap-3 text-xs font-bold text-white/90 uppercase tracking-wider">
                         <div className="flex items-center gap-2">
                           <img 
                             src={sliderPosts[activeSlideIndex].author.avatar} 
@@ -955,7 +957,7 @@ export const RiseBlog: React.FC = () => {
                           <span className="truncate max-w-[130px] sm:max-w-none text-white font-black">{sliderPosts[activeSlideIndex].author.name}</span>
                         </div>
                         
-                        <div className="flex items-center gap-2.5 text-white/90">
+                        <div className="flex items-center gap-2 text-white/90 text-[10px] sm:text-xs">
                           <span>{sliderPosts[activeSlideIndex].readTime}</span>
                           <span className="text-white/60">•</span>
                           <span>{(sliderPosts[activeSlideIndex] as any).upvotes || 54} Upvotes</span>
@@ -965,28 +967,28 @@ export const RiseBlog: React.FC = () => {
                   </div>
                 </motion.div>
               </AnimatePresence>
-            </div>
 
-            {/* Pagination Slider Indicator (Auto-transitions every 5 seconds) */}
-            {sliderPosts.length > 1 && (
-              <div className="flex items-center justify-center gap-2 pt-1">
-                {sliderPosts.map((_, dotIdx) => (
-                  <button
-                    key={dotIdx}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveSlideIndex(dotIdx);
-                    }}
-                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                      activeSlideIndex === dotIdx 
-                        ? 'w-7 bg-[#0E7850]' 
-                        : 'w-2 bg-gray-300 hover:bg-gray-400'
-                    }`}
-                    title={`Go to slide ${dotIdx + 1}`}
-                  />
-                ))}
-              </div>
-            )}
+              {/* Pagination Slider Indicator (Auto-transitions every 5 seconds) */}
+              {sliderPosts.length > 1 && (
+                <div className="relative z-20 flex items-center justify-center gap-2 pb-3">
+                  {sliderPosts.map((_, dotIdx) => (
+                    <button
+                      key={dotIdx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSlideIndex(dotIdx);
+                      }}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        activeSlideIndex === dotIdx 
+                          ? 'w-7 bg-white/90' 
+                          : 'w-2 bg-white/30 hover:bg-white/50'
+                      }`}
+                      title={`Go to slide ${dotIdx + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
