@@ -670,19 +670,6 @@ const ParticipantDashboard: React.FC = () => {
 
   const isIdentitySet = userService.isIdentitySet(user as Participant);
 
-  const handleExploreClick = (e: React.MouseEvent) => {
-    if (!isIdentitySet) {
-      e.preventDefault();
-      toast.error("Explore Locked", {
-        description: "Set your identity in your profile to unlock the Explore page.",
-        action: {
-          label: "Set Identity",
-          onClick: () => navigate('/profile')
-        }
-      });
-    }
-  };
-
   useEffect(() => {
     if (location.state?.showNextSprintPopup) {
         setIsNextSprintModalOpen(true);
@@ -1328,7 +1315,7 @@ const ParticipantDashboard: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
                     {/* Your Next Sprint / Begin Your First Sprint Card */}
-                    <Link to="/explore" onClick={handleExploreClick} className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 min-h-[76px] md:min-h-[88px]">
+                    <Link to="/explore" className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
                             <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
                                 {hasCompletedFirstSprint ? (
@@ -1471,9 +1458,7 @@ const ParticipantDashboard: React.FC = () => {
                 ) : (
                     <div 
                         onClick={() => {
-                            if (!isIdentitySet) {
-                                navigate('/profile/settings/identity');
-                            } else if (recommendedNextSprint) {
+                            if (recommendedNextSprint) {
                                 setShowOverviewSheet(true);
                                 setOverviewStep('overview');
                                 setIsCommitted(false);
@@ -1600,8 +1585,8 @@ const ParticipantDashboard: React.FC = () => {
 
                         {/* Identity Setup Card (Visible for users who have NOT set up their identity) */}
                         {!isIdentitySet && (
-                            <Link 
-                                to="/profile/settings/identity"
+                            <button 
+                                onClick={() => toast("Coming soon")}
                                 className="flex-shrink-0 w-60 h-60 bg-white border border-rose-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-rose-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative"
                             >
                                 <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
@@ -1634,7 +1619,7 @@ const ParticipantDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                            </Link>
+                            </button>
                         )}
 
                         {/* Notifications Setup Card (Pops up permission modal) */}

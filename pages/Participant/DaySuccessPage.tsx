@@ -10,7 +10,7 @@ import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '
 import { toast } from 'sonner';
 import { Participant } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Coins, Clock, ArrowRight, Sparkles, Bell, Check } from 'lucide-react';
+import { Coins, Clock, ArrowRight, Sparkles, Bell, Check, X } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
@@ -381,7 +381,7 @@ const DaySuccessPage: React.FC = () => {
         <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-[#0E7850]/5 rounded-full blur-[120px]" />
       </div>
 
-      {/* Top Header Bar with Day complete badge on the left & Cancel button on the right */}
+      {/* Top Header Bar with Day complete badge */}
       <div className="relative z-10 w-full max-w-md mx-auto flex justify-between items-center pt-2 pb-2">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850]">
           <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
@@ -389,15 +389,6 @@ const DaySuccessPage: React.FC = () => {
             Move {completedDay} is complete!
           </span>
         </div>
-
-        <button
-          type="button"
-          onClick={handleExit}
-          className="w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-200/80 rounded-full flex items-center justify-center text-gray-700 font-bold text-base transition-colors cursor-pointer active:scale-95 shrink-0"
-          aria-label="Menu"
-        >
-          =
-        </button>
       </div>
 
       {/* Main Content Container */}
@@ -557,13 +548,13 @@ const DaySuccessPage: React.FC = () => {
               exit={{ opacity: 0, scale: 0.9, y: 10 }}
               className="relative z-[101] w-full max-w-sm bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 text-center overflow-hidden"
             >
-              {/* Cancel Button top right */}
+              {/* Close Button top right */}
               <button
                 onClick={handleCloseModal}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center font-bold text-base transition-colors cursor-pointer"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
                 aria-label="Close"
               >
-                =
+                <X className="w-4 h-4" />
               </button>
 
               {/* Icon */}

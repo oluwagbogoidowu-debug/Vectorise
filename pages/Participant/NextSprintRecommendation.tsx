@@ -46,6 +46,27 @@ export const NextSprintRecommendation: React.FC = () => {
     const [isSwitchModeModalOpen, setIsSwitchModeModalOpen] = useState(false);
     const kebabMenuRef = useRef<HTMLDivElement>(null);
     const [isDarkMode, setIsDarkMode] = useState(false);
+    const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<any | null>(null);
+
+    // Subscribe to user enrollments to track active in-progress sprint
+    useEffect(() => {
+        if (!user) {
+            setActiveOngoingEnrollment(null);
+            return;
+        }
+
+        const unsubscribe = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
+            const active = enrollments.find((e) => {
+                if (e.status !== 'active') return false;
+                if (e.completed_at) return false;
+                const allDaysCompleted = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p) => p.completed);
+                return !allDaysCompleted;
+            });
+            setActiveOngoingEnrollment(active || null);
+        });
+
+        return () => unsubscribe();
+    }, [user]);
 
     const hasDualOrMultiMode = useMemo(() => {
         return hasMultipleModes(user);
@@ -332,6 +353,11 @@ export const NextSprintRecommendation: React.FC = () => {
     const handleConfirmCommitment = async () => {
         if (!user || !sprint || isProcessingPayment) return;
 
+        if (activeOngoingEnrollment) {
+            toast.error("You cannot start a new sprint while a sprint is currently in progress.");
+            return;
+        }
+
         setIsProcessingPayment(true);
         const cost = sprint.pointCost || 10;
         const currentBalance = (user as Participant)?.walletBalance ?? 0;
@@ -603,20 +629,63 @@ export const NextSprintRecommendation: React.FC = () => {
 
                 {/* Continue CTA */}
                 {sprint && (
-                    <button
-                        onClick={() => setIsPaymentModalOpen(true)}
-                        disabled={isLoading || !sprint}
-                        className="w-full py-5 bg-[#0E7850] hover:bg-[#085C3D] text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-xl shadow-[#0E7850]/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <span>Continue</span>
-                        <ArrowRight className="w-4 h-4" />
-                    </button>
+                    <div className="w-full space-y-3">
+                        <button
+                            onClick={() => {
+                                if (activeOngoingEnrollment) {
+                                    toast.error("You cannot start a new sprint while you are currently in one.");
+                                    return;
+                                }
+                                setIsPaymentModalOpen(true);
+                            }}
+                            disabled={isLoading || !sprint || Boolean(activeOngoingEnrollment)}
+                            className={`w-full py-5 font-black uppercase tracking-[0.2em] text-xs rounded-2xl transition-all flex items-center justify-center gap-2 ${
+                                activeOngoingEnrollment
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-250 shadow-none'
+                                    : 'bg-[#0E7850] hover:bg-[#085C3D] text-white shadow-xl shadow-[#0E7850]/20 hover:scale-[1.02] active:scale-95 cursor-pointer'
+                            }`}
+                        >
+                            <span>{activeOngoingEnrollment ? 'Sprint in Progress' : 'Continue'}</span>
+                            {!activeOngoingEnrollment && <ArrowRight className="w-4 h-4" />}
+                        </button>
+
+                        {activeOngoingEnrollment && (
+                            <div className="p-4 bg-amber-50/90 border border-amber-200/80 rounded-2xl text-left flex items-start gap-3 shadow-xs">
+                                <div className="p-1 rounded-full bg-amber-100 text-amber-700 shrink-0 mt-0.5">
+                                    <span className="text-xs">⚠️</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-black text-amber-900 leading-tight">
+                                        Sprint Currently in Progress
+                                    </p>
+                                    <p className="text-[11px] text-amber-800 font-medium leading-relaxed mt-1">
+                                        You can’t start a new sprint while in you are in one. Finish your active sprint to unlock this sprint.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(`/participant/sprint/${activeOngoingEnrollment.id}`)}
+                                        className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850] hover:bg-[#085C3D] text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
+                                    >
+                                        <span>Resume Active Sprint</span>
+                                        <ArrowRight className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 )}
             </main>
 
             {/* Footer */}
-            <footer className="w-full text-center pb-4 opacity-40 z-10">
-                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">GET 1% BETTER DAILY</p>
+            <footer className="w-full text-center pb-6 z-10 flex flex-col items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => navigate('/explore')}
+                    className="text-xs text-gray-500 hover:text-[#0E7850] dark:text-gray-400 dark:hover:text-emerald-400 font-medium transition-colors cursor-pointer bg-transparent border-none p-0"
+                >
+                    Explore other sprints in your path
+                </button>
+                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 opacity-60">GET 1% BETTER DAILY</p>
             </footer>
 
             {/* Bottom Modal Bar for Overview */}
@@ -671,13 +740,22 @@ export const NextSprintRecommendation: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => {
+                                    if (activeOngoingEnrollment) {
+                                        toast.error("You cannot start a new sprint while you are currently in one.");
+                                        return;
+                                    }
                                     setShowOverviewModal(false);
                                     setIsPaymentModalOpen(true);
                                 }}
-                                className="w-full py-4 bg-[#0E7850] hover:bg-[#085C3D] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-xl shadow-[#0E7850]/20 hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-4"
+                                disabled={Boolean(activeOngoingEnrollment)}
+                                className={`w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 mt-4 ${
+                                    activeOngoingEnrollment
+                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-250'
+                                        : 'bg-[#0E7850] hover:bg-[#085C3D] text-white shadow-xl shadow-[#0E7850]/20 hover:scale-[1.01] active:scale-95 cursor-pointer'
+                                }`}
                             >
-                                <span>Continue</span>
-                                <ArrowRight className="w-4 h-4" />
+                                <span>{activeOngoingEnrollment ? 'Sprint in Progress' : 'Continue'}</span>
+                                {!activeOngoingEnrollment && <ArrowRight className="w-4 h-4" />}
                             </button>
                         </motion.div>
                     </div>

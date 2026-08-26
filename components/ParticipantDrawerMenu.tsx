@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Compass, Sparkles, Zap, User, Settings, X, ChevronRight, Coins } from 'lucide-react';
+import { Compass, Sparkles, Zap, User, Settings, X, ChevronRight, Coins, TrendingUp, Award, Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
 import LocalLogo from './LocalLogo';
@@ -37,36 +37,28 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
     };
   }, [isOpen]);
 
-  const navItems = [
+  const navSections = [
     {
-      label: 'Explore Sprints',
-      path: '/explore',
-      icon: Compass,
-      badge: null
+      title: 'My Journey',
+      items: [
+        { label: 'Your Next Sprint', path: '/participant/next-sprint', icon: Sparkles, badge: hasUnread ? 'New' : null },
+        { label: 'Explore Sprints', path: '/explore', icon: Compass, badge: null },
+        { label: 'My Sprints', path: '/my-sprints', icon: Zap, badge: null },
+      ]
     },
     {
-      label: 'Your Next Sprint',
-      path: '/participant/next-sprint',
-      icon: Sparkles,
-      badge: hasUnread ? 'New' : null
+      title: 'Your Rise',
+      items: [
+        { label: 'My Rise', path: '/growth', icon: TrendingUp, badge: null },
+        { label: 'Hall of Rise', path: '/profile/hall-of-rise', icon: Award, badge: null },
+        { label: 'Impact', path: '/impact', icon: Target, badge: null },
+      ]
     },
     {
-      label: 'My Sprints',
-      path: '/my-sprints',
-      icon: Zap,
-      badge: null
-    },
-    {
-      label: 'Profile & Growth',
-      path: '/profile',
-      icon: User,
-      badge: null
-    },
-    {
-      label: 'Account Settings',
-      path: '/profile/settings',
-      icon: Settings,
-      badge: null
+      title: 'Account',
+      items: [
+        { label: 'Account Settings', path: '/profile/settings', icon: Settings, badge: null },
+      ]
     }
   ];
 
@@ -137,51 +129,55 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
             )}
 
             {/* Navigation List */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 custom-scrollbar">
-              <div className="px-3 pb-2">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
-                  Navigation
-                </span>
-              </div>
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={onClose}
-                    className={({ isActive }) =>
-                      `flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
-                        isActive
-                          ? 'bg-[#0E7850]/10 text-[#0E7850] font-black shadow-xs'
-                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-950'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div
-                            className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                              isActive ? 'bg-[#0E7850] text-white shadow-xs' : 'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <span className="truncate">{item.label}</span>
-                        </div>
-                        {item.badge ? (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500 text-white animate-pulse">
-                            {item.badge}
-                          </span>
-                        ) : (
-                          <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[#0E7850]' : 'text-gray-300'}`} />
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 custom-scrollbar">
+              {navSections.map((section) => (
+                <div key={section.title} className="space-y-1.5">
+                  <div className="px-3 pb-2">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
+                      {section.title}
+                    </span>
+                  </div>
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          `flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
+                            isActive
+                              ? 'bg-[#0E7850]/10 text-[#0E7850] font-black shadow-xs'
+                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-950'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              <div
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                  isActive ? 'bg-[#0E7850] text-white shadow-xs' : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <span className="truncate">{item.label}</span>
+                            </div>
+                            {item.badge ? (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500 text-white animate-pulse">
+                                {item.badge}
+                              </span>
+                            ) : (
+                              <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[#0E7850]' : 'text-gray-300'}`} />
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
 
             {/* Drawer Footer */}
