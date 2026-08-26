@@ -7,6 +7,7 @@ import { sprintService } from '../../services/sprintService';
 import { SEED_BLOG_SPRINTS } from '../../services/blogService';
 import { parseOptionCodeHelper } from '../../utils/sprintUtils';
 import Button from '../../components/Button';
+import CustomSelect from '../../components/CustomSelect';
 
 interface OrchestratorProps {
     allSprints: Sprint[];
@@ -534,16 +535,15 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                             {/* 1. Source Sprint Dropdown */}
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">1. Select First Sprint (Source Sprint)</label>
-                                <select
+                                <CustomSelect
                                     value={blogLinkSourceSprintId}
-                                    onChange={(e) => setBlogLinkSourceSprintId(e.target.value)}
-                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all cursor-pointer"
-                                >
-                                    <option value="">-- Choose Source Sprint --</option>
-                                    {allSprints.map(s => (
-                                        <option key={s.id} value={s.id}>{s.title} ({s.category})</option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setBlogLinkSourceSprintId(String(val))}
+                                    options={[
+                                        { value: '', label: '-- Choose Source Sprint --' },
+                                        ...allSprints.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
+                                    ]}
+                                    className="w-full"
+                                />
                             </div>
 
                             {/* Source Sprint Active Card Details if selected */}
@@ -615,18 +615,18 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                             {/* 3. Target Linked RiseBlog Dropdown */}
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked RiseBlog Article (Recommended When Clicked or Started)</label>
-                                <select
+                                <CustomSelect
                                     value={blogLinkTargetBlogId}
-                                    onChange={(e) => setBlogLinkTargetBlogId(e.target.value)}
-                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all cursor-pointer"
-                                >
-                                    <option value="">-- Choose Target RiseBlog Article --</option>
-                                    {availableBlogs.map(b => (
-                                        <option key={b.id} value={b.id}>
-                                            {b.title} ({b.category || 'Article'})
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setBlogLinkTargetBlogId(String(val))}
+                                    options={[
+                                        { value: '', label: '-- Choose Target RiseBlog Article --' },
+                                        ...availableBlogs.map(b => ({
+                                            value: b.id,
+                                            label: `${b.title} (${b.category || 'Article'})`
+                                        }))
+                                    ]}
+                                    className="w-full"
+                                />
                             </div>
 
                             {/* Target RiseBlog Active Card Details if selected */}
@@ -746,16 +746,15 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                             {/* 1. Source Sprint Dropdown */}
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">1. Select First Sprint (Source Sprint)</label>
-                                <select
+                                <CustomSelect
                                     value={linkSourceSprintId}
-                                    onChange={(e) => setLinkSourceSprintId(e.target.value)}
-                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
-                                >
-                                    <option value="">-- Choose Source Sprint --</option>
-                                    {allSprints.map(s => (
-                                        <option key={s.id} value={s.id}>{s.title} ({s.category})</option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setLinkSourceSprintId(String(val))}
+                                    options={[
+                                        { value: '', label: '-- Choose Source Sprint --' },
+                                        ...allSprints.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
+                                    ]}
+                                    className="w-full"
+                                />
                             </div>
 
                             {/* Source Sprint Active Card Details if selected */}
@@ -827,21 +826,21 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                             {/* 3. Target Linked Sprint Dropdown */}
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked Sprint (Recommended When Clicked or Started)</label>
-                                <select
+                                <CustomSelect
                                     value={linkTargetSprintId}
-                                    onChange={(e) => setLinkTargetSprintId(e.target.value)}
-                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
-                                >
-                                    <option value="">-- Choose Target Linked Sprint --</option>
-                                    {allSprints.map(s => {
-                                        const isSame = s.id === linkSourceSprintId;
-                                        return (
-                                            <option key={s.id} value={s.id}>
-                                                {s.title} ({s.category}){isSame ? ' — 🔁 [Repeat This Sprint]' : ''}
-                                            </option>
-                                        );
-                                    })}
-                                </select>
+                                    onChange={(val) => setLinkTargetSprintId(String(val))}
+                                    options={[
+                                        { value: '', label: '-- Choose Target Linked Sprint --' },
+                                        ...allSprints.map(s => {
+                                            const isSame = s.id === linkSourceSprintId;
+                                            return {
+                                                value: s.id,
+                                                label: `${s.title} (${s.category})${isSame ? ' — 🔁 [Repeat This Sprint]' : ''}`
+                                            };
+                                        })
+                                    ]}
+                                    className="w-full"
+                                />
                             </div>
 
                             {/* Target Sprint Active Card Details if selected */}

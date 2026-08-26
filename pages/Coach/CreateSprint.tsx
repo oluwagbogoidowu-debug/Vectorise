@@ -1170,17 +1170,18 @@ const CreateSprint: React.FC = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label className={labelClasses}>3. How often?</label>
-                                            <select 
+                                            <CustomSelect 
                                                 value={challengeHowOften} 
-                                                onChange={(e) => setChallengeHowOften(e.target.value)} 
-                                                className={inputClasses + " mt-2 cursor-pointer"} 
-                                            >
-                                                <option value="Daily">Daily</option>
-                                                <option value="3 times a week">3 times a week</option>
-                                                <option value="Weekdays only">Weekdays only</option>
-                                                <option value="Twice daily">Twice daily</option>
-                                                <option value="Custom">Custom schedule...</option>
-                                            </select>
+                                                onChange={(val) => setChallengeHowOften(String(val))} 
+                                                options={[
+                                                    { value: "Daily", label: "Daily" },
+                                                    { value: "3 times a week", label: "3 times a week" },
+                                                    { value: "Weekdays only", label: "Weekdays only" },
+                                                    { value: "Twice daily", label: "Twice daily" },
+                                                    { value: "Custom", label: "Custom schedule..." }
+                                                ]}
+                                                className="mt-2" 
+                                            />
                                             {challengeHowOften === 'Custom' && (
                                                 <input 
                                                     type="text" 
@@ -1194,17 +1195,18 @@ const CreateSprint: React.FC = () => {
 
                                         <div>
                                             <label className={labelClasses}>4. For how long?</label>
-                                            <select 
+                                            <CustomSelect 
                                                 value={challengeHowLong} 
-                                                onChange={(e) => setChallengeHowLong(e.target.value)} 
-                                                className={inputClasses + " mt-2 cursor-pointer"} 
-                                            >
-                                                <option value="7 Days">7 Days</option>
-                                                <option value="14 Days">14 Days</option>
-                                                <option value="21 Days">21 Days</option>
-                                                <option value="30 Days">30 Days</option>
-                                                <option value="Custom">Custom duration...</option>
-                                            </select>
+                                                onChange={(val) => setChallengeHowLong(String(val))} 
+                                                options={[
+                                                    { value: "7 Days", label: "7 Days" },
+                                                    { value: "14 Days", label: "14 Days" },
+                                                    { value: "21 Days", label: "21 Days" },
+                                                    { value: "30 Days", label: "30 Days" },
+                                                    { value: "Custom", label: "Custom duration..." }
+                                                ]}
+                                                className="mt-2" 
+                                            />
                                             {challengeHowLong === 'Custom' && (
                                                 <input 
                                                     type="text" 
