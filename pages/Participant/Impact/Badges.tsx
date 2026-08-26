@@ -417,13 +417,11 @@ const Badges: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 pb-32 animate-fade-in bg-[#FAFAFA]">
             <div className="mb-12">
-                <button onClick={() => navigate('/profile')} className="group flex items-center text-gray-400 hover:text-primary transition-colors mb-6 text-xs font-black uppercase tracking-widest"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>My Profile</button>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                    <div>
-                        <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2">The Hall of Rise.</h1>
-                        <p className="text-gray-500 font-medium text-sm">Your progress matters. Claim credits as you hit milestones.</p>
-                    </div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div>
+                    <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2">The Hall of Rise.</h1>
                 </div>
+            </div>
             </div>
 
             {isLoading ? (
@@ -434,69 +432,6 @@ const Badges: React.FC = () => {
             ) : (
                 <div className="space-y-16">
                     {/* Category Milestones Summary Dashboard */}
-                    <div className="animate-fade-in">
-                        <div className="mb-4 px-1">
-                            <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-                                🎯 QUICK SCAN
-                            </h3>
-                        </div>
-                        <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory no-scrollbar relative">
-                            {categoryProgressData.map((data, idx) => {
-                                const barColorClass = data.color === 'primary' ? 'bg-primary' : 
-                                                    data.color === 'blue' ? 'bg-blue-600' : 
-                                                    data.color === 'yellow' ? 'bg-yellow-500' : 
-                                                    data.color === 'teal' ? 'bg-teal-500' : 'bg-primary';
-
-                                const textAccentClass = data.color === 'primary' ? 'text-primary' : 
-                                                      data.color === 'blue' ? 'text-blue-600' : 
-                                                      data.color === 'yellow' ? 'text-yellow-600' : 
-                                                      data.color === 'teal' ? 'text-teal-600' : 'text-primary';
-
-                                return (
-                                    <div 
-                                        key={idx} 
-                                        className="p-5 rounded-2xl bg-white border border-gray-100 hover:border-gray-200/80 hover:shadow-md transition-all flex flex-col justify-between group flex-shrink-0 w-[78vw] sm:w-[240px] min-h-[180px] shadow-sm snap-start"
-                                    >
-                                        <div>
-                                            <div className="flex items-center justify-between mb-3">
-                                                <span className="text-[9px] font-black tracking-widest uppercase text-gray-400">
-                                                    {data.category}
-                                                </span>
-                                                <span className="text-xl group-hover:scale-110 transition-transform duration-300">
-                                                    {data.icon}
-                                                </span>
-                                            </div>
-                                            
-                                            <div className="mb-4">
-                                                <h4 className="font-black text-gray-900 text-xs truncate uppercase tracking-tight">
-                                                    {data.title}
-                                                </h4>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
-                                                    {data.isAllCompleted 
-                                                        ? 'All Milestones Met!' 
-                                                        : `${data.remaining.toFixed(0)} more ${data.unitName}`
-                                                    }
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-2">
-                                            <div className="flex justify-between items-center mb-1.5 text-[9px] font-black text-gray-700 font-mono">
-                                                <span>{data.current.toFixed(0)} / {data.target}</span>
-                                                <span className={textAccentClass}>{data.percent.toFixed(0)}%</span>
-                                            </div>
-                                            <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden">
-                                                <div 
-                                                    className={`h-full rounded-full transition-all duration-1000 ease-out ${barColorClass}`}
-                                                    style={{ width: `${data.percent}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
 
                     <CategorySection title="Core Progress" type="coreProgress" milestones={milestonesByType.coreProgress} color="primary" />
                     <CategorySection title="Long Game" type="longGame" milestones={milestonesByType.longGame} color="blue" />

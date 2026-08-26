@@ -649,29 +649,6 @@ export const NextSprintRecommendation: React.FC = () => {
                             {!activeOngoingEnrollment && <ArrowRight className="w-4 h-4" />}
                         </button>
 
-                        {activeOngoingEnrollment && (
-                            <div className="p-4 bg-amber-50/90 border border-amber-200/80 rounded-2xl text-left flex items-start gap-3 shadow-xs">
-                                <div className="p-1 rounded-full bg-amber-100 text-amber-700 shrink-0 mt-0.5">
-                                    <span className="text-xs">⚠️</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-black text-amber-900 leading-tight">
-                                        Sprint Currently in Progress
-                                    </p>
-                                    <p className="text-[11px] text-amber-800 font-medium leading-relaxed mt-1">
-                                        You can’t start a new sprint while in you are in one. Finish your active sprint to unlock this sprint.
-                                    </p>
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate(`/participant/sprint/${activeOngoingEnrollment.id}`)}
-                                        className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850] hover:bg-[#085C3D] text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer active:scale-95"
-                                    >
-                                        <span>Resume Active Sprint</span>
-                                        <ArrowRight className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
             </main>
