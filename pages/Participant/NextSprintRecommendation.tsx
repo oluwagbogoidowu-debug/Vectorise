@@ -654,7 +654,7 @@ export const NextSprintRecommendation: React.FC = () => {
             </main>
 
             {/* Footer */}
-            <footer className="w-full text-center pb-6 z-10 flex flex-col items-center gap-2">
+            <footer className="w-full text-center pb-12 z-10 flex flex-col items-center gap-2">
                 <button
                     type="button"
                     onClick={() => navigate('/explore')}
