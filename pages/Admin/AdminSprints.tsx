@@ -18,17 +18,21 @@ const AdminSprints: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    if (adminCache.sprints) {
+    if (adminCache.sprints && adminCache.sprints.length > 0) {
       setSprints(adminCache.sprints);
       setIsLoading(false);
-      return;
+    } else {
+      setIsLoading(true);
     }
-    setIsLoading(true);
+    
     const unsubscribe = sprintService.subscribeToAdminSprints((data) => {
       setSprints(data);
       adminCache.sprints = data;
       setIsLoading(false);
+    }, () => {
+      setIsLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -93,23 +97,41 @@ const AdminSprints: React.FC = () => {
 
   const handleTogglePublish = async (sprint: Sprint) => {
     const newPublished = !sprint.published;
+    // OPTIMISTIC UPDATE: Update state immediately with zero delay
+    const updatedSprints = sprints.map(s => s.id === sprint.id ? { ...s, published: newPublished } : s);
+    setSprints(updatedSprints);
+    adminCache.sprints = updatedSprints;
+
     try {
       await sprintService.updateSprint(sprint.id, { published: newPublished });
       toast.success(`${sprint.title} is now ${newPublished ? 'ON (Published)' : 'OFF (Hidden)'}`);
     } catch (error) {
       console.error("Error toggling publish state:", error);
+      // Revert on failure
+      const reverted = sprints.map(s => s.id === sprint.id ? { ...s, published: sprint.published } : s);
+      setSprints(reverted);
+      adminCache.sprints = reverted;
       toast.error("Failed to update status");
     }
   };
 
   const handleToggleBlogLive = async (sprint: Sprint) => {
     const isLive = sprint.approvalStatus === 'approved';
-    const newStatus = isLive ? 'pending_approval' : 'approved';
+    const newStatus: any = isLive ? 'pending_approval' : 'approved';
+    // OPTIMISTIC UPDATE: Update state immediately with zero delay
+    const updatedSprints = sprints.map(s => s.id === sprint.id ? { ...s, approvalStatus: newStatus } : s);
+    setSprints(updatedSprints);
+    adminCache.sprints = updatedSprints;
+
     try {
       await sprintService.updateSprint(sprint.id, { approvalStatus: newStatus });
       toast.success(`${sprint.title} is now ${newStatus === 'approved' ? 'LIVE' : 'NOT LIVE (Hidden)'}`);
     } catch (error) {
       console.error("Error toggling blog status:", error);
+      // Revert on failure
+      const reverted = sprints.map(s => s.id === sprint.id ? { ...s, approvalStatus: sprint.approvalStatus } : s);
+      setSprints(reverted);
+      adminCache.sprints = reverted;
       toast.error("Failed to update status");
     }
   };
@@ -221,7 +243,7 @@ const AdminSprints: React.FC = () => {
       <div className="grid grid-cols-1 gap-4">
         {filteredSprints.map(s => (
           <div key={s.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-6 hover:shadow-md transition-all">
-            <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-50"><img src={s.coverImageUrl} className="w-full h-full object-cover" alt="" /></div>
+            <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-50 border border-gray-100 shadow-sm"><img src={s.blogImage || s.coverImageUrl || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'} className="w-full h-full object-cover" alt="" /></div>
             <div className="flex-1 min-w-0 text-center sm:text-left">
               <h3 className="font-black text-gray-900 text-lg truncate tracking-tight">{s.title}</h3>
               <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">

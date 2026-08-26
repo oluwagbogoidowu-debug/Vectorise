@@ -240,9 +240,17 @@ export const isSprintIncomplete = (sprint: Sprint): boolean => {
  * exactly as done on the Explore page.
  */
 export const filterAllowedSprintsForUser = (allSprints: Sprint[], user: User | Participant | null): Sprint[] => {
-    if (!user) return allSprints;
+    // Sprints on Explore page must strictly exclude Ignite and Blog posts
+    const validSprints = allSprints.filter(s => 
+        s.contentType !== 'ignite' && 
+        (s as any).subcategory !== 'ignite' &&
+        s.contentType !== 'blog' && 
+        (s as any).subcategory !== 'riseblog'
+    );
 
-    return allSprints.filter(s => {
+    if (!user) return validSprints;
+
+    return validSprints.filter(s => {
         if (user?.role === UserRole.ADMIN) {
             return true;
         }

@@ -283,18 +283,18 @@ export const RiseBlog: React.FC = () => {
     return posts.slice(0, 3);
   }, [posts]);
 
-  // Auto-advance slider every 6 seconds if not hovered
+  // Auto-advance slider every 5 seconds if not hovered
   useEffect(() => {
     if (sliderPosts.length <= 1 || isSliderPaused) return;
 
     const timer = setInterval(() => {
       setActiveSlideIndex(prev => (prev + 1) % sliderPosts.length);
-    }, 6000);
+    }, 5000);
 
     return () => clearInterval(timer);
   }, [sliderPosts.length, isSliderPaused]);
 
-  // "For You" posts (exclude the 3 in top slider when not searching, or show filtered results)
+  // "For You" / Latest Releases posts (exclude the 3 in top slider when not searching, or show filtered results)
   const forYouPosts = useMemo(() => {
     if (searchTerm) {
       return filteredPosts;
@@ -302,16 +302,6 @@ export const RiseBlog: React.FC = () => {
     const remaining = posts.slice(3);
     return remaining.length > 0 ? remaining : posts;
   }, [filteredPosts, posts, searchTerm]);
-
-  const handlePrevSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveSlideIndex(prev => (prev === 0 ? sliderPosts.length - 1 : prev - 1));
-  };
-
-  const handleNextSlide = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActiveSlideIndex(prev => (prev + 1) % sliderPosts.length);
-  };
 
   const handleLike = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -910,12 +900,12 @@ export const RiseBlog: React.FC = () => {
         {/* Featured Card with Slider (3 RiseBlog posts) */}
         {searchTerm === '' && sliderPosts.length > 0 && (
           <div 
-            className="relative"
+            className="relative space-y-3"
             onMouseEnter={() => setIsSliderPaused(true)}
             onMouseLeave={() => setIsSliderPaused(false)}
           >
             {/* Carousel Container */}
-            <div className="relative rounded-[2rem] overflow-hidden group shadow-xl aspect-[4/5] sm:aspect-[4/4] flex flex-col justify-end bg-gray-950 select-none">
+            <div className="relative rounded-[2.5rem] overflow-hidden group shadow-xl aspect-[4/5.2] sm:aspect-[4/4.5] flex flex-col justify-end bg-gray-950 select-none">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={sliderPosts[activeSlideIndex]?.id || activeSlideIndex}
@@ -935,40 +925,39 @@ export const RiseBlog: React.FC = () => {
 
                   <div className="relative p-6 sm:p-8 flex flex-col justify-end h-full z-10">
                     <div className="mb-auto flex justify-between items-center">
-                      <span className="inline-block px-3.5 py-1.5 bg-white/25 backdrop-blur-md text-[10px] font-black uppercase tracking-widest rounded-full text-white border border-white/20 shadow-sm">
+                      <span className="inline-block px-4 py-2 bg-white/20 backdrop-blur-md text-[11px] font-black uppercase tracking-widest rounded-full text-white border border-white/10 shadow-sm">
                         {sliderPosts[activeSlideIndex].category}
                       </span>
                       <div 
                         onClick={(e) => handleBookmark(sliderPosts[activeSlideIndex].id, e)}
-                        className={`w-9 h-9 rounded-full backdrop-blur-md flex items-center justify-center border transition-all active:scale-90 ${
+                        className={`w-11 h-11 rounded-full backdrop-blur-md flex items-center justify-center border transition-all active:scale-90 ${
                           bookmarkedPosts[sliderPosts[activeSlideIndex].id]
                             ? 'bg-primary text-white border-primary'
-                            : 'bg-white/20 text-white border-white/20 hover:bg-white/30'
+                            : 'bg-white/20 text-white border-white/10 hover:bg-white/30'
                         }`}
                       >
-                        <Bookmark className={`w-4 h-4 ${bookmarkedPosts[sliderPosts[activeSlideIndex].id] ? 'fill-white' : ''}`} />
+                        <Bookmark className={`w-5 h-5 ${bookmarkedPosts[sliderPosts[activeSlideIndex].id] ? 'fill-white' : ''}`} />
                       </div>
                     </div>
 
                     <div className="space-y-4">
-                      {/* Big card title with increased font size */}
-                      <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight group-hover:text-emerald-300 transition-colors drop-shadow-md">
+                      <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug drop-shadow-md">
                         {sliderPosts[activeSlideIndex].title}
                       </h3>
                       
-                      <div className="flex items-center justify-between text-xs font-bold text-white/80 uppercase tracking-wider pt-3 border-t border-white/15">
-                        <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-3 pt-2 text-xs font-bold text-white/90 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
                           <img 
                             src={sliderPosts[activeSlideIndex].author.avatar} 
                             alt={sliderPosts[activeSlideIndex].author.name} 
-                            className="w-7 h-7 rounded-full object-cover border border-white/30 shadow-sm"
+                            className="w-8 h-8 rounded-full object-cover border border-white/30 shadow-sm"
                           />
-                          <span className="truncate max-w-[130px] sm:max-w-none text-white">{sliderPosts[activeSlideIndex].author.name}</span>
+                          <span className="truncate max-w-[130px] sm:max-w-none text-white font-black">{sliderPosts[activeSlideIndex].author.name}</span>
                         </div>
                         
-                        <div className="flex items-center gap-3 text-white/90">
+                        <div className="flex items-center gap-2.5 text-white/90">
                           <span>{sliderPosts[activeSlideIndex].readTime}</span>
-                          <span>•</span>
+                          <span className="text-white/60">•</span>
                           <span>{(sliderPosts[activeSlideIndex] as any).upvotes || 54} Upvotes</span>
                         </div>
                       </div>
@@ -976,58 +965,45 @@ export const RiseBlog: React.FC = () => {
                   </div>
                 </motion.div>
               </AnimatePresence>
-
-              {/* Slider Left / Right Navigation Arrows */}
-              {sliderPosts.length > 1 && (
-                <>
-                  <button
-                    onClick={handlePrevSlide}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-white flex items-center justify-center transition-all z-20 active:scale-90 border border-white/10"
-                    title="Previous Slide"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={handleNextSlide}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-white flex items-center justify-center transition-all z-20 active:scale-90 border border-white/10"
-                    title="Next Slide"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </>
-              )}
-
-              {/* Slider Dots Indicator */}
-              {sliderPosts.length > 1 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
-                  {sliderPosts.map((_, dotIdx) => (
-                    <button
-                      key={dotIdx}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveSlideIndex(dotIdx);
-                      }}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${
-                        activeSlideIndex === dotIdx 
-                          ? 'w-6 bg-emerald-400' 
-                          : 'w-1.5 bg-white/40 hover:bg-white/70'
-                      }`}
-                      title={`Go to slide ${dotIdx + 1}`}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
+
+            {/* Pagination Slider Indicator (Auto-transitions every 5 seconds) */}
+            {sliderPosts.length > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-1">
+                {sliderPosts.map((_, dotIdx) => (
+                  <button
+                    key={dotIdx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveSlideIndex(dotIdx);
+                    }}
+                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                      activeSlideIndex === dotIdx 
+                        ? 'w-7 bg-[#0E7850]' 
+                        : 'w-2 bg-gray-300 hover:bg-gray-400'
+                    }`}
+                    title={`Go to slide ${dotIdx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* "For You" Section (Title Case, Bigger text, 3 items initially + See More button) */}
+        {/* Latest Releases / For You Section */}
         {forYouPosts.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-4 pt-1">
             {searchTerm === '' && (
               <div className="px-1 flex items-center justify-between">
-                <h2 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">For You</h2>
-                <span className="text-xs font-bold text-gray-400">{forYouPosts.length} Articles</span>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">LATEST RELEASES</span>
+                {forYouPosts.length > visibleForYouCount && (
+                  <button
+                    onClick={() => setVisibleForYouCount(prev => prev + 3)}
+                    className="text-xs font-bold text-gray-500 hover:text-[#0E7850] transition-colors cursor-pointer"
+                  >
+                    See more
+                  </button>
+                )}
               </div>
             )}
             
@@ -1087,19 +1063,6 @@ export const RiseBlog: React.FC = () => {
                 );
               })}
             </div>
-
-            {/* See More Button */}
-            {forYouPosts.length > visibleForYouCount && (
-              <div className="pt-3 text-center">
-                <button
-                  onClick={() => setVisibleForYouCount(prev => prev + 3)}
-                  className="w-full py-3.5 bg-white border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40 text-gray-800 hover:text-emerald-800 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all duration-300 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>See More</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
