@@ -43,6 +43,10 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const [blogLinkOptionCode, setBlogLinkOptionCode] = useState<string>('');
     const [blogLinkTargetBlogId, setBlogLinkTargetBlogId] = useState<string>('');
 
+    const availableSprintsOnly = useMemo(() => {
+        return allSprints.filter(s => s.contentType !== 'blog' && (s as any).subcategory !== 'riseblog');
+    }, [allSprints]);
+
     const availableBlogs = useMemo(() => {
         const list: Sprint[] = [];
         const seenIds = new Set<string>();
@@ -540,7 +544,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                     onChange={(val) => setBlogLinkSourceSprintId(String(val))}
                                     options={[
                                         { value: '', label: '-- Choose Source Sprint --' },
-                                        ...allSprints.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
+                                        ...availableSprintsOnly.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
                                     ]}
                                     className="w-full"
                                 />
@@ -751,7 +755,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                     onChange={(val) => setLinkSourceSprintId(String(val))}
                                     options={[
                                         { value: '', label: '-- Choose Source Sprint --' },
-                                        ...allSprints.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
+                                        ...availableSprintsOnly.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
                                     ]}
                                     className="w-full"
                                 />
@@ -831,7 +835,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                     onChange={(val) => setLinkTargetSprintId(String(val))}
                                     options={[
                                         { value: '', label: '-- Choose Target Linked Sprint --' },
-                                        ...allSprints.map(s => {
+                                        ...availableSprintsOnly.map(s => {
                                             const isSame = s.id === linkSourceSprintId;
                                             return {
                                                 value: s.id,
@@ -1003,7 +1007,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                         const isSprintPickerOpen = activeSprintPicker === slot.id;
                         
                         const slotFocusOptions = assignment.availableFocusOptions || defaultOptions;
-                        const availableSprintsForPicker = allSprints
+                        const availableSprintsForPicker = availableSprintsOnly
                             .filter(s => (s.published && s.approvalStatus === 'approved') && !assignedSprintIds.includes(s.id))
                             .sort((a, b) => a.title.localeCompare(b.title));
                         
