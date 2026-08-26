@@ -1012,13 +1012,11 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const assignSelectedText = (field: 'prompt' | 'note' | 'hint' | 'footnote' | 'poll', index: number) => {
+  const assignSelectedText = (field: 'prompt' | 'hint' | 'footnote' | 'poll', index: number) => {
     if (!selectedText) return;
     
     if (field === 'prompt') {
       handleTaskPromptChange(index, selectedText);
-    } else if (field === 'note') {
-      handleTaskNoteChange(index, selectedText);
     } else if (field === 'hint') {
       handleTaskHintChange(index, selectedText);
     } else if (field === 'footnote') {
@@ -1263,11 +1261,10 @@ const EditSprint: React.FC = () => {
             }
             if (!Array.isArray(currentOptsArr)) currentOptsArr = [];
             
-            // If linked from previous (follow-up poll) and Tag Note is OFF, default to 0 options, otherwise at least 4
+            // If linked from previous (follow-up poll), default to 0 options, otherwise at least 4
             const isFollowUpPoll = index > 0 && updatedDailyContent[existingContentIndex]?.taskLinkedToNext?.[index - 1];
-            const isTagNoteActive = !!updatedDailyContent[existingContentIndex]?.taskTagNoteActive?.[index];
             
-            if (isFollowUpPoll && !isTagNoteActive) {
+            if (isFollowUpPoll) {
                 currentOptsArr = currentOptsArr.filter(opt => opt && opt.trim() !== '');
             } else {
                 while (currentOptsArr.length < 4) {
@@ -3207,88 +3204,6 @@ const EditSprint: React.FC = () => {
                                                     </span>
                                                 )}
                                             </div>
-                                                                                              {isLinkedFromPrevious && (
-                                                    <div className="pl-3 border-l-2 border-emerald-500/20 space-y-3 text-left animate-fade-in w-full">
-                                                        <div className="flex items-center justify-between bg-gray-50 p-2.5 rounded-xl border border-gray-150">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-black text-gray-700 uppercase tracking-wide">
-                                                                    Tag Note
-                                                                </span>
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const currentActive = !!currentContent.taskTagNoteActive?.[index];
-                                                                    handleToggleTaskTagNoteActive(index, !currentActive);
-                                                                }}
-                                                                className={`px-3 py-1 text-xs font-black uppercase rounded-lg border transition-all cursor-pointer ${
-                                                                    currentContent.taskTagNoteActive?.[index]
-                                                                        ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
-                                                                        : 'bg-white text-gray-400 hover:text-gray-600 border-gray-200'
-                                                                }`}
-                                                                title="Tag Note: Toggle custom feedback or insights that show up for the participant specifically when these active choices/tags are selected."
-                                                            >
-                                                                {currentContent.taskTagNoteActive?.[index] ? 'ON' : 'OFF'}
-                                                            </button>
-                                                        </div>
-
-                                                        {currentContent.taskTagNoteActive?.[index] && (
-                                                            <div className="space-y-2 animate-fade-in">
-                                                                <div className="flex items-center justify-between">
-                                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
-                                                                        Tag Note Content
-                                                                    </label>
-                                                                    {getSingleTagNoteValue(currentContent.taskTagNotes?.[index]).trim() && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleTaskSingleTagNoteChange(index, '')}
-                                                                            className="p-1 rounded bg-red-50 hover:bg-red-100 text-red-500 transition-colors flex items-center gap-1 cursor-pointer font-bold text-[9px] uppercase tracking-wider pr-2 pl-1.5"
-                                                                            title="Delete Tag Note Content"
-                                                                        >
-                                                                            <Trash2 size={10} />
-                                                                            <span>Delete</span>
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-
-                                                                <div className="p-3 bg-white rounded-xl border border-gray-150 shadow-sm space-y-3">
-                                                                    <textarea
-                                                                        value={getSingleTagNoteValue(currentContent.taskTagNotes?.[index])}
-                                                                        onChange={(e) => handleTaskSingleTagNoteChange(index, e.target.value)}
-                                                                        rows={3}
-                                                                        className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none animate-fade-in text-gray-750"
-                                                                        placeholder="Write a note to show when these active tags are selected..."
-                                                                    />
-
-                                                                    {(() => {
-                                                                        const availableTags = getAvailableConnectedTags(index);
-                                                                        if (availableTags.length === 0) {
-                                                                            return (
-                                                                                <div className="text-[10px] text-gray-400 font-bold italic uppercase tracking-wider pt-1 animate-fade-in">
-                                                                                    ⚠️ No connected tags received from preceding steps yet.
-                                                                                </div>
-                                                                            );
-                                                                        }
-                                                                        return (
-                                                                            <div className="pt-2 border-t border-gray-100 animate-fade-in">
-                                                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
-                                                                                    CONNECTED DYNAMIC TAGS:
-                                                                                </p>
-                                                                                <div className="flex flex-wrap gap-1.5">
-                                                                                    {availableTags.map((tag, tagIndex) => (
-                                                                                        <span key={tagIndex} className="inline-flex items-center gap-1 text-[9px] bg-indigo-50 text-indigo-800 border border-indigo-100 px-2.5 py-1 rounded-full font-black uppercase tracking-wider shadow-sm">
-                                                                                            🏷️ {tag}
-                                                                                        </span>
-                                                                                    ))}
-                                                                                </div>
-                                                                            </div>
-                                                                        );
-                                                                    })()}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
 
                                             <textarea 
                                                 value={prompt} 
@@ -3428,10 +3343,9 @@ const EditSprint: React.FC = () => {
                                                             </button>
                                                             <button 
                                                                 type="button"
-                                                                disabled={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index]}
                                                                 onClick={() => handleTaskPromptTypeChange(index, 'tags')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? 'opacity-40 cursor-not-allowed text-gray-350' : activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title={isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? "Locked: This step is a linked follow-up and cannot be Tag-labeled unless Tag Note mode is turned ON." : "Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                title="Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."
                                                             >
                                                                 Tags
                                                             </button>
@@ -4109,7 +4023,7 @@ const EditSprint: React.FC = () => {
                                                         <span className="text-xs font-black text-gray-700 select-none cursor-help" title="Multi-Select: Toggle whether participants can choose multiple options or are constrained to a single response.">Allow multiple options selection (Multi-Select)</span>
                                                     </div>
                                                     <div className="space-y-4">
-                                                        {isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index] ? (
+                                                        {isLinkedFromPrevious ? (
                                                             <div className="bg-indigo-50/75 text-indigo-900 border border-indigo-150 rounded-xl p-3 text-xs font-semibold animate-fade-in flex flex-col gap-1 text-left">
                                                                 <div className="flex items-center gap-1.5 text-indigo-800">
                                                                     <svg className="w-4 h-4 text-indigo-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4136,7 +4050,7 @@ const EditSprint: React.FC = () => {
                                                                     const verOptsStr = getStepVersionValue(currentContent.taskPollOptions[index], activeVerIdx, '[]');
                                                                     try { opts = JSON.parse(verOptsStr); } catch(e) {}
                                                                 }
-                                                                const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
+                                                                const isDynamicPoll = isLinkedFromPrevious;
                                                                 if (isDynamicPoll) {
                                                                     // For Dynamic Poll Connected to Tags, show only custom options if they exist
                                                                     opts = opts.filter(o => o !== null && o !== undefined && o.trim() !== '');
@@ -4184,7 +4098,7 @@ const EditSprint: React.FC = () => {
                                                             <button 
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    const isDynamicPoll = isLinkedFromPrevious && !currentContent.taskTagNoteActive?.[index];
+                                                                    const isDynamicPoll = isLinkedFromPrevious;
                                                                     if (isDynamicPoll) {
                                                                         setAddingCustomOption(prev => ({ ...prev, [index]: true }));
                                                                         let curOpts: string[] = [];
@@ -4565,34 +4479,6 @@ const EditSprint: React.FC = () => {
                             <>
                                 <div className="relative group mb-4 animate-fade-in text-left">
                                     <SectionHeading>Action Step {i + 1} of {activePrompts.length}</SectionHeading>
-                                                          {currentContent.taskNotes?.[i] && (
-                                        <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1 animate-fade-in text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
-                                            <FormattedText text={currentContent.taskNotes[i]} />
-                                        </div>
-                                    )}
- 
-                                    {(() => {
-                                        const noteText = getSingleTagNoteValue(currentContent.taskTagNotes?.[i]);
-                                        if (!noteText.trim()) return null;
-                                        
-                                        const tags = getPreviewTagsForStep(i);
-                                        if (tags.length === 0) return null;
-                                        
-                                        return (
-                                            <div className="mb-4 text-left border-l-4 border-emerald-500/30 pl-4 py-1.5 animate-fade-in space-y-2 bg-amber-500/0">
-                                                <div className="text-gray-700 font-bold text-sm sm:text-base leading-relaxed">
-                                                    <FormattedText text={noteText} />
-                                                </div>
-                                                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                                    {tags.map((tag, tagIndex) => (
-                                                        <span key={tagIndex} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-800 border border-indigo-100 px-2 py-0.5 rounded-full font-black italic text-[9px] uppercase shadow-sm">
-                                                            🏷️ {tag}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
 
                                     <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${currentContent.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                         <FormattedText text={formatInterpolatedText(prompt || "Submit your progress for this step.", currentContent, {}, sprint?.dailyContent)} />
@@ -5161,14 +5047,6 @@ const EditSprint: React.FC = () => {
                     title="Assign to Poll options (creates option per line)"
                   >
                     Poll
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => assignSelectedText('note', index)}
-                    className="py-1 px-0.5 bg-gray-800 hover:bg-emerald-600 rounded-md text-[8px] font-bold uppercase cursor-pointer text-center"
-                    title="Assign to Coach Note"
-                  >
-                    Note
                   </button>
                   <button
                     type="button"
