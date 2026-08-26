@@ -307,12 +307,83 @@ const SprintPreview: React.FC = () => {
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
 
-    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route or forced preview)
+    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route)
     useEffect(() => {
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        const forcePreview = location.state?.forcePreview || location.state?.sprint;
+        if (isCoachPreview) return;
         if (isNavigatingToSuccessRef.current || isSubmittingAuth) return;
-        if (!loading && user && !showLockModal && !isCoachPreview && !forcePreview) {
+        
+        if (!loading && user) {
+            // Check if there are task inputs or pending action from preview
+            const effectiveInputs = getEffectiveTaskInputs();
+            const hasInputs = effectiveInputs.some(v => v && String(v).trim().length > 0);
+            const pendingRaw = localStorage.getItem('pending_first_action');
+            
+            if (hasInputs || pendingRaw) {
+                isNavigatingToSuccessRef.current = true;
+                const firstInput = effectiveInputs[0] || "";
+                const targetSprint = sprint;
+                const targetSprintId = sprint?.id || sprintId;
+                
+                if (targetSprintId) {
+                    sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
+                        firstActionInput: firstInput,
+                        taskInputs: effectiveInputs
+                    } as any).then(async (enrollment) => {
+                        if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                            const updatedProgress = [...enrollment.progress];
+                            updatedProgress[0] = {
+                                ...updatedProgress[0],
+                                completed: true,
+                                completedAt: new Date().toISOString(),
+                                answers: effectiveInputs,
+                                submission: firstInput
+                            };
+                            const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                            await updateDoc(enrollmentRef, { 
+                                progress: updatedProgress,
+                                last_activity_at: new Date().toISOString()
+                            });
+                        }
+                        await userService.addUserEnrollment(user.id, targetSprintId);
+                        localStorage.removeItem('pending_first_action');
+                        localStorage.removeItem('vectorise_last_sprint');
+                        setShowLockModal(false);
+                        const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+                        navigate('/participant/day-success', { 
+                            state: { 
+                                day: 1, 
+                                coinsUnlocked: 10, 
+                                bridgeNote: d1Content?.bridgeNote,
+                                sprintId: targetSprintId,
+                                sprint: targetSprint,
+                                enrollmentId: enrollment?.id,
+                                taskInputs: effectiveInputs,
+                                redirectToDaySuccess: true
+                            }, 
+                            replace: true 
+                        });
+                    }).catch(err => {
+                        console.error("Auto enrollment & day 1 completion on login failed:", err);
+                        localStorage.removeItem('pending_first_action');
+                        setShowLockModal(false);
+                        navigate('/participant/day-success', { 
+                            state: { 
+                                day: 1, 
+                                coinsUnlocked: 10, 
+                                sprintId: targetSprintId,
+                                sprint: targetSprint,
+                                taskInputs: effectiveInputs,
+                                redirectToDaySuccess: true
+                            }, 
+                            replace: true 
+                        });
+                    });
+                    return;
+                }
+            }
+
+            // User is logged in with no pending inputs: check their enrollments
             sprintService.getUserEnrollments(user.id)
                 .then(enrollments => {
                     if (isNavigatingToSuccessRef.current) return;
@@ -320,15 +391,15 @@ const SprintPreview: React.FC = () => {
                     if (enrolled) {
                         navigate(`/participant/sprint/${enrolled.id}`, { replace: true });
                     } else {
-                        navigate(`/sprint/${sprintId}`, { replace: true });
+                        navigate('/explore', { replace: true });
                     }
                 })
                 .catch(() => {
                     if (isNavigatingToSuccessRef.current) return;
-                    navigate(`/sprint/${sprintId}`, { replace: true });
+                    navigate('/explore', { replace: true });
                 });
         }
-    }, [user, loading, showLockModal, sprintId, navigate, location.pathname, isSubmittingAuth]);
+    }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint]);
 
     const handleCompletePreviewDay = async () => {
         if (soundEnabled) {
@@ -745,11 +816,12 @@ const SprintPreview: React.FC = () => {
                     localStorage.removeItem('vectorise_last_sprint');
                 }
 
+                const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
                 setShowLockModal(false);
                 const daySuccessState = { 
                     day: 1, 
                     coinsUnlocked: 10, 
-                    bridgeNote: day1Content?.bridgeNote,
+                    bridgeNote: d1Content?.bridgeNote || day1Content?.bridgeNote,
                     enrollmentId: enrollment.id,
                     sprintId: targetSprint.id,
                     sprint: targetSprint,

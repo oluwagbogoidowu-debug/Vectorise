@@ -6,7 +6,7 @@ import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { Sprint, Coach } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home, Coins, Sparkles, CheckCircle2, Eye, Award, History } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home, Coins, Sparkles, CheckCircle2, Eye, Award, History, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -32,8 +32,8 @@ const BlogHomeSkeleton: React.FC = () => (
             <div className="w-8 h-8 rounded-full bg-gray-300" />
           </div>
           <div className="space-y-3 w-full">
-            <div className="h-6 bg-gray-300 rounded-lg w-11/12" />
-            <div className="h-6 bg-gray-300 rounded-lg w-3/4" />
+            <div className="h-8 bg-gray-300 rounded-lg w-11/12" />
+            <div className="h-8 bg-gray-300 rounded-lg w-3/4" />
             <div className="flex items-center justify-between pt-4 border-t border-gray-300/50">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-gray-300" />
@@ -45,9 +45,9 @@ const BlogHomeSkeleton: React.FC = () => (
         </div>
       </div>
 
-      {/* Latest Releases Skeleton List */}
+      {/* For You Skeleton List */}
       <div className="space-y-4">
-        <div className="h-3 w-28 bg-gray-200 rounded" />
+        <div className="h-5 w-28 bg-gray-200 rounded-lg" />
         {[1, 2, 3].map((i) => (
           <div key={i} className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm flex gap-4">
             <div className="w-24 h-24 rounded-2xl bg-gray-200 shrink-0" />
@@ -57,8 +57,8 @@ const BlogHomeSkeleton: React.FC = () => (
                   <div className="h-2.5 w-14 bg-emerald-100 rounded-full" />
                   <div className="h-2.5 w-10 bg-gray-100 rounded-full" />
                 </div>
-                <div className="h-3.5 bg-gray-200 rounded w-full" />
-                <div className="h-3.5 bg-gray-200 rounded w-4/5" />
+                <div className="h-4 bg-gray-200 rounded w-full" />
+                <div className="h-4 bg-gray-200 rounded w-4/5" />
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
                 <div className="h-2.5 w-16 bg-gray-200 rounded" />
@@ -71,13 +71,6 @@ const BlogHomeSkeleton: React.FC = () => (
           </div>
         ))}
       </div>
-
-      {/* Tags Skeleton */}
-      <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
-        <div className="h-8 w-28 bg-gray-200 rounded-full" />
-        <div className="h-8 w-24 bg-gray-200 rounded-full" />
-        <div className="h-8 w-28 bg-gray-200 rounded-full" />
-      </div>
     </div>
   </div>
 );
@@ -86,49 +79,44 @@ const BlogHomeSkeleton: React.FC = () => (
 const BlogDetailSkeleton: React.FC = () => (
   <div className="min-h-screen bg-[#FAFAFA] pb-24 animate-pulse">
     {/* Detail Hero Header Skeleton */}
-    <div className="relative h-64 md:h-96 w-full bg-gray-200">
+    <div className="relative h-72 md:h-[420px] w-full bg-gray-200">
       <div className="absolute top-6 left-6 w-10 h-10 bg-white/70 rounded-full" />
       <div className="absolute bottom-6 left-6 right-6 max-w-2xl space-y-3">
         <div className="h-5 w-20 bg-gray-300 rounded-full" />
-        <div className="h-7 w-5/6 bg-gray-300 rounded-lg" />
-        <div className="h-7 w-3/5 bg-gray-300 rounded-lg" />
+        <div className="h-8 md:h-10 w-5/6 bg-gray-300 rounded-lg" />
+        <div className="h-8 md:h-10 w-3/5 bg-gray-300 rounded-lg" />
       </div>
     </div>
 
     {/* Article Container Skeleton */}
     <div className="max-w-xl mx-auto px-6 py-8">
       {/* Author info row skeleton */}
-      <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-6">
+      <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-200" />
+          <div className="w-12 h-12 rounded-full bg-gray-200" />
           <div className="space-y-1.5">
-            <div className="h-3.5 w-24 bg-gray-200 rounded" />
-            <div className="h-2.5 w-32 bg-gray-100 rounded" />
+            <div className="h-4 w-28 bg-gray-200 rounded" />
+            <div className="h-3 w-36 bg-gray-100 rounded" />
           </div>
         </div>
         <div className="space-y-1.5 text-right">
-          <div className="h-2.5 w-20 bg-gray-100 rounded" />
-          <div className="h-2.5 w-16 bg-gray-100 rounded" />
+          <div className="h-3 w-24 bg-gray-100 rounded" />
+          <div className="h-3 w-20 bg-gray-100 rounded" />
         </div>
       </div>
 
       {/* Paragraph Wireframe Skeleton Lines */}
       <div className="space-y-6">
-        <div className="space-y-2.5">
-          <div className="h-4 bg-gray-200 rounded w-full" />
-          <div className="h-4 bg-gray-200 rounded w-11/12" />
-          <div className="h-4 bg-gray-200 rounded w-5/6" />
+        <div className="space-y-3">
+          <div className="h-5 bg-gray-200 rounded w-full" />
+          <div className="h-5 bg-gray-200 rounded w-11/12" />
+          <div className="h-5 bg-gray-200 rounded w-5/6" />
         </div>
-        <div className="h-6 w-1/3 bg-gray-200 rounded-lg mt-6" />
-        <div className="space-y-2.5">
-          <div className="h-4 bg-gray-200 rounded w-full" />
-          <div className="h-4 bg-gray-200 rounded w-full" />
-          <div className="h-4 bg-gray-200 rounded w-4/5" />
-        </div>
-        <div className="h-6 w-2/5 bg-gray-200 rounded-lg mt-6" />
-        <div className="space-y-2.5">
-          <div className="h-4 bg-gray-200 rounded w-full" />
-          <div className="h-4 bg-gray-200 rounded w-3/4" />
+        <div className="h-7 w-1/3 bg-gray-200 rounded-lg mt-8" />
+        <div className="space-y-3">
+          <div className="h-5 bg-gray-200 rounded w-full" />
+          <div className="h-5 bg-gray-200 rounded w-full" />
+          <div className="h-5 bg-gray-200 rounded w-4/5" />
         </div>
       </div>
     </div>
@@ -146,6 +134,13 @@ export const RiseBlog: React.FC = () => {
   const [dbSprints, setDbSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Big Card Slider State (3 posts)
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [isSliderPaused, setIsSliderPaused] = useState(false);
+
+  // "For You" Section pagination state (initially show 3)
+  const [visibleForYouCount, setVisibleForYouCount] = useState(3);
 
   // Reading progress and reward state
   const [readStats, setReadStats] = useState({
@@ -283,16 +278,40 @@ export const RiseBlog: React.FC = () => {
     });
   }, [posts, searchTerm]);
 
-  // Featured post (latest / first in list)
-  const featuredPost = useMemo(() => posts[0], [posts]);
-  
-  // Other posts (exclude featured when list is unfiltered)
-  const regularPosts = useMemo(() => {
+  // 3 Featured posts for the big top slider
+  const sliderPosts = useMemo(() => {
+    return posts.slice(0, 3);
+  }, [posts]);
+
+  // Auto-advance slider every 6 seconds if not hovered
+  useEffect(() => {
+    if (sliderPosts.length <= 1 || isSliderPaused) return;
+
+    const timer = setInterval(() => {
+      setActiveSlideIndex(prev => (prev + 1) % sliderPosts.length);
+    }, 6000);
+
+    return () => clearInterval(timer);
+  }, [sliderPosts.length, isSliderPaused]);
+
+  // "For You" posts (exclude the 3 in top slider when not searching, or show filtered results)
+  const forYouPosts = useMemo(() => {
     if (searchTerm) {
       return filteredPosts;
     }
-    return filteredPosts.filter(p => p.id !== featuredPost.id);
-  }, [filteredPosts, featuredPost, searchTerm]);
+    const remaining = posts.slice(3);
+    return remaining.length > 0 ? remaining : posts;
+  }, [filteredPosts, posts, searchTerm]);
+
+  const handlePrevSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlideIndex(prev => (prev === 0 ? sliderPosts.length - 1 : prev - 1));
+  };
+
+  const handleNextSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveSlideIndex(prev => (prev + 1) % sliderPosts.length);
+  };
 
   const handleLike = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -451,7 +470,6 @@ export const RiseBlog: React.FC = () => {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    // Check initial position in case already near bottom
     handleScroll();
 
     return () => {
@@ -460,10 +478,7 @@ export const RiseBlog: React.FC = () => {
     };
   }, [activePost?.id, hasReachedEnd]);
 
-  // Check if conditions for deep reading completion are met:
-  // 1. User reaches the end of the insight
-  // 2. User has spent at least 50% of estimated reading time
-  // 3. The page was actually active/visible during that time
+  // Check if conditions for deep reading completion are met
   useEffect(() => {
     if (!activePost || !activePostStats) return;
     if (isPostCompleted || isRecordingCompletion) return;
@@ -536,7 +551,7 @@ export const RiseBlog: React.FC = () => {
     }
   };
 
-  // Helper to parse content with titles/bold lists nicely (Markdown compliant)
+  // Helper to parse content with large, crisp, easy-to-read typography
   const renderFormattedContent = (content: string) => {
     if (!content.trim()) return null;
 
@@ -547,7 +562,7 @@ export const RiseBlog: React.FC = () => {
         const formattedLine = parts.map((part, pIdx) => {
           if (pIdx % 2 === 1) {
             return (
-              <strong key={pIdx} className="text-gray-900 font-bold">
+              <strong key={pIdx} className="text-gray-950 font-black">
                 {part}
               </strong>
             );
@@ -575,7 +590,7 @@ export const RiseBlog: React.FC = () => {
       if (trimmedBlock.startsWith('# ')) {
         const text = trimmedBlock.replace(/^#\s+/, '');
         return (
-          <h1 key={idx} className="text-3xl font-black text-gray-900 tracking-tight mt-8 mb-4">
+          <h1 key={idx} className="text-3xl md:text-4xl font-black text-gray-950 tracking-tight mt-10 mb-5 leading-tight">
             {renderInlineText(text)}
           </h1>
         );
@@ -585,29 +600,39 @@ export const RiseBlog: React.FC = () => {
       if (trimmedBlock.startsWith('## ')) {
         const text = trimmedBlock.replace(/^##\s+/, '');
         return (
-          <h2 key={idx} className="text-xl font-black text-gray-900 tracking-tight mt-6 mb-3">
+          <h2 key={idx} className="text-2xl md:text-3xl font-black text-gray-950 tracking-tight mt-8 mb-4 leading-snug">
             {renderInlineText(text)}
           </h2>
         );
       }
 
-      // 3. Blockquote
+      // 3. Heading 3
+      if (trimmedBlock.startsWith('### ')) {
+        const text = trimmedBlock.replace(/^###\s+/, '');
+        return (
+          <h3 key={idx} className="text-xl md:text-2xl font-black text-gray-950 tracking-tight mt-6 mb-3 leading-snug">
+            {renderInlineText(text)}
+          </h3>
+        );
+      }
+
+      // 4. Blockquote
       if (trimmedBlock.startsWith('> ')) {
         const quoteLines = trimmedBlock.split('\n').map(l => l.replace(/^>\s*/, ''));
         const text = quoteLines.join('\n');
         return (
-          <blockquote key={idx} className="border-l-4 border-primary pl-4 py-1 italic my-4 text-gray-600 font-medium">
+          <blockquote key={idx} className="border-l-4 border-primary pl-5 py-3.5 italic my-6 text-base md:text-lg text-gray-800 font-medium bg-emerald-50/40 rounded-r-2xl">
             {renderInlineText(text)}
           </blockquote>
         );
       }
 
-      // 4. List Items within a block (split by single newline)
+      // 5. List Items within a block
       const lines = trimmedBlock.split('\n');
       const firstLine = lines[0].trim();
       if (firstLine.startsWith('* ') || firstLine.startsWith('- ') || firstLine.match(/^\d+\.\s+/)) {
         return (
-          <ul key={idx} className="my-4 space-y-1">
+          <ul key={idx} className="my-5 space-y-2">
             {lines.map((line, lineIdx) => {
               const tLine = line.trim();
               const isBullet = tLine.startsWith('* ') || tLine.startsWith('- ');
@@ -616,20 +641,20 @@ export const RiseBlog: React.FC = () => {
               if (isBullet) {
                 const text = tLine.replace(/^[\*\-]\s+/, '');
                 return (
-                  <li key={lineIdx} className="ml-6 list-disc text-sm text-gray-600 leading-relaxed mb-2 font-medium">
+                  <li key={lineIdx} className="ml-6 list-disc text-base md:text-lg text-gray-800 leading-relaxed mb-2.5 font-medium">
                     {renderInlineText(text)}
                   </li>
                 );
               } else if (isNum) {
                 const text = tLine.replace(/^\d+\.\s+/, '');
                 return (
-                  <li key={lineIdx} className="ml-6 list-decimal text-sm text-gray-600 leading-relaxed mb-2 font-medium">
+                  <li key={lineIdx} className="ml-6 list-decimal text-base md:text-lg text-gray-800 leading-relaxed mb-2.5 font-medium">
                     {renderInlineText(text)}
                   </li>
                 );
               } else {
                 return (
-                  <div key={lineIdx} className="ml-6 text-sm text-gray-600 leading-relaxed mb-2 font-medium">
+                  <div key={lineIdx} className="ml-6 text-base md:text-lg text-gray-800 leading-relaxed mb-2.5 font-medium">
                     {renderInlineText(tLine)}
                   </div>
                 );
@@ -639,9 +664,9 @@ export const RiseBlog: React.FC = () => {
         );
       }
 
-      // 5. Standard paragraph block
+      // 6. Standard paragraph block - enhanced font size and readability
       return (
-        <p key={idx} className="text-sm md:text-base text-gray-600 leading-relaxed mb-4 font-medium">
+        <p key={idx} className="text-base md:text-lg text-gray-700 leading-relaxed md:leading-loose mb-6 font-medium">
           {renderInlineText(trimmedBlock)}
         </p>
       );
@@ -658,7 +683,7 @@ export const RiseBlog: React.FC = () => {
   if (activePost) {
     const isLiked = likedPosts[activePost.id];
     const isBookmarked = bookmarkedPosts[activePost.id];
-    const otherPosts = posts.filter(p => p.id !== activePost.id).slice(0, 3);
+    const otherPosts = posts.filter(p => p.id !== activePost.id);
 
     return (
       <motion.div 
@@ -667,27 +692,27 @@ export const RiseBlog: React.FC = () => {
         className="min-h-screen bg-[#FAFAFA] pb-24"
       >
         {/* Detail Hero Header */}
-        <div className="relative h-64 md:h-96 w-full">
+        <div className="relative h-72 md:h-[420px] w-full">
           <img 
             src={activePost.coverImage} 
             alt={activePost.title} 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/15" />
           
           <button 
             onClick={() => navigate(user ? '/blog' : '/discover')}
-            className="absolute top-6 left-6 w-10 h-10 bg-white/90 backdrop-blur-md hover:bg-white rounded-full flex items-center justify-center text-gray-800 transition-all shadow-md active:scale-90"
+            className="absolute top-6 left-6 w-10 h-10 bg-white/90 backdrop-blur-md hover:bg-white rounded-full flex items-center justify-center text-gray-800 transition-all shadow-md active:scale-90 z-20"
             title={user ? "Back to Blog" : "Go to Home"}
           >
             {user ? <ArrowLeft className="w-5 h-5" /> : <Home className="w-5 h-5" />}
           </button>
           
-          <div className="absolute bottom-6 left-6 right-6 text-white max-w-2xl">
-            <span className="px-3 py-1 bg-primary text-[9px] font-black uppercase tracking-widest rounded-full mb-3 inline-block">
+          <div className="absolute bottom-6 left-6 right-6 text-white max-w-2xl z-10">
+            <span className="px-3.5 py-1.5 bg-primary text-[10px] font-black uppercase tracking-widest rounded-full mb-3 inline-block shadow-sm">
               {activePost.category}
             </span>
-            <h1 className="text-xl md:text-3xl font-black tracking-tight leading-snug drop-shadow-sm">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight drop-shadow-sm text-white">
               {activePost.title}
             </h1>
           </div>
@@ -696,38 +721,38 @@ export const RiseBlog: React.FC = () => {
         {/* Article Container */}
         <div className="max-w-xl mx-auto px-6 py-8">
           {/* Author info */}
-          <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-6">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between pb-6 border-b border-gray-100 mb-8">
+            <div className="flex items-center gap-3.5">
               <img 
                 src={activePost.author.avatar} 
                 alt={activePost.author.name} 
-                className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                className="w-12 h-12 rounded-full object-cover border-2 border-emerald-100 shadow-sm"
               />
               <div>
-                <p className="text-xs font-black text-gray-900">{activePost.author.name}</p>
-                <p className="text-[10px] text-gray-400 font-semibold">{activePost.author.role}</p>
+                <p className="text-sm font-black text-gray-950">{activePost.author.name}</p>
+                <p className="text-xs text-gray-500 font-semibold">{activePost.author.role}</p>
               </div>
             </div>
             
-            <div className="flex flex-col items-end text-right font-semibold text-[10px] text-gray-400">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-gray-300" /> {activePost.publishedAt}
+            <div className="flex flex-col items-end text-right font-semibold text-xs text-gray-400">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-gray-400" /> {activePost.publishedAt}
               </span>
-              <span className="flex items-center gap-1 mt-1">
-                <Clock className="w-3 h-3 text-gray-300" /> {activePost.readTime}
+              <span className="flex items-center gap-1.5 mt-1 text-emerald-700 font-bold">
+                <Clock className="w-3.5 h-3.5 text-emerald-600" /> {activePost.readTime}
               </span>
             </div>
           </div>
 
-          {/* Article content */}
-          <div className="prose prose-lg prose-emerald max-w-none mb-6">
+          {/* Article content with increased typography */}
+          <div className="prose max-w-none mb-8">
             {renderFormattedContent(activePost.content)}
           </div>
 
           {/* End of Insight Sentinel Marker */}
-          <div ref={endMarkerRef} id="end-of-insight-marker" className="py-4 mb-6 flex items-center justify-center">
+          <div ref={endMarkerRef} id="end-of-insight-marker" className="py-4 mb-8 flex items-center justify-center">
             {isPostCompleted && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 rounded-full text-xs font-bold border border-emerald-100">
+              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-800 rounded-full text-xs font-bold border border-emerald-100 shadow-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>Counted towards your 10 coins goal ({readStats.currentCycleReads}/10)</span>
               </div>
@@ -735,14 +760,14 @@ export const RiseBlog: React.FC = () => {
           </div>
 
           {/* Action Footer */}
-          <div className="flex items-center justify-between border-t border-b border-gray-100 py-4 mb-12">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between border-t border-b border-gray-100 py-4 mb-10">
+            <div className="flex items-center gap-3 sm:gap-4">
               <button 
                 onClick={() => handleLike(activePost.id)}
-                className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${
                   isLiked 
                   ? 'bg-rose-50 text-rose-600' 
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 <Heart className={`w-4 h-4 ${isLiked ? 'fill-rose-600 text-rose-600' : ''}`} />
@@ -754,7 +779,7 @@ export const RiseBlog: React.FC = () => {
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95 ${
                   isBookmarked 
                   ? 'bg-primary/10 text-primary' 
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 <Bookmark className={`w-4.5 h-4.5 ${isBookmarked ? 'fill-primary text-primary' : ''}`} />
@@ -763,38 +788,22 @@ export const RiseBlog: React.FC = () => {
 
             <button 
               onClick={(e) => handleShare(activePost, e)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-full text-[11px] font-black uppercase tracking-wider transition-all active:scale-95"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full text-xs font-black uppercase tracking-wider transition-all active:scale-95"
             >
               <Share2 className="w-4 h-4" />
               Share Link
             </button>
           </div>
 
-          {/* Prompt to start a sprint related to the content */}
-          <div className="bg-emerald-50/40 border border-emerald-100/70 rounded-3xl p-6 text-center">
-            <span className="text-lg mb-2 block">🎯</span>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-1">
-              Put This Lesson Into Practice
-            </h3>
-            <p className="text-xs text-gray-500 font-medium mb-5 leading-relaxed">
-              {user 
-                ? "Don't let this be another piece of information that sits idle. Convert knowledge into execution steps."
-                : "Start your journey with Vectorise and convert insights into real momentum."
-              }
-            </p>
-            <Link 
-              to={user ? "/explore" : "/"} 
-              className="inline-block px-6 py-3 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
-            >
-              {user ? "Start Sprint Now" : "Start Your Journey"}
-            </Link>
-          </div>
-
-          {/* Explore other blog posts section */}
+          {/* Explore More Insights - Sideways horizontal scrolling */}
           {otherPosts.length > 0 && (
-            <div className="mt-12 pt-8 border-t border-gray-100">
-              <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider mb-6">Explore More Insights</h3>
-              <div className="space-y-4">
+            <div className="mt-8 pt-8 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base sm:text-lg font-black text-gray-950 tracking-tight">Explore More Insights</h3>
+                <span className="text-[11px] font-bold text-gray-400">Swipe sideways &rarr;</span>
+              </div>
+              
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 pt-1 scroll-smooth snap-x snap-mandatory -mx-6 px-6 sm:mx-0 sm:px-0">
                 {otherPosts.map((post) => (
                   <div 
                     key={post.id}
@@ -802,20 +811,28 @@ export const RiseBlog: React.FC = () => {
                       navigate(getBlogPostUrl(post));
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-300 cursor-pointer flex gap-4 group"
+                    className="w-[260px] sm:w-[280px] shrink-0 snap-start bg-white rounded-3xl border border-gray-100 p-4 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all duration-300 cursor-pointer flex flex-col justify-between group"
                   >
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 relative">
-                      <img 
-                        src={post.coverImage} 
-                        alt={post.title} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <span className="text-[8px] font-black text-primary uppercase tracking-widest mb-1">{post.category}</span>
-                      <h4 className="text-xs font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                    <div>
+                      <div className="w-full h-36 rounded-2xl overflow-hidden mb-3 relative bg-gray-900">
+                        <img 
+                          src={post.coverImage} 
+                          alt={post.title} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
+                        />
+                        <span className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-black/60 backdrop-blur-md text-[8px] font-black text-white uppercase tracking-widest rounded-full">
+                          {post.category}
+                        </span>
+                      </div>
+                      
+                      <h4 className="text-sm sm:text-base font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2 mb-2">
                         {post.title}
                       </h4>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-50 text-[11px] text-gray-400 font-semibold mt-2">
+                      <span className="truncate max-w-[130px] text-gray-600">{post.author.name}</span>
+                      <span className="text-emerald-700 font-bold shrink-0">{post.readTime}</span>
                     </div>
                   </div>
                 ))}
@@ -883,129 +900,206 @@ export const RiseBlog: React.FC = () => {
         {filteredPosts.length === 0 && (
           <div className="py-16 text-center">
             <span className="text-3xl mb-3 block">🔍</span>
-            <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-1">No Articles Found</h3>
+            <h3 className="text-base font-black text-gray-900 uppercase tracking-wider mb-1">No Articles Found</h3>
             <p className="text-xs text-gray-400 font-medium max-w-xs mx-auto">
               We couldn't find anything matching your search. Try searching for "Sprints", "Clarity" or "Leadership".
             </p>
           </div>
         )}
 
-        {/* Featured Card - only show if unfiltered and category is All */}
-        {searchTerm === '' && featuredPost && (
-          <div className="space-y-3">
-            <div className="px-1">
-              <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]"></p>
-            </div>
-            <div 
-              onClick={() => navigate(getBlogPostUrl(featuredPost))}
-              className="relative rounded-[2rem] overflow-hidden group cursor-pointer shadow-lg aspect-[4/5] sm:aspect-[4/4] flex flex-col justify-end bg-gray-950"
-            >
-              <div className="absolute inset-0">
-                <img 
-                  src={featuredPost.coverImage} 
-                  alt={featuredPost.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
-              </div>
+        {/* Featured Card with Slider (3 RiseBlog posts) */}
+        {searchTerm === '' && sliderPosts.length > 0 && (
+          <div 
+            className="relative"
+            onMouseEnter={() => setIsSliderPaused(true)}
+            onMouseLeave={() => setIsSliderPaused(false)}
+          >
+            {/* Carousel Container */}
+            <div className="relative rounded-[2rem] overflow-hidden group shadow-xl aspect-[4/5] sm:aspect-[4/4] flex flex-col justify-end bg-gray-950 select-none">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={sliderPosts[activeSlideIndex]?.id || activeSlideIndex}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.02 }}
+                  transition={{ duration: 0.45, ease: "easeInOut" }}
+                  onClick={() => navigate(getBlogPostUrl(sliderPosts[activeSlideIndex]))}
+                  className="absolute inset-0 cursor-pointer flex flex-col justify-end"
+                >
+                  <img 
+                    src={sliderPosts[activeSlideIndex].coverImage} 
+                    alt={sliderPosts[activeSlideIndex].title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/45 to-transparent" />
 
-              <div className="relative p-6 sm:p-8 flex flex-col justify-end h-full z-10">
-                <div className="mb-auto flex justify-between items-center">
-                  <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md text-[9px] font-black uppercase tracking-widest rounded-full text-white border border-white/20">
-                    {featuredPost.category}
-                  </span>
-                  <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
-                    <Bookmark className="w-4 h-4" />
-                  </div>
-                </div>
+                  <div className="relative p-6 sm:p-8 flex flex-col justify-end h-full z-10">
+                    <div className="mb-auto flex justify-between items-center">
+                      <span className="inline-block px-3.5 py-1.5 bg-white/25 backdrop-blur-md text-[10px] font-black uppercase tracking-widest rounded-full text-white border border-white/20 shadow-sm">
+                        {sliderPosts[activeSlideIndex].category}
+                      </span>
+                      <div 
+                        onClick={(e) => handleBookmark(sliderPosts[activeSlideIndex].id, e)}
+                        className={`w-9 h-9 rounded-full backdrop-blur-md flex items-center justify-center border transition-all active:scale-90 ${
+                          bookmarkedPosts[sliderPosts[activeSlideIndex].id]
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white/20 text-white border-white/20 hover:bg-white/30'
+                        }`}
+                      >
+                        <Bookmark className={`w-4 h-4 ${bookmarkedPosts[sliderPosts[activeSlideIndex].id] ? 'fill-white' : ''}`} />
+                      </div>
+                    </div>
 
-                <div className="space-y-3">
-                  <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug group-hover:text-primary transition-colors">
-                    {featuredPost.title}
-                  </h3>
-                  
-                  <div className="flex items-center justify-between text-[10px] font-bold text-white/70 uppercase tracking-wider pt-3 border-t border-white/10">
-                    <div className="flex items-center gap-2">
-                      <img 
-                        src={featuredPost.author.avatar} 
-                        alt={featuredPost.author.name} 
-                        className="w-6 h-6 rounded-full object-cover border border-white/20"
-                      />
-                      <span>{featuredPost.author.name}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <span>{featuredPost.readTime}</span>
-                      <span>•</span>
-                      <span>{(featuredPost as any).upvotes || 54} Upvotes</span>
+                    <div className="space-y-4">
+                      {/* Big card title with increased font size */}
+                      <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight group-hover:text-emerald-300 transition-colors drop-shadow-md">
+                        {sliderPosts[activeSlideIndex].title}
+                      </h3>
+                      
+                      <div className="flex items-center justify-between text-xs font-bold text-white/80 uppercase tracking-wider pt-3 border-t border-white/15">
+                        <div className="flex items-center gap-2.5">
+                          <img 
+                            src={sliderPosts[activeSlideIndex].author.avatar} 
+                            alt={sliderPosts[activeSlideIndex].author.name} 
+                            className="w-7 h-7 rounded-full object-cover border border-white/30 shadow-sm"
+                          />
+                          <span className="truncate max-w-[130px] sm:max-w-none text-white">{sliderPosts[activeSlideIndex].author.name}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 text-white/90">
+                          <span>{sliderPosts[activeSlideIndex].readTime}</span>
+                          <span>•</span>
+                          <span>{(sliderPosts[activeSlideIndex] as any).upvotes || 54} Upvotes</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Slider Left / Right Navigation Arrows */}
+              {sliderPosts.length > 1 && (
+                <>
+                  <button
+                    onClick={handlePrevSlide}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-white flex items-center justify-center transition-all z-20 active:scale-90 border border-white/10"
+                    title="Previous Slide"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={handleNextSlide}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-white flex items-center justify-center transition-all z-20 active:scale-90 border border-white/10"
+                    title="Next Slide"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+
+              {/* Slider Dots Indicator */}
+              {sliderPosts.length > 1 && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
+                  {sliderPosts.map((_, dotIdx) => (
+                    <button
+                      key={dotIdx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSlideIndex(dotIdx);
+                      }}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        activeSlideIndex === dotIdx 
+                          ? 'w-6 bg-emerald-400' 
+                          : 'w-1.5 bg-white/40 hover:bg-white/70'
+                      }`}
+                      title={`Go to slide ${dotIdx + 1}`}
+                    />
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Regular cards list */}
-        {regularPosts.length > 0 && (
+        {/* "For You" Section (Title Case, Bigger text, 3 items initially + See More button) */}
+        {forYouPosts.length > 0 && (
           <div className="space-y-4">
             {searchTerm === '' && (
-              <div className="px-1">
-                <p className="text-[7px] font-black text-gray-400 uppercase tracking-[0.3em]">Latest Releases</p>
+              <div className="px-1 flex items-center justify-between">
+                <h2 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">For You</h2>
+                <span className="text-xs font-bold text-gray-400">{forYouPosts.length} Articles</span>
               </div>
             )}
             
-            {regularPosts.map((post) => {
-              const isLiked = likedPosts[post.id];
-              return (
-                <div 
-                  key={post.id}
-                  onClick={() => navigate(getBlogPostUrl(post))}
-                  className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-300 cursor-pointer flex gap-4 group"
+            <div className="space-y-4">
+              {forYouPosts.slice(0, visibleForYouCount).map((post) => {
+                const isLiked = likedPosts[post.id];
+                const isBookmarked = bookmarkedPosts[post.id];
+                return (
+                  <div 
+                    key={post.id}
+                    onClick={() => navigate(getBlogPostUrl(post))}
+                    className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm hover:shadow-md hover:border-gray-200 transition-all duration-300 cursor-pointer flex gap-4 group"
+                  >
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative bg-gray-900">
+                      <img 
+                        src={post.coverImage} 
+                        alt={post.title} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95"
+                      />
+                    </div>
+
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-[9px] font-black text-primary uppercase tracking-widest">{post.category}</span>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{post.readTime}</span>
+                        </div>
+                        
+                        <h4 className="text-base sm:text-lg font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                          {post.title}
+                        </h4>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
+                        <span className="text-xs font-semibold text-gray-500 truncate max-w-[120px]">{post.author.name}</span>
+                        
+                        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <button 
+                            onClick={(e) => handleLike(post.id, e)}
+                            className={`p-1.5 rounded-full transition-all active:scale-90 ${isLiked ? 'text-rose-500' : 'text-gray-300 hover:text-gray-500'}`}
+                            title="Like article"
+                          >
+                            <Heart className={`w-4 h-4 ${isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
+                          </button>
+                          <button 
+                            onClick={(e) => handleBookmark(post.id, e)}
+                            className={`p-1.5 rounded-full transition-all active:scale-90 ${isBookmarked ? 'text-primary' : 'text-gray-300 hover:text-gray-500'}`}
+                            title="Save article"
+                          >
+                            <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-primary text-primary' : ''}`} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* See More Button */}
+            {forYouPosts.length > visibleForYouCount && (
+              <div className="pt-3 text-center">
+                <button
+                  onClick={() => setVisibleForYouCount(prev => prev + 3)}
+                  className="w-full py-3.5 bg-white border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40 text-gray-800 hover:text-emerald-800 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm transition-all duration-300 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
-                    <img 
-                      src={post.coverImage} 
-                      alt={post.title} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[8px] font-black text-primary uppercase tracking-widest">{post.category}</span>
-                        <span className="text-gray-300">•</span>
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{post.readTime}</span>
-                      </div>
-                      
-                      <h4 className="text-sm font-black text-gray-950 tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
-                        {post.title}
-                      </h4>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-2">
-                      <span className="text-[9px] font-bold text-gray-400">{post.author.name}</span>
-                      
-                      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                        <button 
-                          onClick={(e) => handleLike(post.id, e)}
-                          className={`p-1.5 rounded-full transition-all active:scale-90 ${isLiked ? 'text-rose-500' : 'text-gray-300 hover:text-gray-500'}`}
-                        >
-                          <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-rose-500 text-rose-500' : ''}`} />
-                        </button>
-                        <button 
-                          onClick={(e) => handleBookmark(post.id, e)}
-                          className={`p-1.5 rounded-full transition-all active:scale-90 ${bookmarkedPosts[post.id] ? 'text-primary' : 'text-gray-300 hover:text-gray-500'}`}
-                        >
-                          <Bookmark className={`w-3.5 h-3.5 ${bookmarkedPosts[post.id] ? 'fill-primary text-primary' : ''}`} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  <span>See More</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

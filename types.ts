@@ -719,3 +719,12 @@ export interface SprintLink {
   createdAt: string;
 }
 
+export interface SprintBlogLink {
+  id: string;
+  sourceSprintId: string;
+  optionCode: string;
+  optionText: string;
+  targetBlogId: string;
+  createdAt: string;
+}
+

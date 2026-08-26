@@ -53,21 +53,29 @@ export const FloatingSprintBar: React.FC = () => {
 
     const path = location.pathname;
 
-    // 1. Next sprint recommendation pages
+    // 1. Sprint view & previews (user is already working in sprint)
     if (
-      path.startsWith('/participant/next-sprint') ||
-      path.startsWith('/participant/recommendation') ||
-      path === '/dashboard'
+      path.startsWith('/participant/sprint') ||
+      path.startsWith('/sprint') ||
+      path.startsWith('/coach/sprint')
     ) {
       return true;
     }
 
-    // 2. Move success page
+    // 2. Next sprint page: hide only if there is NO active sprint to continue
+    if (
+      (path.startsWith('/participant/next-sprint') || path.startsWith('/participant/recommendation') || path === '/dashboard') &&
+      !activeEnrollment
+    ) {
+      return true;
+    }
+
+    // 3. Move success page
     if (path.startsWith('/participant/day-success')) {
       return true;
     }
 
-    // 3. Sprint completion / payment success pages
+    // 4. Sprint completion / payment success pages
     if (
       path.startsWith('/impact/success') ||
       path.startsWith('/participant/sprint-success') ||
@@ -76,7 +84,7 @@ export const FloatingSprintBar: React.FC = () => {
       return true;
     }
 
-    // 4. Auth & Onboarding routes
+    // 5. Auth & Onboarding routes
     if (
       path === '/login' ||
       path === '/signup' ||
@@ -100,7 +108,7 @@ export const FloatingSprintBar: React.FC = () => {
   const isCurrentlyOnSprintView = activeEnrollment && location.pathname === `/participant/sprint/${activeEnrollment.id}`;
 
   const primaryText = isCurrentSprintActive
-    ? 'Continue Current Sprint'
+    ? 'Continue Your Sprint'
     : 'Start Next Sprint';
 
   const handleClick = () => {

@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
-import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment, Track } from '../../types';
+import { LifecycleStage, LifecycleSlot, Sprint, SprintType, MicroSelector, MicroSelectorStep, GlobalOrchestrationSettings, OrchestrationTrigger, OrchestrationAction, LifecycleSlotAssignment, Track, SprintBlogLink } from '../../types';
 import { LIFECYCLE_STAGES_CONFIG, LIFECYCLE_SLOTS, FOCUS_OPTIONS, FOUNDATION_CLARITY_OPTIONS, PERSONA_HIERARCHY, PERSONAS, CATEGORY_TO_STAGE_MAP } from '../../services/mockData';
 import { sprintService } from '../../services/sprintService';
+import { SEED_BLOG_SPRINTS } from '../../services/blogService';
+import { parseOptionCodeHelper } from '../../utils/sprintUtils';
 import Button from '../../components/Button';
 
 interface OrchestratorProps {
@@ -24,7 +26,7 @@ const getSlotDefaultOptions = (slotId: string) => {
 
 const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTracks, refreshKey }) => {
     const [selectedStage, setSelectedStage] = useState<LifecycleStage>('Foundation');
-    const [activeOrchestratorTab, setActiveOrchestratorTab] = useState<'stages' | 'sprint_linking'>('stages');
+    const [activeOrchestratorTab, setActiveOrchestratorTab] = useState<'stages' | 'sprint_linking' | 'riseblog_linking'>('stages');
     const [assignments, setAssignments] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -34,66 +36,40 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const [linkOptionCode, setLinkOptionCode] = useState<string>('');
     const [linkTargetSprintId, setLinkTargetSprintId] = useState<string>('');
 
+    // RiseBlog linking state
+    const [sprintBlogLinks, setSprintBlogLinks] = useState<SprintBlogLink[]>([]);
+    const [blogLinkSourceSprintId, setBlogLinkSourceSprintId] = useState<string>('');
+    const [blogLinkOptionCode, setBlogLinkOptionCode] = useState<string>('');
+    const [blogLinkTargetBlogId, setBlogLinkTargetBlogId] = useState<string>('');
+
+    const availableBlogs = useMemo(() => {
+        const list: Sprint[] = [];
+        const seenIds = new Set<string>();
+
+        allSprints.forEach(s => {
+            if (s.contentType === 'blog' || (s as any).subcategory === 'riseblog') {
+                list.push(s);
+                seenIds.add(s.id);
+            }
+        });
+
+        SEED_BLOG_SPRINTS.forEach(s => {
+            if (!seenIds.has(s.id)) {
+                list.push(s);
+                seenIds.add(s.id);
+            }
+        });
+
+        return list;
+    }, [allSprints]);
+
     useEffect(() => {
         sprintService.getSprintLinks().then(links => setSprintLinks(links));
+        sprintService.getSprintBlogLinks().then(links => setSprintBlogLinks(links));
     }, [refreshKey]);
 
     const parseOptionCode = (code: string, sprint: Sprint) => {
-        if (!code || !sprint || !sprint.dailyContent) return null;
-        const clean = code.trim().replace(/^\{|\}$/g, '').trim();
-        
-        let dayNum = 1;
-        let stepNum = 1;
-        let opNum = 1;
-
-        const mMatch = clean.match(/M(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
-        const dMatch = clean.match(/Day\s+(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
-        const sMatch = clean.match(/Step\s+(\d+)\s+op(\d+)/i);
-        const shortMatch = clean.match(/M(\d+)\s+S(\d+)\s+O(\d+)/i);
-
-        if (mMatch) {
-            dayNum = parseInt(mMatch[1], 10);
-            stepNum = parseInt(mMatch[2], 10);
-            opNum = parseInt(mMatch[3], 10);
-        } else if (dMatch) {
-            dayNum = parseInt(dMatch[1], 10);
-            stepNum = parseInt(dMatch[2], 10);
-            opNum = parseInt(dMatch[3], 10);
-        } else if (shortMatch) {
-            dayNum = parseInt(shortMatch[1], 10);
-            stepNum = parseInt(shortMatch[2], 10);
-            opNum = parseInt(shortMatch[3], 10);
-        } else if (sMatch) {
-            stepNum = parseInt(sMatch[1], 10);
-            opNum = parseInt(sMatch[2], 10);
-        } else {
-            return null;
-        }
-
-        const stepIdx = stepNum - 1;
-        const optionIdx = opNum - 1;
-
-        const dc = sprint.dailyContent.find(d => Number(d.day) === Number(dayNum)) || sprint.dailyContent[dayNum - 1];
-        if (!dc || !dc.taskPollOptions) return null;
-
-        const rawOpts = dc.taskPollOptions[stepIdx];
-        if (!rawOpts) return null;
-
-        let optionsList: string[] = [];
-        try {
-            if (typeof rawOpts === 'string' && rawOpts.trim().startsWith('[')) {
-                optionsList = JSON.parse(rawOpts);
-            } else if (typeof rawOpts === 'string') {
-                optionsList = rawOpts.split(',').map(s => s.trim());
-            } else if (Array.isArray(rawOpts)) {
-                optionsList = rawOpts;
-            }
-        } catch (e) {
-            optionsList = String(rawOpts).split(',').map(s => s.trim());
-        }
-
-        const optionText = optionsList[optionIdx] || `Option ${opNum}`;
-        return { dayNum, stepIdx, optionIdx, optionText };
+        return parseOptionCodeHelper(code, sprint);
     };
 
     const handleSaveSprintLink = async (e: React.FormEvent) => {
@@ -113,10 +89,10 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
             return;
         }
 
-        let optionText = "Direct Sprint-to-Sprint Link";
+        let optionText = "Direct Sprint-to-Sprint Link (Normal 2nd Priority)";
         if (linkOptionCode && linkOptionCode.trim()) {
             const parsed = parseOptionCode(linkOptionCode, sourceSprint);
-            optionText = parsed ? parsed.optionText : linkOptionCode;
+            optionText = parsed?.optionText || linkOptionCode;
         }
 
         setIsSaving(true);
@@ -130,13 +106,59 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                 createdAt: new Date().toISOString()
             };
             await sprintService.saveSprintLink(newLink);
-            toast.success("Sprint-to-sprint link saved successfully!");
+            toast.success(linkOptionCode?.trim() ? "⭐ Superior Coded Sprint Link (1st Priority) saved!" : "🔗 Normal Sprint Link (2nd Priority Stage) saved!");
             setLinkOptionCode('');
             setLinkTargetSprintId('');
             const updatedLinks = await sprintService.getSprintLinks();
             setSprintLinks(updatedLinks);
         } catch (err) {
             toast.error("Failed to save sprint link.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSaveSprintBlogLink = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!blogLinkSourceSprintId) {
+            toast.error("Please select a source sprint.");
+            return;
+        }
+        if (!blogLinkTargetBlogId) {
+            toast.error("Please select a target RiseBlog article.");
+            return;
+        }
+
+        const sourceSprint = allSprints.find(s => s.id === blogLinkSourceSprintId);
+        if (!sourceSprint) {
+            toast.error("Source sprint not found.");
+            return;
+        }
+
+        let optionText = "Direct Sprint-to-RiseBlog Link (Normal 2nd Priority)";
+        if (blogLinkOptionCode && blogLinkOptionCode.trim()) {
+            const parsed = parseOptionCode(blogLinkOptionCode, sourceSprint);
+            optionText = parsed?.optionText || blogLinkOptionCode;
+        }
+
+        setIsSaving(true);
+        try {
+            const newLink = {
+                id: '',
+                sourceSprintId: blogLinkSourceSprintId,
+                optionCode: blogLinkOptionCode ? blogLinkOptionCode.trim() : '',
+                optionText,
+                targetBlogId: blogLinkTargetBlogId,
+                createdAt: new Date().toISOString()
+            };
+            await sprintService.saveSprintBlogLink(newLink);
+            toast.success(blogLinkOptionCode?.trim() ? "⭐ Superior Coded RiseBlog Link (1st Priority) saved!" : "📖 Normal RiseBlog Link (2nd Priority Stage) saved!");
+            setBlogLinkOptionCode('');
+            setBlogLinkTargetBlogId('');
+            const updatedLinks = await sprintService.getSprintBlogLinks();
+            setSprintBlogLinks(updatedLinks);
+        } catch (err) {
+            toast.error("Failed to save RiseBlog link.");
         } finally {
             setIsSaving(false);
         }
@@ -455,7 +477,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     return (
         <div className="flex flex-col animate-fade-in font-sans relative pb-20">
             {/* Top Orchestrator Tabs */}
-            <div className="mb-8 flex items-center gap-3">
+            <div className="mb-8 flex flex-wrap items-center gap-3">
                 <button
                     type="button"
                     onClick={() => setActiveOrchestratorTab('stages')}
@@ -478,9 +500,232 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                 >
                     🔗 Sprint Linking
                 </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveOrchestratorTab('riseblog_linking')}
+                    className={`px-7 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        activeOrchestratorTab === 'riseblog_linking'
+                        ? 'bg-amber-600 text-white shadow-md'
+                        : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                    }`}
+                >
+                    📖 RiseBlog Linking
+                </button>
             </div>
 
-            {activeOrchestratorTab === 'sprint_linking' ? (
+            {activeOrchestratorTab === 'riseblog_linking' ? (
+                <main className="flex-1 space-y-8 animate-fade-in">
+                    <header className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
+                        <div className="relative z-10">
+                            <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-2 italic">
+                                RiseBlog Option Linking Through Sprint
+                            </h2>
+                            <p className="text-sm font-medium text-gray-400 italic">
+                                "Map specific option choices within a source sprint to recommended RiseBlog articles. When a participant selects that option, the linked article becomes their personalized reading recommendation."
+                            </p>
+                        </div>
+                    </header>
+
+                    {/* Create RiseBlog Link Card */}
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-8">
+                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Create New RiseBlog Link</h4>
+                        
+                        <form onSubmit={handleSaveSprintBlogLink} className="space-y-6">
+                            {/* 1. Source Sprint Dropdown */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">1. Select First Sprint (Source Sprint)</label>
+                                <select
+                                    value={blogLinkSourceSprintId}
+                                    onChange={(e) => setBlogLinkSourceSprintId(e.target.value)}
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all cursor-pointer"
+                                >
+                                    <option value="">-- Choose Source Sprint --</option>
+                                    {allSprints.map(s => (
+                                        <option key={s.id} value={s.id}>{s.title} ({s.category})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Source Sprint Active Card Details if selected */}
+                            {blogLinkSourceSprintId && (() => {
+                                const src = allSprints.find(s => s.id === blogLinkSourceSprintId);
+                                if (!src) return null;
+                                return (
+                                    <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center gap-4 animate-fade-in">
+                                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-primary/20 shadow-sm bg-gray-100">
+                                            <img src={src.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Active Source Sprint</p>
+                                            <h6 className="text-base font-black text-gray-900">{src.title}</h6>
+                                            <p className="text-xs text-gray-500 mt-0.5">{src.duration} Days • {src.category}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* 2. Option Code & Proof Display */}
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                        2. Option Code (Optional — e.g. <code className="text-amber-600 font-mono lowercase">{'{m1 step 3 op 3}'}</code>)
+                                    </label>
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${blogLinkOptionCode?.trim() ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                                        {blogLinkOptionCode?.trim() ? '⭐ Superior Link (1st Priority on Click)' : '📖 Normal Link (2nd Priority Stage)'}
+                                    </span>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={blogLinkOptionCode}
+                                    onChange={(e) => setBlogLinkOptionCode(e.target.value)}
+                                    placeholder="{m1 step 3 op 3} (Optional)"
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all font-mono"
+                                />
+                                <div className="p-3.5 bg-gray-50 border border-gray-100 rounded-xl space-y-1 text-[11px] text-gray-600">
+                                    <p className="font-bold text-gray-800">2 Different Forms of Linking:</p>
+                                    <p><strong className="text-amber-700">⭐ 1st Priority (Superior with Code):</strong> Put <code className="bg-white px-1.5 py-0.5 rounded border font-mono">{'{m1 step 3 op 3}'}</code>. When the participant clicks this option in the sprint, this linked RiseBlog article becomes their #1 recommended read.</p>
+                                    <p><strong className="text-blue-700">📖 2nd Priority Stage (Normal without Code):</strong> Leave blank. Once the participant starts this sprint, this next linked RiseBlog article is automatically recommended.</p>
+                                </div>
+                            </div>
+
+                            {/* Actual Text Proof Display */}
+                            {blogLinkSourceSprintId && blogLinkOptionCode && (() => {
+                                const src = allSprints.find(s => s.id === blogLinkSourceSprintId);
+                                if (!src) return null;
+                                const parsed = parseOptionCode(blogLinkOptionCode, src);
+                                if (!parsed) {
+                                    return (
+                                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
+                                            ⚠️ Could not parse option code or find matching step/poll options in source sprint. Check syntax (e.g. {'{m1 step 3 op 3}'}).
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <div className="p-5 rounded-2xl bg-green-50 border border-green-200 space-y-1 animate-fade-in">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Actual Text Proof (Matched Option)</p>
+                                            <span className="text-[9px] font-black bg-green-200 text-green-900 px-2 py-0.5 rounded-full">1st Priority on Click</span>
+                                        </div>
+                                        <p className="text-sm font-black text-gray-900">"{parsed.optionText}"</p>
+                                        <p className="text-[10px] font-medium text-green-600">Move/Day {parsed.dayNum}, Step {parsed.stepIdx + 1}, Option {parsed.optionIdx + 1}</p>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* 3. Target Linked RiseBlog Dropdown */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked RiseBlog Article (Recommended When Clicked or Started)</label>
+                                <select
+                                    value={blogLinkTargetBlogId}
+                                    onChange={(e) => setBlogLinkTargetBlogId(e.target.value)}
+                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-amber-500/10 transition-all cursor-pointer"
+                                >
+                                    <option value="">-- Choose Target RiseBlog Article --</option>
+                                    {availableBlogs.map(b => (
+                                        <option key={b.id} value={b.id}>
+                                            {b.title} ({b.category || 'Article'})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Target RiseBlog Active Card Details if selected */}
+                            {blogLinkTargetBlogId && (() => {
+                                const tgt = availableBlogs.find(b => b.id === blogLinkTargetBlogId);
+                                if (!tgt) return null;
+                                const imgUrl = tgt.blogImage || tgt.coverImageUrl || '';
+                                return (
+                                    <div className="p-5 rounded-2xl border border-amber-200 bg-amber-50/60 flex items-center gap-4 animate-fade-in">
+                                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-amber-300 shadow-sm bg-gray-100">
+                                            {imgUrl && <img src={imgUrl} className="w-full h-full object-cover" alt="" />}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">
+                                                Linked Target RiseBlog (Recommendation)
+                                            </p>
+                                            <h6 className="text-base font-black text-gray-900 truncate">{tgt.title}</h6>
+                                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{tgt.subtitle || (tgt.description && tgt.description.slice(0, 100)) || tgt.category}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            <div className="flex justify-end pt-4">
+                                <Button
+                                    type="submit"
+                                    disabled={isSaving}
+                                    className="px-8 py-4 bg-amber-600 text-white hover:bg-amber-700 rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg transition-all active:scale-95"
+                                >
+                                    {isSaving ? 'Saving Link...' : 'Save RiseBlog Link'}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* Existing RiseBlog Links List */}
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-6">
+                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Configured RiseBlog Links ({sprintBlogLinks.length})</h4>
+                        
+                        {sprintBlogLinks.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-4">
+                                {sprintBlogLinks.map((link) => {
+                                    const srcSprint = allSprints.find(s => s.id === link.sourceSprintId);
+                                    const tgtBlog = availableBlogs.find(b => b.id === link.targetBlogId);
+                                    const isCoded = Boolean(link.optionCode && link.optionCode.trim());
+                                    return (
+                                        <div key={link.id} className="p-6 rounded-3xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                                            <div className="flex items-center gap-5 min-w-0">
+                                                <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-200 shadow-sm bg-gray-100">
+                                                    <img src={srcSprint?.coverImageUrl || ''} className="w-full h-full object-cover" alt="" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                        <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[8px] font-black uppercase tracking-widest">{srcSprint?.title || 'Unknown Source'}</span>
+                                                        <span className="text-gray-300">→</span>
+                                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md text-[8px] font-black uppercase tracking-widest">
+                                                            📖 {tgtBlog?.title || 'Unknown Article'}
+                                                        </span>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                                            isCoded ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-blue-100 text-blue-800'
+                                                        }`}>
+                                                            {isCoded ? '⭐ 1st Priority (Coded Link)' : '📖 2nd Priority (Normal Link)'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs font-black text-gray-900 font-mono bg-white px-2.5 py-1 rounded-xl border border-gray-200 inline-block">
+                                                        {link.optionCode || 'Direct RiseBlog Link (No Option Code)'}
+                                                    </p>
+                                                    <p className="text-xs font-bold text-gray-600 mt-1 italic">
+                                                        {isCoded ? `Proof: "${link.optionText}"` : 'Active upon starting source sprint'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    if (window.confirm("Are you sure you want to delete this RiseBlog link?")) {
+                                                        await sprintService.deleteSprintBlogLink(link.id);
+                                                        setSprintBlogLinks(await sprintService.getSprintBlogLinks());
+                                                        toast.success("RiseBlog link deleted.");
+                                                    }
+                                                }}
+                                                className="px-4 py-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                            >
+                                                Delete Link
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No RiseBlog Links Configured Yet</p>
+                                <p className="text-[10px] text-gray-300 mt-1">Use the form above to link a source sprint option to a target recommended RiseBlog article.</p>
+                            </div>
+                        )}
+                    </div>
+                </main>
+            ) : activeOrchestratorTab === 'sprint_linking' ? (
                 <main className="flex-1 space-y-8 animate-fade-in">
                     <header className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="relative z-10">
@@ -533,15 +778,26 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
 
                             {/* 2. Option Code & Proof Display */}
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">2. Option Code (Optional — e.g. {'{M1 Step 3 op1}'})</label>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                        2. Option Code (Optional — e.g. <code className="text-primary font-mono lowercase">{'{m1 step 3 op 3}'}</code>)
+                                    </label>
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${linkOptionCode?.trim() ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                                        {linkOptionCode?.trim() ? '⭐ Superior Link (1st Priority on Click)' : '🔗 Normal Link (2nd Priority Stage)'}
+                                    </span>
+                                </div>
                                 <input
                                     type="text"
                                     value={linkOptionCode}
                                     onChange={(e) => setLinkOptionCode(e.target.value)}
-                                    placeholder="{M1 Step 3 op1} (Optional)"
+                                    placeholder="{m1 step 3 op 3} (Optional)"
                                     className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
                                 />
-                                <p className="text-[10px] font-bold text-gray-400 italic">Format example: <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">{'{M1 Step 3 op1}'}</code> or leave blank for direct sprint-to-sprint linking.</p>
+                                <div className="p-3.5 bg-gray-50 border border-gray-100 rounded-xl space-y-1 text-[11px] text-gray-600">
+                                    <p className="font-bold text-gray-800">2 Different Forms of Linking:</p>
+                                    <p><strong className="text-amber-700">⭐ 1st Priority (Superior with Code):</strong> Put <code className="bg-white px-1.5 py-0.5 rounded border font-mono">{'{m1 step 3 op 3}'}</code>. When the participant clicks this option in the sprint, this linked sprint becomes their #1 top recommendation in Explore.</p>
+                                    <p><strong className="text-blue-700">🔗 2nd Priority Stage (Normal without Code):</strong> Leave blank. Once the participant starts this sprint, this next linked sprint is automatically recorded in Explore as the 2nd priority stage recommendation.</p>
+                                </div>
                             </div>
 
                             {/* Actual Text Proof Display */}
@@ -552,22 +808,25 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                 if (!parsed) {
                                     return (
                                         <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
-                                            ⚠️ Could not parse option code or find matching step/poll options in source sprint. Check syntax (e.g. {'{M1 Step 3 op1}'}).
+                                            ⚠️ Could not parse option code or find matching step/poll options in source sprint. Check syntax (e.g. {'{m1 step 3 op 3}'}).
                                         </div>
                                     );
                                 }
                                 return (
                                     <div className="p-5 rounded-2xl bg-green-50 border border-green-200 space-y-1 animate-fade-in">
-                                        <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Actual Text Proof (Matched Option)</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Actual Text Proof (Matched Option)</p>
+                                            <span className="text-[9px] font-black bg-green-200 text-green-900 px-2 py-0.5 rounded-full">1st Priority on Click</span>
+                                        </div>
                                         <p className="text-sm font-black text-gray-900">"{parsed.optionText}"</p>
-                                        <p className="text-[10px] font-medium text-green-600">Day {parsed.dayNum}, Step {parsed.stepIdx + 1}, Option {parsed.optionIdx + 1}</p>
+                                        <p className="text-[10px] font-medium text-green-600">Move/Day {parsed.dayNum}, Step {parsed.stepIdx + 1}, Option {parsed.optionIdx + 1}</p>
                                     </div>
                                 );
                             })()}
 
                             {/* 3. Target Linked Sprint Dropdown */}
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked Sprint (Recommended When Clicked)</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked Sprint (Recommended When Clicked or Started)</label>
                                 <select
                                     value={linkTargetSprintId}
                                     onChange={(e) => setLinkTargetSprintId(e.target.value)}
@@ -635,6 +894,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                 {sprintLinks.map((link) => {
                                     const srcSprint = allSprints.find(s => s.id === link.sourceSprintId);
                                     const tgtSprint = allSprints.find(s => s.id === link.targetSprintId);
+                                    const isCoded = Boolean(link.optionCode && link.optionCode.trim());
                                     return (
                                         <div key={link.id} className="p-6 rounded-3xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                                             <div className="flex items-center gap-5 min-w-0">
@@ -642,7 +902,7 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                     <img src={srcSprint?.coverImageUrl || ''} className="w-full h-full object-cover" alt="" />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
                                                         <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[8px] font-black uppercase tracking-widest">{srcSprint?.title || 'Unknown Source'}</span>
                                                         <span className="text-gray-300">→</span>
                                                         <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
@@ -652,12 +912,17 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                                                         }`}>
                                                             {srcSprint?.id === tgtSprint?.id ? '🔁 Repeat Sprint' : (tgtSprint?.title || 'Unknown Target')}
                                                         </span>
+                                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                                            isCoded ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-blue-100 text-blue-800'
+                                                        }`}>
+                                                            {isCoded ? '⭐ 1st Priority (Coded Link)' : '🔗 2nd Priority (Normal Link)'}
+                                                        </span>
                                                     </div>
                                                     <p className="text-xs font-black text-gray-900 font-mono bg-white px-2.5 py-1 rounded-xl border border-gray-200 inline-block">
                                                         {link.optionCode || 'Direct Sprint Link (No Option Code)'}
                                                     </p>
                                                     <p className="text-xs font-bold text-gray-600 mt-1 italic">
-                                                        Proof: "{link.optionText}"
+                                                        {isCoded ? `Proof: "${link.optionText}"` : 'Active upon starting source sprint'}
                                                     </p>
                                                 </div>
                                             </div>

@@ -2,40 +2,46 @@ import { Sprint, UserRole, Participant, LifecycleSlotAssignment, User, Participa
 import { FOCUS_OPTIONS } from '../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../constants';
 
-export const parseOptionCodeHelper = (code: string, sprint?: Sprint | null) => {
+export interface ParsedOptionCode {
+    dayNum: number;
+    stepIdx: number;
+    optionIdx: number;
+    optionText: string;
+}
+
+export const parseOptionCodeHelper = (code: string, sprint?: Sprint | null): ParsedOptionCode | null => {
     if (!code) return null;
-    const clean = code.trim().replace(/^\{|\}$/g, '').trim();
+    const clean = code.trim().replace(/^[\{\[\(\<]+|[\}\]\)\>]+$/g, '').trim();
     
     let dayNum = 1;
     let stepNum = 1;
     let opNum = 1;
 
-    const mMatch = clean.match(/M(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
-    const dMatch = clean.match(/Day\s+(\d+)\s+Step\s+(\d+)\s+op(\d+)/i);
-    const sMatch = clean.match(/Step\s+(\d+)\s+op(\d+)/i);
-    const shortMatch = clean.match(/M(\d+)\s+S(\d+)\s+O(\d+)/i);
+    // Pattern 1: Day/Move + Step + Option
+    // Matches "M1 Step 3 op 3", "Move 1 Step 3 option 3", "Day 1 Step 3 op3", "D1 S3 O3", "M1 Step 3 choice 3"
+    const fullMatch = clean.match(/(?:m|move|day|d)\s*(\d+)\s*(?:step|s)\s*(\d+)\s*(?:op|option|choice|opt|o)\s*(\d+)/i);
+    // Pattern 2: Step + Option (without Day specified, defaults to Day 1 / Move 1)
+    const stepOpMatch = clean.match(/(?:step|s)\s*(\d+)\s*(?:op|option|choice|opt|o)\s*(\d+)/i);
+    // Pattern 3: Separated numbers e.g. "1 3 3" or "1-3-3" or "1.3.3"
+    const numMatch = clean.match(/^(\d+)[\s\.\-_]+(\d+)[\s\.\-_]+(\d+)$/);
 
-    if (mMatch) {
-        dayNum = parseInt(mMatch[1], 10);
-        stepNum = parseInt(mMatch[2], 10);
-        opNum = parseInt(mMatch[3], 10);
-    } else if (dMatch) {
-        dayNum = parseInt(dMatch[1], 10);
-        stepNum = parseInt(dMatch[2], 10);
-        opNum = parseInt(dMatch[3], 10);
-    } else if (shortMatch) {
-        dayNum = parseInt(shortMatch[1], 10);
-        stepNum = parseInt(shortMatch[2], 10);
-        opNum = parseInt(shortMatch[3], 10);
-    } else if (sMatch) {
-        stepNum = parseInt(sMatch[1], 10);
-        opNum = parseInt(sMatch[2], 10);
+    if (fullMatch) {
+        dayNum = parseInt(fullMatch[1], 10);
+        stepNum = parseInt(fullMatch[2], 10);
+        opNum = parseInt(fullMatch[3], 10);
+    } else if (stepOpMatch) {
+        stepNum = parseInt(stepOpMatch[1], 10);
+        opNum = parseInt(stepOpMatch[2], 10);
+    } else if (numMatch) {
+        dayNum = parseInt(numMatch[1], 10);
+        stepNum = parseInt(numMatch[2], 10);
+        opNum = parseInt(numMatch[3], 10);
     } else {
         return null;
     }
 
-    const stepIdx = stepNum - 1;
-    const optionIdx = opNum - 1;
+    const stepIdx = Math.max(0, stepNum - 1);
+    const optionIdx = Math.max(0, opNum - 1);
 
     let optionText = '';
     if (sprint && sprint.dailyContent) {
@@ -63,53 +69,96 @@ export const parseOptionCodeHelper = (code: string, sprint?: Sprint | null) => {
 
 /**
  * Checks if a participant's recorded answers in their enrollment match a configured sprint link.
+ * Used for Superior Option-Coded Sprint Linking.
  */
 export const isOptionLinkMatchedByUser = (
     enrollment: ParticipantSprint | undefined | null,
     sourceSprint: Sprint | undefined | null,
     link: any
 ): boolean => {
-    if (!link || (!link.optionCode || !link.optionCode.trim())) return true;
+    if (!link || !link.optionCode || !link.optionCode.trim()) {
+        // Not an option-coded link (uncoded links belong to normal Stage 2 priority)
+        return false;
+    }
     if (!enrollment) return false;
+
     const parsed = parseOptionCodeHelper(link.optionCode, sourceSprint);
     const targetOptionText = (link.optionText || parsed?.optionText || '').trim().toLowerCase();
+    const cleanCode = link.optionCode.trim().toLowerCase().replace(/^[\{\[\(\<]+|[\}\]\)\>]+$/g, '');
 
     const progressList = Array.isArray(enrollment.progress) ? enrollment.progress : [];
 
-    // Check specific day/step if parsed
+    // Helper to evaluate if a user answer/value matches the option
+    const testValueMatch = (val: any): boolean => {
+        if (!val) return false;
+        if (typeof val === 'string') {
+            const trimmed = val.trim().toLowerCase();
+            if (!trimmed) return false;
+
+            // Direct match with resolved option text
+            if (targetOptionText && (trimmed === targetOptionText || trimmed.includes(targetOptionText) || targetOptionText.includes(trimmed))) {
+                return true;
+            }
+
+            // Direct match with option code
+            if (cleanCode && (trimmed.includes(cleanCode) || trimmed.includes(link.optionCode.toLowerCase()))) {
+                return true;
+            }
+
+            // If value is a JSON array string (from multi-select polls)
+            if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                try {
+                    const parsedArr = JSON.parse(trimmed);
+                    if (Array.isArray(parsedArr)) {
+                        return parsedArr.some(item => testValueMatch(item));
+                    }
+                } catch (e) {}
+            }
+        } else if (Array.isArray(val)) {
+            return val.some(item => testValueMatch(item));
+        }
+        return false;
+    };
+
+    // 1. Check exact Day and Step from parsed code
     if (parsed) {
         const dayProg = progressList.find(p => Number(p.day) === Number(parsed.dayNum));
-        if (dayProg) {
-            const answer = dayProg.answers?.[parsed.stepIdx];
-            if (answer && typeof answer === 'string') {
-                const cleanAns = answer.trim().toLowerCase();
-                if (targetOptionText && (cleanAns === targetOptionText || cleanAns.includes(targetOptionText) || targetOptionText.includes(cleanAns))) {
-                    return true;
+        if (dayProg && dayProg.answers) {
+            const stepAns = dayProg.answers[parsed.stepIdx];
+            if (testValueMatch(stepAns)) return true;
+
+            // Check against options list of source sprint at the option index
+            if (sourceSprint?.dailyContent) {
+                const dc = sourceSprint.dailyContent.find(d => Number(d.day) === Number(parsed.dayNum)) || sourceSprint.dailyContent[parsed.dayNum - 1];
+                if (dc?.taskPollOptions?.[parsed.stepIdx]) {
+                    const rawOpts = dc.taskPollOptions[parsed.stepIdx];
+                    let opts: string[] = [];
+                    try {
+                        opts = typeof rawOpts === 'string' && rawOpts.trim().startsWith('[') ? JSON.parse(rawOpts) : String(rawOpts).split(',').map(s => s.trim());
+                    } catch (e) {
+                        opts = String(rawOpts).split(',').map(s => s.trim());
+                    }
+                    const optAtIdx = opts[parsed.optionIdx];
+                    if (optAtIdx && testValueMatch(optAtIdx) && testValueMatch(stepAns)) {
+                        return true;
+                    }
+                    if (optAtIdx && stepAns && typeof stepAns === 'string' && stepAns.trim().toLowerCase() === optAtIdx.trim().toLowerCase()) {
+                        return true;
+                    }
                 }
             }
         }
     }
 
-    // Check across all progress answers and submissions
+    // 2. Comprehensive fallback across all progress items and submission strings
     for (const p of progressList) {
         if (Array.isArray(p.answers)) {
             for (const ans of p.answers) {
-                if (typeof ans === 'string' && ans.trim()) {
-                    const cleanAns = ans.trim().toLowerCase();
-                    if (targetOptionText && (cleanAns === targetOptionText || cleanAns.includes(targetOptionText) || targetOptionText.includes(cleanAns))) {
-                        return true;
-                    }
-                    if (link.optionCode && cleanAns.includes(link.optionCode.toLowerCase())) {
-                        return true;
-                    }
-                }
+                if (testValueMatch(ans)) return true;
             }
         }
-        if (typeof p.submission === 'string' && targetOptionText) {
-            const cleanSub = p.submission.toLowerCase();
-            if (cleanSub.includes(targetOptionText)) {
-                return true;
-            }
+        if (p.submission && testValueMatch(p.submission)) {
+            return true;
         }
     }
 
@@ -306,12 +355,13 @@ export const filterAllowedSprintsForUser = (allSprints: Sprint[], user: User | P
 /**
  * Returns the exact list of recommended sprints for the Explore page,
  * respecting:
- * 0. Sprint-to-Sprint Option Linking (Senior Brother: Option match via Orchestrator Lifecycle or Sprint Setting Bypass)
- * 1. Orchestrator Override Sprints (overrideOrchestrator flag)
- * 2. Lifecycle Orchestrator slots (slot_dir_sprint mapping with user focus)
- * 3. Growth Areas (from identity setup)
- * 4. Rise Pathway
- * 5. Fallbacks to remaining available sprints
+ * 1. Superior Option-Coded Sprint Linking (1st Priority: Reorders recommendation when participant clicks tracked {m1 step 3 op 3})
+ * 2. Normal Sprint-to-Sprint Linking without coding (2nd Priority Stage: Recorded once someone starts that sprint)
+ * 3. Orchestrator Override Sprints (overrideOrchestrator flag)
+ * 4. Lifecycle Orchestrator slots (slot_dir_sprint mapping with user focus)
+ * 5. Growth Areas (from identity setup)
+ * 6. Rise Pathway
+ * 7. Fallbacks to remaining available sprints
  */
 export const getExploreNextSteps = (
     sprints: Sprint[],
@@ -333,76 +383,93 @@ export const getExploreNextSteps = (
         }
     };
 
-    // =========================================================================
-    // 0. SENIOR BROTHER: Sprint-to-Sprint Option Linking & Sprint Setting Bypass
-    // =========================================================================
-    let sourceSprintId = currentOrCompletedSprintId;
-    let sourceEnrollment: ParticipantSprint | undefined = undefined;
-
-    if (userEnrollments && userEnrollments.length > 0) {
-        if (sourceSprintId) {
-            sourceEnrollment = userEnrollments.find(e => e.sprint_id === sourceSprintId);
-        } else {
-            // Find most recently completed or active enrollment
-            const completed = userEnrollments
-                .filter(e => e.completed_at || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed)))
-                .sort((a, b) => new Date(b.completed_at || b.started_at || 0).getTime() - new Date(a.completed_at || a.started_at || 0).getTime());
-            
-            if (completed.length > 0) {
-                sourceEnrollment = completed[0];
-                sourceSprintId = completed[0].sprint_id;
-            } else {
-                const active = [...userEnrollments].sort((a, b) => 
-                    new Date(b.last_activity_at || b.started_at || 0).getTime() - new Date(a.last_activity_at || a.started_at || 0).getTime()
-                );
-                if (active.length > 0) {
-                    sourceEnrollment = active[0];
-                    sourceSprintId = active[0].sprint_id;
-                }
-            }
+    // Determine the source enrollment(s) to evaluate links from
+    // Prioritize active enrollments (most recent activity first), then completed enrollments
+    const candidateEnrollments: ParticipantSprint[] = [];
+    if (currentOrCompletedSprintId && userEnrollments) {
+        const exact = userEnrollments.find(e => e.sprint_id === currentOrCompletedSprintId);
+        if (exact) {
+            candidateEnrollments.push(exact);
         }
     }
 
-    if (sourceSprintId) {
-        const sourceSprint = sprints.find(s => s.id === sourceSprintId);
+    if (userEnrollments && userEnrollments.length > 0) {
+        const active = [...userEnrollments]
+            .filter(e => !candidateEnrollments.some(ce => ce.id === e.id) && (!e.completed_at && !(Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
+            .sort((a, b) => new Date(b.last_activity_at || b.started_at || 0).getTime() - new Date(a.last_activity_at || a.started_at || 0).getTime());
 
-        // A. Check Option-based linking configured in Lifecycle Orchestrator
-        if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
-            const relevantLinks = sprintLinks.filter(l => l.sourceSprintId === sourceSprintId);
-            
-            // First check for links where participant answers actually matched the option choice
-            for (const link of relevantLinks) {
-                if (isOptionLinkMatchedByUser(sourceEnrollment, sourceSprint, link)) {
+        const completed = [...userEnrollments]
+            .filter(e => !candidateEnrollments.some(ce => ce.id === e.id) && (e.completed_at || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
+            .sort((a, b) => new Date(b.completed_at || b.started_at || 0).getTime() - new Date(a.completed_at || a.started_at || 0).getTime());
+
+        candidateEnrollments.push(...active, ...completed);
+    }
+
+    // If currentOrCompletedSprintId has no enrollment record yet (e.g. freshly viewing/starting), create mock
+    if (currentOrCompletedSprintId && candidateEnrollments.length === 0) {
+        candidateEnrollments.push({
+            id: 'temp_source',
+            sprint_id: currentOrCompletedSprintId,
+            user_id: user?.id || '',
+            started_at: new Date().toISOString(),
+            progress: []
+        } as any);
+    }
+
+    // =========================================================================
+    // STAGE 1: SUPERIOR LINKING WITH CODE (1st Priority)
+    // When someone clicks that {m1 step 3 op 3} tracked/linked option,
+    // it reorders the recommendation of this sprint as the FIRST PRIORITY.
+    // =========================================================================
+    if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
+        for (const enrollment of candidateEnrollments) {
+            const srcSprint = sprints.find(s => s.id === enrollment.sprint_id);
+            const codedLinks = sprintLinks.filter(l => l.sourceSprintId === enrollment.sprint_id && l.optionCode && l.optionCode.trim());
+
+            for (const link of codedLinks) {
+                if (isOptionLinkMatchedByUser(enrollment, srcSprint, link)) {
                     const target = sprints.find(s => s.id === link.targetSprintId);
                     if (target) {
                         addSprint(target, true); // Allow repeat for explicitly linked same-sprint
                     }
                 }
             }
+        }
+    }
 
-            // Fallback: If user had no specific poll match but source sprint has direct link rules
-            for (const link of relevantLinks) {
+    // =========================================================================
+    // STAGE 2: NORMAL SPRINT-TO-SPRINT LINKING WITHOUT CODING (2nd Priority Stage)
+    // Once someone starts that sprint, the next linked sprint is what is recorded
+    // in the explore page as the second priority stage recommendation.
+    // =========================================================================
+    for (const enrollment of candidateEnrollments) {
+        const srcSprint = sprints.find(s => s.id === enrollment.sprint_id);
+        
+        // A. Direct links configured in Sprint Links (without option codes)
+        if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
+            const directLinks = sprintLinks.filter(l => l.sourceSprintId === enrollment.sprint_id && (!l.optionCode || !l.optionCode.trim()));
+            for (const link of directLinks) {
                 const target = sprints.find(s => s.id === link.targetSprintId);
                 if (target) {
-                    addSprint(target, true); // Allow repeat for explicitly linked same-sprint
+                    addSprint(target, true);
                 }
             }
         }
 
-        // B. Check Sprint Setting Bypass (Direct linked sprint set on source sprint itself)
-        if (sourceSprint) {
-            const directLinkedId = sourceSprint.nextSprintId || sourceSprint.linkedSprintId;
+        // B. Sprint Setting direct linked sprint (nextSprintId / linkedSprintId)
+        if (srcSprint) {
+            const directLinkedId = srcSprint.nextSprintId || srcSprint.linkedSprintId;
             if (directLinkedId) {
                 const target = sprints.find(s => s.id === directLinkedId);
                 if (target) {
-                    addSprint(target, true); // Allow repeat for explicitly linked same-sprint
+                    addSprint(target, true);
                 }
             }
         }
     }
 
     // =========================================================================
-    // 1. Sprints that override orchestrator
+    // STAGE 3: Sprints that override orchestrator
     // =========================================================================
     const overrideSprintsActive = sprints
         .filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id))
@@ -415,7 +482,7 @@ export const getExploreNextSteps = (
                      Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
 
     // =========================================================================
-    // 2. Prioritization list from orchestrator direction session (slot_dir_sprint)
+    // STAGE 4: Prioritization list from orchestrator direction session (slot_dir_sprint)
     // =========================================================================
     const directionMapping = orchestration['slot_dir_sprint'];
     if (directionMapping) {
@@ -452,7 +519,7 @@ export const getExploreNextSteps = (
     }
 
     // =========================================================================
-    // 3. Growth Areas (from identity setup)
+    // STAGE 5: Growth Areas (from identity setup)
     // =========================================================================
     const growthAreas = participant?.growthAreas || [];
     if (growthAreas.length > 0) {
@@ -469,7 +536,7 @@ export const getExploreNextSteps = (
     }
 
     // =========================================================================
-    // 4. Rise Pathway
+    // STAGE 6: Rise Pathway
     // =========================================================================
     const pathwayId = participant?.risePathway;
     if (pathwayId) {
@@ -488,7 +555,7 @@ export const getExploreNextSteps = (
     }
 
     // =========================================================================
-    // 5. Fallback to any remaining non-enrolled sprints
+    // STAGE 7: Fallback to any remaining non-enrolled sprints
     // =========================================================================
     sprints.forEach(s => {
         if (!enrolledSprintIds.has(s.id)) {
