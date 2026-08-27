@@ -1141,11 +1141,15 @@ export function hasAnyInvalidPlaceholdersInContent(dailyContent: any[]): boolean
     const dayNum = Number(day.day || 1);
     const inputTypes = day.taskInputTypes || Array(day.taskPrompts.length).fill('text');
     for (let i = 0; i < day.taskPrompts.length; i++) {
-      const prompt = day.taskPrompts[i];
-      if (!prompt) continue;
-      const val = validateStepPlaceholders(prompt, i, inputTypes, day.taskPollOptions, dayNum, dailyContent);
-      if (!val.isValid) {
-        return true;
+      const rawPrompt = day.taskPrompts[i];
+      if (!rawPrompt) continue;
+      const versions = parseStepVersions(rawPrompt);
+      for (const prompt of versions) {
+        if (!prompt) continue;
+        const val = validateStepPlaceholders(prompt, i, inputTypes, day.taskPollOptions, dayNum, dailyContent);
+        if (!val.isValid) {
+          return true;
+        }
       }
     }
   }

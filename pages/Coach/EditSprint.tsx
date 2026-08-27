@@ -1818,12 +1818,6 @@ const EditSprint: React.FC = () => {
   const handleSaveDraft = async () => {
     if (!sprint) return;
 
-    if (hasAnyInvalidPlaceholdersInContent(sprint.dailyContent || [])) {
-      alert("Cannot save: Invalid {step N} placeholder logic detected! Placeholders like {step 1} must reference a preceding step.");
-      setSaveStatus('idle');
-      return;
-    }
-
     setSaveStatus('saving');
     try {
       const newStatus = (isAdmin && isFoundational) ? 'approved' : 'draft';

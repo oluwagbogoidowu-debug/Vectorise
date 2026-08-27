@@ -1089,7 +1089,7 @@ export default function DailyActionWorkspace({
                                       onClick={() => {
                                         setSelectedDay(dayNum);
                                         const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'normal');
-                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'normal'
@@ -1105,7 +1105,7 @@ export default function DailyActionWorkspace({
                                       onClick={() => {
                                         setSelectedDay(dayNum);
                                         const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'sentence');
-                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'sentence'
@@ -1121,7 +1121,7 @@ export default function DailyActionWorkspace({
                                       onClick={() => {
                                         setSelectedDay(dayNum);
                                         const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'list');
-                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'list'
@@ -1137,7 +1137,7 @@ export default function DailyActionWorkspace({
                                       onClick={() => {
                                         setSelectedDay(dayNum);
                                         const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'main');
-                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'main'
@@ -1153,7 +1153,7 @@ export default function DailyActionWorkspace({
                                       onClick={() => {
                                         setSelectedDay(dayNum);
                                         const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'hide');
-                                        handleTaskPromptChange(dayNum, activeIdx, updatedPrompt);
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'hide'
