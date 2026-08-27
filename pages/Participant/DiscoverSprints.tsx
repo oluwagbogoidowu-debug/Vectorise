@@ -79,8 +79,9 @@ const DiscoverSprints: React.FC = () => {
     useEffect(() => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
-            setAllSprints(data);
-            const allowedSprints = filterAllowedSprintsForUser(data, user);
+            const nonIgnite = data.filter(s => s.contentType !== 'ignite');
+            setAllSprints(nonIgnite);
+            const allowedSprints = filterAllowedSprintsForUser(nonIgnite, user);
             setSprints(allowedSprints);
             setIsSprintsLoaded(true);
         }, (error) => {
@@ -229,7 +230,7 @@ const DiscoverSprints: React.FC = () => {
     const recommendedCoach = useMemo(() => {
         if (!recommendedSprint) return null;
         return coaches.find(c => c.id === recommendedSprint.coachId) || {
-            name: 'Vectorise',
+            name: 'Expert Coach',
             profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
         } as Coach;
     }, [recommendedSprint, coaches]);
@@ -349,10 +350,6 @@ const DiscoverSprints: React.FC = () => {
                     <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-3">
                         Explore What’s Next
                     </h1>
-                    <div className="space-y-1">
-                        <p className="text-lg text-gray-500 font-medium">You don’t need to do everything.</p>
-                        <p className="text-lg text-gray-900 font-bold">Just the next right thing.</p>
-                    </div>
                 </header>
 
                 {/* SECTION 1: TRACK CARD */}
@@ -382,19 +379,24 @@ const DiscoverSprints: React.FC = () => {
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Recommended Next Step</h2>
+                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Your next sprint</h2>
                                 <Sparkles className="w-3 h-3 text-primary" />
                             </div>
-                            <p className="text-xs text-gray-400 font-medium">Build your foundation with these selected essential programs</p>
                         </div>
                         
                         <div className="space-y-6 px-2">
-                            {nextSteps.map(sprint => (
-                                <SprintCard 
-                                    key={sprint.id}
-                                    sprint={sprint} 
-                                    coach={coaches.find(c => c.id === sprint.coachId) || ({} as Coach)} 
-                                />
+                            {nextSteps.map((sprint, index) => (
+                                <React.Fragment key={sprint.id}>
+                                    {index === 1 && (
+                                        <div className="pt-4 pb-1">
+                                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Other recommended sprints</h2>
+                                        </div>
+                                    )}
+                                    <SprintCard 
+                                        sprint={sprint} 
+                                        coach={coaches.find(c => c.id === sprint.coachId) || ({} as Coach)} 
+                                    />
+                                </React.Fragment>
                             ))}
                         </div>
                     </section>

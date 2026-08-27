@@ -691,9 +691,9 @@ export const RiseBlog: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/15" />
           
           <button 
-            onClick={() => navigate(user ? '/blog' : '/discover')}
+            onClick={() => navigate('/blog')}
             className="absolute top-6 left-6 w-10 h-10 bg-white/90 backdrop-blur-md hover:bg-white rounded-full flex items-center justify-center text-gray-800 transition-all shadow-md active:scale-90 z-20"
-            title={user ? "Back to Blog" : "Go to Home"}
+            title={user ? "Back to Blog" : "Go to RiseBlog Home"}
           >
             {user ? <ArrowLeft className="w-5 h-5" /> : <Home className="w-5 h-5" />}
           </button>
@@ -905,7 +905,7 @@ export const RiseBlog: React.FC = () => {
             onMouseLeave={() => setIsSliderPaused(false)}
           >
             {/* Carousel Container */}
-            <div className="relative rounded-[2.5rem] overflow-hidden group shadow-xl aspect-[4/5.2] sm:aspect-[4/4.5] flex flex-col justify-end bg-gray-950 select-none pb-4">
+            <div className="relative rounded-[2.5rem] overflow-hidden group shadow-xl aspect-[4/5.2] sm:aspect-[4/4.5] flex flex-col justify-end bg-gray-950 select-none">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={sliderPosts[activeSlideIndex]?.id || activeSlideIndex}
@@ -919,7 +919,7 @@ export const RiseBlog: React.FC = () => {
                   <img 
                     src={sliderPosts[activeSlideIndex].coverImage} 
                     alt={sliderPosts[activeSlideIndex].title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/60 to-transparent" />
 
@@ -970,7 +970,7 @@ export const RiseBlog: React.FC = () => {
 
               {/* Pagination Slider Indicator (Auto-transitions every 5 seconds) */}
               {sliderPosts.length > 1 && (
-                <div className="relative z-20 flex items-center justify-center gap-2 pb-3">
+                <div className="absolute bottom-4 left-0 right-0 z-20 flex items-center justify-center gap-2">
                   {sliderPosts.map((_, dotIdx) => (
                     <button
                       key={dotIdx}

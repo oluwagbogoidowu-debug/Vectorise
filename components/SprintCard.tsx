@@ -90,7 +90,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
         if (isFoundational) {
             return {
                 ...coach,
-                name: 'Vectorise',
+                name: 'Expert Coach',
                 profileImageUrl: coach.profileImageUrl || 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
             };
         }
@@ -98,7 +98,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
         if (!coach || !coach.name) {
             return {
                 ...coach,
-                name: 'Vectorise',
+                name: 'Expert Coach',
                 profileImageUrl: coach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE
             } as Coach;
         }
@@ -137,10 +137,10 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                     <div className="relative z-10 flex flex-col h-full">
                         <div className="flex justify-between items-start mb-5">
                             <span className="px-2.5 py-0.5 bg-white/20 text-white rounded-full text-[8px] font-black uppercase tracking-widest">
-                                {sprint.category || 'Phase 02'}
+                                {sprint.contentType === 'blog' ? 'RiseBlog' : 'Sprint'}
                             </span>
                             <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">
-                                {sprint.sprintType || 'Evolution'}
+                                {sprint.category || 'Phase 02'}
                             </span>
                         </div>
 
@@ -266,9 +266,11 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                     )}
 
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                        <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">{sprint.category}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.sprintType || "Fundamentals"}>
-                            {sprint.sprintType || "Fundamentals"}
+                        <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">
+                            {sprint.contentType === 'blog' ? 'RiseBlog' : 'Sprint'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.category || "Fundamentals"}>
+                            {sprint.category || "Fundamentals"}
                         </span>
                     </div>
                     
