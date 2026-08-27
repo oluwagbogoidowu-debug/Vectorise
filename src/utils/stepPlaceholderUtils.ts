@@ -84,7 +84,7 @@ export function isMainActiveForStep(
 ): boolean {
   if (!dayContent) return false;
 
-  const mainRegex = /\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
+  const mainRegex = /\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d*(?:\s*[oO][pP]\s*\d+)?\s+(?:main|m)\}/i;
 
   const rawPrompt = dayContent.taskPrompts?.[stepIdx];
   if (typeof rawPrompt === 'string') {
@@ -168,13 +168,15 @@ export function validateStepPlaceholders(
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
   let match: RegExpExecArray | null;
   const references: StepPlaceholderDetail[] = [];
+  let lastStepNum = 1;
 
   while ((match = regex.exec(prompt)) !== null) {
     const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
-    const stepNum = parseInt(match[2], 10);
+    const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
+    if (match[2]) lastStepNum = stepNum;
     const opNum = match[3] ? parseInt(match[3], 10) : undefined;
     const modeStr = match[4];
     const mode = parsePlaceholderMode(modeStr);
@@ -445,19 +447,21 @@ export function getExplicitLinkedSteps(
   const tagNoteVal = dayContent.taskTagNotes?.[stepIdx];
   if (typeof tagNoteVal === 'string') writeupTexts.push(tagNoteVal);
 
-  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   for (const text of writeupTexts) {
     let match: RegExpExecArray | null;
     regex.lastIndex = 0;
+    let lastStepNum = 1;
     while ((match = regex.exec(text)) !== null) {
       const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
-      const stepNum = parseInt(match[2], 10);
+      const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
+      if (match[2]) lastStepNum = stepNum;
       const opNum = match[3] ? parseInt(match[3], 10) : undefined;
       const mode = parsePlaceholderMode(match[4]);
       const targetStepIdx = stepNum - 1;
       
-      // ONLY include if the writeup explicitly declared 'main' mode
+      // ONLY include if the writeup explicitly declared 'main' mode (e.g. {M1 Step 1 main}, {Step 1 main}, {Step Op 2 m})
       if (mode === 'main') {
         addLink(dayNum, targetStepIdx, opNum, mode);
       }
@@ -469,9 +473,11 @@ export function getExplicitLinkedSteps(
   if (typeof optionsVal === 'string') {
     let match: RegExpExecArray | null;
     regex.lastIndex = 0;
+    let lastStepNum = 1;
     while ((match = regex.exec(optionsVal)) !== null) {
       const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
-      const stepNum = parseInt(match[2], 10);
+      const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
+      if (match[2]) lastStepNum = stepNum;
       const opNum = match[3] ? parseInt(match[3], 10) : undefined;
       const mode = parsePlaceholderMode(match[4]);
       const targetStepIdx = stepNum - 1;
@@ -843,7 +849,7 @@ export function formatInterpolatedText(
     (m, bracketed, bare) => bracketed ? `{${bracketed}}` : `{${bare}}`
   );
 
-  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   const currentDayNum = Number(dayContent?.day || 1);
 
@@ -942,10 +948,12 @@ export function formatInterpolatedText(
   };
 
   regex.lastIndex = 0;
+  let lastStepNum = 1;
 
   return normalizedPrompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr, modeStr) => {
     const targetDay = dayNumStr ? parseInt(dayNumStr, 10) : currentDayNum;
-    const stepNum = parseInt(stepNumStr, 10);
+    const stepNum = stepNumStr ? parseInt(stepNumStr, 10) : lastStepNum;
+    if (stepNumStr) lastStepNum = stepNum;
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const mode = parsePlaceholderMode(modeStr);
     const stepIndex = stepNum - 1;
@@ -1682,13 +1690,15 @@ export function isStepVisibleForSprint(
 
   const checkTextVisibility = (promptText: string): boolean => {
     if (!promptText) return true;
-    const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+    const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
     let match: RegExpExecArray | null;
 
     const stepPlaceholders: { dayNum?: number; stepNum: number; opNum?: number; mode: StepPlaceholderMode }[] = [];
+    let lastStepNum = 1;
     while ((match = regex.exec(promptText)) !== null) {
       const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
-      const stepNum = parseInt(match[2], 10);
+      const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
+      if (match[2]) lastStepNum = stepNum;
       const opNum = match[3] ? parseInt(match[3], 10) : undefined;
       const mode = parsePlaceholderMode(match[4]);
       stepPlaceholders.push({ dayNum, stepNum, opNum, mode });
@@ -1696,10 +1706,30 @@ export function isStepVisibleForSprint(
 
     if (stepPlaceholders.length === 0) return true;
 
+    // Group placeholders by target (targetDay:targetIdx)
+    const targetGroups: Record<string, {
+      targetDay: number;
+      targetIdx: number;
+      placeholders: { opNum?: number; mode: StepPlaceholderMode }[];
+    }> = {};
+
     for (const placeholder of stepPlaceholders) {
       const { dayNum, stepNum, opNum, mode } = placeholder;
       const targetIdx = stepNum - 1;
       const targetDay = dayNum !== undefined ? dayNum : viewingDay;
+      const key = `${targetDay}:${targetIdx}`;
+      if (!targetGroups[key]) {
+        targetGroups[key] = {
+          targetDay,
+          targetIdx,
+          placeholders: []
+        };
+      }
+      targetGroups[key].placeholders.push({ opNum, mode });
+    }
+
+    for (const group of Object.values(targetGroups)) {
+      const { targetDay, targetIdx, placeholders } = group;
 
       if (targetDay <= viewingDay) {
         if (targetDay === viewingDay && targetIdx >= stepIndex) {
@@ -1742,8 +1772,8 @@ export function isStepVisibleForSprint(
           }
         }
 
-        // If mode is 'main' and no opNum is specified (e.g. {M1 Step 7 main}), it is an active progressive connector
-        if (mode === 'main' && opNum === undefined) {
+        // If only main connector without opNum, skip
+        if (placeholders.length === 1 && placeholders[0].mode === 'main' && placeholders[0].opNum === undefined) {
           continue;
         }
 
@@ -1786,12 +1816,24 @@ export function isStepVisibleForSprint(
             });
           };
 
-          if (mode === 'disconnect' && opNum !== undefined) {
-            if (isOptionSelected(opNum)) {
-              return false; // Disconnected option selected -> hide step
+          const disconnectOpNums = placeholders
+            .filter(p => p.mode === 'disconnect' && p.opNum !== undefined)
+            .map(p => p.opNum as number);
+
+          const positiveOpNums = placeholders
+            .filter(p => p.mode !== 'disconnect' && p.opNum !== undefined)
+            .map(p => p.opNum as number);
+
+          // If disconnected option selected -> hide step
+          if (disconnectOpNums.length > 0) {
+            if (disconnectOpNums.some(oNum => isOptionSelected(oNum))) {
+              return false;
             }
-          } else if (opNum !== undefined) {
-            if (!isOptionSelected(opNum)) {
+          }
+
+          // If positive options specified (e.g. {Step 1 Op 2 h} {Step Op 3 h}) -> show if ANY positive option matches!
+          if (positiveOpNums.length > 0) {
+            if (!positiveOpNums.some(oNum => isOptionSelected(oNum))) {
               return false;
             }
           }
