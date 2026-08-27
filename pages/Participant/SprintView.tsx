@@ -1532,31 +1532,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getLinkedTagsForStep = (stepIndex: number): string[] => {
     if (!dayContent) return [];
 
-    // Strictly no step with no linking should send or receive poll or poll option or action steps
-    const explicitLinks = getExplicitLinkedSteps(stepIndex, dayContent, sprint?.dailyContent);
-    const activeLinks = explicitLinks.filter(l => l.mode !== 'hide' && l.mode !== 'disconnect');
-    if (activeLinks.length === 0) {
-      return [];
-    }
-
-    // Check step linking resolution
-    const progRes = resolveProgressiveStepSelections(
-      stepIndex,
-      dayContent,
-      taskInputs,
-      sprint?.dailyContent,
-      enrollment?.progress
-    );
-    if (progRes.allSelections.length > 0) {
-      return progRes.allSelections;
-    }
-
-    // If mainLink is present and not connected, return empty (don't draw options)
-    const hasMainLink = explicitLinks.some(l => l.mode === 'main' && l.opNum !== undefined);
-    if (hasMainLink) {
-      return [];
-    }
-
     // Check if taskLinkedSources tells us which steps are explicitly linked
     if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {
       const sources = dayContent.taskLinkedSources[stepIndex];
