@@ -1652,28 +1652,74 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }
     }
 
-    // 3. Check progressive step selections for poll-to-poll links
-    // If this step does NOT have static options (it's dynamically populated from linked step)
-    // or has an explicit placeholder in taskPollOptions e.g. {Step 2}
-    let customOpts: string[] = [];
-    try {
-      const optsStr = dayContent.taskPollOptions?.[stepIndex] || "[]";
-      customOpts = JSON.parse(optsStr);
-    } catch (e) {}
-    if (!Array.isArray(customOpts)) customOpts = [];
-    const hasStaticCustomOptions = customOpts.filter(Boolean).length > 0;
-    const hasPollOptionsPlaceholder = typeof dayContent.taskPollOptions?.[stepIndex] === 'string' && /\{[^{}]+\}/.test(dayContent.taskPollOptions[stepIndex]);
+    // 3. Check taskLinkedToNext (if previous step was explicitly linked to feed into this step)
+    if (stepIndex > 0 && dayContent.taskLinkedToNext?.[stepIndex - 1] === true) {
+      const prevIdx = stepIndex - 1;
+      const rawSrcType = dayContent.taskInputTypes?.[prevIdx];
+      const srcType = getStepInputType(dayContent, prevIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+      if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
+        const val = (taskInputs && taskInputs[prevIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[prevIdx];
+        if (val) {
+          allTags.push(...parseAnswerValues(val, srcType));
+        } else {
+          const configuredOpts = getAllStepPollOptions(dayContent, prevIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          if (configuredOpts.length > 0) {
+            allTags.push(...configuredOpts);
+          }
+        }
+        if (allTags.length > 0) {
+          return Array.from(new Set(allTags)).filter(Boolean);
+        }
+      }
+    }
 
-    if (!hasStaticCustomOptions || hasPollOptionsPlaceholder) {
-      const progRes = resolveProgressiveStepSelections(
-        stepIndex,
-        dayContent,
-        taskInputs,
-        sprint?.dailyContent,
-        enrollment?.progress
-      );
-      if (progRes.allSelections.length > 0) {
-        return progRes.allSelections;
+    // 4. Check explicit placeholders configured directly inside taskPollOptions (e.g. ["{Step 2}", "Option A"] or "{D1 Step 2}")
+    const pollOptsRaw = dayContent.taskPollOptions?.[stepIndex];
+    if (typeof pollOptsRaw === 'string' && /\{[^{}]+\}/.test(pollOptsRaw)) {
+      const currentDay = Number(dayContent.day || 1);
+      const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+      let match: RegExpExecArray | null;
+      let lastStepNum = 1;
+      while ((match = regex.exec(pollOptsRaw)) !== null) {
+        const dNum = match[1] ? parseInt(match[1], 10) : currentDay;
+        const sNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
+        if (match[2]) lastStepNum = sNum;
+        const targetStepIdx = sNum - 1;
+        
+        if (dNum === currentDay) {
+          const rawSrcType = dayContent.taskInputTypes?.[targetStepIdx];
+          const srcType = getStepInputType(dayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          const val = (taskInputs && taskInputs[targetStepIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === dNum)?.answers?.[targetStepIdx];
+          if (val) {
+            allTags.push(...parseAnswerValues(val, srcType));
+          } else {
+            const configuredOpts = getAllStepPollOptions(dayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+            if (configuredOpts.length > 0) {
+              allTags.push(...configuredOpts);
+            }
+          }
+        } else {
+          const targetProgress = enrollment?.progress?.find((p: any) => Number(p.day) === dNum);
+          const targetDayContent = Array.isArray(sprint?.dailyContent)
+            ? sprint.dailyContent.find((dc: any) => Number(dc.day) === dNum)
+            : undefined;
+          if (targetDayContent) {
+            const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
+            const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+            const val = targetProgress?.answers?.[targetStepIdx];
+            if (val) {
+              allTags.push(...parseAnswerValues(val, targetType));
+            } else {
+              const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+              if (configuredOpts.length > 0) {
+                allTags.push(...configuredOpts);
+              }
+            }
+          }
+        }
+      }
+      if (allTags.length > 0) {
+        return Array.from(new Set(allTags)).filter(Boolean);
       }
     }
 
