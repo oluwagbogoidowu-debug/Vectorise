@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -1532,28 +1532,63 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getLinkedTagsForStep = (stepIndex: number): string[] => {
     if (!dayContent) return [];
 
-    // Check if taskLinkedSources tells us which steps are explicitly linked
-    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {
+    const allTags: string[] = [];
+
+    const parseAnswerValues = (val: any, srcType: string): string[] => {
+      if (!val) return [];
+      const res: string[] = [];
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (!trimmed) return [];
+        if (trimmed.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed.map((s: any) => String(s).trim()).filter(Boolean);
+            }
+          } catch (e) {}
+        }
+        if (trimmed.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === 'object') {
+              if (typeof parsed.choice === 'string' && parsed.choice) res.push(parsed.choice.trim());
+              if (Array.isArray(parsed.choices)) res.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+              if (Array.isArray(parsed.selectedChoices)) res.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+              if (typeof parsed.text === 'string' && parsed.text && res.length === 0) res.push(parsed.text.trim());
+              if (typeof parsed.answer === 'string' && parsed.answer && res.length === 0) res.push(parsed.answer.trim());
+              if (res.length > 0) return Array.from(new Set(res));
+              return Object.values(parsed).map((s: any) => String(s).trim()).filter(Boolean);
+            }
+          } catch (e) {}
+        }
+        if (srcType === 'tags' || srcType.includes('tags')) {
+          return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [trimmed];
+      }
+      if (Array.isArray(val)) {
+        return val.map((s: any) => String(s).trim()).filter(Boolean);
+      }
+      return [];
+    };
+
+    // 1. Check if taskLinkedSources has explicit links
+    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
       const sources = dayContent.taskLinkedSources[stepIndex];
-      if (sources.length === 0) return [];
-      const allTags: string[] = [];
       sources.forEach(srcIndex => {
+        if (typeof srcIndex !== 'number') return;
         if (srcIndex >= 0) {
-          const srcType = String(dayContent.taskInputTypes?.[srcIndex] || "").trim().toLowerCase();
-          // Strictly only poll to poll and tag to poll
-          if (srcType === "poll" || srcType === "tags") {
-            if (srcIndex < taskInputs.length && taskInputs[srcIndex]) {
-              try {
-                const val = taskInputs[srcIndex];
-                if (val.startsWith("[")) {
-                  allTags.push(...JSON.parse(val));
-                } else if (srcType === "poll") {
-                  allTags.push(val);
-                } else {
-                  allTags.push(...val.split(",").filter(Boolean));
-                }
-              } catch (e) {
-                console.error("Error parsing tags for source", srcIndex, e);
+          const rawSrcType = dayContent.taskInputTypes?.[srcIndex];
+          const srcType = getStepInputType(dayContent, srcIndex, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
+            const val = (taskInputs && taskInputs[srcIndex]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[srcIndex];
+            if (val) {
+              allTags.push(...parseAnswerValues(val, srcType));
+            } else {
+              const configuredOpts = getAllStepPollOptions(dayContent, srcIndex, taskInputs, sprint?.dailyContent, enrollment?.progress);
+              if (configuredOpts.length > 0) {
+                allTags.push(...configuredOpts);
               }
             }
           }
@@ -1563,34 +1598,83 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           const targetDay = Math.floor(absVal / 100);
           const targetStepIdx = absVal % 100;
           
-          const targetProgress = enrollment?.progress?.find((p) => p.day === targetDay);
+          const targetProgress = enrollment?.progress?.find((p) => Number(p.day) === targetDay);
           const targetDayContent = Array.isArray(sprint?.dailyContent)
-            ? sprint.dailyContent.find((dc) => dc.day === targetDay)
+            ? sprint.dailyContent.find((dc) => Number(dc.day) === targetDay)
             : undefined;
             
-          if (targetProgress && targetProgress.answers && Array.isArray(targetProgress.answers) && targetDayContent) {
-            const srcType = String(targetDayContent.taskInputTypes?.[targetStepIdx] || "").trim().toLowerCase();
-            // Strictly only poll to poll and tag to poll
-            if (srcType === "poll" || srcType === "tags") {
-              const val = targetProgress.answers[targetStepIdx];
+          if (targetDayContent) {
+            const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
+            const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+            if (isStepOrSubStepPoll(rawTargetType) || targetType === "poll" || targetType === "tags" || targetType.includes("tags") || targetType === "dual") {
+              const val = targetProgress?.answers?.[targetStepIdx];
               if (val) {
-                try {
-                  if (val.startsWith("[")) {
-                    allTags.push(...JSON.parse(val));
-                  } else if (srcType === "poll") {
-                    allTags.push(val);
-                  } else {
-                    allTags.push(...val.split(",").filter(Boolean));
-                  }
-                } catch (e) {
-                  console.error("Error parsing cross-day tags for source", srcIndex, e);
+                allTags.push(...parseAnswerValues(val, targetType));
+              } else {
+                const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                if (configuredOpts.length > 0) {
+                  allTags.push(...configuredOpts);
                 }
               }
             }
           }
         }
       });
-      return Array.from(new Set(allTags)).filter(Boolean);
+      if (allTags.length > 0) {
+        return Array.from(new Set(allTags)).filter(Boolean);
+      }
+    }
+
+    // 2. Check taskPollOptionLinks (e.g. "Step 2" or "step1:poll 1")
+    const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIndex];
+    if (pollLinkRaw) {
+      const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
+      if (pollLinkInfo && pollLinkInfo.targetPollIdx >= 0) {
+        const tIdx = pollLinkInfo.targetPollIdx;
+        const rawSrcType = dayContent.taskInputTypes?.[tIdx];
+        const srcType = getStepInputType(dayContent, tIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+        const val = (taskInputs && taskInputs[tIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[tIdx];
+        if (val) {
+          allTags.push(...parseAnswerValues(val, srcType));
+        } else {
+          const configuredOpts = getAllStepPollOptions(dayContent, tIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          if (configuredOpts.length > 0) {
+            if (pollLinkInfo.optNum !== undefined && configuredOpts[pollLinkInfo.optNum - 1]) {
+              allTags.push(configuredOpts[pollLinkInfo.optNum - 1]);
+            } else {
+              allTags.push(...configuredOpts);
+            }
+          }
+        }
+        if (allTags.length > 0) {
+          return Array.from(new Set(allTags)).filter(Boolean);
+        }
+      }
+    }
+
+    // 3. Check progressive step selections for poll-to-poll links
+    // If this step does NOT have static options (it's dynamically populated from linked step)
+    // or has an explicit placeholder in taskPollOptions e.g. {Step 2}
+    let customOpts: string[] = [];
+    try {
+      const optsStr = dayContent.taskPollOptions?.[stepIndex] || "[]";
+      customOpts = JSON.parse(optsStr);
+    } catch (e) {}
+    if (!Array.isArray(customOpts)) customOpts = [];
+    const hasStaticCustomOptions = customOpts.filter(Boolean).length > 0;
+    const hasPollOptionsPlaceholder = typeof dayContent.taskPollOptions?.[stepIndex] === 'string' && /\{[^{}]+\}/.test(dayContent.taskPollOptions[stepIndex]);
+
+    if (!hasStaticCustomOptions || hasPollOptionsPlaceholder) {
+      const progRes = resolveProgressiveStepSelections(
+        stepIndex,
+        dayContent,
+        taskInputs,
+        sprint?.dailyContent,
+        enrollment?.progress
+      );
+      if (progRes.allSelections.length > 0) {
+        return progRes.allSelections;
+      }
     }
 
     return [];
