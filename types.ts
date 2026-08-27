@@ -728,3 +728,27 @@ export interface SprintBlogLink {
   createdAt: string;
 }
 
+export interface UserIdentificationRule {
+  id: string;
+  sourceSprintId: string;
+  optionCode: string;
+  optionText?: string;
+  targetField: string;
+  targetCategory?: string;
+  valueToSave?: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface UserIdentificationEntry {
+  field: string;
+  value: any;
+  optionCode?: string;
+  optionText?: string;
+  sourceSprintId?: string;
+  sourceSprintTitle?: string;
+  capturedAt: string;
+}
+

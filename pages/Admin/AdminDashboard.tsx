@@ -23,10 +23,12 @@ import AdminTracks from './AdminTracks';
 import AdminNotifications from './AdminNotifications';
 import AdminSystemParticipantControl from './AdminSystemParticipantControl';
 import AdminRepairResponses from './AdminRepairResponses';
+import AdminUserIdentificationTracking from './AdminUserIdentificationTracking';
 import { adminCache, resetAdminCache } from './adminCache';
 import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
 
 type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'tracks' | 'coaches' | 'partners' | 'quotes' | 'roles' | 'users' | 'notifications';
+type SystemTab = 'user_identification' | 'participant_control' | 'dashboard_cards' | 'repair_responses';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 export default function AdminDashboard() {
@@ -34,6 +36,7 @@ export default function AdminDashboard() {
     const { user, logout, switchRole, activeRole } = useAuth();
     const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<Tab>('pulse');
+    const [activeSystemTab, setActiveSystemTab] = useState<SystemTab>('user_identification');
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [tracks, setTracks] = useState<Track[]>([]);
     const [partnerApps, setPartnerApps] = useState<PartnerApplication[]>([]);
@@ -277,59 +280,118 @@ export default function AdminDashboard() {
                         {activeTab === 'earning' && <AdminEarnings />}
 
                         {activeTab === 'roles' && (
-                            <div id="admin-system-panel" className="animate-fade-in max-w-4xl mx-auto py-8 space-y-12">
-                                {/* 0. Debug & Audit Response Repair Tool */}
-                                <AdminRepairResponses />
+                            <div id="admin-system-panel" className="animate-fade-in max-w-5xl mx-auto py-4 space-y-8">
+                                {/* Top System Sub-Tabs Progression */}
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSystemTab('user_identification')}
+                                        className={`px-7 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                            activeSystemTab === 'user_identification'
+                                            ? 'bg-[#0E7850] text-white shadow-md'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        🆔 User Identification
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSystemTab('participant_control')}
+                                        className={`px-7 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                            activeSystemTab === 'participant_control'
+                                            ? 'bg-gray-900 text-white shadow-md'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        👥 Participant Control
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSystemTab('dashboard_cards')}
+                                        className={`px-7 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                            activeSystemTab === 'dashboard_cards'
+                                            ? 'bg-amber-600 text-white shadow-md'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        🎛️ Dashboard Cards
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveSystemTab('repair_responses')}
+                                        className={`px-7 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                            activeSystemTab === 'repair_responses'
+                                            ? 'bg-indigo-600 text-white shadow-md'
+                                            : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        🛠️ Response Audit & Repair
+                                    </button>
+                                </div>
 
-                                {/* 1. Participant Control (User Removal & Auth Clearing Panel) */}
-                                <AdminSystemParticipantControl />
+                                {/* Tab 1: User Identification Tracking (First in Progression) */}
+                                {activeSystemTab === 'user_identification' && (
+                                    <AdminUserIdentificationTracking allSprints={sprints} />
+                                )}
 
-                                {/* 2. Participant Dashboard Card Control */}
-                                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-10 shadow-sm space-y-8 text-left">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 pb-8">
-                                        <div className="space-y-2 text-left">
-                                            <span className="text-[9px] font-black tracking-widest text-[#0E7850] bg-emerald-50 px-3 py-1.5 rounded-full uppercase">Participant Controls</span>
-                                            <h3 className="text-xl font-black text-gray-900 tracking-tight italic">Participant Dashboard Card Control</h3>
-                                            <p className="text-gray-400 text-xs font-semibold leading-relaxed max-w-2xl">
-                                                Toggle which "Step Up Your Rise" cards and widgets are active and visible on the Participant Dashboard in real-time.
-                                            </p>
+                                {/* Tab 2: Participant Control (User Removal & Auth Clearing Panel) */}
+                                {activeSystemTab === 'participant_control' && (
+                                    <AdminSystemParticipantControl />
+                                )}
+
+                                {/* Tab 3: Participant Dashboard Card Control */}
+                                {activeSystemTab === 'dashboard_cards' && (
+                                    <div className="bg-white border border-gray-100 rounded-[2.5rem] p-10 shadow-sm space-y-8 text-left animate-fade-in">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 pb-8">
+                                            <div className="space-y-2 text-left">
+                                                <span className="text-[9px] font-black tracking-widest text-[#0E7850] bg-emerald-50 px-3 py-1.5 rounded-full uppercase">Participant Controls</span>
+                                                <h3 className="text-xl font-black text-gray-900 tracking-tight italic">Participant Dashboard Card Control</h3>
+                                                <p className="text-gray-400 text-xs font-semibold leading-relaxed max-w-2xl">
+                                                    Toggle which "Step Up Your Rise" cards and widgets are active and visible on the Participant Dashboard in real-time.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {[
+                                                { key: 'ignite', title: 'Daily Ignite widget', desc: 'Displays floating Daily Ignite video/thought of the day player.' },
+                                                { key: 'blog', title: 'Read RiseBlog card', desc: 'Allows participants to see and read the latest blog post.' },
+                                                { key: 'explore', title: 'See what\'s next (Explore) card', desc: 'Recommends and links to the next sprint.' },
+                                                { key: 'growth', title: 'See your rise analysis (Growth) card', desc: 'Shows the overall completion progress and stats analyzer.' },
+                                                { key: 'impact', title: 'Become a Catalyst (Impact) card', desc: 'Displays sharing/referral options and rewards info.' },
+                                                { key: 'archive', title: 'Revisit your Rise (Archive) card', desc: 'Provides quick navigation to completed daily step submissions.' },
+                                                { key: 'profile', title: 'Complete Your Profile Card', desc: 'Prompts users to set up their custom Identity & avatar.' },
+                                                { key: 'hallOfRise', title: 'Hall of Rise Reward Card', desc: 'Notifies participants about unlocked milestone rewards.' },
+                                            ].map((card) => {
+                                                const isEnabled = cardSettings[card.key] !== false;
+                                                return (
+                                                    <div key={card.key} className="flex items-center justify-between p-5 bg-gray-50/50 rounded-2xl border border-gray-100 shadow-sm hover:bg-gray-50/85 transition-all">
+                                                        <div className="space-y-1 pr-4 text-left">
+                                                            <p className="text-xs font-black text-gray-900">{card.title}</p>
+                                                            <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">{card.desc}</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleCardSetting(card.key)}
+                                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isEnabled ? 'bg-primary' : 'bg-gray-300'}`}
+                                                            style={{ backgroundColor: isEnabled ? '#0E7850' : '#D1D5DB' }}
+                                                        >
+                                                            <span
+                                                                aria-hidden="true"
+                                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
+                                )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {[
-                                            { key: 'ignite', title: 'Daily Ignite widget', desc: 'Displays floating Daily Ignite video/thought of the day player.' },
-                                            { key: 'blog', title: 'Read RiseBlog card', desc: 'Allows participants to see and read the latest blog post.' },
-                                            { key: 'explore', title: 'See what\'s next (Explore) card', desc: 'Recommends and links to the next sprint.' },
-                                            { key: 'growth', title: 'See your rise analysis (Growth) card', desc: 'Shows the overall completion progress and stats analyzer.' },
-                                            { key: 'impact', title: 'Become a Catalyst (Impact) card', desc: 'Displays sharing/referral options and rewards info.' },
-                                            { key: 'archive', title: 'Revisit your Rise (Archive) card', desc: 'Provides quick navigation to completed daily step submissions.' },
-                                            { key: 'profile', title: 'Complete Your Profile Card', desc: 'Prompts users to set up their custom Identity & avatar.' },
-                                            { key: 'hallOfRise', title: 'Hall of Rise Reward Card', desc: 'Notifies participants about unlocked milestone rewards.' },
-                                        ].map((card) => {
-                                            const isEnabled = cardSettings[card.key] !== false;
-                                            return (
-                                                <div key={card.key} className="flex items-center justify-between p-5 bg-gray-50/50 rounded-2xl border border-gray-100 shadow-sm hover:bg-gray-50/85 transition-all">
-                                                    <div className="space-y-1 pr-4 text-left">
-                                                        <p className="text-xs font-black text-gray-900">{card.title}</p>
-                                                        <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">{card.desc}</p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleCardSetting(card.key)}
-                                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isEnabled ? 'bg-primary' : 'bg-gray-300'}`}
-                                                        style={{ backgroundColor: isEnabled ? '#0E7850' : '#D1D5DB' }}
-                                                    >
-                                                        <span
-                                                            aria-hidden="true"
-                                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isEnabled ? 'translate-x-5' : 'translate-x-0'}`}
-                                                        />
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                                {/* Tab 4: Debug & Audit Response Repair Tool */}
+                                {activeSystemTab === 'repair_responses' && (
+                                    <AdminRepairResponses />
+                                )}
                             </div>
                         )}
 

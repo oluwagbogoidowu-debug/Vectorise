@@ -38,6 +38,7 @@ import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, Me
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
+import { userIdentificationService } from "../../services/userIdentificationService";
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 
@@ -1457,6 +1458,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       });
       lastSavedInputsRef.current = currentInputsStr;
       console.log("Immediately autosaved participant responses on navigation.");
+
+      // Automatically extract and persist user identification data from sprint responses
+      if (enrollment.user_id && sprint) {
+        userIdentificationService
+          .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, inputsToSave)
+          .catch((e) => console.error("Auto user identification tracking failed on nav:", e));
+      }
     } catch (err) {
       console.error("Immediately autosave failed on navigation:", err);
     }
@@ -2039,6 +2047,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         await updateDoc(enrollmentRef, updatePayload);
         lastSavedInputsRef.current = currentInputsStr;
         console.log("Autosaved intermediate participant responses.");
+
+        // Automatically extract and persist user identification data from sprint responses
+        if (enrollment.user_id && sprint) {
+          userIdentificationService
+            .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, taskInputs)
+            .catch((e) => console.error("Auto user identification tracking failed on autosave:", e));
+        }
       } catch (err) {
         console.error("Failed intermediate autosave:", err);
       }
@@ -2429,6 +2444,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
       await updateDoc(enrollmentRef, updatePayload);
       setIsReflectionModalOpen(false);
+
+      // Automatically extract and persist user identification data from sprint responses
+      if (enrollment.user_id && sprint) {
+        userIdentificationService
+          .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, taskInputs)
+          .catch((e) => console.error("Auto user identification tracking failed on completion:", e));
+      }
 
       // Track user participation in core & activity tables
       if (user?.id) {
