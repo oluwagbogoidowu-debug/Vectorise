@@ -459,19 +459,17 @@ export function getExplicitLinkedSteps(
       const mode = parsePlaceholderMode(match[4]);
       const targetStepIdx = stepNum - 1;
       
-      // ONLY include if it's an explicit main link ({Step M Op N m}, {Step M main}) or explicit option reference ({Step M Op N})
-      if (mode === 'main' || opNum !== undefined) {
+      // ONLY include if it's an explicit main link ({Step M Op N m}, {Step M main})
+      // Plain {Step 1 op 1} without main/m mode is text interpolation and does NOT create a choice connection
+      if (mode === 'main') {
         addLink(dayNum, targetStepIdx, opNum, mode);
       } else if (allDaysContent && Array.isArray(allDaysContent)) {
-        // If placeholder references another day (or target step) that itself declared 'main' or an option link on that day
+        // If placeholder references another day (or target step) that itself declared 'main' on that day
         const targetDC = allDaysContent.find(d => d && Number(d.day) === dayNum);
         if (targetDC) {
           const targetIsMain = isMainActiveForStep(targetStepIdx, targetDC);
-          const targetPollLink = parsePollLinkInfo(targetDC.taskPollOptionLinks?.[targetStepIdx]);
           if (targetIsMain) {
             addLink(dayNum, targetStepIdx, opNum, 'main');
-          } else if (targetPollLink) {
-            addLink(dayNum, targetStepIdx, targetPollLink.optNum);
           }
         }
       }
