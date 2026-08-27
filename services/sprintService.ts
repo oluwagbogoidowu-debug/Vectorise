@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
 import { sanitizeData, safeJSONStringify, userService } from './userService';
 import { ensureSeedBlogsInFirestore } from './blogService';
@@ -95,7 +95,11 @@ export const getExperienceDocName = (item: any): ExperienceDocName => {
     return 'Sprint';
 };
 
+let hasEnsuredCategoryDocs = false;
 export const ensureExperienceCategoryDocs = async (): Promise<void> => {
+    if (hasEnsuredCategoryDocs) return;
+    hasEnsuredCategoryDocs = true;
+
     const categoryMetadata: Record<ExperienceDocName, { title: string; description: string }> = {
         Sprint: { title: 'Sprint Experiences', description: 'Structured multi-day action sprints.' },
         RiseBlog: { title: 'RiseBlog Experiences', description: 'Transformative articles and micro-habit learning.' },
@@ -104,22 +108,22 @@ export const ensureExperienceCategoryDocs = async (): Promise<void> => {
     };
 
     const collections = [EXPERIENCES_COLLECTION, EXPERIENCE_SINGULAR_COLLECTION];
+    const writePromises: Promise<any>[] = [];
     for (const col of collections) {
         for (const cat of EXPERIENCE_DOC_NAMES) {
-            try {
-                await setDoc(doc(db, col, cat), {
+            writePromises.push(
+                setDoc(doc(db, col, cat), {
                     id: cat,
                     name: cat,
                     title: categoryMetadata[cat].title,
                     description: categoryMetadata[cat].description,
                     type: cat,
                     updatedAt: new Date().toISOString()
-                }, { merge: true });
-            } catch (e) {
-                // Ignore silent network/permission errors
-            }
+                }, { merge: true }).catch(() => {})
+            );
         }
     }
+    await Promise.all(writePromises);
 };
 
 let isMigrationRunning = false;
@@ -646,31 +650,35 @@ export const sprintService = {
             const fetchPromise: Promise<Sprint | null> = (async (): Promise<Sprint | null> => {
                 let sprintData: any = null;
 
-                // A. Try categorized experiences paths: experiences/{Category}/items/{sprintId}
-                for (const cat of EXPERIENCE_DOC_NAMES) {
+                // A. Try categorized experiences paths in parallel: experiences/{Category}/items/{sprintId}
+                const catPromises = EXPERIENCE_DOC_NAMES.map(async (cat) => {
                     try {
                         let detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'sprintdetails', 'info'));
                         if (!detailsSnap.exists()) {
                             detailsSnap = await getDoc(doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'details', 'info'));
                         }
                         if (detailsSnap.exists()) {
-                            sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
-                            break;
+                            return { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
                         }
                     } catch (e) {}
-                }
+                    return null;
+                });
+                const catResults = await Promise.all(catPromises);
+                sprintData = catResults.find(r => r !== null);
 
-                // B. Try singular experience paths: experience/{Category}/items/{sprintId}
+                // B. Try singular experience paths in parallel: experience/{Category}/items/{sprintId}
                 if (!sprintData) {
-                    for (const cat of EXPERIENCE_DOC_NAMES) {
+                    const singPromises = EXPERIENCE_DOC_NAMES.map(async (cat) => {
                         try {
                             let detailsSnap = await getDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, cat, 'items', sprintId, 'sprintdetails', 'info'));
                             if (detailsSnap.exists()) {
-                                sprintData = { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
-                                break;
+                                return { id: sprintId, ...cleanDetailsData(detailsSnap.data()) };
                             }
                         } catch (e) {}
-                    }
+                        return null;
+                    });
+                    const singResults = await Promise.all(singPromises);
+                    sprintData = singResults.find(r => r !== null);
                 }
 
                 // C. Fallback to flat experiences collection
@@ -1181,31 +1189,30 @@ export const sprintService = {
                 daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, primaryDocName, 'items', sprint.id, 'days'));
             } catch (e) {}
 
-            // 2. Check other categories if empty
+            // 2. Check other categories in parallel if empty
             if (!daysSnap || daysSnap.empty) {
-                for (const cat of EXPERIENCE_DOC_NAMES) {
-                    if (cat === primaryDocName) continue;
-                    try {
-                        const snap = await getDocs(collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprint.id, 'days'));
-                        if (!snap.empty) {
-                            daysSnap = snap;
-                            break;
-                        }
-                    } catch (e) {}
-                }
+                const otherCatSnaps = await Promise.all(
+                    EXPERIENCE_DOC_NAMES.filter(c => c !== primaryDocName).map(async (cat) => {
+                        try {
+                            const snap = await getDocs(collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprint.id, 'days'));
+                            return !snap.empty ? snap : null;
+                        } catch (e) { return null; }
+                    })
+                );
+                daysSnap = otherCatSnaps.find(s => s !== null);
             }
 
-            // 3. Check singular experience collection: experience/{Category}/items/{sprint.id}/days
+            // 3. Check singular experience collection in parallel: experience/{Category}/items/{sprint.id}/days
             if (!daysSnap || daysSnap.empty) {
-                for (const cat of EXPERIENCE_DOC_NAMES) {
-                    try {
-                        const snap = await getDocs(collection(db, EXPERIENCE_SINGULAR_COLLECTION, cat, 'items', sprint.id, 'days'));
-                        if (!snap.empty) {
-                            daysSnap = snap;
-                            break;
-                        }
-                    } catch (e) {}
-                }
+                const singSnaps = await Promise.all(
+                    EXPERIENCE_DOC_NAMES.map(async (cat) => {
+                        try {
+                            const snap = await getDocs(collection(db, EXPERIENCE_SINGULAR_COLLECTION, cat, 'items', sprint.id, 'days'));
+                            return !snap.empty ? snap : null;
+                        } catch (e) { return null; }
+                    })
+                );
+                daysSnap = singSnaps.find(s => s !== null);
             }
 
             // 4. Fallback to flat experiences collection
@@ -1276,77 +1283,90 @@ export const sprintService = {
             // Clean up dailyContent from detailsData
             delete (detailsData as any).dailyContent;
 
-            // Ensure parent category documents exist
-            await ensureExperienceCategoryDocs().catch(() => {});
-            
-            // 1. Write to hierarchical categorized paths: experiences/{Category}/items/{sprintId}/...
-            await setDoc(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'sprintdetails', 'info'), detailsData);
-            await setDoc(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'details', 'info'), detailsData);
-            await setDoc(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId), {
-                id: sprintId,
-                title: metadata.title || metadata.blogTitle || metadata.igniteTitle || '',
-                contentType,
-                subcategory,
-                updatedAt: new Date().toISOString()
-            }, { merge: true });
+            // Ensure parent category documents exist in background (non-blocking)
+            ensureExperienceCategoryDocs().catch(() => {});
 
-            // 2. Also write to experience/{Category}/items/{sprintId} (singular collection alias)
-            try {
-                await setDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'sprintdetails', 'info'), detailsData);
-                await setDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'details', 'info'), detailsData);
-            } catch (e) {}
-            
-            // 3. Proactively clean up any remnant copy from former sprints collection
-            cleanupLegacySprintDocs(sprintId).catch(() => {});
-
-            // Cleanup from other categories if item was moved or re-categorized
-            for (const otherCat of EXPERIENCE_DOC_NAMES) {
-                if (otherCat !== docName) {
-                    try {
-                        await deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId, 'sprintdetails', 'info'));
-                        await deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId, 'details', 'info'));
-                        await deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId));
-                    } catch (e) {}
-                }
-            }
-
-            if (Array.isArray(dailyContent)) {
-                // Get existing days in categorized doc
-                const daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days'));
-                const newDayNums = new Set(dailyContent.map(d => d.day));
-                const deletePromises: Promise<any>[] = [];
-                for (const dDoc of daysSnap.docs) {
-                    const dayNum = parseInt(dDoc.id.replace('day ', ''));
-                    if (!isNaN(dayNum) && !newDayNums.has(dayNum)) {
-                        deletePromises.push(deleteDoc(dDoc.ref));
-                    }
-                }
-                await Promise.all(deletePromises);
-
-                const writePromises = dailyContent.map(async (day) => {
-                    if (!day || typeof day.day === 'undefined') return;
-                    const dayNum = day.day;
-                    const dayData = sanitizeData(day);
-                    
-                    // Categorized days write
-                    const catDayRef = doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days', `day ${dayNum}`);
-                    await setDoc(catDayRef, dayData);
-
-                    // Singular experience collection alias
-                    try {
-                        const singDayRef = doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'days', `day ${dayNum}`);
-                        await setDoc(singDayRef, dayData);
-                    } catch (e) {}
-                });
-                await Promise.all(writePromises);
-            }
-
-            // Update in-memory and localStorage cache
+            // Immediately sync memory & localStorage cache for instant responsiveness
             const updatedSprintObj = { ...sprintData, id: sprintId, updatedAt: detailsData.updatedAt };
             sprintCache[sprintId] = updatedSprintObj;
             try {
                 localStorage.setItem(`vectorise_sprint_cache_${sprintId}`, safeJSONStringify(updatedSprintObj));
             } catch (err) {}
+            
+            // Perform all primary document and day writes atomically using a single writeBatch
+            const batch = writeBatch(db);
+
+            // 1. Hierarchical categorized paths: experiences/{Category}/items/{sprintId}/...
+            batch.set(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'sprintdetails', 'info'), detailsData);
+            batch.set(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'details', 'info'), detailsData);
+            batch.set(doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId), {
+                id: sprintId,
+                title: metadata.title || metadata.blogTitle || metadata.igniteTitle || '',
+                contentType,
+                subcategory,
+                updatedAt: detailsData.updatedAt
+            }, { merge: true });
+
+            // 2. Singular experience collection alias
+            batch.set(doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'sprintdetails', 'info'), detailsData);
+            batch.set(doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'details', 'info'), detailsData);
+
+            // 3. Write all days in the same atomic batch
+            if (Array.isArray(dailyContent)) {
+                dailyContent.forEach((day) => {
+                    if (!day || typeof day.day === 'undefined') return;
+                    const dayNum = day.day;
+                    const dayData = sanitizeData(day);
+                    
+                    const catDayRef = doc(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days', `day ${dayNum}`);
+                    batch.set(catDayRef, dayData);
+
+                    const singDayRef = doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'days', `day ${dayNum}`);
+                    batch.set(singDayRef, dayData);
+                });
+            }
+
+            // Commit all document and subcollection writes in ONE atomic network roundtrip
+            await batch.commit();
+
+            // Background cleanups that should NEVER block or slow down user saving:
+            cleanupLegacySprintDocs(sprintId).catch(() => {});
+
+            (async () => {
+                // If duration was reduced, clean up orphaned days in the background
+                if (Array.isArray(dailyContent)) {
+                    try {
+                        const daysSnap = await getDocs(collection(db, EXPERIENCES_COLLECTION, docName, 'items', sprintId, 'days'));
+                        const newDayNums = new Set(dailyContent.map(d => d.day));
+                        const deletePromises: Promise<any>[] = [];
+                        for (const dDoc of daysSnap.docs) {
+                            const dayNum = parseInt(dDoc.id.replace('day ', ''));
+                            if (!isNaN(dayNum) && !newDayNums.has(dayNum)) {
+                                deletePromises.push(deleteDoc(dDoc.ref).catch(() => {}));
+                                deletePromises.push(deleteDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, docName, 'items', sprintId, 'days', dDoc.id)).catch(() => {}));
+                            }
+                        }
+                        if (deletePromises.length > 0) {
+                            await Promise.all(deletePromises);
+                        }
+                    } catch (e) {}
+                }
+
+                // Cleanup other categories if item was re-categorized
+                for (const otherCat of EXPERIENCE_DOC_NAMES) {
+                    if (otherCat !== docName) {
+                        try {
+                            await Promise.all([
+                                deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId, 'sprintdetails', 'info')).catch(() => {}),
+                                deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId, 'details', 'info')).catch(() => {}),
+                                deleteDoc(doc(db, EXPERIENCES_COLLECTION, otherCat, 'items', sprintId)).catch(() => {}),
+                                deleteDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, otherCat, 'items', sprintId, 'sprintdetails', 'info')).catch(() => {}),
+                                deleteDoc(doc(db, EXPERIENCE_SINGULAR_COLLECTION, otherCat, 'items', sprintId, 'details', 'info')).catch(() => {})
+                            ]);
+                        } catch (e) {}
+                    }
+                }
+            })().catch(() => {});
         } catch (err) {
             console.error("Error writing subcollections:", err);
             throw err;
@@ -1765,13 +1785,16 @@ export const sprintService = {
 
     updateSprint: async (sprintId: string, data: Partial<Sprint>, isDirect: boolean = false) => {
         try {
-            // Fetch existing details with comprehensive fallback
-            let existingDetails: any = await sprintService.getSprintById(sprintId, true);
+            // Check in-memory cache first, then localStorage, and only fetch if completely absent
+            let existingDetails: any = sprintCache[sprintId];
+            if (!existingDetails) {
+                existingDetails = await sprintService.getSprintById(sprintId, false);
+            }
             if (!existingDetails) {
                 existingDetails = {};
             }
 
-            // Also fetch existing days if data doesn't include dailyContent so dailyContent is preserved
+            // Also fetch existing days if neither data nor existingDetails has dailyContent
             if (!data.dailyContent && !existingDetails.dailyContent) {
                 try {
                     const docName = getExperienceDocName(existingDetails);
@@ -1786,12 +1809,13 @@ export const sprintService = {
             // Construct the merged data to write back to subcollections
             const mergedSub = { ...existingDetails, ...data, updatedAt: new Date().toISOString() };
             
-            await sprintService._writeSubcollections(sprintId, mergedSub);
-
+            // Synchronously update in-memory cache and localStorage for zero-latency local availability
             sprintCache[sprintId] = mergedSub;
             try {
                 localStorage.setItem(`vectorise_sprint_cache_${sprintId}`, safeJSONStringify(mergedSub));
             } catch (e) {}
+
+            await sprintService._writeSubcollections(sprintId, mergedSub);
         } catch (e) {
             console.error("Failed to sync subcollections in updateSprint", e);
             throw e;

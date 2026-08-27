@@ -331,6 +331,9 @@ const EditSprint: React.FC = () => {
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const isSavingRef = useRef(false);
+  const sprintRef = useRef<Sprint | null>(sprint);
+  sprintRef.current = sprint;
   const [settingsSaveStatus, setSettingsSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [approvalStatus, setApprovalStatus] = useState<'idle' | 'processing'>('idle');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
@@ -1815,16 +1818,22 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const handleSaveDraft = async () => {
-    if (!sprint) return;
+  const handleSaveDraft = async (isAutoSave = false) => {
+    const currentSprint = sprintRef.current;
+    if (!currentSprint || isSavingRef.current) return;
 
+    isSavingRef.current = true;
     setSaveStatus('saving');
     try {
-      const newStatus = (isAdmin && isFoundational) ? 'approved' : 'draft';
-      const isPublished = (isAdmin && isFoundational);
+      const newStatus = (isAdmin && isFoundational) 
+        ? 'approved' 
+        : (isAdmin ? currentSprint.approvalStatus : (currentSprint.approvalStatus === 'approved' ? 'approved' : 'draft'));
+      const isPublished = (isAdmin && isFoundational) 
+        ? true 
+        : (isAdmin ? currentSprint.published : (currentSprint.approvalStatus === 'approved' ? currentSprint.published : false));
 
       const updatedSprintData: Sprint = {
-        ...sprint,
+        ...currentSprint,
         approvalStatus: newStatus,
         published: isPublished,
         updatedAt: new Date().toISOString()
@@ -1832,7 +1841,7 @@ const EditSprint: React.FC = () => {
       
       delete (updatedSprintData as any).pendingChanges;
 
-      await sprintService.updateSprint(sprint.id, updatedSprintData, isAdmin);
+      await sprintService.updateSprint(currentSprint.id, updatedSprintData, isAdmin);
       
       setSprint(updatedSprintData);
       setOriginalSprint(safeClone(updatedSprintData));
@@ -1842,9 +1851,42 @@ const EditSprint: React.FC = () => {
     } catch (err: any) { 
         console.error("Save failed:", err);
         setSaveStatus('idle'); 
-        alert(`Save failed: ${err.message || String(err)}`); 
+        if (!isAutoSave) {
+          alert(`Save failed: ${err.message || String(err)}`); 
+        }
+    } finally {
+      isSavingRef.current = false;
     }
   };
+
+  const handleSelectDay = (day: number) => {
+    if (hasChanges && !isSavingRef.current) {
+      handleSaveDraft(true).catch(() => {});
+    }
+    setSelectedDay(day);
+  };
+
+  // Debounced auto-save when edits are made
+  useEffect(() => {
+    if (!hasChanges || !sprint || isLoading || saveStatus === 'saving' || isSavingRef.current) return;
+
+    const timer = setTimeout(() => {
+      handleSaveDraft(true);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [hasChanges, sprint, isLoading]);
+
+  // Prompt save before unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasChanges && sprintRef.current) {
+        sprintService.updateSprint(sprintRef.current.id, sprintRef.current, isAdmin).catch(() => {});
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges, isAdmin]);
 
   const handleSubmitForReview = async () => {
       if (!sprint || isSubmittingReview) return;
@@ -2198,10 +2240,10 @@ const EditSprint: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleSaveDraft();
+                      handleSaveDraft(false);
                     }} 
                     disabled={saveStatus === 'saving'}
-                    title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
+                    title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
                   >
                     {saveStatus === 'saving' ? (
@@ -2212,7 +2254,7 @@ const EditSprint: React.FC = () => {
                     ) : saveStatus === 'saved' ? (
                       <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
                     ) : (
-                      <Save size={18} />
+                      <Save size={18} className={hasChanges ? "text-primary" : ""} />
                     )}
                   </button>
                 )}
@@ -2393,10 +2435,10 @@ const EditSprint: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleSaveDraft();
+                      handleSaveDraft(false);
                     }} 
                     disabled={saveStatus === 'saving'}
-                    title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
+                    title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
                   >
                     {saveStatus === 'saving' ? (
@@ -2407,7 +2449,7 @@ const EditSprint: React.FC = () => {
                     ) : saveStatus === 'saved' ? (
                       <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
                     ) : (
-                      <Save size={18} />
+                      <Save size={18} className={hasChanges ? "text-primary" : ""} />
                     )}
                   </button>
                 )}
@@ -2620,10 +2662,10 @@ const EditSprint: React.FC = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleSaveDraft();
+                  handleSaveDraft(false);
                 }} 
                 disabled={saveStatus === 'saving'}
-                title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : 'Save Draft'}
+                title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
                 className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
               >
                 {saveStatus === 'saving' ? (
@@ -2634,7 +2676,7 @@ const EditSprint: React.FC = () => {
                 ) : saveStatus === 'saved' ? (
                   <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
                 ) : (
-                  <Save size={18} />
+                  <Save size={18} className={hasChanges ? "text-primary" : ""} />
                 )}
               </button>
             )}
@@ -2733,7 +2775,7 @@ const EditSprint: React.FC = () => {
               {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
                 <button
                   key={day}
-                  onClick={() => setSelectedDay(day)}
+                  onClick={() => handleSelectDay(day)}
                   title={`Move ${day}: Switch active editor workspace to curate lessons and action steps for Move ${day}.`}
                   className={`flex-shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl border transition-all duration-300 relative ${selectedDay === day ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20 scale-105' : 'bg-gray-50 border-gray-100 text-gray-400 hover:border-primary/30 hover:text-primary hover:bg-white'}`}
                 >
@@ -4878,9 +4920,19 @@ const EditSprint: React.FC = () => {
           sprint={sprint}
           setSprint={setSprint}
           selectedDay={selectedDay}
-          setSelectedDay={setSelectedDay}
-          onClose={() => setShowAdvancedActionModal(false)}
-          onSaveDraft={handleSaveDraft}
+          setSelectedDay={(newDay) => {
+            if (hasChanges && !isSavingRef.current) {
+              handleSaveDraft(true).catch(() => {});
+            }
+            setSelectedDay(newDay);
+          }}
+          onClose={async () => {
+            if (hasChanges && !isSavingRef.current) {
+              await handleSaveDraft(true);
+            }
+            setShowAdvancedActionModal(false);
+          }}
+          onSaveDraft={() => handleSaveDraft(false)}
           saveStatus={saveStatus}
         />
       )}
@@ -5993,11 +6045,11 @@ const EditSprint: React.FC = () => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            handleSaveDraft();
+            handleSaveDraft(false);
           }}
           disabled={saveStatus === 'saving'}
-          className="fixed bottom-6 right-6 z-50 w-10 h-10 bg-primary text-white rounded-full shadow-lg hover:bg-primary/95 hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border border-primary/20"
-          title="Save Draft"
+          className={`fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border ${saveStatus === 'saved' ? 'bg-green-600 border-green-700 text-white' : 'bg-primary text-white border-primary/20'}`}
+          title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
         >
           {saveStatus === 'saving' ? (
             <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -6005,9 +6057,14 @@ const EditSprint: React.FC = () => {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           ) : saveStatus === 'saved' ? (
-            <CheckCircle2 className="h-4.5 w-4.5 text-white" />
+            <CheckCircle2 className="h-4.5 w-4.5 text-white animate-bounce" />
           ) : (
-            <Save className="h-4.5 w-4.5" />
+            <div className="relative">
+              <Save className="h-4.5 w-4.5" />
+              {hasChanges && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white animate-ping" />
+              )}
+            </div>
           )}
         </button>
       )}
