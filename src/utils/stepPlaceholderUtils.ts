@@ -432,24 +432,22 @@ export function getExplicitLinkedSteps(
     }
   }
 
-  // 3. Scan explicit main links or option placeholders ONLY (e.g. {Step M Op N m}, {Step M main}, {Step M Op N})
-  // Plain {Step 3} in prompt / hint / footnote is text interpolation only and does not create a poll option link!
-  const textsToScan: string[] = [];
+  // 3. Scan writeup texts for explicit 'main' mode links only (e.g. {Step M Op N m}, {Step M main})
+  // Plain {Step 1}, {Step 1 s}, {Step 1 list}, etc. in writeups are purely for writeup text interpolation and do not create choice connections!
+  const writeupTexts: string[] = [];
   const promptVal = dayContent.taskPrompts?.[stepIdx];
-  if (typeof promptVal === 'string') textsToScan.push(promptVal);
-  else if (stepIdx === 0 && typeof dayContent.taskPrompt === 'string') textsToScan.push(dayContent.taskPrompt);
+  if (typeof promptVal === 'string') writeupTexts.push(promptVal);
+  else if (stepIdx === 0 && typeof dayContent.taskPrompt === 'string') writeupTexts.push(dayContent.taskPrompt);
   const hintVal = dayContent.taskHints?.[stepIdx];
-  if (typeof hintVal === 'string') textsToScan.push(hintVal);
+  if (typeof hintVal === 'string') writeupTexts.push(hintVal);
   const footnoteVal = dayContent.taskFootnotes?.[stepIdx];
-  if (typeof footnoteVal === 'string') textsToScan.push(footnoteVal);
+  if (typeof footnoteVal === 'string') writeupTexts.push(footnoteVal);
   const tagNoteVal = dayContent.taskTagNotes?.[stepIdx];
-  if (typeof tagNoteVal === 'string') textsToScan.push(tagNoteVal);
-  const optionsVal = dayContent.taskPollOptions?.[stepIdx];
-  if (typeof optionsVal === 'string') textsToScan.push(optionsVal);
+  if (typeof tagNoteVal === 'string') writeupTexts.push(tagNoteVal);
 
   const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
-  for (const text of textsToScan) {
+  for (const text of writeupTexts) {
     let match: RegExpExecArray | null;
     regex.lastIndex = 0;
     while ((match = regex.exec(text)) !== null) {
@@ -459,20 +457,25 @@ export function getExplicitLinkedSteps(
       const mode = parsePlaceholderMode(match[4]);
       const targetStepIdx = stepNum - 1;
       
-      // ONLY include if it's an explicit main link ({Step M Op N m}, {Step M main})
-      // Plain {Step 1 op 1} without main/m mode is text interpolation and does NOT create a choice connection
+      // ONLY include if the writeup explicitly declared 'main' mode
       if (mode === 'main') {
         addLink(dayNum, targetStepIdx, opNum, mode);
-      } else if (allDaysContent && Array.isArray(allDaysContent)) {
-        // If placeholder references another day (or target step) that itself declared 'main' on that day
-        const targetDC = allDaysContent.find(d => d && Number(d.day) === dayNum);
-        if (targetDC) {
-          const targetIsMain = isMainActiveForStep(targetStepIdx, targetDC);
-          if (targetIsMain) {
-            addLink(dayNum, targetStepIdx, opNum, 'main');
-          }
-        }
       }
+    }
+  }
+
+  // 4. Scan explicit option placeholders configured directly in taskPollOptions (e.g. ["{Step 1}", "Option B"] or "{Step 1 Op 2}")
+  const optionsVal = dayContent.taskPollOptions?.[stepIdx];
+  if (typeof optionsVal === 'string') {
+    let match: RegExpExecArray | null;
+    regex.lastIndex = 0;
+    while ((match = regex.exec(optionsVal)) !== null) {
+      const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
+      const stepNum = parseInt(match[2], 10);
+      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
+      const mode = parsePlaceholderMode(match[4]);
+      const targetStepIdx = stepNum - 1;
+      addLink(dayNum, targetStepIdx, opNum, mode);
     }
   }
 
