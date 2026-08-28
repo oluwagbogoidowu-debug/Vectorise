@@ -234,9 +234,9 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
 
             <CardContainer 
                 {...(containerProps as any)} 
-                className={`bg-white rounded-[2rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
+                className={`bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 dark:border-zinc-800/80 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
             >
-                <div className="relative h-40 overflow-hidden bg-gray-100">
+                <div className="relative h-40 overflow-hidden bg-gray-100 dark:bg-zinc-800">
                     <img 
                         src={sprint.coverImageUrl || fallbackUrl} 
                         alt="" 
@@ -245,7 +245,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                         referrerPolicy="no-referrer"
                     />
                     <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!isStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
-                    <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} {sprint.duration === 1 ? 'Move' : 'Moves'}</div>
+                    <div className="absolute top-3 right-3 bg-white/95 dark:bg-zinc-900/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} {sprint.duration === 1 ? 'Move' : 'Moves'}</div>
                     
                     {/* Archive Badge Preview */}
                     {forceShowOutcomeTag && sprint.outcomeTag && (
@@ -260,28 +260,28 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 </div>
                 
                 <div className="p-4 flex flex-col flex-grow">
-                    <h3 className={`text-lg font-black text-gray-900 mb-2 transition-colors leading-tight tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
+                    <h3 className={`text-lg font-black text-gray-900 dark:text-white mb-2 transition-colors leading-tight tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     {sprint.subtitle && (
-                        <p className="text-[10px] font-bold text-gray-400 mb-2 leading-snug">{sprint.subtitle}</p>
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-400 mb-2 leading-snug">{sprint.subtitle}</p>
                     )}
 
                     <div className="flex flex-wrap items-center gap-2 mb-4">
-                        <span className="px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-400 text-[8px] font-black uppercase tracking-[0.25em]">
+                        <span className="px-2 py-0.5 rounded-md bg-gray-50 dark:bg-zinc-800/80 border border-gray-100 dark:border-zinc-700 text-gray-400 dark:text-zinc-400 text-[8px] font-black uppercase tracking-[0.25em]">
                             {sprint.contentType === 'blog' ? 'RiseBlog' : 'Sprint'}
                         </span>
-                        <span className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-primary text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.category || "Fundamentals"}>
+                        <span className="px-2 py-0.5 rounded-md bg-primary/5 dark:bg-primary/20 border border-primary/10 dark:border-primary/30 text-primary dark:text-emerald-400 text-[8px] font-black uppercase tracking-[0.25em] truncate max-w-[150px]" title={sprint.category || "Fundamentals"}>
                             {sprint.category || "Fundamentals"}
                         </span>
                     </div>
                     
                     {!hideFooterDetails && (
-                        <div className="pt-3 border-t border-gray-50 mt-auto">
+                        <div className="pt-3 border-t border-gray-50 dark:border-zinc-800 mt-auto">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
-                                    <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-7 h-7 rounded-lg object-cover border-2 border-white shadow-sm ring-1 ring-gray-100" />
+                                    <img src={displayCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE} alt="" className="w-7 h-7 rounded-lg object-cover border-2 border-white dark:border-zinc-700 shadow-sm ring-1 ring-gray-100 dark:ring-zinc-800" />
                                     <div className="min-w-0">
-                                        <p className="text-[6px] font-black text-gray-300 uppercase tracking-widest mb-0.5">Guided By</p>
-                                        <p className="text-[9px] font-black text-gray-900 uppercase tracking-tight truncate">{displayCoach.name}</p>
+                                        <p className="text-[6px] font-black text-gray-300 dark:text-zinc-500 uppercase tracking-widest mb-0.5">Guided By</p>
+                                        <p className="text-[9px] font-black text-gray-900 dark:text-white uppercase tracking-tight truncate">{displayCoach.name}</p>
                                     </div>
                                 </div>
                                 {onOpenOverview && (
@@ -292,7 +292,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                                             e.stopPropagation();
                                             onOpenOverview();
                                         }}
-                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-primary/10 text-gray-400 hover:text-primary transition-all flex items-center justify-center border border-gray-100 cursor-pointer"
+                                        className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-zinc-800 hover:bg-primary/10 dark:hover:bg-primary/20 text-gray-400 dark:text-zinc-400 hover:text-primary dark:hover:text-emerald-400 transition-all flex items-center justify-center border border-gray-100 dark:border-zinc-700 cursor-pointer"
                                         title="Sprint Overview"
                                     >
                                         <Info className="w-3.5 h-3.5" />

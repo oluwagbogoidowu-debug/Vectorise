@@ -1261,9 +1261,9 @@ const ParticipantDashboard: React.FC = () => {
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
+                    <div className="bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 dark:text-white uppercase tracking-tight leading-tight">
                                 {secondCardText ? secondCardText.title : "Start your Rise."}
                             </p>
                         </div>
@@ -1280,7 +1280,7 @@ const ParticipantDashboard: React.FC = () => {
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </div>
                     
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
+                    <div className="bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left w-full">
                             <AnimatePresence mode="wait">
                                 {!showStreakText ? (
@@ -1291,7 +1291,7 @@ const ParticipantDashboard: React.FC = () => {
                                         exit={{ opacity: 0, y: -10 }}
                                         transition={{ duration: 0.3, ease: "easeOut" }}
                                     >
-                                        <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
+                                        <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 dark:text-white uppercase tracking-tight leading-tight">
                                             Come back tomorrow.
                                         </p>
                                     </motion.div>
@@ -1329,9 +1329,9 @@ const ParticipantDashboard: React.FC = () => {
                     </Link>
                     
                     {/* Keep/Start Rising Card */}
-                    <div className="bg-white border border-gray-100 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
+                    <div className="bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 uppercase tracking-tight leading-tight">
+                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 dark:text-white uppercase tracking-tight leading-tight">
                                 {hasCompletedFirstSprint ? (
                                     <>Keep Rising</>
                                 ) : (
@@ -1345,10 +1345,10 @@ const ParticipantDashboard: React.FC = () => {
 
             <div className="mb-8">
                 {isLoading ? (
-                    <div className="bg-white rounded-[2.5rem] h-64 animate-pulse border border-gray-100 shadow-sm"></div>
+                    <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] h-64 animate-pulse border border-gray-100 dark:border-zinc-800 shadow-sm"></div>
                 ) : mainTask && mainTask.sprint ? (
                     <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="block group">
-                        <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
+                        <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-100 dark:border-zinc-800/80 relative overflow-hidden flex animate-fade-in group-hover:shadow-xl transition-all duration-500">
                             <div className={`w-2 md:w-3 flex-shrink-0 transition-colors duration-500 ${isMainTaskLocked ? 'bg-amber-400' : 'bg-[#159E6A]'}`}></div>
                             
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
@@ -1469,7 +1469,7 @@ const ParticipantDashboard: React.FC = () => {
                         className="block group animate-fade-in cursor-pointer text-left"
                     >
                         {!isIdentitySet ? (
-                            <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-rose-100 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
+                            <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-rose-100 dark:border-rose-900/40 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
                                 {/* Left Visual Section */}
                                 <div className="w-full md:w-2/5 h-36 md:h-auto relative overflow-hidden bg-gradient-to-br from-rose-500 via-rose-600 to-amber-600 flex items-center justify-center p-6">
                                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-black/30"></div>
@@ -1481,18 +1481,18 @@ const ParticipantDashboard: React.FC = () => {
                                 </div>
                                 
                                 {/* Right Content Section */}
-                                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between bg-white">
+                                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between bg-white dark:bg-[#1c1c1e]">
                                     <div className="mb-4 text-left">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-100">
+                                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-100 dark:border-rose-900/40">
                                                 First Step
                                             </span>
-                                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400">
                                                 &lt; 1 Minute
                                             </span>
                                         </div>
-                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight">Tell Us About You</h3>
-                                        <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed mt-2.5 line-clamp-3">
+                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">Tell Us About You</h3>
+                                        <p className="text-xs md:text-sm text-gray-500 dark:text-zinc-400 font-medium leading-relaxed mt-2.5 line-clamp-3">
                                             This helps us match you with the exact sprint you need to start making real progress immediately.
                                         </p>
                                     </div>
@@ -1506,7 +1506,7 @@ const ParticipantDashboard: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
+                            <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 dark:border-zinc-800/80 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
                                 {/* Left Image Section */}
                                 <div className="w-full md:w-2/5 h-36 md:h-auto relative overflow-hidden">
                                     <img 
@@ -1537,9 +1537,9 @@ const ParticipantDashboard: React.FC = () => {
                                 </div>
                                 
                                 {/* Right Content Section */}
-                                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
+                                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between bg-white dark:bg-[#1c1c1e]">
                                     <div className="mb-4 text-left">
-                                        <p className="text-xs md:text-sm text-gray-500 font-medium leading-relaxed line-clamp-3">
+                                        <p className="text-xs md:text-sm text-gray-500 dark:text-zinc-400 font-medium leading-relaxed line-clamp-3">
                                             {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
                                         </p>
                                     </div>

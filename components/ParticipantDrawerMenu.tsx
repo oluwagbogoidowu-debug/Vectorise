@@ -87,18 +87,18 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-            className="relative w-[80vw] max-w-[340px] h-full bg-white shadow-2xl flex flex-col z-[251] select-none"
+            className="relative w-[80vw] max-w-[340px] h-full bg-white dark:bg-[#18181b] shadow-2xl flex flex-col z-[251] select-none"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drawer Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-zinc-800/80">
               <div className="flex items-center gap-2">
                 <LocalLogo type="green" className="h-9 sm:h-10 w-auto object-contain" />
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:scale-95 transition-all cursor-pointer"
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
                 title="Close menu"
               >
                 <X className="w-5 h-5" />
@@ -107,23 +107,23 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
 
             {/* User Details Summary */}
             {user && (
-              <div className="px-6 py-4 bg-gray-50/70 border-b border-gray-100 flex items-center justify-between">
+              <div className="px-6 py-4 bg-gray-50/70 dark:bg-[#222226] border-b border-gray-100 dark:border-zinc-800/80 flex items-center justify-between transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-[#0E7850] text-white font-black text-sm flex items-center justify-center shrink-0 shadow-sm">
                     {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-black text-gray-900 truncate">
+                    <p className="text-xs font-black text-gray-900 dark:text-gray-100 truncate">
                       {user.name || 'Participant'}
                     </p>
-                    <p className="text-[10px] font-semibold text-gray-500 truncate">
+                    <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 truncate">
                       {user.email}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 bg-amber-50 border border-amber-200/60 px-2 py-1 rounded-lg shrink-0">
-                  <Coins className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="text-[11px] font-black text-amber-700">{walletBalance}</span>
+                <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 px-2 py-1 rounded-lg shrink-0">
+                  <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="text-[11px] font-black text-amber-700 dark:text-amber-300">{walletBalance}</span>
                 </div>
               </div>
             )}
@@ -133,7 +133,7 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
               {navSections.map((section) => (
                 <div key={section.title} className="space-y-1.5">
                   <div className="px-3 pb-2">
-                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">
                       {section.title}
                     </span>
                   </div>
@@ -147,8 +147,8 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
                         className={({ isActive }) =>
                           `flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all ${
                             isActive
-                              ? 'bg-[#0E7850]/10 text-[#0E7850] font-black shadow-xs'
-                              : 'text-gray-700 hover:bg-gray-50 hover:text-gray-950'
+                              ? 'bg-[#0E7850]/10 dark:bg-[#0E7850]/20 text-[#0E7850] dark:text-emerald-400 font-black shadow-xs'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800/60 hover:text-gray-950 dark:hover:text-white'
                           }`
                         }
                       >
@@ -157,7 +157,7 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
                             <div className="flex items-center gap-3.5 min-w-0">
                               <div
                                 className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                                  isActive ? 'bg-[#0E7850] text-white shadow-xs' : 'bg-gray-100 text-gray-600'
+                                  isActive ? 'bg-[#0E7850] text-white shadow-xs' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
                                 }`}
                               >
                                 <Icon className="w-4 h-4" />
@@ -169,7 +169,7 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
                                 {item.badge}
                               </span>
                             ) : (
-                              <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[#0E7850]' : 'text-gray-300'}`} />
+                              <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[#0E7850] dark:text-emerald-400' : 'text-gray-300 dark:text-zinc-600'}`} />
                             )}
                           </>
                         )}
@@ -182,7 +182,7 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
 
             {/* Drawer Footer */}
             {!user && (
-              <div className="p-4 border-t border-gray-100 bg-white">
+              <div className="p-4 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-[#18181b]">
                 <button
                   type="button"
                   onClick={() => {

@@ -36,9 +36,9 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
       tag: 'Quick Continue',
       discount: '16% OFF',
       buttonText: 'Continue Now',
-      cardStyle: 'border-emerald-300/80 bg-white shadow-xs',
-      tagStyle: 'bg-emerald-50 text-emerald-700 border border-emerald-200/60',
-      discountStyle: 'bg-emerald-100 text-emerald-800',
+      cardStyle: 'border-emerald-300/80 dark:border-emerald-700/60 bg-white dark:bg-zinc-800/90 shadow-xs',
+      tagStyle: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/40',
+      discountStyle: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200',
       buttonStyle: 'bg-[#0E7850] hover:bg-[#0A5C3D] text-white shadow-xs'
     },
     {
@@ -49,7 +49,7 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
       tag: 'Best Value',
       discount: '35% OFF',
       buttonText: 'Stay Consistent',
-      cardStyle: 'border-[#0E7850] bg-white shadow-sm',
+      cardStyle: 'border-[#0E7850] dark:border-emerald-500 bg-white dark:bg-zinc-800/90 shadow-sm',
       tagStyle: 'bg-[#0E7850] text-white',
       discountStyle: 'bg-[#0E7850] text-white',
       buttonStyle: 'bg-[#0E7850] hover:bg-[#0A5C3D] text-white shadow-sm'
@@ -62,9 +62,9 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
       tag: 'Pro Grow',
       discount: '40% OFF',
       buttonText: 'Go All In',
-      cardStyle: 'border-amber-400 bg-white shadow-xs',
+      cardStyle: 'border-amber-400 dark:border-amber-500/70 bg-white dark:bg-zinc-800/90 shadow-xs',
       tagStyle: 'bg-amber-500 text-white',
-      discountStyle: 'bg-amber-100 text-amber-900 border border-amber-300/80',
+      discountStyle: 'bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/50',
       buttonStyle: 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm'
     }
   ];
@@ -133,10 +133,10 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-2.5 px-1">
-        <span className="text-xs font-black uppercase tracking-wider text-gray-500">
+        <span className="text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
           Get Discounted Coins
         </span>
-        <span className="text-xs font-semibold text-gray-400">
+        <span className="text-xs font-semibold text-gray-400 dark:text-zinc-500">
           Keep your momentum constant
         </span>
       </div>
@@ -165,15 +165,15 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
               }}
               className={`w-[60vw] min-w-[205px] max-w-[225px] sm:w-[215px] sm:min-w-[215px] shrink-0 snap-center border-2 rounded-2xl p-3.5 flex flex-col justify-between transition-all relative cursor-pointer ${
                 isSelected 
-                  ? 'border-[#0E7850] ring-2 ring-[#0E7850]/40 shadow-md bg-white scale-[1.01]' 
-                  : `${pkg.cardStyle} hover:border-gray-300`
+                  ? 'border-[#0E7850] ring-2 ring-[#0E7850]/40 shadow-md bg-white dark:bg-zinc-800 scale-[1.01]' 
+                  : `${pkg.cardStyle} hover:border-gray-300 dark:hover:border-zinc-600`
               }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-1 mb-1.5">
                   <div className="flex items-center gap-1.5">
                     <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-all ${
-                      isSelected ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                      isSelected ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700'
                     }`}>
                       {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
                     </div>
@@ -185,10 +185,10 @@ export const BottomModalCoinCards: React.FC<BottomModalCoinCardsProps> = ({
                     {pkg.discount}
                   </span>
                 </div>
-                <div className="text-sm sm:text-base font-black text-gray-900 tracking-tight mt-1 mb-1">
+                <div className="text-sm sm:text-base font-black text-gray-900 dark:text-white tracking-tight mt-1 mb-1">
                   {pkg.coins} Coins
                 </div>
-                <p className="text-xs text-gray-600 font-medium leading-snug line-clamp-2">
+                <p className="text-xs text-gray-600 dark:text-gray-300 font-medium leading-snug line-clamp-2">
                   {pkg.description}
                 </p>
               </div>

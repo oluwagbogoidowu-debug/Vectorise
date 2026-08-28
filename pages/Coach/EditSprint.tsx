@@ -1818,7 +1818,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const handleSaveDraft = async (isAutoSave = false) => {
+  const handleSaveDraft = async () => {
     const currentSprint = sprintRef.current;
     if (!currentSprint || isSavingRef.current) return;
 
@@ -1847,46 +1847,31 @@ const EditSprint: React.FC = () => {
       setOriginalSprint(safeClone(updatedSprintData));
 
       setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
+      setTimeout(() => setSaveStatus('idle'), 2500);
     } catch (err: any) { 
         console.error("Save failed:", err);
         setSaveStatus('idle'); 
-        if (!isAutoSave) {
-          alert(`Save failed: ${err.message || String(err)}`); 
-        }
+        alert(`Save failed: ${err.message || String(err)}`); 
     } finally {
       isSavingRef.current = false;
     }
   };
 
   const handleSelectDay = (day: number) => {
-    if (hasChanges && !isSavingRef.current) {
-      handleSaveDraft(true).catch(() => {});
-    }
     setSelectedDay(day);
   };
 
-  // Debounced auto-save when edits are made
+  // Warn before unload if there are unsaved changes
   useEffect(() => {
-    if (!hasChanges || !sprint || isLoading || saveStatus === 'saving' || isSavingRef.current) return;
-
-    const timer = setTimeout(() => {
-      handleSaveDraft(true);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [hasChanges, sprint, isLoading]);
-
-  // Prompt save before unload
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (hasChanges && sprintRef.current) {
-        sprintService.updateSprint(sprintRef.current.id, sprintRef.current, isAdmin).catch(() => {});
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasChanges, isAdmin]);
+  }, [hasChanges]);
 
   const handleSubmitForReview = async () => {
       if (!sprint || isSubmittingReview) return;
@@ -2240,21 +2225,36 @@ const EditSprint: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleSaveDraft(false);
+                      handleSaveDraft();
                     }} 
                     disabled={saveStatus === 'saving'}
                     title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
+                    className={`h-10 px-3 sm:px-3.5 flex items-center gap-2 rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 font-bold text-xs ${
+                      saveStatus === 'saved'
+                        ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                        : hasChanges
+                          ? 'bg-primary text-white border-primary shadow-sm hover:bg-primary/95'
+                          : 'bg-white text-gray-700 border-gray-150 hover:text-primary hover:border-primary/30'
+                    }`}
                   >
                     {saveStatus === 'saving' ? (
-                      <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span className="hidden xs:inline sm:inline">Saving...</span>
+                      </>
                     ) : saveStatus === 'saved' ? (
-                      <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
+                      <>
+                        <CheckCircle2 size={16} className="text-green-600 animate-bounce" />
+                        <span className="hidden xs:inline sm:inline">Saved!</span>
+                      </>
                     ) : (
-                      <Save size={18} className={hasChanges ? "text-primary" : ""} />
+                      <>
+                        <Save size={16} className={hasChanges ? "text-white" : "text-gray-500"} />
+                        <span className="hidden xs:inline sm:inline">{hasChanges ? 'Save Draft*' : 'Save Draft'}</span>
+                      </>
                     )}
                   </button>
                 )}
@@ -2435,21 +2435,36 @@ const EditSprint: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleSaveDraft(false);
+                      handleSaveDraft();
                     }} 
                     disabled={saveStatus === 'saving'}
                     title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
+                    className={`h-10 px-3 sm:px-3.5 flex items-center gap-2 rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 font-bold text-xs ${
+                      saveStatus === 'saved'
+                        ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                        : hasChanges
+                          ? 'bg-primary text-white border-primary shadow-sm hover:bg-primary/95'
+                          : 'bg-white text-gray-700 border-gray-150 hover:text-primary hover:border-primary/30'
+                    }`}
                   >
                     {saveStatus === 'saving' ? (
-                      <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
+                      <>
+                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span className="hidden xs:inline sm:inline">Saving...</span>
+                      </>
                     ) : saveStatus === 'saved' ? (
-                      <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
+                      <>
+                        <CheckCircle2 size={16} className="text-green-600 animate-bounce" />
+                        <span className="hidden xs:inline sm:inline">Saved!</span>
+                      </>
                     ) : (
-                      <Save size={18} className={hasChanges ? "text-primary" : ""} />
+                      <>
+                        <Save size={16} className={hasChanges ? "text-white" : "text-gray-500"} />
+                        <span className="hidden xs:inline sm:inline">{hasChanges ? 'Save Draft*' : 'Save Draft'}</span>
+                      </>
                     )}
                   </button>
                 )}
@@ -2662,21 +2677,36 @@ const EditSprint: React.FC = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  handleSaveDraft(false);
+                  handleSaveDraft();
                 }} 
                 disabled={saveStatus === 'saving'}
                 title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
-                className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 ${saveStatus === 'saved' ? 'bg-green-50 border-green-200 text-green-600 hover:bg-green-100' : 'bg-white text-gray-400 border-gray-100 hover:text-primary hover:border-primary/20'}`}
+                className={`h-10 px-3 sm:px-3.5 flex items-center gap-2 rounded-xl border transition-all shadow-sm cursor-pointer shrink-0 font-bold text-xs ${
+                  saveStatus === 'saved'
+                    ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                    : hasChanges
+                      ? 'bg-primary text-white border-primary shadow-sm hover:bg-primary/95'
+                      : 'bg-white text-gray-700 border-gray-150 hover:text-primary hover:border-primary/30'
+                }`}
               >
                 {saveStatus === 'saving' ? (
-                  <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span className="hidden xs:inline sm:inline">Saving...</span>
+                  </>
                 ) : saveStatus === 'saved' ? (
-                  <CheckCircle2 size={18} className="text-green-600 animate-bounce" />
+                  <>
+                    <CheckCircle2 size={16} className="text-green-600 animate-bounce" />
+                    <span className="hidden xs:inline sm:inline">Saved!</span>
+                  </>
                 ) : (
-                  <Save size={18} className={hasChanges ? "text-primary" : ""} />
+                  <>
+                    <Save size={16} className={hasChanges ? "text-white" : "text-gray-500"} />
+                    <span className="hidden xs:inline sm:inline">{hasChanges ? 'Save Draft*' : 'Save Draft'}</span>
+                  </>
                 )}
               </button>
             )}
@@ -4920,19 +4950,9 @@ const EditSprint: React.FC = () => {
           sprint={sprint}
           setSprint={setSprint}
           selectedDay={selectedDay}
-          setSelectedDay={(newDay) => {
-            if (hasChanges && !isSavingRef.current) {
-              handleSaveDraft(true).catch(() => {});
-            }
-            setSelectedDay(newDay);
-          }}
-          onClose={async () => {
-            if (hasChanges && !isSavingRef.current) {
-              await handleSaveDraft(true);
-            }
-            setShowAdvancedActionModal(false);
-          }}
-          onSaveDraft={() => handleSaveDraft(false)}
+          setSelectedDay={(newDay) => setSelectedDay(newDay)}
+          onClose={() => setShowAdvancedActionModal(false)}
+          onSaveDraft={handleSaveDraft}
           saveStatus={saveStatus}
         />
       )}
@@ -6045,26 +6065,43 @@ const EditSprint: React.FC = () => {
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            handleSaveDraft(false);
+            handleSaveDraft();
           }}
           disabled={saveStatus === 'saving'}
-          className={`fixed bottom-6 right-6 z-50 w-10 h-10 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center cursor-pointer border ${saveStatus === 'saved' ? 'bg-green-600 border-green-700 text-white' : 'bg-primary text-white border-primary/20'}`}
-          title={saveStatus === 'saving' ? 'Saving draft...' : saveStatus === 'saved' ? 'Draft Saved Successfully!' : hasChanges ? 'Save Draft (Unsaved changes)' : 'Save Draft'}
+          className={`fixed bottom-6 right-6 z-50 h-11 px-4 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 cursor-pointer border ${
+            saveStatus === 'saved'
+              ? 'bg-green-600 border-green-700 text-white'
+              : hasChanges
+                ? 'bg-primary text-white border-primary shadow-primary/25 shadow-xl'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
+          }`}
+          title={saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved Successfully!' : hasChanges ? 'Save Unsaved Changes' : 'Save Draft'}
         >
           {saveStatus === 'saving' ? (
-            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
+            <>
+              <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <span className="text-xs font-bold">Saving...</span>
+            </>
           ) : saveStatus === 'saved' ? (
-            <CheckCircle2 className="h-4.5 w-4.5 text-white animate-bounce" />
+            <>
+              <CheckCircle2 className="h-4.5 w-4.5 text-white animate-bounce" />
+              <span className="text-xs font-bold">Saved!</span>
+            </>
           ) : (
-            <div className="relative">
-              <Save className="h-4.5 w-4.5" />
-              {hasChanges && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-white animate-ping" />
-              )}
-            </div>
+            <>
+              <div className="relative">
+                <Save className={`h-4 w-4 ${hasChanges ? 'text-white' : 'text-primary'}`} />
+                {hasChanges && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-300 animate-ping" />
+                )}
+              </div>
+              <span className="text-xs font-bold">
+                {hasChanges ? 'Save Changes' : 'Save Draft'}
+              </span>
+            </>
           )}
         </button>
       )}

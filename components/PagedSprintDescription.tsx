@@ -10,7 +10,7 @@ interface PagedSprintDescriptionProps {
 export const PagedSprintDescription: React.FC<PagedSprintDescriptionProps> = ({
   text,
   className = "",
-  textSizeClass = "text-base sm:text-lg text-gray-800 font-medium leading-relaxed"
+  textSizeClass = "text-base sm:text-lg text-gray-800 dark:text-gray-200 font-medium leading-relaxed"
 }) => {
   const content = (text && text.trim()) ? text.trim() : "Unlock consistency and start your rise.";
 

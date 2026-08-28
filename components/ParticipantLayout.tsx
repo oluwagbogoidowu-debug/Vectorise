@@ -163,10 +163,10 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
   const isFullBleedPage = isDaySuccess || isSprintView || isSettingsPage || isNextSprint || location.pathname.startsWith('/sprint') || location.pathname.startsWith('/coach/sprint/preview');
 
   return (
-    <div className="h-[100dvh] w-full bg-light overflow-hidden flex flex-col">
+    <div className="h-[100dvh] w-full bg-light dark:bg-[#121212] overflow-hidden flex flex-col">
       {/* Main content area: overflow-y-auto enables scrolling for the whole view */}
       {showHeader && <Header />}
-      <main className={`flex-1 bg-light relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-2' : ''} ${isFullBleedPage ? 'pb-0' : 'pb-8'}`}>
+      <main className={`flex-1 bg-light dark:bg-[#121212] relative overflow-y-auto custom-scrollbar ${showHeader ? 'pt-2' : ''} ${isFullBleedPage ? 'pb-0' : 'pb-8'}`}>
         {children || <Outlet />}
       </main>
       

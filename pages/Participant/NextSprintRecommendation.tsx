@@ -45,7 +45,9 @@ export const NextSprintRecommendation: React.FC = () => {
     const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
     const [isSwitchModeModalOpen, setIsSwitchModeModalOpen] = useState(false);
     const kebabMenuRef = useRef<HTMLDivElement>(null);
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(() => 
+        typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : false
+    );
     const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<any | null>(null);
 
     // Subscribe to user enrollments to track active in-progress sprint
@@ -73,7 +75,13 @@ export const NextSprintRecommendation: React.FC = () => {
     }, [user]);
 
     useEffect(() => {
-        setIsDarkMode(document.documentElement.classList.contains('dark'));
+        const checkDarkMode = () => {
+            setIsDarkMode(document.documentElement.classList.contains('dark'));
+        };
+        checkDarkMode();
+        const observer = new MutationObserver(checkDarkMode);
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        return () => observer.disconnect();
     }, []);
 
     // Failsafe: Automatically fulfill and save any pending preview action when landing on dashboard
@@ -451,13 +459,13 @@ export const NextSprintRecommendation: React.FC = () => {
     }, [isPaymentModalOpen, userBalance, sprintCost, paymentMethod]);
 
     return (
-        <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-white text-gray-900 relative overflow-hidden">
+        <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-transparent dark:bg-transparent text-gray-900 dark:text-gray-100 relative overflow-hidden">
             {/* Navigation Header */}
-            <header className="w-full max-w-[340px] sm:max-w-[380px] z-20 flex items-center justify-between pt-2">
+            <header className="w-full max-w-[340px] sm:max-w-[380px] z-20 flex items-center justify-between pt-2 bg-transparent">
                 <button
                     type="button"
                     onClick={() => setIsMenuOpen(true)}
-                    className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                    className="p-2.5 bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl shadow-sm text-gray-700 dark:text-gray-200 hover:text-gray-950 dark:hover:text-white active:scale-95 transition-all cursor-pointer"
                     title="Open menu"
                 >
                     <Menu className="w-5 h-5" />
@@ -482,7 +490,7 @@ export const NextSprintRecommendation: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => setIsKebabMenuOpen((prev) => !prev)}
-                        className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                        className={`p-2.5 bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl shadow-sm text-gray-700 dark:text-gray-200 hover:text-gray-950 dark:hover:text-white active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
                         title="Options"
                     >
                         <MoreVertical className="w-5 h-5" />
@@ -495,48 +503,48 @@ export const NextSprintRecommendation: React.FC = () => {
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.92, y: -4 }}
                                 transition={{ duration: 0.16, ease: "easeOut" }}
-                                className="absolute right-0 mt-2 w-72 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                                className="absolute right-0 mt-2 w-72 bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-gray-100/90 dark:border-zinc-800 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
                             >
                                 <div className="space-y-1">
                                     <button
                                         type="button"
                                         onClick={handleReadBlog}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 active:bg-gray-100 dark:active:bg-zinc-700 transition-all text-left cursor-pointer group"
                                     >
-                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <BookOpen className="w-4 h-4" />
                                         </div>
                                         <div className="text-xs truncate">
-                                            <span className="font-bold text-gray-900">Read Rise Blog</span>
-                                            <span className="font-normal text-gray-500"> · Earn coins</span>
+                                            <span className="font-bold text-gray-900 dark:text-gray-100">Read Rise Blog</span>
+                                            <span className="font-normal text-gray-500 dark:text-gray-400"> · Earn coins</span>
                                         </div>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={handleReferFriend}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 active:bg-gray-100 dark:active:bg-zinc-700 transition-all text-left cursor-pointer group"
                                     >
-                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <UserPlus className="w-4 h-4" />
                                         </div>
                                         <div className="text-xs truncate">
-                                            <span className="font-bold text-gray-900">Refer a Friend</span>
-                                            <span className="font-normal text-gray-500"> · Earn coins</span>
+                                            <span className="font-bold text-gray-900 dark:text-gray-100">Refer a Friend</span>
+                                            <span className="font-normal text-gray-500 dark:text-gray-400"> · Earn coins</span>
                                         </div>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={handleClaimMilestones}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 active:bg-gray-100 dark:active:bg-zinc-700 transition-all text-left cursor-pointer group"
                                     >
-                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <Trophy className="w-4 h-4" />
                                         </div>
                                         <div className="text-xs truncate">
-                                            <span className="font-bold text-gray-900">Claim Milestones</span>
-                                            <span className="font-normal text-gray-500"> • Earn coin</span>
+                                            <span className="font-bold text-gray-900 dark:text-gray-100">Claim Milestones</span>
+                                            <span className="font-normal text-gray-500 dark:text-gray-400"> • Earn coin</span>
                                         </div>
                                     </button>
 
@@ -546,28 +554,28 @@ export const NextSprintRecommendation: React.FC = () => {
                                             setIsKebabMenuOpen(false);
                                             setIsThemeModalOpen(true);
                                         }}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 active:bg-gray-100 dark:active:bg-zinc-700 transition-all text-left cursor-pointer group"
                                     >
-                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                                         </div>
                                         <div className="text-xs truncate">
-                                            <span className="font-bold text-gray-900">Switch Mode</span>
-                                            <span className="font-normal text-gray-500"> • {isDarkMode ? 'Light' : 'Dark'}</span>
+                                            <span className="font-bold text-gray-900 dark:text-gray-100">Switch Mode</span>
+                                            <span className="font-normal text-gray-500 dark:text-gray-400"> • {isDarkMode ? 'Light' : 'Dark'}</span>
                                         </div>
                                     </button>
 
                                     <button
                                         type="button"
                                         onClick={handleBuyCoins}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 active:bg-gray-100 dark:active:bg-zinc-700 transition-all text-left cursor-pointer group"
                                     >
-                                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <Coins className="w-4 h-4" />
                                         </div>
                                         <div className="text-xs truncate">
-                                            <span className="font-bold text-gray-900">Buy Coins</span>
-                                            <span className="font-normal text-gray-500"> • Progress faster</span>
+                                            <span className="font-bold text-gray-900 dark:text-gray-100">Buy Coins</span>
+                                            <span className="font-normal text-gray-500 dark:text-gray-400"> • Progress faster</span>
                                         </div>
                                     </button>
                                 </div>
@@ -579,27 +587,27 @@ export const NextSprintRecommendation: React.FC = () => {
             </header>
 
             {/* Main Content */}
-            <main className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-6 text-center">
+            <div className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-6 text-center bg-transparent dark:bg-transparent">
                 <div className="space-y-2">
-                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950">
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950 dark:text-white">
                         Your Next Sprint
                     </h1>
                 </div>
 
                 {/* Sprint Card with Price Badge visible */}
-                <div className="w-full text-left">
+                <div className="w-full text-left bg-transparent dark:bg-transparent">
                     {isLoading ? (
-                        <div className="py-20 flex justify-center items-center">
+                        <div className="py-20 flex justify-center items-center bg-transparent dark:bg-transparent">
                             <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
                         </div>
                     ) : sprint ? (
-                        <div className="space-y-2">
+                        <div className="space-y-2 bg-transparent dark:bg-transparent">
                             <SprintCard 
                                 sprint={sprint} 
                                 coach={fetchedCoach || vectoriseCoach} 
                                 isStatic={true} 
                                 hideFooterDetails={false}
-                                variant="light"
+                                variant={isDarkMode ? "dark" : "light"}
                                 onOpenOverview={() => setShowOverviewModal(true)}
                             />
                             {isSameSprintLinked && (
@@ -607,7 +615,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                     <button
                                         type="button"
                                         onClick={() => setShowOverviewModal(true)}
-                                        className="text-xs font-bold text-[#0E7850] hover:text-[#085C3D] hover:underline transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                                        className="text-xs font-bold text-[#0E7850] dark:text-emerald-400 hover:text-[#085C3D] hover:underline transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                                     >
                                         View overview.
                                     </button>
@@ -615,8 +623,8 @@ export const NextSprintRecommendation: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="p-8 text-center bg-gray-50 rounded-2xl border border-gray-200">
-                            <p className="text-xs font-bold text-gray-700">No additional sprints found.</p>
+                        <div className="p-8 text-center bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800">
+                            <p className="text-xs font-bold text-gray-700 dark:text-gray-300">No additional sprints found.</p>
                             <button
                                 onClick={() => navigate('/explore')}
                                 className="mt-4 px-4 py-2 bg-[#0E7850] text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer"
@@ -641,7 +649,7 @@ export const NextSprintRecommendation: React.FC = () => {
                             disabled={isLoading || !sprint || Boolean(activeOngoingEnrollment)}
                             className={`w-full py-5 font-black uppercase tracking-[0.2em] text-xs rounded-2xl transition-all flex items-center justify-center gap-2 ${
                                 activeOngoingEnrollment
-                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-250 shadow-none'
+                                    ? 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed border border-gray-250 dark:border-zinc-700 shadow-none'
                                     : 'bg-[#0E7850] hover:bg-[#085C3D] text-white shadow-xl shadow-[#0E7850]/20 hover:scale-[1.02] active:scale-95 cursor-pointer'
                             }`}
                         >
@@ -651,7 +659,7 @@ export const NextSprintRecommendation: React.FC = () => {
 
                     </div>
                 )}
-            </main>
+            </div>
 
             {/* Footer */}
             <footer className="w-full text-center pb-12 z-10 flex flex-col items-center gap-2">
@@ -674,16 +682,16 @@ export const NextSprintRecommendation: React.FC = () => {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                            className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-7 max-w-md w-full text-gray-900 relative shadow-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto text-left"
+                            className="bg-white dark:bg-[#1c1c1e] rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-7 max-w-md w-full text-gray-900 dark:text-gray-100 relative shadow-2xl max-h-[85vh] sm:max-h-[80vh] overflow-y-auto text-left border border-transparent dark:border-zinc-800"
                         >
                             {/* Drag Handle indicator */}
-                            <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                            <div className="w-12 h-1 bg-gray-200 dark:bg-zinc-700 rounded-full mx-auto mb-4"></div>
 
                             {/* Close Button */}
                             <button
                                 type="button"
                                 onClick={() => setShowOverviewModal(false)}
-                                className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -704,7 +712,7 @@ export const NextSprintRecommendation: React.FC = () => {
                             </div>
 
                             {/* Sprint Title */}
-                            <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-gray-950 mb-3">
+                            <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-gray-950 dark:text-white mb-3">
                                 {sprint.title}
                             </h3>
 
@@ -727,7 +735,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                 disabled={Boolean(activeOngoingEnrollment)}
                                 className={`w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs transition-all text-center flex items-center justify-center gap-2 mt-4 ${
                                     activeOngoingEnrollment
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-250'
+                                        ? 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed border border-gray-250 dark:border-zinc-700'
                                         : 'bg-[#0E7850] hover:bg-[#085C3D] text-white shadow-xl shadow-[#0E7850]/20 hover:scale-[1.01] active:scale-95 cursor-pointer'
                                 }`}
                             >
@@ -748,66 +756,66 @@ export const NextSprintRecommendation: React.FC = () => {
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-                            className="bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-7 max-w-md w-full text-gray-900 relative shadow-2xl max-h-[90vh] overflow-y-auto"
+                            className="bg-white dark:bg-[#1c1c1e] rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-7 max-w-md w-full text-gray-900 dark:text-gray-100 relative shadow-2xl max-h-[90vh] overflow-y-auto border border-transparent dark:border-zinc-800"
                         >
                             {/* Close Button */}
                             <button
                                 onClick={() => !isProcessingPayment && setIsPaymentModalOpen(false)}
-                                className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                                className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer"
                             >
                                 <X className="w-5 h-5" />
                             </button>
 
                             {/* Header */}
                             <div className="text-left mb-4">
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-lg border border-emerald-200/60 mb-2">
-                                    <Sparkles className="w-4 h-4 text-[#0E7850]" />
-                                    <span className="text-xs font-black uppercase text-[#0E7850] tracking-wider">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 rounded-lg border border-emerald-200/60 dark:border-emerald-800/40 mb-2">
+                                    <Sparkles className="w-4 h-4 text-[#0E7850] dark:text-emerald-400" />
+                                    <span className="text-xs font-black uppercase text-[#0E7850] dark:text-emerald-400 tracking-wider">
                                         Unlock Sprint
                                     </span>
                                 </div>
-                                <h3 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight leading-snug">
+                                <h3 className="text-xl sm:text-2xl font-black text-gray-950 dark:text-white tracking-tight leading-snug">
                                     {sprint.title}
                                 </h3>
                             </div>
 
                             {/* Wallet Balance Card */}
-                            <div className="bg-gray-50/90 rounded-2xl p-4 sm:p-5 border border-gray-200/80 mb-4 text-left space-y-3.5">
+                            <div className="bg-gray-50/90 dark:bg-zinc-800/80 rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-zinc-700 mb-4 text-left space-y-3.5">
                                 {/* Balance and Cost Row */}
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                             Your Balance
                                         </div>
-                                        <div className="text-base sm:text-lg font-black text-gray-950 flex items-center gap-1.5">
+                                        <div className="text-base sm:text-lg font-black text-gray-950 dark:text-white flex items-center gap-1.5">
                                             <span>🪙 {userBalance}</span>
-                                            <span className="text-xs font-bold text-gray-500 uppercase">Coins</span>
+                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Coins</span>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-0.5">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                             Sprint Cost
                                         </div>
-                                        <div className="text-base sm:text-lg font-black text-[#0E7850] flex items-center justify-end gap-1.5">
+                                        <div className="text-base sm:text-lg font-black text-[#0E7850] dark:text-emerald-400 flex items-center justify-end gap-1.5">
                                             <span>{sprintCost}</span>
-                                            <span className="text-xs font-bold text-emerald-700 uppercase">Coins</span>
+                                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase">Coins</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Option: Use Coins (Only shown when coins are enough) */}
                                 {userBalance >= sprintCost && (
-                                    <div className="pt-3 border-t border-gray-200">
-                                        <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 flex items-center justify-between">
+                                    <div className="pt-3 border-t border-gray-200 dark:border-zinc-700">
+                                        <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 dark:bg-emerald-950/20 flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
                                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                                 </div>
-                                                <span className="text-sm sm:text-base font-black text-gray-900">
+                                                <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white">
                                                     Use {sprintCost} coins of your balance to continue
                                                 </span>
                                             </div>
-                                            <span className="text-xs font-black text-[#0E7850] bg-emerald-100 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
+                                            <span className="text-xs font-black text-[#0E7850] bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
                                                 Available
                                             </span>
                                         </div>
@@ -834,8 +842,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                         onClick={() => !isProcessingPayment && setPaymentMethod('card')}
                                         className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
                                             paymentMethod === 'card' 
-                                                ? 'bg-emerald-50/50 border-[#0E7850] text-gray-900 shadow-xs ring-1 ring-[#0E7850]/30' 
-                                                : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                                ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-[#0E7850] text-gray-900 dark:text-white shadow-xs ring-1 ring-[#0E7850]/30' 
+                                                : 'bg-white dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 text-gray-700 dark:text-gray-200'
                                         }`}
                                     >
                                         <span className="text-sm sm:text-base font-bold">
@@ -845,7 +853,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                             const coinsRem = Math.max(0, sprintCost - userBalance);
                                             const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
                                             return (
-                                                <span className="text-sm sm:text-base font-black text-[#0E7850] shrink-0 ml-2">
+                                                <span className="text-sm sm:text-base font-black text-[#0E7850] dark:text-emerald-400 shrink-0 ml-2">
                                                     ₦{topupPrice.toLocaleString()}
                                                 </span>
                                             );
@@ -862,7 +870,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                     className={`w-full py-4.5 rounded-2xl shadow-xl transition-all text-sm sm:text-base font-black tracking-wider uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
                                         !isProcessingPayment && !(paymentMethod === 'coins' && userBalance < sprintCost)
                                             ? 'bg-[#0E7850] hover:bg-[#085C3D] text-white active:scale-95 shadow-[#0E7850]/20' 
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                                            : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
                                     }`}
                                 >
                                     {isProcessingPayment ? (
