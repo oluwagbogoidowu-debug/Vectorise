@@ -263,16 +263,17 @@ const SprintSettingsModal: React.FC<{
   const handleToggleReminders = () => {
     if (!sprint) return;
     const nextState = !reminderConfig.enabled;
-    const updated = { ...reminderConfig, enabled: nextState };
+    const updated = { ...reminderConfig, sprintId: sprint.id, sprintTitle: sprint.title, enabled: nextState };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
-    toast.success(nextState ? 'Local task reminders enabled!' : 'Local task reminders disabled.');
+    localNotificationScheduler.saveConfig(updated, user?.id);
+    toast.success(nextState ? 'Task reminders enabled!' : 'Task reminders disabled.');
   };
 
   const handleUpdateDailyTime = (newTime: string) => {
-    const updated = { ...reminderConfig, dailyTime: newTime };
+    if (!sprint) return;
+    const updated = { ...reminderConfig, sprintId: sprint.id, sprintTitle: sprint.title, dailyTime: newTime };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
+    localNotificationScheduler.saveConfig(updated, user?.id);
   };
 
   const handleAddOverride = () => {
@@ -280,19 +281,20 @@ const SprintSettingsModal: React.FC<{
     const updatedTasks = { ...reminderConfig.taskReminders };
     updatedTasks[selectedOverrideDay] = selectedOverrideTime;
 
-    const updated = { ...reminderConfig, taskReminders: updatedTasks };
+    const updated = { ...reminderConfig, sprintId: sprint.id, sprintTitle: sprint.title, taskReminders: updatedTasks };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
-    toast.success(`Custom reminder set of ${selectedOverrideTime} for Day ${selectedOverrideDay}!`);
+    localNotificationScheduler.saveConfig(updated, user?.id);
+    toast.success(`Custom reminder set to ${selectedOverrideTime} for Day ${selectedOverrideDay}!`);
   };
 
   const handleRemoveOverride = (dayNum: number) => {
+    if (!sprint) return;
     const updatedTasks = { ...reminderConfig.taskReminders };
     delete updatedTasks[dayNum];
 
-    const updated = { ...reminderConfig, taskReminders: updatedTasks };
+    const updated = { ...reminderConfig, sprintId: sprint.id, sprintTitle: sprint.title, taskReminders: updatedTasks };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
+    localNotificationScheduler.saveConfig(updated, user?.id);
     toast.info(`Removed custom reminder for Day ${dayNum}.`);
   };
 

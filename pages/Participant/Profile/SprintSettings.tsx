@@ -22,6 +22,7 @@ const SprintSettings: React.FC = () => {
   const [hapticsEnabled, setHapticsEnabled] = useState(() => getHapticSettings());
 
   const [activeSprints, setActiveSprints] = useState<Sprint[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
   const [loadingSprints, setLoadingSprints] = useState(true);
 
@@ -63,8 +64,8 @@ const SprintSettings: React.FC = () => {
           setLoadingSprints(false);
           return;
         }
-        const enrollments = await sprintService.getUserEnrollments(user.id);
-        const sprintIds = enrollments.map(e => (e as any).sprintId || e.sprint_id).filter(Boolean);
+        const fetchedEnrollments = await sprintService.getUserEnrollments(user.id);
+        const sprintIds = fetchedEnrollments.map(e => (e as any).sprintId || e.sprint_id).filter(Boolean);
         
         if (sprintIds.length === 0) {
           if (isMounted) setLoadingSprints(false);
@@ -75,6 +76,7 @@ const SprintSettings: React.FC = () => {
         const validSprints = sprints.filter((s): s is Sprint => s !== null);
 
         if (isMounted) {
+          setEnrollments(fetchedEnrollments);
           setActiveSprints(validSprints);
           // Match URL sprintId if present, else pick first valid sprint
           const matched = validSprints.find(s => s.id === urlSprintId) || validSprints[0] || null;
@@ -94,7 +96,8 @@ const SprintSettings: React.FC = () => {
   // Sync reminder config whenever selectedSprint changes
   useEffect(() => {
     if (selectedSprint) {
-      const saved = localNotificationScheduler.getConfig(selectedSprint.id) || {
+      const enr = enrollments.find(e => (e as any).sprintId === selectedSprint.id || e.sprint_id === selectedSprint.id);
+      const saved = (enr as any)?.reminderConfig || localNotificationScheduler.getConfig(selectedSprint.id) || {
         sprintId: selectedSprint.id,
         sprintTitle: selectedSprint.title,
         enabled: false,
@@ -104,22 +107,24 @@ const SprintSettings: React.FC = () => {
       setReminderConfig(saved);
       setPermissionGranted(localNotificationScheduler.hasNotificationPermission());
     }
-  }, [selectedSprint]);
+  }, [selectedSprint, enrollments]);
 
   const handleToggleReminders = () => {
     if (!selectedSprint) return;
     const nextState = !reminderConfig.enabled;
     const updated = { ...reminderConfig, sprintId: selectedSprint.id, sprintTitle: selectedSprint.title, enabled: nextState };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
-    toast.success(nextState ? 'Local task reminders enabled!' : 'Local task reminders disabled.');
+    const enr = enrollments.find(e => (e as any).sprintId === selectedSprint.id || e.sprint_id === selectedSprint.id);
+    localNotificationScheduler.saveConfig(updated, user?.id, enr?.id);
+    toast.success(nextState ? 'Task reminders enabled!' : 'Task reminders disabled.');
   };
 
   const handleUpdateDailyTime = (newTime: string) => {
     if (!selectedSprint) return;
     const updated = { ...reminderConfig, sprintId: selectedSprint.id, sprintTitle: selectedSprint.title, dailyTime: newTime };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
+    const enr = enrollments.find(e => (e as any).sprintId === selectedSprint.id || e.sprint_id === selectedSprint.id);
+    localNotificationScheduler.saveConfig(updated, user?.id, enr?.id);
   };
 
   const handleAddOverride = () => {
@@ -129,7 +134,8 @@ const SprintSettings: React.FC = () => {
 
     const updated = { ...reminderConfig, sprintId: selectedSprint.id, sprintTitle: selectedSprint.title, taskReminders: updatedTasks };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
+    const enr = enrollments.find(e => (e as any).sprintId === selectedSprint.id || e.sprint_id === selectedSprint.id);
+    localNotificationScheduler.saveConfig(updated, user?.id, enr?.id);
     toast.success(`Custom reminder set to ${selectedOverrideTime} for Day ${selectedOverrideDay}!`);
   };
 
@@ -140,7 +146,8 @@ const SprintSettings: React.FC = () => {
 
     const updated = { ...reminderConfig, sprintId: selectedSprint.id, sprintTitle: selectedSprint.title, taskReminders: updatedTasks };
     setReminderConfig(updated);
-    localNotificationScheduler.saveConfig(updated);
+    const enr = enrollments.find(e => (e as any).sprintId === selectedSprint.id || e.sprint_id === selectedSprint.id);
+    localNotificationScheduler.saveConfig(updated, user?.id, enr?.id);
     toast.info(`Removed custom reminder for Day ${dayNum}.`);
   };
 

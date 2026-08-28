@@ -37,8 +37,9 @@ const AppContent: React.FC = () => {
     if (user) {
       analyticsTracker.identify(user.id, user.email);
       
-      // Update activity state on load
+      // Update activity state and sync user timezone on load
       pushNotificationService.updateActivity(user.id, 'Active');
+      pushNotificationService.syncUserTimezone(user.id);
 
       // Periodically update activity while user is active
       interval = setInterval(() => {
@@ -90,10 +91,7 @@ const AppContent: React.FC = () => {
           }
         }));
 
-        // Run checks right away
-        localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints, user.id);
-
-        // Then re-check every minute
+        // Re-check periodically while user is actively in the app
         if (checkInterval) clearInterval(checkInterval);
         checkInterval = setInterval(() => {
           localNotificationScheduler.checkAndTriggerDueReminders(enrichedSprints, user.id);

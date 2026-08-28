@@ -337,9 +337,9 @@ const Profile: React.FC = () => {
   ];
 
   return (
-    <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in">
+    <div className="bg-[#FDFDFD] dark:bg-[#121212] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in transition-colors duration-300">
       
-      <div className="bg-white px-6 pt-8 pb-6 border-b border-gray-50 flex-shrink-0">
+      <div className="bg-white dark:bg-[#18181b] px-6 pt-8 pb-6 border-b border-gray-50 dark:border-zinc-800/80 flex-shrink-0 transition-colors duration-300">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-5">
             <div className="relative group">
@@ -351,12 +351,12 @@ const Profile: React.FC = () => {
               />
             </div>
             <div>
-              <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">{p.name}</h1>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{p.email}</p>
+              <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight leading-none mb-1">{p.name}</h1>
+              <p className="text-[9px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-widest">{p.email}</p>
               <div className="mt-3 flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Joined</span>
-                  <span className="text-[9px] font-bold text-gray-600">{new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                  <span className="text-[8px] font-black text-gray-300 dark:text-zinc-500 uppercase tracking-widest">Joined</span>
+                  <span className="text-[9px] font-bold text-gray-600 dark:text-zinc-400">{new Date(p.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
                 </div>
               </div>
             </div>
@@ -366,7 +366,7 @@ const Profile: React.FC = () => {
             {user && hasMultipleModes(user) && (
               <button 
                 onClick={() => setIsSwitchModalOpen(true)} 
-                className="px-4 py-2 text-xs font-black text-white bg-dark rounded-xl uppercase tracking-widest hover:bg-black transition-colors flex items-center justify-center gap-1.5"
+                className="px-4 py-2 text-xs font-black text-white bg-dark dark:bg-zinc-800 rounded-xl uppercase tracking-widest hover:bg-black dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-1.5"
                 id="profile-switch-mode-btn"
               >
                 <span>🎛️</span> Switch Mode
@@ -387,7 +387,7 @@ const Profile: React.FC = () => {
 
             {/* Request Coach Mode pending state */}
             {user && (user.role === UserRole.PARTICIPANT || user.role === UserRole.COACH) && user.coachApplicationSubmitted && !((user as any).approved || (user as any).coachApplicationApproved) && (
-              <div className="px-4 py-2 text-[10px] font-black text-amber-600 bg-amber-50 rounded-xl uppercase tracking-widest border border-amber-100 flex items-center gap-1.5">
+              <div className="px-4 py-2 text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 rounded-xl uppercase tracking-widest border border-amber-100 dark:border-amber-800/40 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                 Coach Application Pending
               </div>
@@ -398,17 +398,17 @@ const Profile: React.FC = () => {
         {/* Rise and Impact Cards Moved Up - Only show if identity is set or they are a coach */}
         {(setupStep === -1 || user.role === UserRole.COACH) && (
           <div className="grid grid-cols-2 gap-3">
-            <Link to="/profile/hall-of-rise" className="bg-dark rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center active:scale-[0.98] transition-all">
-               <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 mb-1">Rise Score</p>
+            <Link to="/profile/hall-of-rise" className="bg-dark dark:bg-zinc-900 rounded-3xl p-4 text-white relative overflow-hidden flex flex-col justify-center active:scale-[0.98] transition-all border border-transparent dark:border-zinc-800">
+               <p className="text-[7px] font-black uppercase tracking-[0.3em] text-white/30 dark:text-zinc-400 mb-1">Rise Score</p>
                <div className="flex items-end gap-1">
                  <h3 className="text-2xl font-black tracking-tighter">{p.walletBalance || 0}</h3>
                  <span className="text-[10px] mb-1 opacity-40">🪙</span>
                </div>
             </Link>
 
-            <Link to="/impact" className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex flex-col justify-center active:scale-[0.98] transition-all">
-              <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 mb-1">Lives Impacted</p>
-              <h3 className="text-2xl font-black text-gray-900 tracking-tighter">{referrals.length}</h3>
+            <Link to="/impact" className="bg-white dark:bg-[#1c1c1e] rounded-3xl p-4 border border-gray-100 dark:border-zinc-800/80 shadow-sm flex flex-col justify-center active:scale-[0.98] transition-all">
+              <p className="text-[7px] font-black uppercase tracking-[0.3em] text-gray-400 dark:text-zinc-400 mb-1">Lives Impacted</p>
+              <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{referrals.length}</h3>
             </Link>
           </div>
         )}
@@ -538,26 +538,26 @@ const Profile: React.FC = () => {
           <SectionLabel text="Active Path" />
           {activeEntry ? (
             <Link to={`/participant/sprint/${activeEntry.enrollment.id}`} className="block">
-              <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm relative overflow-hidden flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/5 flex items-center justify-center flex-shrink-0 text-xl">🎯</div>
+              <div className="bg-white dark:bg-[#1c1c1e] rounded-3xl p-4 border border-gray-100 dark:border-zinc-800/80 shadow-sm relative overflow-hidden flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-primary/5 dark:bg-primary/10 flex items-center justify-center flex-shrink-0 text-xl">🎯</div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[7px] font-black text-primary uppercase tracking-widest mb-0.5">{p.currentStage || 'Active Path'}</p>
-                  <h3 className="text-xs font-black text-gray-900 truncate">{activeEntry.sprint.title}</h3>
+                  <h3 className="text-xs font-black text-gray-900 dark:text-white truncate">{activeEntry.sprint.title}</h3>
                   <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-gray-50 rounded-full overflow-hidden">
+                    <div className="flex-1 h-1 bg-gray-50 dark:bg-zinc-800 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-primary rounded-full transition-all" 
                         style={{ width: `${(activeEntry.enrollment.progress.filter(x => x.completed).length / activeEntry.sprint.duration) * 100}%` }}
                       />
                     </div>
-                    <span className="text-[8px] font-bold text-gray-400">Day {activeEntry.enrollment.progress.filter(x => x.completed).length + 1}</span>
+                    <span className="text-[8px] font-bold text-gray-400 dark:text-zinc-500">Day {activeEntry.enrollment.progress.filter(x => x.completed).length + 1}</span>
                   </div>
                 </div>
               </div>
             </Link>
           ) : (
-            <div className="p-4 bg-gray-50 rounded-3xl border border-dashed border-gray-100 text-center">
-              <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">No active cycles</p>
+            <div className="p-4 bg-gray-50 dark:bg-zinc-900/50 rounded-3xl border border-dashed border-gray-100 dark:border-zinc-800 text-center">
+              <p className="text-[9px] font-black text-gray-300 dark:text-zinc-600 uppercase tracking-widest">No active cycles</p>
             </div>
           )}
         </section>
@@ -573,18 +573,18 @@ const Profile: React.FC = () => {
               <Link 
                 key={m.id} 
                 to={m.category === 'influence' ? "/impact" : "/profile/hall-of-rise"}
-                className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all block"
+                className="bg-white dark:bg-[#1c1c1e] rounded-2xl p-3 border border-gray-100 dark:border-zinc-800/80 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-all block"
               >
-                <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-lg flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-gray-50 dark:bg-zinc-800 flex items-center justify-center text-lg flex-shrink-0">
                   {m.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-[9px] font-black text-gray-900 truncate uppercase tracking-tight">{m.title}</h4>
-                  <div className="mt-1.5 h-1 bg-gray-50 rounded-full overflow-hidden">
+                  <h4 className="text-[9px] font-black text-gray-900 dark:text-white truncate uppercase tracking-tight">{m.title}</h4>
+                  <div className="mt-1.5 h-1 bg-gray-50 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${m.progress}%` }} />
                   </div>
                 </div>
-                <div className="text-[7px] font-black text-gray-400 uppercase tracking-widest">
+                <div className="text-[7px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest">
                   {m.progress === 100 && m.isClaimed ? 'Awarded' : (m.progress === 100 ? 'Unlocked' : m.displayValue)}
                 </div>
               </Link>
@@ -621,14 +621,14 @@ const Profile: React.FC = () => {
         <div className="px-1">
           <Link 
             to="/profile/hall-of-rise"
-            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
+            className="w-full py-4 bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏆</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Hall of Rise</span>
+              <div className="w-8 h-8 rounded-xl bg-primary/5 dark:bg-primary/10 flex items-center justify-center text-sm">🏆</div>
+              <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Hall of Rise</span>
             </div>
             <svg 
-              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
+              className="w-4 h-4 text-gray-300 dark:text-zinc-600 group-hover:text-primary transition-colors" 
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
@@ -640,14 +640,14 @@ const Profile: React.FC = () => {
         <div className="px-1">
           <Link 
             to="/profile/archive"
-            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
+            className="w-full py-4 bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">🏛️</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Rise Archive</span>
+              <div className="w-8 h-8 rounded-xl bg-primary/5 dark:bg-primary/10 flex items-center justify-center text-sm">🏛️</div>
+              <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Rise Archive</span>
             </div>
             <svg 
-              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
+              className="w-4 h-4 text-gray-300 dark:text-zinc-600 group-hover:text-primary transition-colors" 
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
@@ -659,14 +659,14 @@ const Profile: React.FC = () => {
         <div className="px-1">
           <Link 
             to="/profile/settings"
-            className="w-full py-4 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
+            className="w-full py-4 bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 rounded-[2rem] shadow-sm flex items-center justify-between px-6 group active:scale-[0.98] transition-all"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-sm">⚙️</div>
-              <span className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em]">Account Settings</span>
+              <div className="w-8 h-8 rounded-xl bg-primary/5 dark:bg-primary/10 flex items-center justify-center text-sm">⚙️</div>
+              <span className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Account Settings</span>
             </div>
             <svg 
-              className="w-4 h-4 text-gray-300 group-hover:text-primary transition-colors" 
+              className="w-4 h-4 text-gray-300 dark:text-zinc-600 group-hover:text-primary transition-colors" 
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />

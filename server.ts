@@ -261,15 +261,95 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  app.post('/api/notifications/subscribe', async (req, res) => {
-    const { userId, subscription, fcmToken } = req.body;
+  app.post(['/api/subscribe', '/api/notifications/subscribe'], async (req, res) => {
+    const { userId, subscription, fcmToken, timezone, timezoneOffsetMinutes } = req.body;
     const token = fcmToken || subscription;
     if (!userId || !token) return res.status(400).json({ error: 'userId and fcmToken/subscription are required' });
     try {
       const success = await pushNotificationManager.saveSubscription(userId, token);
+      if (timezone || typeof timezoneOffsetMinutes === 'number') {
+        await db.collection('users').doc(userId).update({
+          timezone: timezone || 'UTC',
+          tz: timezone || 'UTC',
+          timezoneOffsetMinutes: typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0
+        }).catch(() => {});
+      }
       res.json({ success });
     } catch (error) {
       res.status(500).json({ error: 'Failed to save subscription' });
+    }
+  });
+
+  app.post('/api/notifications/save-sprint-reminder', async (req, res) => {
+    const { userId, sprintId, enrollmentId, reminderConfig, timezone, timezoneOffsetMinutes } = req.body;
+    if (!userId || !reminderConfig) {
+      return res.status(400).json({ error: 'userId and reminderConfig are required' });
+    }
+    try {
+      if (timezone || typeof timezoneOffsetMinutes === 'number') {
+        await db.collection('users').doc(userId).update({
+          timezone: timezone || 'UTC',
+          tz: timezone || 'UTC',
+          timezoneOffsetMinutes: typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0
+        }).catch(() => {});
+      }
+
+      let targetEnrollmentId = enrollmentId;
+      if (!targetEnrollmentId && sprintId) {
+        const enrollSnap = await db.collection('users').doc(userId).collection('enrollments')
+          .where('sprint_id', '==', sprintId)
+          .where('status', '==', 'active')
+          .limit(1)
+          .get();
+        if (!enrollSnap.empty) {
+          targetEnrollmentId = enrollSnap.docs[0].id;
+        }
+      }
+
+      if (targetEnrollmentId) {
+        await db.collection('users').doc(userId).collection('enrollments').doc(targetEnrollmentId).update({
+          reminderConfig
+        }).catch((e: any) => console.error('[Server] Failed to update enrollment reminderConfig:', e));
+      }
+
+      if (sprintId) {
+        await db.collection('users').doc(userId).collection('sprint_reminders').doc(sprintId).set(
+          { ...reminderConfig, updatedAt: new Date().toISOString() },
+          { merge: true }
+        ).catch(() => {});
+      }
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('[Server] Failed to save sprint reminder config:', err);
+      res.status(500).json({ error: 'Failed to save sprint reminder' });
+    }
+  });
+
+  app.post('/api/notifications/sync-timezone', async (req, res) => {
+    const { userId, timezone, timezoneOffsetMinutes } = req.body;
+    if (!userId || !timezone) return res.status(400).json({ error: 'userId and timezone are required' });
+    try {
+      await db.collection('users').doc(userId).update({
+        timezone,
+        tz: timezone,
+        timezoneOffsetMinutes: typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0
+      }).catch(() => {});
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to sync timezone' });
+    }
+  });
+
+  app.all('/api/cron/process-triggers', async (req, res) => {
+    try {
+      console.log('[Server] /api/cron/process-triggers triggered at:', new Date().toISOString());
+      await pushNotificationManager.processTriggers();
+      await pushNotificationManager.processPendingNotifications();
+      res.json({ success: true, timestamp: new Date().toISOString() });
+    } catch (error: any) {
+      console.error('[Server] Cron trigger processing error:', error);
+      res.status(500).json({ error: 'Failed to process triggers', detail: error?.message });
     }
   });
 

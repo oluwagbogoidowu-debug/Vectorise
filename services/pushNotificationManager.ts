@@ -301,6 +301,18 @@ export const pushNotificationManager = {
                   if (change.type === 'added') {
                     const notification = { id: change.doc.id, ...change.doc.data() } as Notification;
                     
+                    // Prevent waking server from spamming old notifications created before listener attached
+                    const createdAtMs = notification.createdAt ? new Date(notification.createdAt).getTime() : 0;
+                    const ageMinutes = (Date.now() - createdAtMs) / (60 * 1000);
+                    if (createdAtMs > 0 && ageMinutes > 10) {
+                      await change.doc.ref.update({
+                        pushSent: false,
+                        pushFailed: true,
+                        lastPushError: 'Notification created >10m ago skipped on initial listener attach'
+                      }).catch(() => {});
+                      continue;
+                    }
+
                     const hasNotTriedOrFailed = !notification.pushFailed && (!notification.retryCount || notification.retryCount === 0);
                     if (!notification.pushSent && hasNotTriedOrFailed) {
                       if (processingNotifications.has(notification.id)) {
@@ -553,17 +565,31 @@ export const pushNotificationManager = {
       if (tz && typeof tz === 'string') {
         try {
           const hourStr = userDate.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false });
+          const minStr = userDate.toLocaleString('en-US', { timeZone: tz, minute: 'numeric' });
           const localHour = parseInt(hourStr, 10) % 24;
+          const localMinute = parseInt(minStr, 10) % 60;
           const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(userDate);
-          return { localHour: isNaN(localHour) ? userDate.getHours() : localHour, dateStr };
+          return { 
+            localHour: isNaN(localHour) ? userDate.getHours() : localHour, 
+            localMinute: isNaN(localMinute) ? userDate.getMinutes() : localMinute,
+            dateStr 
+          };
         } catch (e) {}
       }
       if (typeof (uData as any).timezoneOffsetMinutes === 'number') {
         const utcMs = userDate.getTime() + (userDate.getTimezoneOffset() * 60000);
         const userTime = new Date(utcMs - ((uData as any).timezoneOffsetMinutes * 60000));
-        return { localHour: userTime.getHours(), dateStr: userTime.toISOString().split('T')[0] };
+        return { 
+          localHour: userTime.getHours(), 
+          localMinute: userTime.getMinutes(),
+          dateStr: userTime.toISOString().split('T')[0] 
+        };
       }
-      return { localHour: userDate.getHours(), dateStr: userDate.toISOString().split('T')[0] };
+      return { 
+        localHour: userDate.getHours(), 
+        localMinute: userDate.getMinutes(),
+        dateStr: userDate.toISOString().split('T')[0] 
+      };
     };
 
     for (const userDoc of usersSnap.docs) {
@@ -587,87 +613,154 @@ export const pushNotificationManager = {
         continue;
       }
 
-      const { localHour, dateStr } = getUserTimezoneDetails(now, user);
+      const { localHour, localMinute, dateStr } = getUserTimezoneDetails(now, user);
+
+      // Check if user is actively in the web app right now (within last 3 minutes)
+      const isUserActiveNow = !!(user.lastActivityAt && 
+        (now.getTime() - new Date(user.lastActivityAt).getTime()) < 3 * 60 * 1000);
 
       const lastSentAt = user.lastNotificationSentAt ? new Date(user.lastNotificationSentAt) : null;
       const sentToday = lastSentAt && lastSentAt.toISOString().split('T')[0] === dateStr;
 
-      // Get active enrollment to know the sprint category
+      // Get active enrollments for user
       const enrollmentsSnap = await db.collection('users').doc(user.id).collection('enrollments')
         .where('status', '==', 'active')
-        .limit(1)
         .get();
 
       if (enrollmentsSnap.empty) continue;
 
-      const enrollment = { id: enrollmentsSnap.docs[0].id, ...enrollmentsSnap.docs[0].data() } as ParticipantSprint;
-      let sprintSnap = await db.collection('experiences').doc('Sprint').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
-      if (!sprintSnap.exists) {
-        sprintSnap = await db.collection('experiences').doc('RiseBlog').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
-      }
-      if (!sprintSnap.exists) {
-        sprintSnap = await db.collection('experiences').doc('Ignite').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
-      }
-      if (!sprintSnap.exists) {
-        sprintSnap = await db.collection('experiences').doc('Challenge').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
-      }
-      if (!sprintSnap.exists) {
-        sprintSnap = await db.collection('experiences').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
-      }
-      const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
+      for (const enrollDoc of enrollmentsSnap.docs) {
+        const enrollment = { id: enrollDoc.id, ...enrollDoc.data() } as ParticipantSprint;
+        let sprintSnap = await db.collection('experiences').doc('Sprint').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+        if (!sprintSnap.exists) {
+          sprintSnap = await db.collection('experiences').doc('RiseBlog').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+        }
+        if (!sprintSnap.exists) {
+          sprintSnap = await db.collection('experiences').doc('Ignite').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+        }
+        if (!sprintSnap.exists) {
+          sprintSnap = await db.collection('experiences').doc('Challenge').collection('items').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+        }
+        if (!sprintSnap.exists) {
+          sprintSnap = await db.collection('experiences').doc(enrollment.sprint_id).collection('sprintdetails').doc('info').get();
+        }
+        const sprint = sprintSnap.exists ? sprintSnap.data() as Sprint : null;
 
-      // Robust calculation of last active timestamp across user logins and actual task progress submissions
-      const dates = [
-        user.lastActivityAt ? new Date(user.lastActivityAt) : null,
-        enrollment.last_activity_at ? new Date(enrollment.last_activity_at) : null,
-        user.createdAt ? new Date(user.createdAt) : null
-      ].filter((d): d is Date => d !== null && !isNaN(d.getTime()));
+        // Check if today's task is completed
+        const currentDay = enrollment.progress.find(p => !p.completed)?.day || enrollment.progress.length;
+        const todayProgress = enrollment.progress.find(p => p.day === currentDay);
+        const isTaskCompleted = todayProgress?.completed || false;
 
-      const lastActivity = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : new Date();
-      const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-      const daysSinceActivity = Math.floor(hoursSinceActivity / 24);
+        // If today's task is completed, no reminder needed for this sprint today
+        if (isTaskCompleted) continue;
 
-      // Check if today's task is completed
-      const currentDay = enrollment.progress.find(p => !p.completed)?.day || enrollment.progress.length;
-      const todayProgress = enrollment.progress.find(p => p.day === currentDay);
-      const isTaskCompleted = todayProgress?.completed || false;
+        // Robust calculation of last active timestamp across user logins and actual task progress submissions
+        const dates = [
+          user.lastActivityAt ? new Date(user.lastActivityAt) : null,
+          enrollment.last_activity_at ? new Date(enrollment.last_activity_at) : null,
+          user.createdAt ? new Date(user.createdAt) : null
+        ].filter((d): d is Date => d !== null && !isNaN(d.getTime()));
 
-      // Inactivity or Missed Days Nudges (Processed strictly at user's local inactivity hour)
-      if (localHour === (systemConfig.inactivityHour ?? 10) && daysSinceActivity >= 1) {
-        const milestones = [1, 2, 4, 7, 10, 15];
-        const currentMilestone = [...milestones].reverse().find(m => daysSinceActivity >= m);
-        
-        if (currentMilestone) {
-          const alreadyNudged = (enrollment.sentNudges || []).includes(currentMilestone);
-          if (!alreadyNudged && !sentToday) {
-            // Send exact drop-off template nudge
-            const nextDay = enrollment.progress.findIndex(p => !p.completed) + 1 || 1;
-            const template = systemConfig[`nudge_${currentMilestone}` as keyof typeof systemConfig] || DEFAULT_SYSTEM_REMINDERS[`nudge_${currentMilestone}` as keyof typeof DEFAULT_SYSTEM_REMINDERS];
-            const message = getReplacedMessage(String(template), {
-              day: nextDay.toString(),
-              title: sprint?.title || 'your sprint'
-            });
-            
-            const success = await pushNotificationManager.sendPush(user.id, {
-              title: 'Resume Sprint',
-              body: message,
-              url: `/participant/sprint/${enrollment.id}?day=${nextDay}`,
-              tag: 'sprint_nudge'
-            }, true); // bypass active check
+        const lastActivity = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : new Date();
+        const hoursSinceActivity = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
+        const daysSinceActivity = Math.floor(hoursSinceActivity / 24);
 
-            if (success) {
-              const enrollRef = db.collection('users').doc(user.id).collection('enrollments').doc(enrollment.id);
-              await enrollRef.update({
-                sentNudges: admin.firestore.FieldValue.arrayUnion(currentMilestone)
-              }).catch((e: any) => console.error('[PushManager] Failed to update sentNudges:', e));
+        // Inactivity or Missed Days Nudges (Processed strictly at user's local inactivity hour)
+        if (localHour === (systemConfig.inactivityHour ?? 10) && daysSinceActivity >= 1) {
+          const milestones = [1, 2, 4, 7, 10, 15];
+          const currentMilestone = [...milestones].reverse().find(m => daysSinceActivity >= m);
+          
+          if (currentMilestone) {
+            const alreadyNudged = (enrollment.sentNudges || []).includes(currentMilestone);
+            if (!alreadyNudged && !sentToday) {
+              if (isUserActiveNow) {
+                // User is actively in the web app, acknowledge nudge handled
+                await enrollDoc.ref.update({
+                  sentNudges: admin.firestore.FieldValue.arrayUnion(currentMilestone)
+                }).catch(() => {});
+              } else {
+                const nextDay = enrollment.progress.findIndex(p => !p.completed) + 1 || 1;
+                const template = systemConfig[`nudge_${currentMilestone}` as keyof typeof systemConfig] || DEFAULT_SYSTEM_REMINDERS[`nudge_${currentMilestone}` as keyof typeof DEFAULT_SYSTEM_REMINDERS];
+                const message = getReplacedMessage(String(template), {
+                  day: nextDay.toString(),
+                  title: sprint?.title || 'your sprint'
+                });
+                
+                const success = await pushNotificationManager.sendPush(user.id, {
+                  title: 'Resume Sprint',
+                  body: message,
+                  url: `/participant/sprint/${enrollment.id}?day=${nextDay}`,
+                  tag: 'sprint_nudge'
+                }, true);
+
+                if (success) {
+                  await enrollDoc.ref.update({
+                    sentNudges: admin.firestore.FieldValue.arrayUnion(currentMilestone)
+                  }).catch((e: any) => console.error('[PushManager] Failed to update sentNudges:', e));
+                }
+              }
+              continue;
             }
-            continue;
           }
         }
-      }
 
-      // Active Reminders (if task not completed)
-      if (!isTaskCompleted) {
+        // Check if enrollment has custom sprint reminderConfig configured
+        const reminderConfig = (enrollment as any).reminderConfig;
+        if (reminderConfig && reminderConfig.enabled) {
+          const scheduledTime = reminderConfig.taskReminders?.[currentDay] || reminderConfig.dailyTime || '09:00';
+          const [schedHStr, schedMStr] = (scheduledTime || '09:00').split(':');
+          const schedHour = parseInt(schedHStr, 10);
+          const schedMin = parseInt(schedMStr, 10);
+
+          if (!isNaN(schedHour) && !isNaN(schedMin)) {
+            const lastCustomSent = (enrollment as any).lastCustomReminderSentDate;
+            const alreadySentCustom = lastCustomSent === dateStr;
+
+            if (!alreadySentCustom) {
+              // Due if at or past scheduled time within a 2-hour delivery grace window
+              const isDue = (localHour === schedHour && localMinute >= schedMin) || 
+                            (localHour > schedHour && localHour <= schedHour + 2);
+
+              if (isDue) {
+                if (isUserActiveNow) {
+                  // User is active in web app right now, mark satisfied without buzzing device
+                  await enrollDoc.ref.update({
+                    lastCustomReminderSentDate: dateStr,
+                    lastCustomReminderSentAt: now.toISOString()
+                  }).catch(() => {});
+                } else {
+                  // User is away, deliver FCM push notification!
+                  const sprintTitle = sprint?.title || reminderConfig.sprintTitle || 'Your Sprint';
+                  const notifTitle = `Today’s Focus: ${sprintTitle}`;
+                  const notifBody = `Day ${currentDay} starts now. This step moves you forward. Start Task.`;
+                  
+                  console.log(`[PushManager] Delivering custom sprint reminder push to user ${user.id} (Day ${currentDay}, scheduled ${scheduledTime}, local ${localHour}:${localMinute})`);
+                  const success = await pushNotificationManager.sendPush(user.id, {
+                    title: notifTitle,
+                    body: notifBody,
+                    url: `/participant/sprint/${enrollment.id}`,
+                    tag: `sprint-reminder-${enrollment.sprint_id}`
+                  });
+
+                  if (success) {
+                    await enrollDoc.ref.update({
+                      lastCustomReminderSentDate: dateStr,
+                      lastCustomReminderSentAt: now.toISOString()
+                    }).catch((e: any) => console.error('[PushManager] Failed to update lastCustomReminderSentDate:', e));
+
+                    await userDoc.ref.update({
+                      lastNotificationSentAt: now.toISOString()
+                    }).catch(() => {});
+                  }
+                }
+              }
+            }
+          }
+          // Custom schedule was processed for this sprint, skip system default unlock
+          continue;
+        }
+
+        // Active Reminders - System Default Schedule
         const sprintTitle = sprint?.title || 'Gain Clarity First';
         const replaceParams = {
           sprintTitle: sprintTitle,
@@ -691,17 +784,24 @@ export const pushNotificationManager = {
           const lastUnlock = userData.lastDailyUnlockSentAt;
           const alreadySentUnlock = lastUnlock && lastUnlock.startsWith(dateStr);
           if (!alreadySentUnlock) {
-            const success = await pushNotificationManager.sendPush(user.id, {
-              title: formatPushTitle(systemConfig.unlockTitle),
-              body: getReplacedMessage(systemConfig.unlockBody, replaceParams),
-              url: `/participant/sprint/${enrollment.id}`,
-              tag: 'daily-unlock'
-            });
-            if (success) {
+            if (isUserActiveNow) {
               await userRef.update({
                 lastDailyUnlockSentAt: dateStr,
                 lastNotificationSentAt: now.toISOString()
-              }).catch((e: any) => console.error('[PushManager] Failed to update lastDailyUnlockSentAt:', e));
+              }).catch(() => {});
+            } else {
+              const success = await pushNotificationManager.sendPush(user.id, {
+                title: formatPushTitle(systemConfig.unlockTitle),
+                body: getReplacedMessage(systemConfig.unlockBody, replaceParams),
+                url: `/participant/sprint/${enrollment.id}`,
+                tag: 'daily-unlock'
+              });
+              if (success) {
+                await userRef.update({
+                  lastDailyUnlockSentAt: dateStr,
+                  lastNotificationSentAt: now.toISOString()
+                }).catch((e: any) => console.error('[PushManager] Failed to update lastDailyUnlockSentAt:', e));
+              }
             }
           }
         }
@@ -710,17 +810,24 @@ export const pushNotificationManager = {
           const lastMidday = userData.lastMiddayCheckSentAt;
           const alreadySentMidday = lastMidday && lastMidday.startsWith(dateStr);
           if (!alreadySentMidday) {
-            const success = await pushNotificationManager.sendPush(user.id, {
-              title: formatPushTitle(systemConfig.middayTitle),
-              body: getReplacedMessage(systemConfig.middayBody, replaceParams),
-              url: `/participant/sprint/${enrollment.id}`,
-              tag: 'midday-check'
-            });
-            if (success) {
+            if (isUserActiveNow) {
               await userRef.update({
                 lastMiddayCheckSentAt: dateStr,
                 lastNotificationSentAt: now.toISOString()
-              }).catch((e: any) => console.error('[PushManager] Failed to update lastMiddayCheckSentAt:', e));
+              }).catch(() => {});
+            } else {
+              const success = await pushNotificationManager.sendPush(user.id, {
+                title: formatPushTitle(systemConfig.middayTitle),
+                body: getReplacedMessage(systemConfig.middayBody, replaceParams),
+                url: `/participant/sprint/${enrollment.id}`,
+                tag: 'midday-check'
+              });
+              if (success) {
+                await userRef.update({
+                  lastMiddayCheckSentAt: dateStr,
+                  lastNotificationSentAt: now.toISOString()
+                }).catch((e: any) => console.error('[PushManager] Failed to update lastMiddayCheckSentAt:', e));
+              }
             }
           }
         }
@@ -729,17 +836,24 @@ export const pushNotificationManager = {
           const lastEvening = userData.lastEveningReminderSentAt;
           const alreadySentEvening = lastEvening && lastEvening.startsWith(dateStr);
           if (!alreadySentEvening) {
-            const success = await pushNotificationManager.sendPush(user.id, {
-              title: formatPushTitle(systemConfig.eveningTitle),
-              body: getReplacedMessage(systemConfig.eveningBody, replaceParams),
-              url: `/participant/sprint/${enrollment.id}`,
-              tag: 'evening-reminder'
-            });
-            if (success) {
+            if (isUserActiveNow) {
               await userRef.update({
                 lastEveningReminderSentAt: dateStr,
                 lastNotificationSentAt: now.toISOString()
-              }).catch((e: any) => console.error('[PushManager] Failed to update lastEveningReminderSentAt:', e));
+              }).catch(() => {});
+            } else {
+              const success = await pushNotificationManager.sendPush(user.id, {
+                title: formatPushTitle(systemConfig.eveningTitle),
+                body: getReplacedMessage(systemConfig.eveningBody, replaceParams),
+                url: `/participant/sprint/${enrollment.id}`,
+                tag: 'evening-reminder'
+              });
+              if (success) {
+                await userRef.update({
+                  lastEveningReminderSentAt: dateStr,
+                  lastNotificationSentAt: now.toISOString()
+                }).catch((e: any) => console.error('[PushManager] Failed to update lastEveningReminderSentAt:', e));
+              }
             }
           }
         }

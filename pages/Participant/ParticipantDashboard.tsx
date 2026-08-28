@@ -830,8 +830,8 @@ const ParticipantDashboard: React.FC = () => {
     }));
     
     const userHasFcmToken = !!(user as Participant)?.fcmToken;
-    localNotificationScheduler.checkAndTriggerDueReminders(activeSprintPayloads, user.id, userHasFcmToken);
 
+    // Check periodically for in-app toasts while actively viewing the dashboard
     const reminderInterval = setInterval(() => {
       localNotificationScheduler.checkAndTriggerDueReminders(activeSprintPayloads, user.id, userHasFcmToken);
     }, 30000); // Check every 30s while active

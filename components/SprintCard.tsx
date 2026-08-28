@@ -106,7 +106,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
         return coach;
     }, [coach, sprint.sprintType, sprint.category]);
 
-    if (variant === 'glass' || variant === 'dark') {
+    if (variant === 'glass') {
         return (
             <div className="relative group h-full w-full">
                 {!isEnrolled && !isQueued && !isStatic && (

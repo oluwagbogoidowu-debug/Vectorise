@@ -40,12 +40,12 @@ const EditProfile: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in">
-      <header className="bg-white px-6 pt-12 pb-6 border-b border-gray-50 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-400 hover:text-gray-900 transition-colors">
+    <div className="bg-[#FDFDFD] dark:bg-[#121212] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in transition-colors duration-300">
+      <header className="bg-white dark:bg-[#18181b] px-6 pt-12 pb-6 border-b border-gray-50 dark:border-zinc-800/80 flex items-center justify-between transition-colors duration-300">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-gray-400 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white transition-colors">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <h1 className="text-lg font-black text-gray-900 uppercase tracking-widest">Edit Profile</h1>
+        <h1 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-widest">Edit Profile</h1>
         <div className="w-10"></div>
       </header>
 
@@ -64,26 +64,26 @@ const EditProfile: React.FC = () => {
               <span className="text-[8px] font-black text-white uppercase tracking-widest">Change</span>
             </div>
           </button>
-          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Tap to change archetype</p>
+          <p className="text-[9px] font-black text-gray-400 dark:text-zinc-400 uppercase tracking-widest">Tap to change archetype</p>
         </div>
 
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-1">Full Name</label>
+            <label className="text-[8px] font-black text-gray-400 dark:text-zinc-400 uppercase tracking-widest px-1">Full Name</label>
             <input 
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-white border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-gray-900 outline-none focus:border-primary transition-colors shadow-sm"
+              className="w-full bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800 rounded-2xl px-5 py-4 text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-primary transition-colors shadow-sm"
               placeholder="Your name"
             />
           </div>
 
           <div className="space-y-2 opacity-50">
-            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest px-1">Email Address</label>
+            <label className="text-[8px] font-black text-gray-400 dark:text-zinc-400 uppercase tracking-widest px-1">Email Address</label>
             <input 
               disabled
               value={p.email}
-              className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-xs font-bold text-gray-400 outline-none cursor-not-allowed"
+              className="w-full bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-800 rounded-2xl px-5 py-4 text-xs font-bold text-gray-400 dark:text-zinc-400 outline-none cursor-not-allowed"
             />
           </div>
         </div>
@@ -103,24 +103,24 @@ const EditProfile: React.FC = () => {
       {isSelectingAvatar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsSelectingAvatar(false)}></div>
-          <div className="relative w-full max-w-sm bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
+          <div className="relative w-full max-w-sm bg-white dark:bg-[#18181b] border border-transparent dark:border-zinc-800 rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up">
             <div className="p-8">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Choose Archetype</h2>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-8">Select the energy you want to embody.</p>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-2">Choose Archetype</h2>
+              <p className="text-[10px] font-black text-gray-400 dark:text-zinc-400 uppercase tracking-widest mb-8">Select the energy you want to embody.</p>
               
               <div className="grid grid-cols-1 gap-3">
                 {ARCHETYPES.map((arch) => (
                   <button 
-                    key={arch.id}
+                    key={arch.id} 
                     onClick={() => handleSelectArchetype(arch.id)}
-                    className={`flex items-center gap-4 p-4 rounded-3xl border transition-all active:scale-95 ${p.archetype === arch.id ? 'bg-primary/5 border-primary/20' : 'bg-gray-50 border-gray-100 hover:border-gray-200'}`}
+                    className={`flex items-center gap-4 p-4 rounded-3xl border transition-all active:scale-95 ${p.archetype === arch.id ? 'bg-primary/5 dark:bg-primary/10 border-primary/20' : 'bg-gray-50 dark:bg-zinc-800/50 border-gray-100 dark:border-zinc-800 hover:border-gray-200 dark:hover:border-zinc-700'}`}
                   >
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-gradient-to-br ${arch.color} shadow-lg`}>
                       {arch.icon}
                     </div>
                     <div className="text-left">
-                      <h4 className="text-xs font-black text-gray-900">{arch.name}</h4>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{arch.energy}</p>
+                      <h4 className="text-xs font-black text-gray-900 dark:text-white">{arch.name}</h4>
+                      <p className="text-[9px] font-bold text-gray-400 dark:text-zinc-400 uppercase tracking-widest">{arch.energy}</p>
                     </div>
                   </button>
                 ))}
@@ -128,7 +128,7 @@ const EditProfile: React.FC = () => {
             </div>
             <button 
               onClick={() => setIsSelectingAvatar(false)}
-              className="w-full py-5 bg-gray-900 text-white font-black uppercase tracking-[0.3em] text-[10px]"
+              className="w-full py-5 bg-gray-900 dark:bg-zinc-800 text-white font-black uppercase tracking-[0.3em] text-[10px]"
             >
               Close
             </button>

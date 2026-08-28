@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
-import { notificationService } from './notificationService';
+import { pushNotificationService } from './pushNotificationService';
 
 export interface SprintReminderConfig {
   sprintId: string;
@@ -56,13 +56,19 @@ export const localNotificationScheduler = {
   },
 
   /**
-   * Save reminder configuration for a specific sprint
+   * Save reminder configuration for a specific sprint.
+   * Saves to localStorage for fast client UI and syncs to backend/Firestore
+   * so the background server trigger system knows when to send pushes while the user is away.
    */
-  saveConfig(config: SprintReminderConfig): void {
+  saveConfig(config: SprintReminderConfig, userId?: string, enrollmentId?: string): void {
     try {
       const all = this.getAllConfigs();
       all[config.sprintId] = config;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+
+      if (userId) {
+        pushNotificationService.saveSprintReminderConfig(userId, config.sprintId, enrollmentId, config);
+      }
     } catch (e) {
       console.error('[NotificationScheduler] Failed to save config to localStorage:', e);
     }
@@ -271,19 +277,8 @@ export const localNotificationScheduler = {
             duration: 4000
           });
 
-          // Dispatch native browser notification if allowed
+          // Dispatch native browser notification if allowed and browser window is in focus
           this.triggerNativeNotification(notifTitle, notifBody, actionUrl);
-
-          // Route to notifications subcollection if user ID available
-          if (userId && !userHasFcmToken) {
-            notificationService.createNotification(
-              userId,
-              'sprint_day_unlocked',
-              notifTitle,
-              notifBody,
-              { actionUrl, bypassActiveCheck: true, pushOnly: true }
-            ).catch(err => console.error('[NotificationScheduler] Failed to dispatch local notification doc:', err));
-          }
 
           // Telemetry report for fired trigger
           this.reportTelemetry({
@@ -292,7 +287,7 @@ export const localNotificationScheduler = {
             scheduledTime,
             diffMinutes,
             hasFcmToken: userHasFcmToken,
-            notes: `Fired within ${diffMinutes}m matching window`
+            notes: `In-app active reminder displayed within ${diffMinutes}m matching window`
           });
         }
       }

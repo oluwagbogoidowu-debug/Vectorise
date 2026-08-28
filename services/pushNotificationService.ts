@@ -184,19 +184,24 @@ export const pushNotificationService = {
 
       console.log('[PushService] Successfully retrieved FCM token:', fcmToken);
 
-      // 6. Update user document to store the FCM Token
+      // 6. Update user document to store the FCM Token and user timezone
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const offset = new Date().getTimezoneOffset();
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, {
         fcmToken: fcmToken,
         notificationsDisabled: false,
-        lastActivityAt: new Date().toISOString()
+        lastActivityAt: new Date().toISOString(),
+        timezone: tz,
+        tz: tz,
+        timezoneOffsetMinutes: offset
       });
 
       // 7. Sync with subscription record on backend
       const responseSub = await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitizeData({ userId, fcmToken }))
+        body: JSON.stringify(sanitizeData({ userId, fcmToken, timezone: tz, timezoneOffsetMinutes: offset }))
       });
 
       if (!responseSub.ok) {
@@ -208,6 +213,61 @@ export const pushNotificationService = {
     } catch (error: any) {
       console.error('Push subscription process failed:', error);
       throw error;
+    }
+  },
+
+  syncUserTimezone: async (userId: string) => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const offset = new Date().getTimezoneOffset();
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        timezone: tz,
+        tz: tz,
+        timezoneOffsetMinutes: offset
+      }).catch(() => {});
+
+      await fetch('/api/notifications/sync-timezone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanitizeData({ userId, timezone: tz, timezoneOffsetMinutes: offset }))
+      }).catch(() => {});
+    } catch (err) {
+      console.warn('[PushService] Timezone sync skipped:', err);
+    }
+  },
+
+  saveSprintReminderConfig: async (
+    userId: string, 
+    sprintId: string, 
+    enrollmentId?: string, 
+    reminderConfig?: any
+  ) => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const offset = new Date().getTimezoneOffset();
+
+      // Update Firestore client-side if enrollmentId is present
+      if (enrollmentId) {
+        const enrollRef = doc(db, 'users', userId, 'enrollments', enrollmentId);
+        await updateDoc(enrollRef, { reminderConfig }).catch(() => {});
+      }
+
+      // Sync to server backend so server knows schedule for background trigger execution
+      await fetch('/api/notifications/save-sprint-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sanitizeData({
+          userId,
+          sprintId,
+          enrollmentId,
+          reminderConfig,
+          timezone: tz,
+          timezoneOffsetMinutes: offset
+        }))
+      });
+    } catch (err) {
+      console.warn('[PushService] Failed to persist sprint reminder config to server:', err);
     }
   },
 
