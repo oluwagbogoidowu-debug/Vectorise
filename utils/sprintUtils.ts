@@ -566,17 +566,8 @@ export const getExploreSprintItems = (
         }
     }
 
-    // =========================================================================
-    // STEP 5: FALLBACK TO REMAINING AVAILABLE SPRINTS
-    // Any remaining non-enrolled sprints that are not part of the linked chain.
-    // =========================================================================
-    sprints.forEach(s => {
-        if (!seenIds.has(s.id) && !enrolledSprintIds.has(s.id)) {
-            // Standalone unlinked sprints are active Level 1 options
-            addSprintItem(s, 1, false, true);
-        }
-    });
-
+    // Strictly sprint-to-sprint linking only:
+    // No orchestrator fallbacks or unlinked arbitrary sprints are displayed in Explore.
     return list;
 };
 
