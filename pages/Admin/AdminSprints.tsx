@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, AlertTriangle, Flame, BookOpen, Sparkles } from 'lucide-react';
+import { Trash2, AlertTriangle, Flame, BookOpen, Sparkles, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { adminCache } from './adminCache';
+import SprintReviewsModal from '../../components/SprintReviewsModal';
 
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
@@ -16,6 +17,7 @@ const AdminSprints: React.FC = () => {
   const [sprintFilter, setSprintFilter] = useState<SprintFilter>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reviewSprint, setReviewSprint] = useState<Sprint | null>(null);
 
   useEffect(() => {
     if (adminCache.sprints && adminCache.sprints.length > 0) {
@@ -293,6 +295,15 @@ const AdminSprints: React.FC = () => {
                   </button>
                 </div>
               )}
+              <button
+                type="button"
+                onClick={() => setReviewSprint(s)}
+                className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-emerald-50/60 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+                title="View Completion Reviews"
+                aria-label="View Reviews"
+              >
+                <Info className="w-4 h-4" />
+              </button>
               <Link to={`/coach/sprint/edit/${s.id}`}><button className="px-8 py-3 bg-white border border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-primary transition-all">Edit</button></Link>
               <button 
                 onClick={() => setDeletingId(s.id)}
@@ -305,6 +316,13 @@ const AdminSprints: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Full Bleed Reviews Modal */}
+      <SprintReviewsModal
+        isOpen={reviewSprint !== null}
+        sprint={reviewSprint}
+        onClose={() => setReviewSprint(null)}
+      />
     </div>
   );
 };

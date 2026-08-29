@@ -14,6 +14,7 @@ interface SprintCompletionModalProps {
     isOpen: boolean;
     onStartNext: (rating: number) => void;
     onClose: () => void;
+    sprintId?: string;
     sprintTitle?: string;
     streakCount?: number;
 }
@@ -22,6 +23,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     isOpen, 
     onStartNext, 
     onClose,
+    sprintId,
     sprintTitle = "Growth Sprint",
     streakCount = 0
 }) => {
@@ -107,6 +109,26 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
         } finally {
             setIsClaimingIndex(null);
         }
+    };
+
+    const handleStartNextAction = async () => {
+        if (user && sprintId && (rating > 0 || outcome.trim())) {
+            try {
+                const finalRating = rating > 0 ? rating : 5;
+                const p = user as Participant;
+                await sprintService.addReview(sprintId, {
+                    participantId: user.id,
+                    userName: user.name || (p as any)?.displayName || user.email?.split('@')[0] || 'Participant',
+                    userAvatar: (p as any)?.profileImageUrl || (p as any)?.avatar || '',
+                    rating: finalRating,
+                    comment: outcome.trim(),
+                    timestamp: new Date().toISOString()
+                });
+            } catch (err) {
+                console.warn("Could not save review on sprint completion:", err);
+            }
+        }
+        onStartNext(rating > 0 ? rating : 5);
     };
 
     if (!isOpen) return null;
@@ -269,7 +291,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                 <div className="relative z-10 pt-4 space-y-3">
                     <button 
                         type="button"
-                        onClick={() => onStartNext(rating)}
+                        onClick={handleStartNextAction}
                         className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                     >
                         <span>Start your next sprint</span>

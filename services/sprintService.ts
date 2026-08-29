@@ -1373,6 +1373,104 @@ export const sprintService = {
         }
     },
 
+    addReview: async (sprintId: string, review: Omit<Review, 'id' | 'sprintId'> & { id?: string }) => {
+        try {
+            const reviewData = {
+                ...review,
+                sprintId,
+                rating: Number(review.rating) || 5,
+                comment: review.comment || '',
+                userName: review.userName || 'Anonymous Participant',
+                userAvatar: review.userAvatar || '',
+                timestamp: review.timestamp || new Date().toISOString()
+            };
+            // 1. Add to sprints/{sprintId}/reviews subcollection
+            const subCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
+            const docRef = await addDoc(subCol, sanitizeData(reviewData));
+            
+            // 2. Also save to root 'reviews' collection for global lookup
+            try {
+                const rootCol = collection(db, 'reviews');
+                await setDoc(doc(rootCol, docRef.id), sanitizeData({ ...reviewData, id: docRef.id }), { merge: true });
+            } catch (e) {
+                console.warn("[addReview] Error syncing to root reviews collection:", e);
+            }
+
+            return docRef.id;
+        } catch (err) {
+            console.error("[addReview] Error adding review:", err);
+            throw err;
+        }
+    },
+
+    getReviewsForSprint: async (sprintId: string): Promise<Review[]> => {
+        if (!sprintId) return [];
+        try {
+            // Try subcollection first
+            const subReviewsCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
+            const snap = await getDocs(subReviewsCol);
+            const list: Review[] = snap.docs.map(d => ({
+                ...sanitizeData(d.data()),
+                id: d.id,
+                sprintId
+            }) as Review);
+
+            if (list.length > 0) return list;
+
+            // Fallback: root reviews collection
+            const rootCol = collection(db, 'reviews');
+            const q = query(rootCol, where("sprintId", "==", sprintId));
+            const rootSnap = await getDocs(q);
+            return rootSnap.docs.map(d => ({
+                ...sanitizeData(d.data()),
+                id: d.id,
+                sprintId
+            }) as Review);
+        } catch (err) {
+            console.warn(`[getReviewsForSprint] Error fetching reviews for ${sprintId}:`, err);
+            return [];
+        }
+    },
+
+    subscribeToSprintReviews: (sprintId: string, callback: (reviews: Review[]) => void) => {
+        if (!sprintId) {
+            callback([]);
+            return () => {};
+        }
+
+        try {
+            const subReviewsCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
+            return onSnapshot(subReviewsCol, (snapshot) => {
+                const reviews = snapshot.docs.map(doc => ({
+                    ...sanitizeData(doc.data()),
+                    id: doc.id,
+                    sprintId
+                }) as Review);
+                callback(reviews);
+            }, (err) => {
+                console.warn(`[subscribeToSprintReviews] Subcollection listener error for ${sprintId}:`, err);
+                try {
+                    const rootCol = collection(db, 'reviews');
+                    const q = query(rootCol, where("sprintId", "==", sprintId));
+                    return onSnapshot(q, (rootSnap) => {
+                        const reviews = rootSnap.docs.map(doc => ({
+                            ...sanitizeData(doc.data()),
+                            id: doc.id,
+                            sprintId
+                        }) as Review);
+                        callback(reviews);
+                    }, () => callback([]));
+                } catch (e) {
+                    callback([]);
+                }
+            });
+        } catch (e) {
+            console.warn(`[subscribeToSprintReviews] Error setting listener for ${sprintId}:`, e);
+            callback([]);
+            return () => {};
+        }
+    },
+
     subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
         if (!sprintIds.length) {
             callback([]);

@@ -2963,6 +2963,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       />
       <SprintCompletionModal
         isOpen={isCompletionModalOpen}
+        sprintId={sprint?.id}
         onClose={() => {
           if (location.state?.showCompletion) {
             localStorage.setItem("show_bonus_toast", "true");

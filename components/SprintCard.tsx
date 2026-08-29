@@ -19,6 +19,7 @@ interface SprintCardProps {
     hideFooterDetails?: boolean; // Hide Guided By and Price/Coins section
     variant?: 'light' | 'dark' | 'glass';
     onOpenOverview?: () => void;
+    onOpenReviews?: () => void;
 }
 
 const SprintCard: React.FC<SprintCardProps> = ({ 
@@ -31,7 +32,8 @@ const SprintCard: React.FC<SprintCardProps> = ({
     level,
     hideFooterDetails = false, 
     variant = 'light', 
-    onOpenOverview 
+    onOpenOverview,
+    onOpenReviews
 }) => {
     const { user, updateProfile } = useAuth();
     const [isProcessingSave, setIsProcessingSave] = useState(false);
@@ -207,6 +209,20 @@ const SprintCard: React.FC<SprintCardProps> = ({
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {onOpenReviews && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onOpenReviews();
+                                            }}
+                                            className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all flex items-center justify-center border border-white/10 cursor-pointer"
+                                            title="View Reviews"
+                                        >
+                                            <Info className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                     {onOpenOverview && (
                                         <button
                                             type="button"
@@ -323,20 +339,36 @@ const SprintCard: React.FC<SprintCardProps> = ({
                                         <p className="text-[9px] font-black text-gray-900 dark:text-white uppercase tracking-tight truncate">{displayCoach.name}</p>
                                     </div>
                                 </div>
-                                {onOpenOverview && (
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            onOpenOverview();
-                                        }}
-                                        className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-zinc-800 hover:bg-primary/10 dark:hover:bg-primary/20 text-gray-400 dark:text-zinc-400 hover:text-primary dark:hover:text-emerald-400 transition-all flex items-center justify-center border border-gray-100 dark:border-zinc-700 cursor-pointer"
-                                        title="Sprint Overview"
-                                    >
-                                        <Info className="w-3.5 h-3.5" />
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-1.5">
+                                    {onOpenReviews && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onOpenReviews();
+                                            }}
+                                            className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-zinc-800 hover:bg-primary/10 dark:hover:bg-primary/20 text-gray-400 dark:text-zinc-400 hover:text-primary dark:hover:text-emerald-400 transition-all flex items-center justify-center border border-gray-100 dark:border-zinc-700 cursor-pointer"
+                                            title="View Reviews"
+                                        >
+                                            <Info className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                    {onOpenOverview && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onOpenOverview();
+                                            }}
+                                            className="w-7 h-7 rounded-lg bg-gray-50 dark:bg-zinc-800 hover:bg-primary/10 dark:hover:bg-primary/20 text-gray-400 dark:text-zinc-400 hover:text-primary dark:hover:text-emerald-400 transition-all flex items-center justify-center border border-gray-100 dark:border-zinc-700 cursor-pointer"
+                                            title="Sprint Overview"
+                                        >
+                                            <Info className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className={`py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.25em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-1.5 ${

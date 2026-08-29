@@ -5,10 +5,11 @@ import { Sprint, Coach } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles, Save, Share2, Trophy } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles, Save, Share2, Trophy, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import CustomSelect from '../../components/CustomSelect';
 import CreateTypeModal from '../../components/CreateTypeModal';
+import SprintReviewsModal from '../../components/SprintReviewsModal';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -769,6 +770,7 @@ const CoachSprints: React.FC = () => {
   
   const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [reviewSprint, setReviewSprint] = useState<Sprint | null>(null);
 
   // Edit states for blog and ignite
   const [editingBlog, setEditingBlog] = useState<Sprint | null>(null);
@@ -1183,6 +1185,15 @@ const CoachSprints: React.FC = () => {
                                 </div>
                             )}
                             <button 
+                                type="button"
+                                onClick={() => setReviewSprint(sprint)}
+                                className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-emerald-50/60 rounded-xl transition-all active:scale-90 cursor-pointer flex items-center justify-center"
+                                title="View Sprint Reviews"
+                                aria-label="View Reviews"
+                            >
+                                <Info className="h-4 w-4" />
+                            </button>
+                            <button 
                                 onClick={() => setSprintToDelete(sprint)}
                                 className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-90 cursor-pointer"
                                 title="Delete Course"
@@ -1204,6 +1215,13 @@ const CoachSprints: React.FC = () => {
       )}
 
       <CreateTypeModal isOpen={isCreateTypeOpen} onClose={() => setIsCreateTypeOpen(false)} />
+
+      {/* Full Bleed Reviews Modal */}
+      <SprintReviewsModal 
+        isOpen={reviewSprint !== null} 
+        sprint={reviewSprint} 
+        onClose={() => setReviewSprint(null)} 
+      />
     </div>
   );
 };
