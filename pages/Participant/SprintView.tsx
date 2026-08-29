@@ -3142,46 +3142,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               </div>
             </div>
 
-            {/* Move Day Switcher Carousel */}
-            <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1 mb-8">
-              {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
-                const isActive = viewingDay === day;
-                const prog = enrollment.progress?.find((p) => p.day === day);
-                const isCompleted = prog?.completed;
-                const firstIncomplete = enrollment.progress?.find((p) => !p.completed)?.day || sprint.duration;
-                const isDisabled = isPreview ? false : (day > firstIncomplete);
-
-                return (
-                  <button
-                    key={day}
-                    disabled={isDisabled}
-                    onClick={() => {
-                      saveParticipantInputImmediately(taskInputs);
-                      setViewingDay(day);
-                      setGuidedStage("insight");
-                    }}
-                    className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 active:scale-95 cursor-pointer ${
-                      isActive
-                        ? "bg-[#0E7850] text-white shadow-xl shadow-primary/20 scale-105"
-                        : isDisabled
-                          ? "bg-[#F3F4F6] text-gray-200 cursor-not-allowed opacity-50"
-                          : "bg-[#F3F4F6] text-gray-400 hover:bg-gray-200/70"
-                    }`}
-                  >
-                    {isCompleted && (
-                      <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-[#0E7850]"}`}></div>
-                    )}
-                    <span className={`text-[8px] font-black uppercase tracking-widest ${isActive ? "text-white/60" : "text-gray-300"}`}>
-                      Move
-                    </span>
-                    <span className="text-2xl sm:text-3xl font-black leading-none">
-                      {day}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
             {/* Locked or Queued check */}
             {enrollment.status === "queued" ? (
               <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[50vh] w-full">
