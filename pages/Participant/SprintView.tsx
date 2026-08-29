@@ -34,7 +34,7 @@ import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, ge
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
@@ -1135,6 +1135,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isRestarting, setIsRestarting] = useState(false);
   const kebabMenuRef = useRef<HTMLDivElement>(null);
 
+  const [sprintMode, setSprintMode] = useState<"scroll" | "guided">(() => {
+    try {
+      return (localStorage.getItem("rise_sprint_mode") as "scroll" | "guided") || "scroll";
+    } catch {
+      return "scroll";
+    }
+  });
+  const [guidedStage, setGuidedStage] = useState<"insight" | "action">("insight");
+  const [isFullBleed, setIsFullBleed] = useState(false);
+
   // Close kebab menu when clicking outside
   useEffect(() => {
     if (!isKebabMenuOpen) return;
@@ -1368,6 +1378,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return dayContent.taskPrompts.filter((_, idx) => isStepVisible(idx)).length;
   };
 
+  const getFirstVisibleStepIndex = (): number => {
+    if (!dayContent || !dayContent.taskPrompts || dayContent.taskPrompts.length === 0) return 0;
+    for (let i = 0; i < dayContent.taskPrompts.length; i++) {
+      if (isStepVisible(i)) return i;
+    }
+    return 0;
+  };
+
   const getVisibleStepIndexOrder = (currentIndex: number): number => {
     if (!dayContent || !dayContent.taskPrompts) return 0;
     let order = 0;
@@ -1472,7 +1490,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
   };
 
-  const [isFullBleed, setIsFullBleed] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>(
     {},
   );
@@ -2740,6 +2757,298 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     });
   }, [dayContent, taskInputs, sprint]);
 
+  const renderKebabMenuContent = () => (
+    <>
+      {sprint?.title && (
+        <div className="px-3 pt-2 pb-2 border-b border-gray-100/70 mb-1">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            Sprint Menu
+          </p>
+          <p className="text-xs font-bold text-gray-800 truncate">
+            {sprint.title}
+          </p>
+        </div>
+      )}
+
+      {/* Sprint Mode Switcher */}
+      <div className="p-1.5 border-b border-gray-100/70 mb-1 bg-gray-50/70 rounded-2xl">
+        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 px-2 pt-1 pb-1.5">
+          Sprint Mode
+        </p>
+        <div className="space-y-1">
+          <button
+            type="button"
+            onClick={() => {
+              setSprintMode("scroll");
+              try {
+                localStorage.setItem("rise_sprint_mode", "scroll");
+              } catch {}
+              setIsKebabMenuOpen(false);
+            }}
+            className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-all cursor-pointer ${
+              sprintMode === "scroll"
+                ? "bg-white text-gray-950 shadow-sm border border-[#0E7850]/20"
+                : "hover:bg-white/60 text-gray-600 border border-transparent"
+            }`}
+          >
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+              sprintMode === "scroll" ? "bg-[#0E7850] text-white" : "bg-gray-200/70 text-gray-500"
+            }`}>
+              <Layers className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black">Scroll Mode</span>
+                {sprintMode === "scroll" && (
+                  <span className="text-[8px] font-black uppercase tracking-widest text-[#0E7850] bg-[#0E7850]/10 px-1.5 py-0.5 rounded-full">Active</span>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 font-medium leading-tight mt-0.5">
+                Move through the sprint at your own pace.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSprintMode("guided");
+              setGuidedStage("insight");
+              try {
+                localStorage.setItem("rise_sprint_mode", "guided");
+              } catch {}
+              setIsKebabMenuOpen(false);
+            }}
+            className={`w-full flex items-start gap-2.5 p-2 rounded-xl text-left transition-all cursor-pointer ${
+              sprintMode === "guided"
+                ? "bg-white text-gray-950 shadow-sm border border-[#0E7850]/20"
+                : "hover:bg-white/60 text-gray-600 border border-transparent"
+            }`}
+          >
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+              sprintMode === "guided" ? "bg-[#0E7850] text-white" : "bg-gray-200/70 text-gray-500"
+            }`}>
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black">Guided Mode</span>
+                {sprintMode === "guided" && (
+                  <span className="text-[8px] font-black uppercase tracking-widest text-[#0E7850] bg-[#0E7850]/10 px-1.5 py-0.5 rounded-full">Active</span>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 font-medium leading-tight mt-0.5">
+                Full-bleed step-by-step guided focus.
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-0.5">
+        <button
+          type="button"
+          onClick={() => {
+            setIsKebabMenuOpen(false);
+            setIsSprintOverviewOpen(true);
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+        >
+          <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+            <BookOpen className="w-4 h-4" />
+          </div>
+          <span className="truncate">View Sprint Overview</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleShareSprint}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+        >
+          <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+            <Share2 className="w-4 h-4" />
+          </div>
+          <span className="truncate">Share Sprint</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsKebabMenuOpen(false);
+            setIsRestartModalOpen(true);
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+        >
+          <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+            <RotateCcw className="w-4 h-4" />
+          </div>
+          <span className="truncate">Restart Sprint</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsKebabMenuOpen(false);
+            setIsChatModalOpen(true);
+          }}
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+              <MessageCircle className="w-4 h-4" />
+            </div>
+            <span className="truncate">Request Guidance</span>
+          </div>
+          {hasUnreadMessages && (
+            <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse"></span>
+          )}
+        </button>
+      </div>
+    </>
+  );
+
+  const renderAllModals = () => (
+    <>
+      <SprintSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        soundEnabled={soundEnabled}
+        onToggleSound={toggleSoundState}
+        notificationsEnabled={notificationsEnabled}
+        onToggleNotifications={toggleNotificationsState}
+        hapticsEnabled={hapticsEnabled}
+        onToggleHaptics={toggleHapticsState}
+        sprint={sprint}
+      />
+      <CoachingChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        sprintId={sprint?.id || ""}
+        participantId={user?.id || ""}
+        day={viewingDay}
+        sprintTitle={sprint?.title || ""}
+      />
+      <DayCompletionModal
+        isOpen={isDayCompletionModalOpen}
+        onClose={() => {
+          setIsDayCompletionModalOpen(false);
+          if (dayContent?.mirrorActive) {
+            if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+            mirrorTimerRef.current = setTimeout(() => {
+              setIsMirrorReportModalOpen(true);
+            }, 3000);
+          }
+        }}
+        day={viewingDay}
+        bridgeNote={dayContent?.bridgeNote}
+        dayContent={dayContent}
+        taskInputs={taskInputs}
+        sprint={sprint}
+        enrollment={enrollment}
+      />
+      <MirrorReportModal
+        isOpen={isMirrorReportModalOpen}
+        onClose={() => setIsMirrorReportModalOpen(false)}
+        day={viewingDay}
+        dayContent={dayContent}
+        answers={taskInputs}
+        totalDays={sprint?.duration}
+      />
+      <SprintCompletionModal
+        isOpen={isCompletionModalOpen}
+        onClose={() => {
+          if (location.state?.showCompletion) {
+            localStorage.setItem("show_bonus_toast", "true");
+          }
+          if (isPreview) {
+            setViewingDay(1);
+            setActiveTaskIndex(0);
+            setTaskInputs(["", "", ""]);
+            setIsCompletionModalOpen(false);
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
+        }}
+        onStartNext={(rating) => {
+          if (isPreview) {
+            setViewingDay(1);
+            setActiveTaskIndex(0);
+            setTaskInputs(["", "", ""]);
+            setIsCompletionModalOpen(false);
+          } else {
+            handleCompletionModalAction(rating);
+          }
+        }}
+        sprintTitle={sprint?.title}
+        streakCount={(user as any)?.impactStats?.streak || 0}
+      />
+      <ConfirmModal
+        isOpen={confirmCheckInDay !== null}
+        onClose={() => setConfirmCheckInDay(null)}
+        onConfirm={() => {
+          if (confirmCheckInDay !== null) {
+            executeCheckIn(confirmCheckInDay);
+          }
+        }}
+        title="Check-in Confirmation"
+        message={`Ready to log your consistency for Move ${confirmCheckInDay || ""}? Tracking your progress is a key part of your growth journey.`}
+        confirmText="Confirm Check-in"
+        cancelText="Wait, not yet"
+        variant="success"
+      />
+      <SprintCardModal
+        isOpen={isSprintCardModalOpen}
+        onClose={() => setIsSprintCardModalOpen(false)}
+        sprint={sprint}
+        coach={coach}
+      />
+      <SprintOverviewSheet
+        isOpen={isSprintOverviewOpen}
+        onClose={() => setIsSprintOverviewOpen(false)}
+        sprint={sprint}
+        coach={coach}
+      />
+      <ActionStepConfirmModal
+        isOpen={confirmMarkStepIndex !== null}
+        onConfirm={() => {
+          if (confirmMarkStepIndex !== null) {
+            const newInputs = [...taskInputs];
+            newInputs[confirmMarkStepIndex] = "Completed";
+            setTaskInputs(newInputs);
+            setConfirmMarkStepIndex(null);
+          }
+        }}
+        onSkip={() => {
+          if (confirmMarkStepIndex !== null) {
+            const idx = confirmMarkStepIndex;
+            const newInputs = [...taskInputs];
+            newInputs[idx] = "Skipped";
+            setTaskInputs(newInputs);
+            setConfirmMarkStepIndex(null);
+            if (getNextVisibleStepIndex(idx) !== -1) {
+              setActiveTaskIndex(getNextVisibleStepIndex(idx));
+            }
+          }
+        }}
+        onCancel={() => setConfirmMarkStepIndex(null)}
+      />
+      <ConfirmModal
+        isOpen={isRestartModalOpen}
+        onClose={() => !isRestarting && setIsRestartModalOpen(false)}
+        onConfirm={handleRestartSprint}
+        title="Are you sure you want to restart the sprint?"
+        message="This will clear your current progress and start afresh."
+        confirmText={isRestarting ? "Restarting..." : "Yes"}
+        cancelText="No"
+        variant="danger"
+      />
+      <ParticipantDrawerMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+      />
+    </>
+  );
+
   const handleQuickComplete = () => {
     handleFinishDay();
   };
@@ -2752,6 +3061,206 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           {isPreview ? "Loading Sprint Preview..." : "Loading Sprint..."}
         </p>
       </div>
+    );
+  }
+
+  // GUIDED MODE - INSIGHT VIEW (Full Bleed)
+  if (sprintMode === "guided" && guidedStage === "insight") {
+    return (
+      <>
+        <div className="page-content w-full min-h-screen bg-white flex flex-col font-sans text-dark animate-fade-in pb-24">
+          <header className="px-6 sm:px-12 md:px-16 pt-8 pb-4 max-w-5xl mx-auto w-full sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100/80">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(true)}
+                className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                title="Open menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="px-3.5 py-1.5 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-[#0E7850]/20">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Guided Mode
+                </span>
+              </div>
+              <div className="relative" ref={kebabMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                  className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                  title="Sprint options"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
+
+                <AnimatePresence>
+                  {isKebabMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                      transition={{ duration: 0.16, ease: "easeOut" }}
+                      className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                    >
+                      {renderKebabMenuContent()}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </header>
+
+          <div className="px-6 sm:px-12 md:px-16 max-w-5xl mx-auto w-full flex-1 flex flex-col pt-8">
+            {/* Header row: Move 1 badge on the right (with exact Move 1 style), and Sprint title beside it to the left */}
+            <div className="flex items-start justify-between gap-6 pb-6 border-b border-gray-100 mb-8">
+              <div className="flex-1 min-w-0 pr-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/10 px-3 py-1 rounded-full inline-block">
+                    Move {viewingDay}
+                  </span>
+                  {dayProgress?.completed && (
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 font-bold">
+                      <Check className="w-3 h-3" /> Completed
+                    </span>
+                  )}
+                </div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-950 tracking-tight leading-tight">
+                  {sprint.title}
+                </h1>
+              </div>
+
+              {/* Move 1 Badge with Exact Style */}
+              <div className="w-20 h-20 rounded-[1.5rem] bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-xl shadow-primary/20 shrink-0">
+                <span className="text-[8px] font-black uppercase tracking-widest text-white/60">
+                  Move
+                </span>
+                <span className="text-3xl font-black leading-none">
+                  {viewingDay}
+                </span>
+              </div>
+            </div>
+
+            {/* Move Day Switcher Carousel */}
+            <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1 mb-8">
+              {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
+                const isActive = viewingDay === day;
+                const prog = enrollment.progress?.find((p) => p.day === day);
+                const isCompleted = prog?.completed;
+                const firstIncomplete = enrollment.progress?.find((p) => !p.completed)?.day || sprint.duration;
+                const isDisabled = isPreview ? false : (day > firstIncomplete);
+
+                return (
+                  <button
+                    key={day}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      saveParticipantInputImmediately(taskInputs);
+                      setViewingDay(day);
+                      setGuidedStage("insight");
+                    }}
+                    className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 active:scale-95 cursor-pointer ${
+                      isActive
+                        ? "bg-[#0E7850] text-white shadow-xl shadow-primary/20 scale-105"
+                        : isDisabled
+                          ? "bg-[#F3F4F6] text-gray-200 cursor-not-allowed opacity-50"
+                          : "bg-[#F3F4F6] text-gray-400 hover:bg-gray-200/70"
+                    }`}
+                  >
+                    {isCompleted && (
+                      <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isActive ? "bg-white" : "bg-[#0E7850]"}`}></div>
+                    )}
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${isActive ? "text-white/60" : "text-gray-300"}`}>
+                      Move
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-black leading-none">
+                      {day}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Locked or Queued check */}
+            {enrollment.status === "queued" ? (
+              <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[50vh] w-full">
+                <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-4">
+                  In the Queue.
+                </h2>
+                <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
+                  You have an active sprint running. This journey will automatically unlock once your current focus is complete.
+                </p>
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="px-10 py-5 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02]"
+                >
+                  Return to Active Focus
+                </button>
+              </div>
+            ) : dayLockDetails.isLocked ? (
+              <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[50vh] w-full">
+                <div className="p-10 bg-gray-50 rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/50 w-full max-w-sm flex flex-col items-center">
+                  <div className="w-14 h-14 bg-[#0E7850]/10 text-[#0E7850] rounded-2xl flex items-center justify-center mb-5">
+                    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+                    Access Locked
+                  </h2>
+                  <p className="text-sm text-gray-500 font-medium mb-8 leading-relaxed">
+                    {dayLockDetails.reason || "Complete previous move first."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const firstIncomplete = enrollment.progress?.find((p) => !p.completed)?.day || 1;
+                      setViewingDay(firstIncomplete);
+                    }}
+                    className="w-full py-4 bg-[#0E7850] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#0b5d3e] transition-all shadow-lg shadow-[#0E7850]/20 active:scale-95 cursor-pointer"
+                  >
+                    Go to Active Move
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col justify-between">
+                {/* Today's Insight */}
+                <div className="space-y-4 text-left my-4 animate-slide-up">
+                  <SectionHeading>Today's Insight</SectionHeading>
+                  <div className="text-gray-800 font-normal text-lg sm:text-xl md:text-2xl leading-[1.8] tracking-normal max-w-3xl">
+                    <FormattedText text={dayContent?.lessonText || ""} />
+                  </div>
+                </div>
+
+                {/* Next button taking user to the first action step */}
+                <div className="mt-12 pt-8 pb-16 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    {getTotalVisibleStepsCount() > 1
+                      ? `${getTotalVisibleStepsCount()} Action Steps in Move ${viewingDay}`
+                      : `1 Action Step in Move ${viewingDay}`}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGuidedStage("action");
+                      setActiveTaskIndex(getFirstVisibleStepIndex());
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="w-full sm:w-auto px-10 py-5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.25em] shadow-xl shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer"
+                  >
+                    <span>Next</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {renderAllModals()}
+      </>
     );
   }
 
@@ -2792,76 +3301,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                     transition={{ duration: 0.16, ease: "easeOut" }}
                     className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
                   >
-                    {sprint?.title && (
-                      <div className="px-3 pt-2 pb-2 border-b border-gray-100/70 mb-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                          Sprint Menu
-                        </p>
-                        <p className="text-xs font-bold text-gray-800 truncate">
-                          {sprint.title}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsKebabMenuOpen(false);
-                          setIsSprintOverviewOpen(true);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
-                          <BookOpen className="w-4 h-4" />
-                        </div>
-                        <span className="truncate">View Sprint Overview</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleShareSprint}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
-                          <Share2 className="w-4 h-4" />
-                        </div>
-                        <span className="truncate">Share Sprint</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsKebabMenuOpen(false);
-                          setIsRestartModalOpen(true);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
-                          <RotateCcw className="w-4 h-4" />
-                        </div>
-                        <span className="truncate">Restart Sprint</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsKebabMenuOpen(false);
-                          setIsChatModalOpen(true);
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
-                            <MessageCircle className="w-4 h-4" />
-                          </div>
-                          <span className="truncate">Request Guidance</span>
-                        </div>
-                        {hasUnreadMessages && (
-                          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse"></span>
-                        )}
-                      </button>
-                    </div>
+                    {renderKebabMenuContent()}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -2975,6 +3415,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
                     <div className="space-y-6">
                     {(() => {
+                      const activeFullBleed = isFullBleed || (sprintMode === 'guided' && guidedStage === 'action');
                       const taskUI = (
                         <>
                           {dayContent?.taskPrompts &&
@@ -2993,25 +3434,56 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               animate={{ opacity: 1, x: 0 }}
                               exit={{ opacity: 0, x: -12 }}
                               transition={{ duration: 0.2, ease: "easeInOut" }}
-                              className={isFullBleed 
+                              className={activeFullBleed 
                                 ? "w-full min-h-full bg-white dark:bg-zinc-900 px-6 sm:px-16 md:px-24 lg:px-32 py-12 md:py-20 text-left flex flex-col relative !transition-none" 
                                 : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
                               }
                             >
-                              {/* Full-bleed Focus Toggle Button in Top Right */}
-                              <div className="absolute top-6 right-8 z-55 flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setIsFullBleed(!isFullBleed)}
-                                  className="p-3 rounded-2xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-md !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
-                                  title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
-                                >
-                                  {isFullBleed ? (
-                                    <Minimize2 className="h-4 w-4" />
-                                  ) : (
-                                    <Maximize2 className="h-3 w-3" />
+                              {/* Header & Back/Focus Bar in Top */}
+                              <div className="absolute top-6 left-6 sm:left-12 right-6 sm:right-12 z-55 flex items-center justify-between pointer-events-none">
+                                {sprintMode === "guided" ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      saveParticipantInputImmediately(taskInputs);
+                                      setGuidedStage("insight");
+                                      window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }}
+                                    className="pointer-events-auto px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-950 border border-gray-200/90 rounded-2xl shadow-sm text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                                  >
+                                    <ArrowLeft className="w-4 h-4" />
+                                    <span>Insight</span>
+                                  </button>
+                                ) : (
+                                  <div></div>
+                                )}
+
+                                <div className="pointer-events-auto flex items-center gap-2">
+                                  {sprintMode === "guided" && (
+                                    <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest border border-[#0E7850]/20">
+                                      <Sparkles className="w-3 h-3" />
+                                      Guided Mode
+                                    </span>
                                   )}
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (sprintMode === "guided") {
+                                        setGuidedStage("insight");
+                                      } else {
+                                        setIsFullBleed(!isFullBleed);
+                                      }
+                                    }}
+                                    className="p-3 rounded-2xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-md !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
+                                    title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
+                                  >
+                                    {isFullBleed ? (
+                                      <Minimize2 className="h-4 w-4" />
+                                    ) : (
+                                      <Maximize2 className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                </div>
                               </div>
 
                               <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
@@ -3671,20 +4143,51 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
                           }
                         >
-                        {/* Full-bleed Focus Toggle Button in Top Right */}
-                        <div className="absolute top-4 right-4 z-55 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setIsFullBleed(!isFullBleed)}
-                            className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
-                            title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
-                          >
-                            {isFullBleed ? (
-                              <Minimize2 className="h-4 w-4" />
-                            ) : (
-                              <Maximize2 className="h-4 w-4" />
+                        {/* Header & Back/Focus Bar in Top */}
+                        <div className="absolute top-4 sm:top-6 left-4 sm:left-12 right-4 sm:right-12 z-55 flex items-center justify-between pointer-events-none">
+                          {sprintMode === "guided" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                saveParticipantInputImmediately(taskInputs);
+                                setGuidedStage("insight");
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className="pointer-events-auto px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-950 border border-gray-200/90 rounded-2xl shadow-sm text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                            >
+                              <ArrowLeft className="w-4 h-4" />
+                              <span>Insight</span>
+                            </button>
+                          ) : (
+                            <div></div>
+                          )}
+
+                          <div className="pointer-events-auto flex items-center gap-2">
+                            {sprintMode === "guided" && (
+                              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest border border-[#0E7850]/20">
+                                <Sparkles className="w-3 h-3" />
+                                Guided Mode
+                              </span>
                             )}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (sprintMode === "guided") {
+                                  setGuidedStage("insight");
+                                } else {
+                                  setIsFullBleed(!isFullBleed);
+                                }
+                              }}
+                              className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
+                              title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
+                            >
+                              {isFullBleed ? (
+                                <Minimize2 className="h-4 w-4" />
+                              ) : (
+                                <Maximize2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
                         </div>
 
                         <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
@@ -4082,7 +4585,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                         </>
                       );
-                      return isFullBleed ? createPortal(
+                      return activeFullBleed ? createPortal(
                         <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-950 w-screen h-screen overflow-y-auto">
                           {taskUI}
                         </div>,
@@ -4286,143 +4789,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             `}</style>
       </div>
 
-      <SprintSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        soundEnabled={soundEnabled}
-        onToggleSound={toggleSoundState}
-        notificationsEnabled={notificationsEnabled}
-        onToggleNotifications={toggleNotificationsState}
-        hapticsEnabled={hapticsEnabled}
-        onToggleHaptics={toggleHapticsState}
-        sprint={sprint}
-      />
-      <CoachingChatModal
-        isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
-        sprintId={sprint.id}
-        participantId={user?.id || ""}
-        day={viewingDay}
-        sprintTitle={sprint.title}
-      />
-      <DayCompletionModal
-        isOpen={isDayCompletionModalOpen}
-        onClose={() => {
-          setIsDayCompletionModalOpen(false);
-          if (dayContent?.mirrorActive) {
-            if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
-            mirrorTimerRef.current = setTimeout(() => {
-              setIsMirrorReportModalOpen(true);
-            }, 3000);
-          }
-        }}
-        day={viewingDay}
-        bridgeNote={dayContent?.bridgeNote}
-        dayContent={dayContent}
-        taskInputs={taskInputs}
-        sprint={sprint}
-        enrollment={enrollment}
-      />
-      <MirrorReportModal
-        isOpen={isMirrorReportModalOpen}
-        onClose={() => setIsMirrorReportModalOpen(false)}
-        day={viewingDay}
-        dayContent={dayContent}
-        answers={taskInputs}
-        totalDays={sprint?.duration}
-      />
-      <SprintCompletionModal
-        isOpen={isCompletionModalOpen}
-        onClose={() => {
-          if (location.state?.showCompletion) {
-            localStorage.setItem("show_bonus_toast", "true");
-          }
-          if (isPreview) {
-            setViewingDay(1);
-            setActiveTaskIndex(0);
-            setTaskInputs(["", "", ""]);
-            setIsCompletionModalOpen(false);
-          } else {
-            navigate("/dashboard", { replace: true });
-          }
-        }}
-        onStartNext={(rating) => {
-          if (isPreview) {
-            setViewingDay(1);
-            setActiveTaskIndex(0);
-            setTaskInputs(["", "", ""]);
-            setIsCompletionModalOpen(false);
-          } else {
-            handleCompletionModalAction(rating);
-          }
-        }}
-        sprintTitle={sprint?.title}
-        streakCount={(user as any)?.impactStats?.streak || 0}
-      />
-      <ConfirmModal
-        isOpen={confirmCheckInDay !== null}
-        onClose={() => setConfirmCheckInDay(null)}
-        onConfirm={() => {
-          if (confirmCheckInDay !== null) {
-            executeCheckIn(confirmCheckInDay);
-          }
-        }}
-        title="Check-in Confirmation"
-        message={`Ready to log your consistency for Move ${confirmCheckInDay || ""}? Tracking your progress is a key part of your growth journey.`}
-        confirmText="Confirm Check-in"
-        cancelText="Wait, not yet"
-        variant="success"
-      />
-      <SprintCardModal
-        isOpen={isSprintCardModalOpen}
-        onClose={() => setIsSprintCardModalOpen(false)}
-        sprint={sprint}
-        coach={coach}
-      />
-      <SprintOverviewSheet
-        isOpen={isSprintOverviewOpen}
-        onClose={() => setIsSprintOverviewOpen(false)}
-        sprint={sprint}
-        coach={coach}
-      />
-      <ActionStepConfirmModal
-        isOpen={confirmMarkStepIndex !== null}
-        onConfirm={() => {
-          if (confirmMarkStepIndex !== null) {
-            const newInputs = [...taskInputs];
-            newInputs[confirmMarkStepIndex] = "Completed";
-            setTaskInputs(newInputs);
-            setConfirmMarkStepIndex(null);
-          }
-        }}
-        onSkip={() => {
-          if (confirmMarkStepIndex !== null) {
-            const idx = confirmMarkStepIndex;
-            const newInputs = [...taskInputs];
-            newInputs[idx] = "Skipped";
-            setTaskInputs(newInputs);
-            setConfirmMarkStepIndex(null);
-            if (getNextVisibleStepIndex(idx) !== -1) {
-              setActiveTaskIndex(getNextVisibleStepIndex(idx));
-            }
-          }
-        }}
-        onCancel={() => setConfirmMarkStepIndex(null)}
-      />
-      <ConfirmModal
-        isOpen={isRestartModalOpen}
-        onClose={() => !isRestarting && setIsRestartModalOpen(false)}
-        onConfirm={handleRestartSprint}
-        title="Are you sure you want to restart the sprint?"
-        message="This will clear your current progress and start afresh."
-        confirmText={isRestarting ? "Restarting..." : "Yes"}
-        cancelText="No"
-        variant="danger"
-      />
-      <ParticipantDrawerMenu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-      />
+      {renderAllModals()}
     </>
   );
 };

@@ -337,7 +337,7 @@ const CoachDashboard: React.FC = () => {
       {/* Quick Stats Row */}
       <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-6">
           <Link to="/coach/sprints" className="bg-white p-2 sm:p-4 rounded-2xl shadow-sm border border-primary/10 flex flex-col justify-center min-w-0 hover:border-primary/40 hover:shadow-md transition-all group">
-              <p className="text-gray-400 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 leading-tight truncate group-hover:text-primary transition-colors">Active<br/>Sprints</p>
+              <p className="text-gray-400 text-[8px] sm:text-[9px] font-black uppercase tracking-widest mb-1 leading-tight truncate group-hover:text-primary transition-colors">Active<br/>Experiences</p>
               <p className="text-lg sm:text-2xl font-black text-gray-900 leading-none">{isLoading ? '...' : activeSprints.length}</p>
           </Link>
           <Link to="/coach/participants" className="bg-white p-2 sm:p-4 rounded-2xl shadow-sm border border-primary/10 flex flex-col justify-center min-w-0 hover:border-primary/40 hover:shadow-md transition-all group">
