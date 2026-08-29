@@ -607,7 +607,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                 coach={fetchedCoach || vectoriseCoach} 
                                 isStatic={true} 
                                 hideFooterDetails={false}
-                                variant="default"
+                                variant="light"
                                 onOpenOverview={() => setShowOverviewModal(true)}
                             />
                             {isSameSprintLinked && (

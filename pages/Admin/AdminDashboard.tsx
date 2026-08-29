@@ -24,10 +24,11 @@ import AdminNotifications from './AdminNotifications';
 import AdminSystemParticipantControl from './AdminSystemParticipantControl';
 import AdminRepairResponses from './AdminRepairResponses';
 import AdminUserIdentificationTracking from './AdminUserIdentificationTracking';
+import AdminAppInstalls from './AdminAppInstalls';
 import { adminCache, resetAdminCache } from './adminCache';
 import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
 
-type Tab = 'pulse' | 'orchestrator' | 'analytics' | 'earning' | 'sprints' | 'tracks' | 'coaches' | 'partners' | 'quotes' | 'roles' | 'users' | 'notifications';
+type Tab = 'pulse' | 'users' | 'app_installs' | 'notifications' | 'analytics' | 'sprints' | 'tracks' | 'orchestrator' | 'earning' | 'roles' | 'coaches' | 'partners' | 'quotes';
 type SystemTab = 'user_identification' | 'participant_control' | 'dashboard_cards' | 'repair_responses';
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
@@ -202,6 +203,7 @@ export default function AdminDashboard() {
                             {[
                                 { id: 'pulse', label: 'Pulse' },
                                 { id: 'users', label: 'Users' },
+                                { id: 'app_installs', label: 'App Downloads' },
                                 { id: 'notifications', label: 'Notifications' },
                                 { id: 'analytics', label: 'Analytics' },
                                 { id: 'sprints', label: 'Sprints' },
@@ -266,6 +268,8 @@ export default function AdminDashboard() {
                         )}
 
                         {activeTab === 'users' && <AdminUsers />}
+
+                        {activeTab === 'app_installs' && <AdminAppInstalls />}
 
                         {activeTab === 'notifications' && <AdminNotifications />}
 

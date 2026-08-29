@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion, writeBatch } from 'firebase/firestore';
-import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track } from '../types';
+import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track, InteractionUser } from '../types';
 import { sanitizeData, safeJSONStringify, userService } from './userService';
 import { ensureSeedBlogsInFirestore } from './blogService';
 
@@ -2176,5 +2176,123 @@ export const sprintService = {
         } catch (e) {
             console.error("Failed to delete sprint blog link:", e);
         }
+    },
+
+    // Record view of an experience (Ignite, Riseblog, Challenge, Sprint)
+    recordExperienceView: async (experienceId: string, user: { id: string; name?: string; email?: string; profileImageUrl?: string; role?: string }) => {
+        if (!experienceId || !user?.id) return;
+        try {
+            const viewDocRef = doc(db, 'experience_interactions', experienceId, 'views', user.id);
+            const viewData: InteractionUser = {
+                userId: user.id,
+                userName: user.name || user.email?.split('@')[0] || 'Member',
+                userEmail: user.email || '',
+                userPhoto: user.profileImageUrl || '',
+                role: user.role || 'Seeker',
+                timestamp: new Date().toISOString(),
+                action: 'view'
+            };
+            await setDoc(viewDocRef, sanitizeData(viewData), { merge: true });
+        } catch (e) {
+            console.warn('[recordExperienceView] error:', e);
+        }
+    },
+
+    // Toggle or record like of an experience with user identity
+    toggleExperienceLike: async (experienceId: string, user: { id: string; name?: string; email?: string; profileImageUrl?: string; role?: string }, isLiked: boolean) => {
+        if (!experienceId || !user?.id) return;
+        try {
+            const likeDocRef = doc(db, 'experience_interactions', experienceId, 'likes', user.id);
+            if (isLiked) {
+                const likeData: InteractionUser = {
+                    userId: user.id,
+                    userName: user.name || user.email?.split('@')[0] || 'Member',
+                    userEmail: user.email || '',
+                    userPhoto: user.profileImageUrl || '',
+                    role: user.role || 'Seeker',
+                    timestamp: new Date().toISOString(),
+                    action: 'like'
+                };
+                await setDoc(likeDocRef, sanitizeData(likeData));
+            } else {
+                await deleteDoc(likeDocRef).catch(() => {});
+            }
+        } catch (e) {
+            console.warn('[toggleExperienceLike] error:', e);
+        }
+    },
+
+    // Get all tracked views and likes for an experience
+    getExperienceInteractions: async (experienceId: string): Promise<{ views: InteractionUser[]; likes: InteractionUser[]; viewCount: number; likeCount: number }> => {
+        if (!experienceId) return { views: [], likes: [], viewCount: 0, likeCount: 0 };
+        try {
+            const viewsCol = collection(db, 'experience_interactions', experienceId, 'views');
+            const likesCol = collection(db, 'experience_interactions', experienceId, 'likes');
+            
+            const [viewsSnap, likesSnap] = await Promise.all([
+                getDocs(viewsCol).catch(() => ({ docs: [] } as any)),
+                getDocs(likesCol).catch(() => ({ docs: [] } as any))
+            ]);
+
+            const views: InteractionUser[] = [];
+            viewsSnap.docs.forEach((d: any) => {
+                views.push({ id: d.id, ...sanitizeData(d.data()) } as any);
+            });
+
+            const likes: InteractionUser[] = [];
+            likesSnap.docs.forEach((d: any) => {
+                likes.push({ id: d.id, ...sanitizeData(d.data()) } as any);
+            });
+
+            // Sort most recent first
+            views.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+            likes.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+
+            return {
+                views,
+                likes,
+                viewCount: views.length,
+                likeCount: likes.length
+            };
+        } catch (e) {
+            console.error('[getExperienceInteractions] error:', e);
+            return { views: [], likes: [], viewCount: 0, likeCount: 0 };
+        }
+    },
+
+    // Real-time subscription to experience interactions
+    subscribeToExperienceInteractions: (experienceId: string, callback: (data: { views: InteractionUser[]; likes: InteractionUser[]; viewCount: number; likeCount: number }) => void) => {
+        if (!experienceId) return () => {};
+
+        let viewsList: InteractionUser[] = [];
+        let likesList: InteractionUser[] = [];
+
+        const notify = () => {
+            callback({
+                views: [...viewsList].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()),
+                likes: [...likesList].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()),
+                viewCount: viewsList.length,
+                likeCount: likesList.length
+            });
+        };
+
+        const unsubViews = onSnapshot(collection(db, 'experience_interactions', experienceId, 'views'), (snap) => {
+            viewsList = snap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as any));
+            notify();
+        }, (err) => {
+            console.warn('[subscribeToExperienceInteractions views error]', err);
+        });
+
+        const unsubLikes = onSnapshot(collection(db, 'experience_interactions', experienceId, 'likes'), (snap) => {
+            likesList = snap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as any));
+            notify();
+        }, (err) => {
+            console.warn('[subscribeToExperienceInteractions likes error]', err);
+        });
+
+        return () => {
+            unsubViews();
+            unsubLikes();
+        };
     }
 };

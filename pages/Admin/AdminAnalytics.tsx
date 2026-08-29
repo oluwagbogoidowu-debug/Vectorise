@@ -18,8 +18,11 @@ import {
   RefreshCw, 
   Database,
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  Smartphone,
+  Download
 } from 'lucide-react';
+import AdminAppInstalls from './AdminAppInstalls';
 import { toast } from 'sonner';
 import {
   ResponsiveContainer,
@@ -69,7 +72,7 @@ const AdminAnalytics: React.FC = () => {
   const [activityLogs, setActivityLogs] = useState<UserActivityLog[]>([]);
   const [userMap, setUserMap] = useState<{ [id: string]: { name: string; email?: string } }>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'core_table' | 'activity_logs'>('core_table');
+  const [activeTab, setActiveTab] = useState<'core_table' | 'activity_logs' | 'app_installs'>('core_table');
   
   // Filters and searches
   const [searchQuery, setSearchQuery] = useState('');
@@ -550,10 +553,10 @@ const AdminAnalytics: React.FC = () => {
       <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
         
         {/* Toggle Grid Tabs */}
-        <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 w-full sm:w-auto">
+        <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 w-full sm:w-auto overflow-x-auto">
           <button 
             onClick={() => setActiveTab('core_table')}
-            className={`flex-1 sm:flex-initial px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
               activeTab === 'core_table' 
                 ? 'bg-primary text-white shadow-sm' 
                 : 'text-gray-400 hover:text-gray-600'
@@ -563,13 +566,23 @@ const AdminAnalytics: React.FC = () => {
           </button>
           <button 
             onClick={() => setActiveTab('activity_logs')}
-            className={`flex-1 sm:flex-initial px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
               activeTab === 'activity_logs' 
                 ? 'bg-primary text-white shadow-sm' 
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             <Activity className="w-3.5 h-3.5" /> Daily Activity Log Table
+          </button>
+          <button 
+            onClick={() => setActiveTab('app_installs')}
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+              activeTab === 'app_installs' 
+                ? 'bg-primary text-white shadow-sm' 
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" /> App Downloads & Banner
           </button>
         </div>
 
@@ -768,6 +781,13 @@ const AdminAnalytics: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </section>
+      )}
+
+      {/* RENDER APP INSTALLS & BANNER CLICK TRACKER */}
+      {activeTab === 'app_installs' && (
+        <section className="animate-fade-in">
+          <AdminAppInstalls />
         </section>
       )}
 

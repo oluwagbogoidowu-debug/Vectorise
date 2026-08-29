@@ -15,6 +15,7 @@ import { analyticsTracker } from './services/analyticsTracker';
 import { AppRoutes } from './routes';
 import { UserRole } from './types';
 import { localNotificationScheduler } from './services/localNotificationScheduler';
+import { appInstallTrackingService } from './services/appInstallTrackingService';
 import OfflineBanner from './components/OfflineBanner';
 import FloatingSprintBar from './components/FloatingSprintBar';
 
@@ -28,9 +29,28 @@ const AppContent: React.FC = () => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
+
+    const handleAppInstalled = () => {
+      console.log('[PWA] App installed event caught by browser');
+      localStorage.setItem('vec_pwa_installed', 'true');
+      appInstallTrackingService.trackAppDownload({
+        id: user?.id,
+        email: user?.email,
+        name: (user as any)?.name
+      }, {
+        source: 'browser_appinstalled_event',
+        outcome: 'installed'
+      }).catch(err => console.error("[App] Install tracking error:", err));
+    };
+
     window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     let interval: any;

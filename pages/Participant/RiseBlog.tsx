@@ -322,7 +322,10 @@ export const RiseBlog: React.FC = () => {
       } else {
         blogService.likePost(id);
       }
+      sprintService.toggleExperienceLike(id, user, true).catch(() => {});
       toast.success('Added to your inspirations! ❤️');
+    } else {
+      sprintService.toggleExperienceLike(id, user, false).catch(() => {});
     }
   };
 
@@ -390,6 +393,10 @@ export const RiseBlog: React.FC = () => {
     setActiveReadSeconds(0);
     setHasReachedEnd(false);
     setIsRecordingCompletion(false);
+
+    if (user?.id) {
+      sprintService.recordExperienceView(activePost.id, user).catch(() => {});
+    }
 
     let isMounted = true;
     blogService.isInsightCompleted(user?.id, activePost.id).then((isComp) => {

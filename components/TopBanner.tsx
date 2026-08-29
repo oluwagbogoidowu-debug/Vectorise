@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { appInstallTrackingService } from '../services/appInstallTrackingService';
 
 interface TopBannerProps {
   deferredPrompt: any;
@@ -40,14 +41,41 @@ const TopBanner: React.FC<TopBannerProps> = ({ deferredPrompt }) => {
 
   const handleAction = async () => {
     const isInstalled = localStorage.getItem('vec_pwa_installed') === 'true';
+    const buttonText = isInstalled ? 'Open Vectorise App' : 'Use the app for a smoother experience';
+
+    // Track button click
+    appInstallTrackingService.trackButtonClick({
+      id: user?.id,
+      email: user?.email,
+      name: (user as any)?.name
+    }, {
+      buttonText,
+      source: 'top_banner',
+      metadata: { isInstalled, hasDeferredPrompt: Boolean(deferredPrompt) }
+    }).catch(err => console.error("[TopBanner] Click tracking error:", err));
 
     if (deferredPrompt && !isInstalled) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        localStorage.setItem('vec_pwa_installed', 'true');
-        // Don't set vectorise_banner_dismissed here, so it can show "Open App" next time
-        setIsVisible(false);
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          localStorage.setItem('vec_pwa_installed', 'true');
+          
+          // Track app download / installation accepted
+          await appInstallTrackingService.trackAppDownload({
+            id: user?.id,
+            email: user?.email,
+            name: (user as any)?.name
+          }, {
+            source: 'top_banner',
+            outcome: 'accepted'
+          });
+
+          // Don't set vectorise_banner_dismissed here, so it can show "Open App" next time
+          setIsVisible(false);
+        }
+      } catch (promptErr) {
+        console.error("[TopBanner] Error handling deferred prompt:", promptErr);
       }
     } else {
       // If already installed, we try to "open" it.

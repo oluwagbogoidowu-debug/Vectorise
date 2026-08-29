@@ -23,7 +23,7 @@ const CoachBottomNavigation: React.FC = () => {
       )
     },
     {
-      label: 'Sprints',
+      label: 'Experience',
       path: '/coach/sprints',
       icon: (active: boolean) => (
         <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${active ? 'stroke-2 text-primary' : 'stroke-1.5 text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">

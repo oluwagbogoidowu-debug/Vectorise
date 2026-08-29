@@ -295,6 +295,16 @@ export interface ChallengeDetails {
   whyDoIt?: string;
 }
 
+export interface InteractionUser {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPhoto?: string;
+  role?: string;
+  timestamp: string;
+  action?: 'view' | 'like';
+}
+
 export interface Sprint {
   id: string;
   trackId?: string;
@@ -358,6 +368,9 @@ export interface Sprint {
     whyDoIt?: string;
   };
   likes?: number;
+  views?: number;
+  viewedBy?: InteractionUser[];
+  likedBy?: InteractionUser[];
 }
 
 export interface DailyContent {

@@ -2454,6 +2454,7 @@ const IgnitePlayer: React.FC<{
   ignite: Sprint;
   onClose: () => void;
 }> = ({ ignite, onClose }) => {
+  const { user } = useAuth();
   const text = ignite.igniteBody || ignite.description || '';
   const bgColor = ignite.igniteBgColor || '#6D28D9';
 
@@ -2467,6 +2468,13 @@ const IgnitePlayer: React.FC<{
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
+  // Record view on open
+  useEffect(() => {
+    if (ignite.id && user?.id) {
+      sprintService.recordExperienceView(ignite.id, user).catch(() => {});
+    }
+  }, [ignite.id, user?.id]);
+
   // Persistence of Liked Ignite
   const [isLiked, setIsLiked] = useState(() => {
     return localStorage.getItem(`ignite_liked_${ignite.id}`) === 'true';
@@ -2477,6 +2485,9 @@ const IgnitePlayer: React.FC<{
     const newLiked = !isLiked;
     setIsLiked(newLiked);
     localStorage.setItem(`ignite_liked_${ignite.id}`, newLiked ? 'true' : 'false');
+    if (user?.id) {
+      sprintService.toggleExperienceLike(ignite.id, user, newLiked).catch(() => {});
+    }
     if (newLiked) {
       toast.success("Added to your Liked sparks!", { icon: "❤️" });
     }

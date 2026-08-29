@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
+import { appInstallTrackingService } from '../services/appInstallTrackingService';
 import LocalLogo from './LocalLogo';
 
 interface PWAInstallPromptProps {
@@ -74,10 +75,32 @@ const PWAInstallPrompt: React.FC<PWAInstallPromptProps> = ({ deferredPrompt }) =
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      localStorage.setItem('vec_pwa_installed', 'true');
+
+    appInstallTrackingService.trackButtonClick({
+      id: user?.id,
+      email: user?.email,
+      name: (user as any)?.name
+    }, {
+      buttonText: 'Install App (Modal)',
+      source: 'pwa_prompt'
+    }).catch(err => console.error("[PWAInstallPrompt] Click tracking error:", err));
+
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        localStorage.setItem('vec_pwa_installed', 'true');
+        await appInstallTrackingService.trackAppDownload({
+          id: user?.id,
+          email: user?.email,
+          name: (user as any)?.name
+        }, {
+          source: 'pwa_prompt',
+          outcome: 'accepted'
+        });
+      }
+    } catch (err) {
+      console.error("[PWAInstallPrompt] Prompt error:", err);
     }
     setIsVisible(false);
   };
