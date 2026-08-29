@@ -1145,6 +1145,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [guidedStage, setGuidedStage] = useState<"insight" | "action">("insight");
   const [isFullBleed, setIsFullBleed] = useState(false);
 
+  // Force Guided Mode to start from Move 1 when active
+  useEffect(() => {
+    if (sprintMode === "guided") {
+      setViewingDay(1);
+    }
+  }, [sprintMode]);
+
   // Close kebab menu when clicking outside
   useEffect(() => {
     if (!isKebabMenuOpen) return;
@@ -3085,61 +3092,47 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   Guided Mode
                 </span>
               </div>
-              <div className="relative" ref={kebabMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsKebabMenuOpen((prev) => !prev)}
-                  className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
-                  title="Sprint options"
-                >
-                  <MoreVertical className="w-5 h-5" />
-                </button>
+              <div className="flex items-center gap-2">
+                {/* Small square Move badge, as small as the kebab menu button */}
+                <div className="w-10 h-10 rounded-2xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-md shrink-0 select-none">
+                  <span className="text-[7px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
+                  <span className="text-sm font-black leading-none">{viewingDay}</span>
+                </div>
 
-                <AnimatePresence>
-                  {isKebabMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.92, y: -4 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.92, y: -4 }}
-                      transition={{ duration: 0.16, ease: "easeOut" }}
-                      className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
-                    >
-                      {renderKebabMenuContent()}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <div className="relative" ref={kebabMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                    className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                    title="Sprint options"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+
+                  <AnimatePresence>
+                    {isKebabMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
+                        className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                      >
+                        {renderKebabMenuContent()}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
           </header>
 
           <div className="px-6 sm:px-12 md:px-16 max-w-5xl mx-auto w-full flex-1 flex flex-col pt-8">
-            {/* Header row: Move 1 badge on the right (with exact Move 1 style), and Sprint title beside it to the left */}
-            <div className="flex items-start justify-between gap-6 pb-6 border-b border-gray-100 mb-8">
-              <div className="flex-1 min-w-0 pr-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/10 px-3 py-1 rounded-full inline-block">
-                    Move {viewingDay}
-                  </span>
-                  {dayProgress?.completed && (
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 font-bold">
-                      <Check className="w-3 h-3" /> Completed
-                    </span>
-                  )}
-                </div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-950 tracking-tight leading-tight">
-                  {sprint.title}
-                </h1>
-              </div>
-
-              {/* Move 1 Badge with Exact Style */}
-              <div className="w-20 h-20 rounded-[1.5rem] bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-xl shadow-primary/20 shrink-0">
-                <span className="text-[8px] font-black uppercase tracking-widest text-white/60">
-                  Move
-                </span>
-                <span className="text-3xl font-black leading-none">
-                  {viewingDay}
-                </span>
-              </div>
+            {/* Header row: Small and Centered Sprint title. Original "Move X" badges and "Completed" badges are removed. */}
+            <div className="pb-6 border-b border-gray-100 mb-8 text-center">
+              <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight leading-tight max-w-xl mx-auto">
+                {sprint.title}
+              </h1>
             </div>
 
             {/* Locked or Queued check */}
@@ -3216,6 +3209,20 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Move Progress Bar consistent throughout the Move and renews in new Move */}
+          <div className="fixed bottom-0 left-0 right-0 h-1.5 bg-gray-100/90 backdrop-blur-sm z-50 select-none">
+            <div 
+              className="h-full bg-[#0E7850] transition-all duration-300 ease-out"
+              style={{
+                width: `${
+                  guidedStage === "insight" 
+                    ? 15 
+                    : 15 + ((activeTaskIndex + 1) / (getTotalVisibleStepsCount() || 1)) * 85
+                }%`
+              }}
+            ></div>
           </div>
         </div>
 
@@ -3409,40 +3416,37 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       setGuidedStage("insight");
                                       window.scrollTo({ top: 0, behavior: "smooth" });
                                     }}
-                                    className="pointer-events-auto px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-950 border border-gray-200/90 rounded-2xl shadow-sm text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+                                    className="pointer-events-auto p-2.5 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-950 border border-gray-200/90 rounded-2xl shadow-sm cursor-pointer active:scale-95 transition-all flex items-center justify-center"
+                                    title="Back"
                                   >
                                     <ArrowLeft className="w-4 h-4" />
-                                    <span>Insight</span>
                                   </button>
                                 ) : (
                                   <div></div>
                                 )}
 
                                 <div className="pointer-events-auto flex items-center gap-2">
-                                  {sprintMode === "guided" && (
+                                  {sprintMode === "guided" ? (
                                     <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest border border-[#0E7850]/20">
                                       <Sparkles className="w-3 h-3" />
                                       Guided Mode
                                     </span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (sprintMode === "guided") {
-                                        setGuidedStage("insight");
-                                      } else {
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
                                         setIsFullBleed(!isFullBleed);
-                                      }
-                                    }}
-                                    className="p-3 rounded-2xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-md !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
-                                    title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
-                                  >
-                                    {isFullBleed ? (
-                                      <Minimize2 className="h-4 w-4" />
-                                    ) : (
-                                      <Maximize2 className="h-3 w-3" />
-                                    )}
-                                  </button>
+                                      }}
+                                      className="p-3 rounded-2xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-md !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
+                                      title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
+                                    >
+                                      {isFullBleed ? (
+                                        <Minimize2 className="h-4 w-4" />
+                                      ) : (
+                                        <Maximize2 className="h-3 w-3" />
+                                      )}
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -4548,6 +4552,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                       return activeFullBleed ? createPortal(
                         <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-950 w-screen h-screen overflow-y-auto">
                           {taskUI}
+
+                          {/* Move Progress Bar consistent throughout the Move and renews in new Move */}
+                          {sprintMode === "guided" && (
+                            <div className="fixed bottom-0 left-0 right-0 h-1.5 bg-gray-100/90 backdrop-blur-sm z-55 select-none">
+                              <div 
+                                className="h-full bg-[#0E7850] transition-all duration-300 ease-out"
+                                style={{
+                                  width: `${
+                                    guidedStage === "insight" 
+                                      ? 15 
+                                      : 15 + ((activeTaskIndex + 1) / (getTotalVisibleStepsCount() || 1)) * 85
+                                  }%`
+                                }}
+                              ></div>
+                            </div>
+                          )}
                         </div>,
                         document.body
                       ) : taskUI;
