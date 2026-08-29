@@ -152,7 +152,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             setUser(dbUser);
             try {
-              localStorage.setItem('vectorise_cached_user', JSON.stringify(sanitizeData(dbUser)));
+              localStorage.setItem('vectorise_cached_user', JSON.stringify(dbUser));
             } catch (err) {
               console.error("Failed to cache user", err);
             }
@@ -281,7 +281,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             setUser(dbUser);
             try {
-              localStorage.setItem('vectorise_cached_user', JSON.stringify(sanitizeData(dbUser)));
+              localStorage.setItem('vectorise_cached_user', JSON.stringify(dbUser));
             } catch (err) {
               console.error("Failed to cache user", err);
             }
