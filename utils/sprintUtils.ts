@@ -400,8 +400,15 @@ export const getExploreSprintItems = (
     const list: ExploreSprintItem[] = [];
     const seenIds = new Set<string>();
 
+    const normalizeId = (val: any): string => String(val || '').trim();
+
     const lookupPool = (allPublishedSprintsPool && allPublishedSprintsPool.length > 0) ? allPublishedSprintsPool : sprints;
-    const findSprint = (id: string): Sprint | undefined => lookupPool.find(s => s.id === id) || sprints.find(s => s.id === id);
+    const findSprint = (id: string): Sprint | undefined => {
+        const norm = normalizeId(id);
+        if (!norm) return undefined;
+        return lookupPool.find(s => normalizeId(s.id) === norm) || 
+               sprints.find(s => normalizeId(s.id) === norm);
+    };
 
     const addSprintItem = (
         sprint: Sprint | undefined | null,
@@ -412,7 +419,9 @@ export const getExploreSprintItems = (
         forceAllowRepeat: boolean = false
     ) => {
         if (!sprint) return;
-        if ((!enrolledSprintIds.has(sprint.id) || forceAllowRepeat) && !seenIds.has(sprint.id)) {
+        const normId = normalizeId(sprint.id);
+        const isEnrolled = Array.from(enrolledSprintIds).some(id => normalizeId(id) === normId);
+        if ((!isEnrolled || forceAllowRepeat) && !seenIds.has(normId)) {
             list.push({
                 sprint,
                 level,
@@ -420,21 +429,37 @@ export const getExploreSprintItems = (
                 isClickable: level === 1 && isClickable,
                 linkSourceTitle: sourceTitle
             });
-            seenIds.add(sprint.id);
+            seenIds.add(normId);
         }
+    };
+
+    // Helper to get enrollment timestamp for recency sorting
+    const getEnrollmentTimestamp = (e: ParticipantSprint): number => {
+        const dates = [
+            e.last_activity_at,
+            e.completed_at,
+            (e as any).updated_at,
+            (e as any).updatedAt,
+            e.started_at,
+            (e as any).created_at,
+            (e as any).createdAt
+        ].filter(Boolean);
+        if (dates.length === 0) return 0;
+        return Math.max(...dates.map(d => new Date(d).getTime() || 0));
     };
 
     // 1. Identify Candidate Source Enrollments
     const candidateEnrollments: ParticipantSprint[] = [];
     if (currentOrCompletedSprintId) {
-        const exact = userEnrollments ? userEnrollments.find(e => e.sprint_id === currentOrCompletedSprintId) : undefined;
+        const normTarget = normalizeId(currentOrCompletedSprintId);
+        const exact = userEnrollments ? userEnrollments.find(e => normalizeId(e.sprint_id) === normTarget) : undefined;
         if (exact) {
             candidateEnrollments.push(exact);
         } else {
             // Synthesize enrollment for currentOrCompletedSprintId so linking is immediately rooted from it
             candidateEnrollments.push({
-                id: `synthetic-${currentOrCompletedSprintId}`,
-                sprint_id: currentOrCompletedSprintId,
+                id: `synthetic-${normTarget}`,
+                sprint_id: normTarget,
                 user_id: user?.id || 'current-user',
                 status: 'active',
                 progress: []
@@ -443,35 +468,37 @@ export const getExploreSprintItems = (
     }
 
     if (userEnrollments && userEnrollments.length > 0) {
-        const active = [...userEnrollments]
-            .filter(e => !candidateEnrollments.some(ce => ce.sprint_id === e.sprint_id) && (!e.completed_at && !(Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
-            .sort((a, b) => new Date(b.last_activity_at || b.started_at || 0).getTime() - new Date(a.last_activity_at || a.started_at || 0).getTime());
+        // Sort all user enrollments strictly by most recent interaction (completed or active)
+        const sortedEnrollments = [...userEnrollments]
+            .filter(e => !candidateEnrollments.some(ce => normalizeId(ce.sprint_id) === normalizeId(e.sprint_id)))
+            .sort((a, b) => getEnrollmentTimestamp(b) - getEnrollmentTimestamp(a));
 
-        const completed = [...userEnrollments]
-            .filter(e => !candidateEnrollments.some(ce => ce.sprint_id === e.sprint_id) && (e.completed_at || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
-            .sort((a, b) => new Date(b.completed_at || b.started_at || 0).getTime() - new Date(a.completed_at || a.started_at || 0).getTime());
-
-        candidateEnrollments.push(...active, ...completed);
+        candidateEnrollments.push(...sortedEnrollments);
     }
 
     // Helper to find all direct target sprint IDs from a source sprint ID (uncoded links, coded links, or nextSprintId)
     const getDirectLinkedSprintIds = (sourceId: string): string[] => {
         const targetIds: string[] = [];
-        const srcSprint = findSprint(sourceId);
+        const normSourceId = normalizeId(sourceId);
+        const srcSprint = findSprint(normSourceId);
 
         // A. From configured sprintLinks (all links originating from this source sprint)
         if (Array.isArray(sprintLinks)) {
-            const linksFromSource = sprintLinks.filter(l => l.sourceSprintId === sourceId);
+            const linksFromSource = sprintLinks.filter(l => {
+                const lSrc = normalizeId(l.sourceSprintId || l.source_sprint_id || l.sourceId);
+                return lSrc === normSourceId;
+            });
             linksFromSource.forEach(l => {
-                if (l.targetSprintId && !targetIds.includes(l.targetSprintId)) {
-                    targetIds.push(l.targetSprintId);
+                const tgtId = normalizeId(l.targetSprintId || l.target_sprint_id || l.targetId);
+                if (tgtId && !targetIds.includes(tgtId)) {
+                    targetIds.push(tgtId);
                 }
             });
         }
 
         // B. From direct nextSprintId or linkedSprintId on sprint entity
         if (srcSprint) {
-            const directId = srcSprint.nextSprintId || srcSprint.linkedSprintId;
+            const directId = normalizeId(srcSprint.nextSprintId || srcSprint.linkedSprintId || (srcSprint as any).linked_sprint_id);
             if (directId && !targetIds.includes(directId)) {
                 targetIds.push(directId);
             }
@@ -488,14 +515,20 @@ export const getExploreSprintItems = (
     const superiorSprintIds: string[] = [];
     if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
         for (const enrollment of candidateEnrollments) {
-            const srcSprint = findSprint(enrollment.sprint_id);
-            const codedLinks = sprintLinks.filter(l => l.sourceSprintId === enrollment.sprint_id && l.optionCode && l.optionCode.trim());
+            const normEnrollmentSprintId = normalizeId(enrollment.sprint_id);
+            const srcSprint = findSprint(normEnrollmentSprintId);
+            const codedLinks = sprintLinks.filter(l => {
+                const lSrc = normalizeId(l.sourceSprintId || l.source_sprint_id || l.sourceId);
+                const code = l.optionCode || l.option_code;
+                return lSrc === normEnrollmentSprintId && code && String(code).trim().length > 0;
+            });
 
             for (const link of codedLinks) {
                 if (isOptionLinkMatchedByUser(enrollment, srcSprint, link)) {
-                    const target = findSprint(link.targetSprintId);
-                    if (target && !superiorSprintIds.includes(target.id)) {
-                        superiorSprintIds.push(target.id);
+                    const tgtId = normalizeId(link.targetSprintId || link.target_sprint_id || link.targetId);
+                    const target = findSprint(tgtId);
+                    if (target && !superiorSprintIds.includes(normalizeId(target.id))) {
+                        superiorSprintIds.push(normalizeId(target.id));
                         addSprintItem(target, 1, true, true, srcSprint?.title, true);
                     }
                 }
@@ -513,15 +546,16 @@ export const getExploreSprintItems = (
     // Determine the root source sprint IDs for Level 1 expansion
     if (candidateEnrollments.length > 0) {
         // Enrolled user: Root sources are their active/completed sprints
-        const rootSourceIds = candidateEnrollments.map(e => e.sprint_id);
+        const rootSourceIds = candidateEnrollments.map(e => normalizeId(e.sprint_id));
 
         for (const srcId of rootSourceIds) {
             const srcSprint = findSprint(srcId);
             const directTargets = getDirectLinkedSprintIds(srcId);
             for (const targetId of directTargets) {
-                if (!superiorSprintIds.includes(targetId) && !level1SprintIds.includes(targetId)) {
-                    level1SprintIds.push(targetId);
-                    const target = findSprint(targetId);
+                const normTargetId = normalizeId(targetId);
+                if (!superiorSprintIds.includes(normTargetId) && !level1SprintIds.includes(normTargetId)) {
+                    level1SprintIds.push(normTargetId);
+                    const target = findSprint(normTargetId);
                     if (target) {
                         addSprintItem(target, 1, false, true, srcSprint?.title, true);
                     }
@@ -529,12 +563,14 @@ export const getExploreSprintItems = (
             }
         }
     } else if (currentOrCompletedSprintId) {
-        const srcSprint = findSprint(currentOrCompletedSprintId);
-        const directTargets = getDirectLinkedSprintIds(currentOrCompletedSprintId);
+        const normCurId = normalizeId(currentOrCompletedSprintId);
+        const srcSprint = findSprint(normCurId);
+        const directTargets = getDirectLinkedSprintIds(normCurId);
         for (const targetId of directTargets) {
-            if (!superiorSprintIds.includes(targetId) && !level1SprintIds.includes(targetId)) {
-                level1SprintIds.push(targetId);
-                const target = findSprint(targetId);
+            const normTargetId = normalizeId(targetId);
+            if (!superiorSprintIds.includes(normTargetId) && !level1SprintIds.includes(normTargetId)) {
+                level1SprintIds.push(normTargetId);
+                const target = findSprint(normTargetId);
                 if (target) {
                     addSprintItem(target, 1, false, true, srcSprint?.title, true);
                 }
@@ -546,21 +582,22 @@ export const getExploreSprintItems = (
         const allTargetIds = new Set<string>();
         if (Array.isArray(sprintLinks)) {
             sprintLinks.forEach(l => {
-                if (l.targetSprintId) allTargetIds.add(l.targetSprintId);
+                const tgtId = normalizeId(l.targetSprintId || l.target_sprint_id || l.targetId);
+                if (tgtId) allTargetIds.add(tgtId);
             });
         }
         effectivePool.forEach(s => {
-            const directId = s.nextSprintId || s.linkedSprintId;
+            const directId = normalizeId(s.nextSprintId || s.linkedSprintId || (s as any).linked_sprint_id);
             if (directId) allTargetIds.add(directId);
         });
 
         // Entry sprints are published sprints that have links or start paths (not targets of other sprints)
-        const entrySprints = effectivePool.filter(s => !allTargetIds.has(s.id));
+        const entrySprints = effectivePool.filter(s => !allTargetIds.has(normalizeId(s.id)));
         const rootSprints = entrySprints.length > 0 ? entrySprints : [effectivePool[0]];
 
         for (const rootSprint of rootSprints) {
-            if (rootSprint && !seenIds.has(rootSprint.id)) {
-                level1SprintIds.push(rootSprint.id);
+            if (rootSprint && !seenIds.has(normalizeId(rootSprint.id))) {
+                level1SprintIds.push(normalizeId(rootSprint.id));
                 addSprintItem(rootSprint, 1, false, true, undefined, true);
             }
         }
@@ -576,12 +613,14 @@ export const getExploreSprintItems = (
     // =========================================================================
     const level2SprintIds: string[] = [];
     for (const l1Id of allLevel1Sources) {
-        const l1Sprint = findSprint(l1Id);
-        const level2Targets = getDirectLinkedSprintIds(l1Id);
+        const normL1Id = normalizeId(l1Id);
+        const l1Sprint = findSprint(normL1Id);
+        const level2Targets = getDirectLinkedSprintIds(normL1Id);
         for (const targetId of level2Targets) {
-            if (!seenIds.has(targetId) && !level2SprintIds.includes(targetId)) {
-                level2SprintIds.push(targetId);
-                const target = findSprint(targetId);
+            const normTargetId = normalizeId(targetId);
+            if (!seenIds.has(normTargetId) && !level2SprintIds.includes(normTargetId)) {
+                level2SprintIds.push(normTargetId);
+                const target = findSprint(normTargetId);
                 if (target) {
                     addSprintItem(target, 2, false, false, l1Sprint?.title, true);
                 }
@@ -595,12 +634,14 @@ export const getExploreSprintItems = (
     // =========================================================================
     const level3SprintIds: string[] = [];
     for (const l2Id of level2SprintIds) {
-        const l2Sprint = findSprint(l2Id);
-        const level3Targets = getDirectLinkedSprintIds(l2Id);
+        const normL2Id = normalizeId(l2Id);
+        const l2Sprint = findSprint(normL2Id);
+        const level3Targets = getDirectLinkedSprintIds(normL2Id);
         for (const targetId of level3Targets) {
-            if (!seenIds.has(targetId) && !level3SprintIds.includes(targetId)) {
-                level3SprintIds.push(targetId);
-                const target = findSprint(targetId);
+            const normTargetId = normalizeId(targetId);
+            if (!seenIds.has(normTargetId) && !level3SprintIds.includes(normTargetId)) {
+                level3SprintIds.push(normTargetId);
+                const target = findSprint(normTargetId);
                 if (target) {
                     addSprintItem(target, 3, false, false, l2Sprint?.title, true);
                 }
