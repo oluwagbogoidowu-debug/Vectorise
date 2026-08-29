@@ -600,19 +600,23 @@ const ParticipantDashboard: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [dbCoaches, mapping, links] = await Promise.all([
+        const [dbCoaches, mapping] = await Promise.all([
           userService.getCoaches(),
-          sprintService.getOrchestration(),
-          sprintService.getSprintLinks().catch(() => [])
+          sprintService.getOrchestration()
         ]);
         setCoaches(dbCoaches || []);
         setOrchestration(mapping || {});
-        setSprintLinks(links || []);
       } catch (err) {
         console.error("Failed to load coaches/orchestration data", err);
       }
     };
     fetchData();
+
+    const unsubLinks = sprintService.subscribeToSprintLinks((links) => {
+      setSprintLinks(links || []);
+    });
+
+    return () => unsubLinks();
   }, []);
 
   const recommendedNextSprintCoach = useMemo(() => {

@@ -2227,6 +2227,27 @@ export const sprintService = {
         }
     },
 
+    subscribeToSprintLinks: (callback: (links: any[]) => void): (() => void) => {
+        try {
+            const colRef = collection(db, 'sprint_links');
+            const unsub = onSnapshot(colRef, (snap) => {
+                const links: any[] = [];
+                snap.forEach(doc => {
+                    links.push({ id: doc.id, ...sanitizeData(doc.data()) });
+                });
+                callback(links);
+            }, (err) => {
+                console.error("Error subscribing to sprint links:", err);
+                callback([]);
+            });
+            return unsub;
+        } catch (e) {
+            console.error("Error setting sprint links listener:", e);
+            callback([]);
+            return () => {};
+        }
+    },
+
     saveSprintLink: async (link: any) => {
         const linkId = link.id || doc(collection(db, 'sprint_links')).id;
         const docRef = doc(db, 'sprint_links', linkId);
@@ -2256,6 +2277,27 @@ export const sprintService = {
         } catch (e) {
             console.error("Failed to fetch sprint blog links:", e);
             return [];
+        }
+    },
+
+    subscribeToSprintBlogLinks: (callback: (links: any[]) => void): (() => void) => {
+        try {
+            const colRef = collection(db, 'sprint_blog_links');
+            const unsub = onSnapshot(colRef, (snap) => {
+                const links: any[] = [];
+                snap.forEach(doc => {
+                    links.push({ id: doc.id, ...sanitizeData(doc.data()) });
+                });
+                callback(links);
+            }, (err) => {
+                console.error("Error subscribing to sprint blog links:", err);
+                callback([]);
+            });
+            return unsub;
+        } catch (e) {
+            console.error("Error setting sprint blog links listener:", e);
+            callback([]);
+            return () => {};
         }
     },
 

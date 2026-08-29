@@ -386,9 +386,7 @@ export interface ExploreSprintItem {
  * 3. Level 2 Linking: Sprints that the first-level sprints link to.
  *    Level 2 cards are shown after Level 1, in an inactive, non-clickable state.
  * 4. Level 3+ Linking: Sprints linked from Level 2 sprints (also inactive and non-clickable).
- * 5. Fallback: Remaining published non-enrolled sprints.
- *
- * NOTE: Orchestrator linking logic is strictly deactivated on the Explore page as requested.
+ * 5. If the source sprint links back to itself (same sprint), it is treated as a repeat sprint recommendation.
  */
 export const getExploreSprintItems = (
     sprints: Sprint[],
@@ -396,10 +394,14 @@ export const getExploreSprintItems = (
     enrolledSprintIds: Set<string> = new Set(),
     userEnrollments: ParticipantSprint[] = [],
     sprintLinks: any[] = [],
-    currentOrCompletedSprintId?: string
+    currentOrCompletedSprintId?: string,
+    allPublishedSprintsPool?: Sprint[]
 ): ExploreSprintItem[] => {
     const list: ExploreSprintItem[] = [];
     const seenIds = new Set<string>();
+
+    const lookupPool = (allPublishedSprintsPool && allPublishedSprintsPool.length > 0) ? allPublishedSprintsPool : sprints;
+    const findSprint = (id: string): Sprint | undefined => lookupPool.find(s => s.id === id) || sprints.find(s => s.id === id);
 
     const addSprintItem = (
         sprint: Sprint | undefined | null,
@@ -424,34 +426,43 @@ export const getExploreSprintItems = (
 
     // 1. Identify Candidate Source Enrollments
     const candidateEnrollments: ParticipantSprint[] = [];
-    if (currentOrCompletedSprintId && userEnrollments) {
-        const exact = userEnrollments.find(e => e.sprint_id === currentOrCompletedSprintId);
+    if (currentOrCompletedSprintId) {
+        const exact = userEnrollments ? userEnrollments.find(e => e.sprint_id === currentOrCompletedSprintId) : undefined;
         if (exact) {
             candidateEnrollments.push(exact);
+        } else {
+            // Synthesize enrollment for currentOrCompletedSprintId so linking is immediately rooted from it
+            candidateEnrollments.push({
+                id: `synthetic-${currentOrCompletedSprintId}`,
+                sprint_id: currentOrCompletedSprintId,
+                user_id: user?.id || 'current-user',
+                status: 'active',
+                progress: []
+            } as any);
         }
     }
 
     if (userEnrollments && userEnrollments.length > 0) {
         const active = [...userEnrollments]
-            .filter(e => !candidateEnrollments.some(ce => ce.id === e.id) && (!e.completed_at && !(Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
+            .filter(e => !candidateEnrollments.some(ce => ce.sprint_id === e.sprint_id) && (!e.completed_at && !(Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
             .sort((a, b) => new Date(b.last_activity_at || b.started_at || 0).getTime() - new Date(a.last_activity_at || a.started_at || 0).getTime());
 
         const completed = [...userEnrollments]
-            .filter(e => !candidateEnrollments.some(ce => ce.id === e.id) && (e.completed_at || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
+            .filter(e => !candidateEnrollments.some(ce => ce.sprint_id === e.sprint_id) && (e.completed_at || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed))))
             .sort((a, b) => new Date(b.completed_at || b.started_at || 0).getTime() - new Date(a.completed_at || a.started_at || 0).getTime());
 
         candidateEnrollments.push(...active, ...completed);
     }
 
-    // Helper to find all direct target sprint IDs from a source sprint ID (uncoded links or nextSprintId)
+    // Helper to find all direct target sprint IDs from a source sprint ID (uncoded links, coded links, or nextSprintId)
     const getDirectLinkedSprintIds = (sourceId: string): string[] => {
         const targetIds: string[] = [];
-        const srcSprint = sprints.find(s => s.id === sourceId);
+        const srcSprint = findSprint(sourceId);
 
-        // A. From configured uncoded sprintLinks
+        // A. From configured sprintLinks (all links originating from this source sprint)
         if (Array.isArray(sprintLinks)) {
-            const uncoded = sprintLinks.filter(l => l.sourceSprintId === sourceId && (!l.optionCode || !l.optionCode.trim()));
-            uncoded.forEach(l => {
+            const linksFromSource = sprintLinks.filter(l => l.sourceSprintId === sourceId);
+            linksFromSource.forEach(l => {
                 if (l.targetSprintId && !targetIds.includes(l.targetSprintId)) {
                     targetIds.push(l.targetSprintId);
                 }
@@ -477,12 +488,12 @@ export const getExploreSprintItems = (
     const superiorSprintIds: string[] = [];
     if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
         for (const enrollment of candidateEnrollments) {
-            const srcSprint = sprints.find(s => s.id === enrollment.sprint_id);
+            const srcSprint = findSprint(enrollment.sprint_id);
             const codedLinks = sprintLinks.filter(l => l.sourceSprintId === enrollment.sprint_id && l.optionCode && l.optionCode.trim());
 
             for (const link of codedLinks) {
                 if (isOptionLinkMatchedByUser(enrollment, srcSprint, link)) {
-                    const target = sprints.find(s => s.id === link.targetSprintId);
+                    const target = findSprint(link.targetSprintId);
                     if (target && !superiorSprintIds.includes(target.id)) {
                         superiorSprintIds.push(target.id);
                         addSprintItem(target, 1, true, true, srcSprint?.title, true);
@@ -505,12 +516,12 @@ export const getExploreSprintItems = (
         const rootSourceIds = candidateEnrollments.map(e => e.sprint_id);
 
         for (const srcId of rootSourceIds) {
-            const srcSprint = sprints.find(s => s.id === srcId);
+            const srcSprint = findSprint(srcId);
             const directTargets = getDirectLinkedSprintIds(srcId);
             for (const targetId of directTargets) {
                 if (!superiorSprintIds.includes(targetId) && !level1SprintIds.includes(targetId)) {
                     level1SprintIds.push(targetId);
-                    const target = sprints.find(s => s.id === targetId);
+                    const target = findSprint(targetId);
                     if (target) {
                         addSprintItem(target, 1, false, true, srcSprint?.title, true);
                     }
@@ -518,36 +529,37 @@ export const getExploreSprintItems = (
             }
         }
     } else if (currentOrCompletedSprintId) {
-        const srcSprint = sprints.find(s => s.id === currentOrCompletedSprintId);
+        const srcSprint = findSprint(currentOrCompletedSprintId);
         const directTargets = getDirectLinkedSprintIds(currentOrCompletedSprintId);
         for (const targetId of directTargets) {
             if (!superiorSprintIds.includes(targetId) && !level1SprintIds.includes(targetId)) {
                 level1SprintIds.push(targetId);
-                const target = sprints.find(s => s.id === targetId);
+                const target = findSprint(targetId);
                 if (target) {
                     addSprintItem(target, 1, false, true, srcSprint?.title, true);
                 }
             }
         }
-    } else if (sprints.length > 0) {
+    } else if (sprints.length > 0 || lookupPool.length > 0) {
         // New user with no enrollments: Find root/entry sprints in the linking graph
+        const effectivePool = sprints.length > 0 ? sprints : lookupPool;
         const allTargetIds = new Set<string>();
         if (Array.isArray(sprintLinks)) {
             sprintLinks.forEach(l => {
                 if (l.targetSprintId) allTargetIds.add(l.targetSprintId);
             });
         }
-        sprints.forEach(s => {
+        effectivePool.forEach(s => {
             const directId = s.nextSprintId || s.linkedSprintId;
             if (directId) allTargetIds.add(directId);
         });
 
         // Entry sprints are published sprints that have links or start paths (not targets of other sprints)
-        const entrySprints = sprints.filter(s => !allTargetIds.has(s.id));
-        const rootSprints = entrySprints.length > 0 ? entrySprints : [sprints[0]];
+        const entrySprints = effectivePool.filter(s => !allTargetIds.has(s.id));
+        const rootSprints = entrySprints.length > 0 ? entrySprints : [effectivePool[0]];
 
         for (const rootSprint of rootSprints) {
-            if (!seenIds.has(rootSprint.id)) {
+            if (rootSprint && !seenIds.has(rootSprint.id)) {
                 level1SprintIds.push(rootSprint.id);
                 addSprintItem(rootSprint, 1, false, true, undefined, true);
             }
@@ -564,12 +576,12 @@ export const getExploreSprintItems = (
     // =========================================================================
     const level2SprintIds: string[] = [];
     for (const l1Id of allLevel1Sources) {
-        const l1Sprint = sprints.find(s => s.id === l1Id);
+        const l1Sprint = findSprint(l1Id);
         const level2Targets = getDirectLinkedSprintIds(l1Id);
         for (const targetId of level2Targets) {
             if (!seenIds.has(targetId) && !level2SprintIds.includes(targetId)) {
                 level2SprintIds.push(targetId);
-                const target = sprints.find(s => s.id === targetId);
+                const target = findSprint(targetId);
                 if (target) {
                     addSprintItem(target, 2, false, false, l1Sprint?.title, true);
                 }
@@ -583,12 +595,12 @@ export const getExploreSprintItems = (
     // =========================================================================
     const level3SprintIds: string[] = [];
     for (const l2Id of level2SprintIds) {
-        const l2Sprint = sprints.find(s => s.id === l2Id);
+        const l2Sprint = findSprint(l2Id);
         const level3Targets = getDirectLinkedSprintIds(l2Id);
         for (const targetId of level3Targets) {
             if (!seenIds.has(targetId) && !level3SprintIds.includes(targetId)) {
                 level3SprintIds.push(targetId);
-                const target = sprints.find(s => s.id === targetId);
+                const target = findSprint(targetId);
                 if (target) {
                     addSprintItem(target, 3, false, false, l2Sprint?.title, true);
                 }
@@ -612,7 +624,8 @@ export const getExploreNextSteps = (
     enrolledSprintIds: Set<string> = new Set(),
     userEnrollments: ParticipantSprint[] = [],
     sprintLinks: any[] = [],
-    currentOrCompletedSprintId?: string
+    currentOrCompletedSprintId?: string,
+    allPublishedSprintsPool?: Sprint[]
 ): Sprint[] => {
     const items = getExploreSprintItems(
         sprints,
@@ -620,7 +633,8 @@ export const getExploreNextSteps = (
         enrolledSprintIds,
         userEnrollments,
         sprintLinks,
-        currentOrCompletedSprintId
+        currentOrCompletedSprintId,
+        allPublishedSprintsPool
     );
     return items.map(item => item.sprint);
 };
@@ -638,16 +652,15 @@ export const getExploreFirstSprint = (
     sprintLinks: any[] = [],
     currentOrCompletedSprintId?: string
 ): Sprint | null => {
-    const allowedSprints = filterAllowedSprintsForUser(allPublishedSprints, user);
-    const sprintPool = allowedSprints.length > 0 ? allowedSprints : allPublishedSprints;
     const items = getExploreSprintItems(
-        sprintPool, 
+        allPublishedSprints, 
         user, 
         enrolledSprintIds, 
         userEnrollments, 
         sprintLinks, 
-        currentOrCompletedSprintId
+        currentOrCompletedSprintId,
+        allPublishedSprints
     );
     const firstClickable = items.find(item => item.isClickable)?.sprint;
-    return firstClickable || items[0]?.sprint || sprintPool.find(s => !enrolledSprintIds.has(s.id)) || sprintPool[0] || null;
+    return firstClickable || items[0]?.sprint || allPublishedSprints.find(s => !enrolledSprintIds.has(s.id)) || allPublishedSprints[0] || null;
 };

@@ -83,23 +83,27 @@ const DiscoverSprints: React.FC = () => {
             setIsSprintsLoaded(true);
         });
 
-        const loadCoachesAndLinks = async () => {
+        // Subscribe to sprint links in real-time so changes in Orchestrator reflect immediately
+        const unsubLinks = sprintService.subscribeToSprintLinks((links) => {
+            setSprintLinks(links || []);
+        });
+
+        const loadCoaches = async () => {
             try {
-                const [dbCoaches, links] = await Promise.all([
-                    userService.getCoaches().catch(() => []),
-                    sprintService.getSprintLinks().catch(() => [])
-                ]);
+                const dbCoaches = await userService.getCoaches().catch(() => []);
                 setCoaches(dbCoaches);
-                setSprintLinks(links);
             } catch (err) {
-                console.error("Error loading coaches/links:", err);
+                console.error("Error loading coaches:", err);
             } finally {
                 setIsOtherDataLoaded(true);
             }
         };
         
-        loadCoachesAndLinks();
-        return () => unsubSprints();
+        loadCoaches();
+        return () => {
+            unsubSprints();
+            unsubLinks();
+        };
     }, [user]);
 
     // Subscribe to enrollments for reactive filtering of "Active" sprints
@@ -123,8 +127,8 @@ const DiscoverSprints: React.FC = () => {
 
     // Strict Sprint-to-Sprint linking traversal
     const exploreItems = useMemo(() => {
-        return getExploreSprintItems(sprints, user, enrolledSprintIds, userEnrollments, sprintLinks);
-    }, [sprints, user, enrolledSprintIds, userEnrollments, sprintLinks]);
+        return getExploreSprintItems(sprints, user, enrolledSprintIds, userEnrollments, sprintLinks, undefined, allSprints);
+    }, [sprints, allSprints, user, enrolledSprintIds, userEnrollments, sprintLinks]);
 
     const level1Items = useMemo(() => {
         return exploreItems.filter(item => item.level === 1 && item.isClickable);
