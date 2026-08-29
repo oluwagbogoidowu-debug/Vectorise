@@ -6,11 +6,10 @@ import { trackService } from '../../services/trackService';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
-import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS, LIFECYCLE_SLOTS } from '../../services/mockData';
+import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
-import TrackCard from '../../components/TrackCard';
-import { Package, ArrowRight, Sparkles, Lock, Layers } from 'lucide-react';
+import { Sparkles, Lock, Loader2 } from 'lucide-react';
 import { filterAllowedSprintsForUser, getExploreSprintItems, ExploreSprintItem } from '../../utils/sprintUtils';
 
 /**
@@ -23,20 +22,20 @@ const LockedStageCard: React.FC<{
     tags: string[]; 
     unlockCondition: string 
 }> = ({ title, desc, tags, unlockCondition }) => (
-    <div className="flex-shrink-0 w-[85%] md:w-72 bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col relative overflow-hidden group opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+    <div className="flex-shrink-0 w-[85%] md:w-72 bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-gray-100 dark:border-zinc-800 p-8 flex flex-col relative overflow-hidden group opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
         <div className="relative z-10">
-            <h3 className="text-xl font-black text-gray-900 mb-2">{title}</h3>
-            <p className="text-xs text-gray-500 font-medium leading-relaxed mb-6">"{desc}"</p>
+            <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2">{title}</h3>
+            <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium leading-relaxed mb-6">"{desc}"</p>
             
             <div className="flex flex-wrap gap-2 mb-8">
                 {tags.map(tag => (
-                    <span key={tag} className="px-2 py-1 bg-gray-50 text-gray-400 text-[8px] font-bold rounded-md border border-gray-100">
+                    <span key={tag} className="px-2 py-1 bg-gray-50 dark:bg-zinc-800 text-gray-400 dark:text-zinc-400 text-[8px] font-bold rounded-md border border-gray-100 dark:border-zinc-700">
                         {tag}
                     </span>
                 ))}
             </div>
 
-            <div className="mt-auto pt-6 border-t border-gray-50 flex items-center gap-2">
+            <div className="mt-auto pt-6 border-t border-gray-50 dark:border-zinc-800 flex items-center gap-2">
                 <span className="text-sm">🔒</span>
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{unlockCondition}</p>
             </div>
@@ -44,22 +43,17 @@ const LockedStageCard: React.FC<{
     </div>
 );
 
-import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
-
 const DiscoverSprints: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [allSprints, setAllSprints] = useState<Sprint[]>([]);
-    const [tracks, setTracks] = useState<Track[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [sprintLinks, setSprintLinks] = useState<any[]>([]);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
-    const [orchestration, setOrchestration] = useState<Record<string, LifecycleSlotAssignment>>({});
     const [isSprintsLoaded, setIsSprintsLoaded] = useState(false);
     const [isOtherDataLoaded, setIsOtherDataLoaded] = useState(false);
     const [isEnrollmentsLoaded, setIsEnrollmentsLoaded] = useState(false);
-    const [recommendationReason, setRecommendationReason] = useState<string>('');
 
     const isLoading = !isSprintsLoaded || !isOtherDataLoaded || !isEnrollmentsLoaded;
 
@@ -89,26 +83,22 @@ const DiscoverSprints: React.FC = () => {
             setIsSprintsLoaded(true);
         });
 
-        const loadCoachesAndOrchestration = async () => {
+        const loadCoachesAndLinks = async () => {
             try {
-                const [dbCoaches, mapping, dbTracks, links] = await Promise.all([
-                    userService.getCoaches(),
-                    sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>,
-                    trackService.getAllTracks(),
+                const [dbCoaches, links] = await Promise.all([
+                    userService.getCoaches().catch(() => []),
                     sprintService.getSprintLinks().catch(() => [])
                 ]);
                 setCoaches(dbCoaches);
-                setOrchestration(mapping);
-                setTracks(dbTracks.filter(t => t.published));
                 setSprintLinks(links);
             } catch (err) {
-                console.error(err);
+                console.error("Error loading coaches/links:", err);
             } finally {
                 setIsOtherDataLoaded(true);
             }
         };
         
-        loadCoachesAndOrchestration();
+        loadCoachesAndLinks();
         return () => unsubSprints();
     }, [user]);
 
@@ -131,111 +121,7 @@ const DiscoverSprints: React.FC = () => {
         return new Set(userEnrollments.map(e => e.sprint_id));
     }, [userEnrollments]);
 
-    // 1. Recommended Logic
-    const recommendedSprint = useMemo(() => {
-        if (sprints.length === 0) return null;
-        
-        const participant = user as Participant;
-        
-        // Priority 1: Observed Behavior (already enrolled/completed)
-        // If they just finished a sprint, the currentStage is updated.
-        
-        // Priority 2: Selected Growth Areas
-        const growthAreas = participant?.growthAreas || [];
-        if (growthAreas.length > 0) {
-            // Find which group these areas belong to
-            const matchedGroups = GROWTH_AREAS.filter(g => 
-                g.options.some(opt => growthAreas.includes(opt))
-            );
-            
-            if (matchedGroups.length > 0) {
-                // Get all possible sprint titles from matched groups
-                const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
-                // Find a sprint that matches one of these titles and isn't enrolled
-                const matchedSprint = sprints.find(s => 
-                    targetSprintTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
-                );
-                
-                if (matchedSprint) {
-                    setRecommendationReason(`Based on your interest in ${growthAreas[0].toLowerCase()}`);
-                    return matchedSprint;
-                }
-            }
-        }
-
-        // Priority 3: Rise Pathway
-        const pathwayId = participant?.risePathway;
-        if (pathwayId) {
-            const pathway = RISE_PATHWAYS.find(p => p.id === pathwayId);
-            if (pathway) {
-                // Simple mapping for demo purposes - in real app this would be more complex
-                const pathwaySprintMap: Record<string, string[]> = {
-                    'student': ['Clarity Sprint', 'Direction Sprint'],
-                    'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
-                    'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
-                    'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
-                    'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
-                };
-                
-                const targetTitles = pathwaySprintMap[pathwayId] || [];
-                const matchedSprint = sprints.find(s => 
-                    targetTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
-                );
-                
-                if (matchedSprint) {
-                    setRecommendationReason(`Optimized for the ${pathway.name}`);
-                    return matchedSprint;
-                }
-            }
-        }
-
-        // Fallback: Onboarding Focus
-        const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
-                         Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
-
-        if (userFocus) {
-            const prioritySlots = ['slot_found_clarity', 'slot_found_orient', 'slot_found_core'];
-            for (const slotId of prioritySlots) {
-                const mapping = orchestration[slotId];
-                if (mapping) {
-                    const focusMap = mapping.sprintFocusMap || {};
-                    const matchedSprintId = Object.keys(focusMap).find(sId => focusMap[sId]?.includes(userFocus));
-                    
-                    if (matchedSprintId) {
-                        const matchedSprint = sprints.find(s => s.id === matchedSprintId && !enrolledSprintIds.has(s.id));
-                        if (matchedSprint) {
-                            setRecommendationReason(`Aligned with your focus on ${userFocus}`);
-                            return matchedSprint;
-                        }
-                    }
-                }
-            }
-        }
-
-        const targetStage = participant?.currentStage || 'Direction';
-        const stageSprint = sprints.find(s => 
-            CATEGORY_TO_STAGE_MAP[s.category] === targetStage && 
-            s.pricingType === 'cash' &&
-            !enrolledSprintIds.has(s.id)
-        );
-        
-        if (stageSprint) {
-            setRecommendationReason(`Perfect for your current ${targetStage} stage`);
-            return stageSprint;
-        }
-
-        return sprints.find(s => s.pricingType === 'cash' && !enrolledSprintIds.has(s.id)) || sprints.find(s => !enrolledSprintIds.has(s.id)) || null;
-    }, [sprints, user, orchestration, enrolledSprintIds]);
-
-    const recommendedCoach = useMemo(() => {
-        if (!recommendedSprint) return null;
-        return coaches.find(c => c.id === recommendedSprint.coachId) || {
-            name: 'Expert Coach',
-            profileImageUrl: 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd'
-        } as Coach;
-    }, [recommendedSprint, coaches]);
-
-    // 2. Track & Other options
+    // Strict Sprint-to-Sprint linking traversal
     const exploreItems = useMemo(() => {
         return getExploreSprintItems(sprints, user, enrolledSprintIds, userEnrollments, sprintLinks);
     }, [sprints, user, enrolledSprintIds, userEnrollments, sprintLinks]);
@@ -249,16 +135,23 @@ const DiscoverSprints: React.FC = () => {
     }, [exploreItems]);
 
     if (isLoading) {
-        return null;
+        return (
+            <div className="h-full w-full min-h-screen flex flex-col items-center justify-center bg-[#FDFDFD] dark:bg-zinc-950 p-6">
+                <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+                <p className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500">
+                    Loading recommendations...
+                </p>
+            </div>
+        );
     }
 
     return (
-        <div className="h-full w-full overflow-y-auto bg-[#FDFDFD] custom-scrollbar selection:bg-primary/10">
+        <div className="h-full w-full overflow-y-auto bg-[#FDFDFD] dark:bg-zinc-950 custom-scrollbar selection:bg-primary/10">
             <div className="max-w-screen-md mx-auto px-6 py-12 pb-40 animate-fade-in">
                 
                 {/* HEADER */}
                 <header className="mb-12 text-center">
-                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-3">
+                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tighter mb-3">
                         Explore What’s Next
                     </h1>
                 </header>
@@ -268,7 +161,7 @@ const DiscoverSprints: React.FC = () => {
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">
+                                <h2 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.4em]">
                                     {level1Items[0]?.isSuperior ? "Top Recommendation" : "Your next sprint"}
                                 </h2>
                                 <Sparkles className="w-3 h-3 text-primary" />
@@ -285,7 +178,7 @@ const DiscoverSprints: React.FC = () => {
                                 <React.Fragment key={item.sprint.id}>
                                     {index === 1 && (
                                         <div className="pt-6 pb-2">
-                                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">
+                                            <h2 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.4em]">
                                                 Other recommended sprints
                                             </h2>
                                         </div>
@@ -307,12 +200,12 @@ const DiscoverSprints: React.FC = () => {
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">
+                                <h2 className="text-[10px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-[0.4em]">
                                     Upcoming Sprints (Next Level)
                                 </h2>
                                 <Lock className="w-3 h-3 text-gray-400" />
                             </div>
-                            <p className="text-xs text-gray-400 font-medium">
+                            <p className="text-xs text-gray-400 dark:text-zinc-500 font-medium">
                                 Connected to your path • Unlocks after completing previous sprints
                             </p>
                         </div>
@@ -332,6 +225,21 @@ const DiscoverSprints: React.FC = () => {
                     </section>
                 )}
 
+                {/* EMPTY STATE IF NO LINKED SPRINTS EXIST YET */}
+                {level1Items.length === 0 && level2PlusItems.length === 0 && (
+                    <div className="mb-16 p-8 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-[2rem] text-center animate-fade-in">
+                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mx-auto mb-4">
+                            <Sparkles className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-base font-black text-gray-900 dark:text-white mb-1">
+                            No New Sprints In Your Path Right Now
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-zinc-400 max-w-sm mx-auto">
+                            Complete your active sprint moves or check back soon as new interconnected sprint paths are configured.
+                        </p>
+                    </div>
+                )}
+
                 {/* PROFILE SETUP PROMPT */}
                 {user && user.role === UserRole.PARTICIPANT && (!(user as Participant).growthAreas?.length || !(user as Participant).risePathway) && (
                     <div className="mb-12 p-6 bg-primary/5 border border-primary/10 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
@@ -340,13 +248,13 @@ const DiscoverSprints: React.FC = () => {
                                 <Sparkles className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-sm font-black text-gray-900 leading-tight">Complete your profile setup</p>
-                                <p className="text-[10px] text-gray-500 font-medium">Earn coins to start your first sprint</p>
+                                <p className="text-sm font-black text-gray-900 dark:text-white leading-tight">Complete your profile setup</p>
+                                <p className="text-[10px] text-gray-500 dark:text-zinc-400 font-medium">Earn coins to start your first sprint</p>
                             </div>
                         </div>
                         <button 
                             onClick={() => navigate('/profile')}
-                            className="px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
+                            className="px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
                         >
                             Setup Profile &rarr;
                         </button>
@@ -356,8 +264,8 @@ const DiscoverSprints: React.FC = () => {
                 {/* SECTION 3: THE FUTURE TRACK */}
                 <section className="mb-20">
                     <div className="mb-6 px-2">
-                        <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em] mb-1">What comes after this</h2>
-                        <p className="text-xs text-gray-400 font-medium">You’ll unlock these as you progress.</p>
+                        <h2 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.4em] mb-1">What comes after this</h2>
+                        <p className="text-xs text-gray-400 dark:text-zinc-500 font-medium">You’ll unlock these as you progress.</p>
                     </div>
 
                     <div className="flex gap-5 overflow-x-auto pb-8 no-scrollbar px-2 -mx-2">
@@ -389,9 +297,9 @@ const DiscoverSprints: React.FC = () => {
                 </section>
 
                 {/* FOOTER TEXT */}
-                <footer className="text-center pt-10 border-t border-gray-50">
-                    <p className="text-lg text-gray-300 font-medium">You’re not behind.</p>
-                    <p className="text-lg text-gray-400 font-black">You’re building in order.</p>
+                <footer className="text-center pt-10 border-t border-gray-50 dark:border-zinc-800">
+                    <p className="text-lg text-gray-300 dark:text-zinc-600 font-medium">You’re not behind.</p>
+                    <p className="text-lg text-gray-400 dark:text-zinc-400 font-black">You’re building in order.</p>
                     
                     <div className="mt-16 flex justify-center opacity-10 grayscale">
                         <LocalLogo type="green" className="h-8 w-auto" />

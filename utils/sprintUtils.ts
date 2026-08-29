@@ -500,19 +500,26 @@ export const getExploreSprintItems = (
     const level1SprintIds: string[] = [];
     
     // Determine the root source sprint IDs for Level 1 expansion
-    let rootSourceIds: string[] = [];
     if (candidateEnrollments.length > 0) {
-        rootSourceIds = candidateEnrollments.map(e => e.sprint_id);
-    } else if (currentOrCompletedSprintId) {
-        rootSourceIds = [currentOrCompletedSprintId];
-    } else if (sprints.length > 0) {
-        // For new users without enrollments, evaluate links from the starting sprint(s)
-        rootSourceIds = [sprints[0].id];
-    }
+        // Enrolled user: Root sources are their active/completed sprints
+        const rootSourceIds = candidateEnrollments.map(e => e.sprint_id);
 
-    for (const srcId of rootSourceIds) {
-        const srcSprint = sprints.find(s => s.id === srcId);
-        const directTargets = getDirectLinkedSprintIds(srcId);
+        for (const srcId of rootSourceIds) {
+            const srcSprint = sprints.find(s => s.id === srcId);
+            const directTargets = getDirectLinkedSprintIds(srcId);
+            for (const targetId of directTargets) {
+                if (!superiorSprintIds.includes(targetId) && !level1SprintIds.includes(targetId)) {
+                    level1SprintIds.push(targetId);
+                    const target = sprints.find(s => s.id === targetId);
+                    if (target) {
+                        addSprintItem(target, 1, false, true, srcSprint?.title, true);
+                    }
+                }
+            }
+        }
+    } else if (currentOrCompletedSprintId) {
+        const srcSprint = sprints.find(s => s.id === currentOrCompletedSprintId);
+        const directTargets = getDirectLinkedSprintIds(currentOrCompletedSprintId);
         for (const targetId of directTargets) {
             if (!superiorSprintIds.includes(targetId) && !level1SprintIds.includes(targetId)) {
                 level1SprintIds.push(targetId);
@@ -520,6 +527,29 @@ export const getExploreSprintItems = (
                 if (target) {
                     addSprintItem(target, 1, false, true, srcSprint?.title, true);
                 }
+            }
+        }
+    } else if (sprints.length > 0) {
+        // New user with no enrollments: Find root/entry sprints in the linking graph
+        const allTargetIds = new Set<string>();
+        if (Array.isArray(sprintLinks)) {
+            sprintLinks.forEach(l => {
+                if (l.targetSprintId) allTargetIds.add(l.targetSprintId);
+            });
+        }
+        sprints.forEach(s => {
+            const directId = s.nextSprintId || s.linkedSprintId;
+            if (directId) allTargetIds.add(directId);
+        });
+
+        // Entry sprints are published sprints that have links or start paths (not targets of other sprints)
+        const entrySprints = sprints.filter(s => !allTargetIds.has(s.id));
+        const rootSprints = entrySprints.length > 0 ? entrySprints : [sprints[0]];
+
+        for (const rootSprint of rootSprints) {
+            if (!seenIds.has(rootSprint.id)) {
+                level1SprintIds.push(rootSprint.id);
+                addSprintItem(rootSprint, 1, false, true, undefined, true);
             }
         }
     }
