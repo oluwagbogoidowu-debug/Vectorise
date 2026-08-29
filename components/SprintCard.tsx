@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Info } from 'lucide-react';
+import { Info, Lock } from 'lucide-react';
 import { Sprint, Coach, UserRole, Participant } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { MOCK_PARTICIPANT_SPRINTS } from '../services/mockData';
@@ -12,15 +12,31 @@ interface SprintCardProps {
     sprint: Sprint;
     coach: Coach;
     forceShowOutcomeTag?: boolean; 
-    isStatic?: boolean; // New prop to disable navigation
+    isStatic?: boolean; // Disables navigation
+    isInactive?: boolean; // Marks card as inactive (Level 2+ linked sprint)
+    inactiveLabel?: string; // Optional custom inactive badge / button label
+    level?: number; // Sprint linking level (e.g. 1 = direct, 2 = 2nd level)
     hideFooterDetails?: boolean; // Hide Guided By and Price/Coins section
     variant?: 'light' | 'dark' | 'glass';
     onOpenOverview?: () => void;
 }
 
-const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcomeTag = false, isStatic = false, hideFooterDetails = false, variant = 'light', onOpenOverview }) => {
+const SprintCard: React.FC<SprintCardProps> = ({ 
+    sprint, 
+    coach, 
+    forceShowOutcomeTag = false, 
+    isStatic = false, 
+    isInactive = false,
+    inactiveLabel,
+    level,
+    hideFooterDetails = false, 
+    variant = 'light', 
+    onOpenOverview 
+}) => {
     const { user, updateProfile } = useAuth();
     const [isProcessingSave, setIsProcessingSave] = useState(false);
+
+    const effectiveIsStatic = isStatic || isInactive;
 
     const isEnrolled = useMemo(() => {
         if (!user || user.role !== UserRole.PARTICIPANT) return false;
@@ -43,7 +59,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
     const handleToggleSave = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (isStatic || !user || isProcessingSave || isQueued || isEnrolled) return;
+        if (effectiveIsStatic || !user || isProcessingSave || isQueued || isEnrolled) return;
 
         const p = user as Participant;
         const currentWishlist = p.wishlistSprintIds || [];
@@ -70,8 +86,8 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
         }
     };
 
-    const CardContainer = isStatic ? 'div' : Link;
-    const containerProps = isStatic ? {} : { to: `/sprint/${sprint.id}`, state: { fromExplore: true } };
+    const CardContainer = effectiveIsStatic ? 'div' : Link;
+    const containerProps = effectiveIsStatic ? {} : { to: `/sprint/${sprint.id}`, state: { fromExplore: true } };
 
     const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
 
@@ -109,7 +125,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
     if (variant === 'glass') {
         return (
             <div className="relative group h-full w-full">
-                {!isEnrolled && !isQueued && !isStatic && (
+                {!isEnrolled && !isQueued && !effectiveIsStatic && (
                     <button 
                         onClick={handleToggleSave}
                         disabled={isProcessingSave}
@@ -132,7 +148,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
 
                 <CardContainer 
                     {...(containerProps as any)} 
-                    className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2.5rem] p-6 sm:p-7 relative overflow-hidden shadow-2xl flex flex-col text-white transition-all duration-500 h-full group ${!isStatic ? 'hover:bg-white/15 hover:border-white/30 cursor-pointer' : 'cursor-default'}`}
+                    className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2.5rem] p-6 sm:p-7 relative overflow-hidden shadow-2xl flex flex-col text-white transition-all duration-500 h-full group ${!effectiveIsStatic ? 'hover:bg-white/15 hover:border-white/30 cursor-pointer' : 'cursor-default'} ${isInactive ? 'opacity-85' : ''}`}
                 >
                     <div className="relative z-10 flex flex-col h-full">
                         <div className="flex justify-between items-start mb-5">
@@ -148,14 +164,23 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                             <img 
                                 src={sprint.coverImageUrl || fallbackUrl} 
                                 alt="" 
-                                className="w-full h-full object-cover grayscale opacity-80 transition-transform duration-700 group-hover:scale-105" 
+                                className={`w-full h-full object-cover opacity-80 transition-transform duration-700 ${!effectiveIsStatic ? 'group-hover:scale-105' : ''} ${isInactive ? 'grayscale' : ''}`} 
                                 onError={(e) => { e.currentTarget.src = fallbackUrl; }} 
                                 referrerPolicy="no-referrer"
                             />
                             <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black text-white/90 uppercase tracking-[0.2em] border border-white/10">
                                 {sprint.duration} {sprint.duration === 1 ? 'Move' : 'Moves'}
                             </div>
-                            {forceShowOutcomeTag && sprint.outcomeTag && (
+
+                            {/* Inactive Level Badge */}
+                            {isInactive && (
+                                <div className="absolute top-3 left-3 bg-black/80 text-white border border-white/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg z-10 animate-fade-in">
+                                    <Lock className="w-2.5 h-2.5 text-amber-400" />
+                                    <span>{inactiveLabel || (level ? `Level ${level} • Inactive` : 'Inactive • Locked')}</span>
+                                </div>
+                            )}
+
+                            {!isInactive && forceShowOutcomeTag && sprint.outcomeTag && (
                                 <div className="absolute top-3 left-3 bg-primary text-white px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest italic shadow-lg z-10 border border-white/20">
                                     {sprint.outcomeTag}
                                 </div>
@@ -196,8 +221,14 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                                             <Info className="w-3.5 h-3.5" />
                                         </button>
                                     )}
-                                    <div className="px-3 py-1.5 rounded-xl bg-white/20 text-white font-black text-[9px] uppercase tracking-widest">
-                                        {sprint.pricingType === 'credits' ? `🪙 ${sprint.pointCost ?? 10}` : `₦${(sprint.price ?? 1000).toLocaleString()}`}
+                                    <div className={`px-3 py-1.5 rounded-xl text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 ${isInactive ? 'bg-white/10 text-white/60 cursor-not-allowed' : 'bg-white/20'}`}>
+                                        {isInactive ? (
+                                            <><Lock className="w-3 h-3 text-amber-400" /> {inactiveLabel || "Locked"}</>
+                                        ) : sprint.pricingType === 'credits' ? (
+                                            `🪙 ${sprint.pointCost ?? 10}`
+                                        ) : (
+                                            `₦${(sprint.price ?? 1000).toLocaleString()}`
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -234,21 +265,29 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
 
             <CardContainer 
                 {...(containerProps as any)} 
-                className={`bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 dark:border-zinc-800/80 overflow-hidden h-full group ${!isStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'}`}
+                className={`bg-white dark:bg-[#1c1c1e] rounded-[2rem] shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] transition-all duration-700 flex flex-col border border-gray-100/60 dark:border-zinc-800/80 overflow-hidden h-full group ${!effectiveIsStatic ? 'hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.12)] hover:-translate-y-2 cursor-pointer' : 'cursor-default'} ${isInactive ? 'opacity-85 dark:opacity-80' : ''}`}
             >
                 <div className="relative h-40 overflow-hidden bg-gray-100 dark:bg-zinc-800">
                     <img 
                         src={sprint.coverImageUrl || fallbackUrl} 
                         alt="" 
-                        className={`w-full h-full object-cover transition-transform duration-1000 ${!isStatic ? 'group-hover:scale-110 group-hover:rotate-1' : ''}`} 
+                        className={`w-full h-full object-cover transition-transform duration-1000 ${!effectiveIsStatic ? 'group-hover:scale-110 group-hover:rotate-1' : ''} ${isInactive ? 'grayscale-[20%]' : ''}`} 
                         onError={(e) => { e.currentTarget.src = fallbackUrl; }} 
                         referrerPolicy="no-referrer"
                     />
-                    <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!isStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
+                    <div className={`absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent transition-opacity duration-700 ${!effectiveIsStatic ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}></div>
                     <div className="absolute top-3 right-3 bg-white/95 dark:bg-zinc-900/90 backdrop-blur-md px-2 py-0.5 rounded-full text-[8px] font-black text-primary shadow-lg uppercase tracking-[0.2em]">{sprint.duration} {sprint.duration === 1 ? 'Move' : 'Moves'}</div>
                     
+                    {/* Inactive Level Badge */}
+                    {isInactive && (
+                        <div className="absolute top-3 left-3 bg-zinc-950/85 dark:bg-black/85 text-zinc-100 border border-white/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg z-10 animate-fade-in">
+                            <Lock className="w-2.5 h-2.5 text-amber-400" />
+                            <span>{inactiveLabel || (level ? `Level ${level} • Inactive` : 'Inactive • Locked')}</span>
+                        </div>
+                    )}
+
                     {/* Archive Badge Preview */}
-                    {forceShowOutcomeTag && sprint.outcomeTag && (
+                    {!isInactive && forceShowOutcomeTag && sprint.outcomeTag && (
                          <div className="absolute top-3 left-3 bg-primary text-white px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest italic shadow-lg z-10 animate-fade-in border border-white/20">
                             {sprint.outcomeTag}
                          </div>
@@ -260,7 +299,7 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                 </div>
                 
                 <div className="p-4 flex flex-col flex-grow">
-                    <h3 className={`text-lg font-black text-gray-900 dark:text-white mb-2 transition-colors leading-tight tracking-tight ${!isStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
+                    <h3 className={`text-lg font-black text-gray-900 dark:text-white mb-2 transition-colors leading-tight tracking-tight ${!effectiveIsStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     {sprint.subtitle && (
                         <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-400 mb-2 leading-snug">{sprint.subtitle}</p>
                     )}
@@ -300,14 +339,18 @@ const SprintCard: React.FC<SprintCardProps> = ({ sprint, coach, forceShowOutcome
                                 )}
                             </div>
 
-                            <div className={`py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.25em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-2 ${
-                                isEnrolled 
+                            <div className={`py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.25em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-1.5 ${
+                                isInactive
+                                ? 'bg-gray-100 dark:bg-zinc-800/90 text-gray-400 dark:text-zinc-500 border border-gray-200/60 dark:border-zinc-700/60 cursor-not-allowed'
+                                : isEnrolled 
                                 ? 'bg-green-50 text-green-700' 
                                 : isQueued 
                                 ? 'bg-blue-50 text-blue-700' 
                                 : 'bg-primary text-white group-hover:bg-primary-hover shadow-primary/20'
                             }`}>
-                                {isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {sprint.pointCost ?? 10}</>) : `₦${(sprint.price ?? 1000).toLocaleString()}`}
+                                {isInactive ? (
+                                    <><Lock className="w-3 h-3 text-gray-400 dark:text-zinc-500" /> <span>{inactiveLabel || (level ? `Level ${level} • Inactive` : "Inactive • Unlocks Next")}</span></>
+                                ) : isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {sprint.pointCost ?? 10}</>) : `₦${(sprint.price ?? 1000).toLocaleString()}`}
                             </div>
                         </div>
                     )}

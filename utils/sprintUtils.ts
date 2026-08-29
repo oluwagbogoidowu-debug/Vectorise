@@ -12,30 +12,39 @@ export interface ParsedOptionCode {
 export const parseOptionCodeHelper = (code: string, sprint?: Sprint | null): ParsedOptionCode | null => {
     if (!code) return null;
     const clean = code.trim().replace(/^[\{\[\(\<]+|[\}\]\)\>]+$/g, '').trim();
+    if (!clean) return null;
     
     let dayNum = 1;
     let stepNum = 1;
     let opNum = 1;
 
-    // Pattern 1: Day/Move + Step + Option
-    // Matches "M1 Step 3 op 3", "Move 1 Step 3 option 3", "Day 1 Step 3 op3", "D1 S3 O3", "M1 Step 3 choice 3"
-    const fullMatch = clean.match(/(?:m|move|day|d)\s*(\d+)\s*(?:step|s)\s*(\d+)\s*(?:op|option|choice|opt|o)\s*(\d+)/i);
-    // Pattern 2: Step + Option (without Day specified, defaults to Day 1 / Move 1)
-    const stepOpMatch = clean.match(/(?:step|s)\s*(\d+)\s*(?:op|option|choice|opt|o)\s*(\d+)/i);
+    // Pattern 1: Day/Move + (optional step) + Option
+    // Matches: "M1 step op 1", "M1 Step 3 op 3", "Move 1 Step 3 option 3", "Day 1 Step 3 op3", "D1 S3 O3", "M1 op 2"
+    const fullMatch = clean.match(/(?:m|move|day|d)\s*(\d+)(?:\s*(?:step|s)\s*(\d*))?\s*(?:op|option|choice|opt|o)\s*(\d+)/i);
+    // Pattern 2: (optional step) + Option (without Day specified, defaults to Day 1 / Move 1)
+    // Matches: "Step 3 op 2", "Step op 1", "step 2 option 3", "op 2", "choice 3"
+    const stepOpMatch = clean.match(/(?:(?:step|s)\s*(\d*)\s*)?(?:op|option|choice|opt|o)\s*(\d+)/i);
     // Pattern 3: Separated numbers e.g. "1 3 3" or "1-3-3" or "1.3.3"
-    const numMatch = clean.match(/^(\d+)[\s\.\-_]+(\d+)[\s\.\-_]+(\d+)$/);
+    const numMatch3 = clean.match(/^(\d+)[\s\.\-_]+(\d+)[\s\.\-_]+(\d+)$/);
+    // Pattern 4: Two numbers e.g. "1 2" -> step 1, option 2 (or day 1, option 2)
+    const numMatch2 = clean.match(/^(\d+)[\s\.\-_]+(\d+)$/);
 
     if (fullMatch) {
-        dayNum = parseInt(fullMatch[1], 10);
-        stepNum = parseInt(fullMatch[2], 10);
-        opNum = parseInt(fullMatch[3], 10);
-    } else if (stepOpMatch) {
-        stepNum = parseInt(stepOpMatch[1], 10);
-        opNum = parseInt(stepOpMatch[2], 10);
-    } else if (numMatch) {
-        dayNum = parseInt(numMatch[1], 10);
-        stepNum = parseInt(numMatch[2], 10);
-        opNum = parseInt(numMatch[3], 10);
+        dayNum = parseInt(fullMatch[1], 10) || 1;
+        stepNum = fullMatch[2] ? (parseInt(fullMatch[2], 10) || 1) : 1;
+        opNum = parseInt(fullMatch[3], 10) || 1;
+    } else if (stepOpMatch && stepOpMatch[2]) {
+        dayNum = 1;
+        stepNum = stepOpMatch[1] ? (parseInt(stepOpMatch[1], 10) || 1) : 1;
+        opNum = parseInt(stepOpMatch[2], 10) || 1;
+    } else if (numMatch3) {
+        dayNum = parseInt(numMatch3[1], 10) || 1;
+        stepNum = parseInt(numMatch3[2], 10) || 1;
+        opNum = parseInt(numMatch3[3], 10) || 1;
+    } else if (numMatch2) {
+        dayNum = 1;
+        stepNum = parseInt(numMatch2[1], 10) || 1;
+        opNum = parseInt(numMatch2[2], 10) || 1;
     } else {
         return null;
     }
@@ -360,39 +369,60 @@ export const filterAllowedSprintsForUser = (allSprints: Sprint[], user: User | P
     });
 };
 
+export interface ExploreSprintItem {
+    sprint: Sprint;
+    level: number; // 1 = First level (active & clickable), 2 = Second level (inactive & not clickable), 3 = Later levels (inactive)
+    isSuperior?: boolean; // If triggered by superior option-code match (e.g. {M1 step op 1})
+    isClickable: boolean; // true for level 1, false for level 2+
+    linkSourceTitle?: string;
+}
+
 /**
- * Returns the exact list of recommended sprints for the Explore page,
- * respecting:
- * 1. Superior Option-Coded Sprint Linking (1st Priority: Reorders recommendation when participant clicks tracked {m1 step 3 op 3})
- * 2. Normal Sprint-to-Sprint Linking without coding (2nd Priority Stage: Recorded once someone starts that sprint)
- * 3. Orchestrator Override Sprints (overrideOrchestrator flag)
- * 4. Lifecycle Orchestrator slots (slot_dir_sprint mapping with user focus)
- * 5. Growth Areas (from identity setup)
- * 6. Rise Pathway
- * 7. Fallbacks to remaining available sprints
+ * Traverses and returns the exact ordered list of Explore items using strict Sprint-to-Sprint linking:
+ * 1. Superior Option-Coded Linking ({M1 step op 1}) becomes superior to all once the user clicks that option.
+ *    (Does not take effect until the user clicks that option).
+ * 2. Level 1 Linking: All first-level direct links from the current sprint show first before second-level links.
+ *    Level 1 cards are active and clickable.
+ * 3. Level 2 Linking: Sprints that the first-level sprints link to.
+ *    Level 2 cards are shown after Level 1, in an inactive, non-clickable state.
+ * 4. Level 3+ Linking: Sprints linked from Level 2 sprints (also inactive and non-clickable).
+ * 5. Fallback: Remaining published non-enrolled sprints.
+ *
+ * NOTE: Orchestrator linking logic is strictly deactivated on the Explore page as requested.
  */
-export const getExploreNextSteps = (
+export const getExploreSprintItems = (
     sprints: Sprint[],
     user: Participant | User | null,
-    orchestration: Record<string, LifecycleSlotAssignment> = {},
     enrolledSprintIds: Set<string> = new Set(),
     userEnrollments: ParticipantSprint[] = [],
     sprintLinks: any[] = [],
     currentOrCompletedSprintId?: string
-): Sprint[] => {
-    const participant = user as Participant;
-    const list: Sprint[] = [];
+): ExploreSprintItem[] => {
+    const list: ExploreSprintItem[] = [];
     const seenIds = new Set<string>();
 
-    const addSprint = (sprint: Sprint | undefined | null, forceAllowRepeat: boolean = false) => {
-        if (sprint && (!enrolledSprintIds.has(sprint.id) || forceAllowRepeat) && !seenIds.has(sprint.id)) {
-            list.push(sprint);
+    const addSprintItem = (
+        sprint: Sprint | undefined | null,
+        level: number,
+        isSuperior: boolean = false,
+        isClickable: boolean = true,
+        sourceTitle?: string,
+        forceAllowRepeat: boolean = false
+    ) => {
+        if (!sprint) return;
+        if ((!enrolledSprintIds.has(sprint.id) || forceAllowRepeat) && !seenIds.has(sprint.id)) {
+            list.push({
+                sprint,
+                level,
+                isSuperior,
+                isClickable: level === 1 && isClickable,
+                linkSourceTitle: sourceTitle
+            });
             seenIds.add(sprint.id);
         }
     };
 
-    // Determine the source enrollment(s) to evaluate links from
-    // Prioritize active enrollments (most recent activity first), then completed enrollments
+    // 1. Identify Candidate Source Enrollments
     const candidateEnrollments: ParticipantSprint[] = [];
     if (currentOrCompletedSprintId && userEnrollments) {
         const exact = userEnrollments.find(e => e.sprint_id === currentOrCompletedSprintId);
@@ -413,22 +443,38 @@ export const getExploreNextSteps = (
         candidateEnrollments.push(...active, ...completed);
     }
 
-    // If currentOrCompletedSprintId has no enrollment record yet (e.g. freshly viewing/starting), create mock
-    if (currentOrCompletedSprintId && candidateEnrollments.length === 0) {
-        candidateEnrollments.push({
-            id: 'temp_source',
-            sprint_id: currentOrCompletedSprintId,
-            user_id: user?.id || '',
-            started_at: new Date().toISOString(),
-            progress: []
-        } as any);
-    }
+    // Helper to find all direct target sprint IDs from a source sprint ID (uncoded links or nextSprintId)
+    const getDirectLinkedSprintIds = (sourceId: string): string[] => {
+        const targetIds: string[] = [];
+        const srcSprint = sprints.find(s => s.id === sourceId);
+
+        // A. From configured uncoded sprintLinks
+        if (Array.isArray(sprintLinks)) {
+            const uncoded = sprintLinks.filter(l => l.sourceSprintId === sourceId && (!l.optionCode || !l.optionCode.trim()));
+            uncoded.forEach(l => {
+                if (l.targetSprintId && !targetIds.includes(l.targetSprintId)) {
+                    targetIds.push(l.targetSprintId);
+                }
+            });
+        }
+
+        // B. From direct nextSprintId or linkedSprintId on sprint entity
+        if (srcSprint) {
+            const directId = srcSprint.nextSprintId || srcSprint.linkedSprintId;
+            if (directId && !targetIds.includes(directId)) {
+                targetIds.push(directId);
+            }
+        }
+
+        return targetIds;
+    };
 
     // =========================================================================
-    // STAGE 1: SUPERIOR LINKING WITH CODE (1st Priority)
-    // When someone clicks that {m1 step 3 op 3} tracked/linked option,
-    // it reorders the recommendation of this sprint as the FIRST PRIORITY.
+    // STEP 1: SUPERIOR LINKING WITH CODE {M1 step op 1} (Superior to all on click)
+    // This particular type of linking doesn't take effect until the person clicks that option.
+    // Once clicked, it becomes superior to all (Level 1, Clickable, #1 Priority).
     // =========================================================================
+    const superiorSprintIds: string[] = [];
     if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
         for (const enrollment of candidateEnrollments) {
             const srcSprint = sprints.find(s => s.id === enrollment.sprint_id);
@@ -437,8 +483,9 @@ export const getExploreNextSteps = (
             for (const link of codedLinks) {
                 if (isOptionLinkMatchedByUser(enrollment, srcSprint, link)) {
                     const target = sprints.find(s => s.id === link.targetSprintId);
-                    if (target) {
-                        addSprint(target, true); // Allow repeat for explicitly linked same-sprint
+                    if (target && !superiorSprintIds.includes(target.id)) {
+                        superiorSprintIds.push(target.id);
+                        addSprintItem(target, 1, true, true, srcSprint?.title, true);
                     }
                 }
             }
@@ -446,128 +493,87 @@ export const getExploreNextSteps = (
     }
 
     // =========================================================================
-    // STAGE 2: NORMAL SPRINT-TO-SPRINT LINKING WITHOUT CODING (2nd Priority Stage)
-    // Once someone starts that sprint, the next linked sprint is what is recorded
-    // in the explore page as the second priority stage recommendation.
+    // STEP 2: FIRST LEVEL LINKING (Level 1)
+    // Every sprint at its first level linking shows first before second level linking.
+    // Level 1 cards are fully active and clickable.
     // =========================================================================
-    for (const enrollment of candidateEnrollments) {
-        const srcSprint = sprints.find(s => s.id === enrollment.sprint_id);
-        
-        // A. Direct links configured in Sprint Links (without option codes)
-        if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
-            const directLinks = sprintLinks.filter(l => l.sourceSprintId === enrollment.sprint_id && (!l.optionCode || !l.optionCode.trim()));
-            for (const link of directLinks) {
-                const target = sprints.find(s => s.id === link.targetSprintId);
+    const level1SprintIds: string[] = [];
+    
+    // Determine the root source sprint IDs for Level 1 expansion
+    let rootSourceIds: string[] = [];
+    if (candidateEnrollments.length > 0) {
+        rootSourceIds = candidateEnrollments.map(e => e.sprint_id);
+    } else if (currentOrCompletedSprintId) {
+        rootSourceIds = [currentOrCompletedSprintId];
+    } else if (sprints.length > 0) {
+        // For new users without enrollments, evaluate links from the starting sprint(s)
+        rootSourceIds = [sprints[0].id];
+    }
+
+    for (const srcId of rootSourceIds) {
+        const srcSprint = sprints.find(s => s.id === srcId);
+        const directTargets = getDirectLinkedSprintIds(srcId);
+        for (const targetId of directTargets) {
+            if (!superiorSprintIds.includes(targetId) && !level1SprintIds.includes(targetId)) {
+                level1SprintIds.push(targetId);
+                const target = sprints.find(s => s.id === targetId);
                 if (target) {
-                    addSprint(target, true);
+                    addSprintItem(target, 1, false, true, srcSprint?.title, true);
                 }
             }
         }
+    }
 
-        // B. Sprint Setting direct linked sprint (nextSprintId / linkedSprintId)
-        if (srcSprint) {
-            const directLinkedId = srcSprint.nextSprintId || srcSprint.linkedSprintId;
-            if (directLinkedId) {
-                const target = sprints.find(s => s.id === directLinkedId);
+    // All Level 1 sources (both clicked superior links and direct links) form the base for Level 2 expansion
+    const allLevel1Sources = Array.from(new Set([...superiorSprintIds, ...level1SprintIds]));
+
+    // =========================================================================
+    // STEP 3: SECOND LEVEL LINKING (Level 2)
+    // Sprints that the first level sprints link to.
+    // The second level in Explore shows the card in an INACTIVE state (not clickable).
+    // =========================================================================
+    const level2SprintIds: string[] = [];
+    for (const l1Id of allLevel1Sources) {
+        const l1Sprint = sprints.find(s => s.id === l1Id);
+        const level2Targets = getDirectLinkedSprintIds(l1Id);
+        for (const targetId of level2Targets) {
+            if (!seenIds.has(targetId) && !level2SprintIds.includes(targetId)) {
+                level2SprintIds.push(targetId);
+                const target = sprints.find(s => s.id === targetId);
                 if (target) {
-                    addSprint(target, true);
+                    addSprintItem(target, 2, false, false, l1Sprint?.title, true);
                 }
             }
         }
     }
 
     // =========================================================================
-    // STAGE 3: Sprints that override orchestrator
+    // STEP 4: THIRD LEVEL LINKING (Level 3+)
+    // Sprints that Level 2 links to, and so on. Also shown inactive and not clickable.
     // =========================================================================
-    const overrideSprintsActive = sprints
-        .filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id))
-        .sort((a, b) => (a.overrideOrder || 0) - (b.overrideOrder || 0));
-    overrideSprintsActive.forEach(s => {
-        addSprint(s);
-    });
-
-    const userFocus = (participant?.onboardingAnswers as any)?.selected_focus || 
-                     Object.values(participant?.onboardingAnswers || {}).find(val => FOCUS_OPTIONS.includes(String(val)));
-
-    // =========================================================================
-    // STAGE 4: Prioritization list from orchestrator direction session (slot_dir_sprint)
-    // =========================================================================
-    const directionMapping = orchestration['slot_dir_sprint'];
-    if (directionMapping) {
-        const focusMap = directionMapping.sprintFocusMap || {};
-        const prioritiesMap = directionMapping.focusOptionPriorityMap || {};
-        const assignedIds = directionMapping.sprintIds || (directionMapping.sprintId ? [directionMapping.sprintId] : []);
-
-        if (userFocus) {
-            // Sprints mapped to slot_dir_sprint that have the user's active focus tag
-            const matches = assignedIds.filter(id => focusMap[id]?.includes(userFocus));
-            const priorities = prioritiesMap[userFocus] || [];
-            if (matches.length > 0) {
-                matches.sort((a, b) => {
-                    const idxA = priorities.indexOf(a);
-                    const idxB = priorities.indexOf(b);
-                    if (idxA > -1 && idxB > -1) return idxA - idxB;
-                    if (idxA > -1) return -1;
-                    if (idxB > -1) return 1;
-                    return 0;
-                });
-
-                matches.forEach(sId => {
-                    const s = sprints.find(sp => sp.id === sId);
-                    if (s) addSprint(s);
-                });
+    const level3SprintIds: string[] = [];
+    for (const l2Id of level2SprintIds) {
+        const l2Sprint = sprints.find(s => s.id === l2Id);
+        const level3Targets = getDirectLinkedSprintIds(l2Id);
+        for (const targetId of level3Targets) {
+            if (!seenIds.has(targetId) && !level3SprintIds.includes(targetId)) {
+                level3SprintIds.push(targetId);
+                const target = sprints.find(s => s.id === targetId);
+                if (target) {
+                    addSprintItem(target, 3, false, false, l2Sprint?.title, true);
+                }
             }
         }
-
-        // Fallback: If space permits, add any other assigned sprint ids from slot_dir_sprint in original priority order
-        assignedIds.forEach(sId => {
-            const s = sprints.find(sp => sp.id === sId);
-            if (s) addSprint(s);
-        });
     }
 
     // =========================================================================
-    // STAGE 5: Growth Areas (from identity setup)
-    // =========================================================================
-    const growthAreas = participant?.growthAreas || [];
-    if (growthAreas.length > 0) {
-        const matchedGroups = GROWTH_AREAS.filter(g => 
-            g.options.some(opt => growthAreas.includes(opt))
-        );
-        if (matchedGroups.length > 0) {
-            const targetSprintTitles = matchedGroups.flatMap(g => g.sprints);
-            const matchedSprint = sprints.find(s => 
-                targetSprintTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
-            );
-            if (matchedSprint) addSprint(matchedSprint);
-        }
-    }
-
-    // =========================================================================
-    // STAGE 6: Rise Pathway
-    // =========================================================================
-    const pathwayId = participant?.risePathway;
-    if (pathwayId) {
-        const pathwaySprintMap: Record<string, string[]> = {
-            'student': ['Clarity Sprint', 'Direction Sprint'],
-            'early_career': ['Direction Sprint', 'Skill Sprint', 'Confidence Sprint'],
-            'growth_pro': ['Leadership Sprint', 'Visibility Sprint', 'Execution Sprint'],
-            'builder': ['Execution Sprint', 'Positioning Sprint', 'Focus Sprint'],
-            'transition': ['Clarity Sprint', 'Confidence Sprint', 'Consistency Sprint']
-        };
-        const targetTitles = pathwaySprintMap[pathwayId] || [];
-        const matchedSprint = sprints.find(s => 
-            targetTitles.includes(s.title) && !enrolledSprintIds.has(s.id)
-        );
-        if (matchedSprint) addSprint(matchedSprint);
-    }
-
-    // =========================================================================
-    // STAGE 7: Fallback to any remaining non-enrolled sprints
+    // STEP 5: FALLBACK TO REMAINING AVAILABLE SPRINTS
+    // Any remaining non-enrolled sprints that are not part of the linked chain.
     // =========================================================================
     sprints.forEach(s => {
-        if (!enrolledSprintIds.has(s.id)) {
-            addSprint(s);
+        if (!seenIds.has(s.id) && !enrolledSprintIds.has(s.id)) {
+            // Standalone unlinked sprints are active Level 1 options
+            addSprintItem(s, 1, false, true);
         }
     });
 
@@ -575,7 +581,32 @@ export const getExploreNextSteps = (
 };
 
 /**
+ * Returns the exact list of recommended sprints for the Explore page,
+ * driven strictly by the Sprint-to-Sprint linking graph.
+ */
+export const getExploreNextSteps = (
+    sprints: Sprint[],
+    user: Participant | User | null,
+    orchestration: Record<string, LifecycleSlotAssignment> = {},
+    enrolledSprintIds: Set<string> = new Set(),
+    userEnrollments: ParticipantSprint[] = [],
+    sprintLinks: any[] = [],
+    currentOrCompletedSprintId?: string
+): Sprint[] => {
+    const items = getExploreSprintItems(
+        sprints,
+        user,
+        enrolledSprintIds,
+        userEnrollments,
+        sprintLinks,
+        currentOrCompletedSprintId
+    );
+    return items.map(item => item.sprint);
+};
+
+/**
  * Returns the first sprint displayed on the Explore page / Next Sprint Recommendation for the user.
+ * Prioritizes clicked superior option-coded sprints, then first Level-1 clickable sprint.
  */
 export const getExploreFirstSprint = (
     allPublishedSprints: Sprint[],
@@ -588,14 +619,14 @@ export const getExploreFirstSprint = (
 ): Sprint | null => {
     const allowedSprints = filterAllowedSprintsForUser(allPublishedSprints, user);
     const sprintPool = allowedSprints.length > 0 ? allowedSprints : allPublishedSprints;
-    const nextSteps = getExploreNextSteps(
+    const items = getExploreSprintItems(
         sprintPool, 
         user, 
-        orchestration, 
         enrolledSprintIds, 
         userEnrollments, 
         sprintLinks, 
         currentOrCompletedSprintId
     );
-    return nextSteps[0] || sprintPool.find(s => !enrolledSprintIds.has(s.id)) || sprintPool[0] || null;
+    const firstClickable = items.find(item => item.isClickable)?.sprint;
+    return firstClickable || items[0]?.sprint || sprintPool.find(s => !enrolledSprintIds.has(s.id)) || sprintPool[0] || null;
 };

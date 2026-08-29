@@ -10,8 +10,8 @@ import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS, LIFECYCLE_SLOTS } from '../../ser
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
 import TrackCard from '../../components/TrackCard';
-import { Package, ArrowRight, Sparkles } from 'lucide-react';
-import { filterAllowedSprintsForUser, getExploreNextSteps } from '../../utils/sprintUtils';
+import { Package, ArrowRight, Sparkles, Lock, Layers } from 'lucide-react';
+import { filterAllowedSprintsForUser, getExploreSprintItems, ExploreSprintItem } from '../../utils/sprintUtils';
 
 /**
  * LOCKED STAGE CARD (Internal)
@@ -331,11 +331,17 @@ const DiscoverSprints: React.FC = () => {
         return results;
     }, [orchestration, user, sprints, tracks, enrolledSprintIds]);
 
-    const nextSteps = useMemo(() => {
-        const fullList = getExploreNextSteps(sprints, user, orchestration, enrolledSprintIds, userEnrollments, sprintLinks);
-        const overrideCount = sprints.filter(s => s.overrideOrchestrator && !enrolledSprintIds.has(s.id)).length;
-        return fullList.slice(0, Math.max(3, overrideCount));
-    }, [sprints, user, orchestration, enrolledSprintIds, userEnrollments, sprintLinks]);
+    const exploreItems = useMemo(() => {
+        return getExploreSprintItems(sprints, user, enrolledSprintIds, userEnrollments, sprintLinks);
+    }, [sprints, user, enrolledSprintIds, userEnrollments, sprintLinks]);
+
+    const level1Items = useMemo(() => {
+        return exploreItems.filter(item => item.level === 1 && item.isClickable);
+    }, [exploreItems]);
+
+    const level2PlusItems = useMemo(() => {
+        return exploreItems.filter(item => item.level > 1 || !item.isClickable);
+    }, [exploreItems]);
 
     if (isLoading) {
         return null;
@@ -346,57 +352,76 @@ const DiscoverSprints: React.FC = () => {
             <div className="max-w-screen-md mx-auto px-6 py-12 pb-40 animate-fade-in">
                 
                 {/* HEADER */}
-                <header className="mb-16 text-center">
+                <header className="mb-12 text-center">
                     <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-3">
                         Explore What’s Next
                     </h1>
                 </header>
 
-                {/* SECTION 1: TRACK CARD */}
-                {resolvedSlots['slot_dir_track'] && (
-                    <section className="mb-16">
-                        <div className="mb-6 px-2 flex justify-between items-end">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h2 className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Your Personalized Track</h2>
-                                    <span className="px-2 py-0.5 bg-primary/5 text-primary text-[7px] font-black uppercase rounded-md border border-primary/10">
-                                        Best Value
-                                    </span>
-                                </div>
-                                <p className="text-xs text-gray-400 font-medium">Curated path for your accelerated growth</p>
-                            </div>
-                        </div>
-
-                        <TrackCard 
-                            track={resolvedSlots['slot_dir_track']} 
-                            sprints={allSprints} 
-                        />
-                    </section>
-                )}
-
-                {/* SECTION 2: RECOMMENDED NEXT STEP */}
-                {nextSteps.length > 0 && (
+                {/* SECTION 1: LEVEL 1 ACTIVE SPRINTS (First-Level Direct Links & Clicked Superior Links) */}
+                {level1Items.length > 0 && (
                     <section className="mb-16">
                         <div className="mb-6 px-2">
                             <div className="flex items-center gap-2 mb-1">
-                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Your next sprint</h2>
+                                <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">
+                                    {level1Items[0]?.isSuperior ? "Top Recommendation" : "Your next sprint"}
+                                </h2>
                                 <Sparkles className="w-3 h-3 text-primary" />
+                                {level1Items[0]?.isSuperior && (
+                                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[7px] font-black uppercase tracking-widest">
+                                        Matched Choice
+                                    </span>
+                                )}
                             </div>
                         </div>
                         
                         <div className="space-y-6 px-2">
-                            {nextSteps.map((sprint, index) => (
-                                <React.Fragment key={sprint.id}>
+                            {level1Items.map((item, index) => (
+                                <React.Fragment key={item.sprint.id}>
                                     {index === 1 && (
-                                        <div className="pt-4 pb-1">
-                                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">Other recommended sprints</h2>
+                                        <div className="pt-6 pb-2">
+                                            <h2 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.4em]">
+                                                Other recommended sprints
+                                            </h2>
                                         </div>
                                     )}
                                     <SprintCard 
-                                        sprint={sprint} 
-                                        coach={coaches.find(c => c.id === sprint.coachId) || ({} as Coach)} 
+                                        sprint={item.sprint} 
+                                        coach={coaches.find(c => c.id === item.sprint.coachId) || ({} as Coach)} 
+                                        level={1}
+                                        isInactive={false}
                                     />
                                 </React.Fragment>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* SECTION 2: LEVEL 2+ INACTIVE SPRINTS (Second-Level Links and Beyond) */}
+                {level2PlusItems.length > 0 && (
+                    <section className="mb-16">
+                        <div className="mb-6 px-2">
+                            <div className="flex items-center gap-2 mb-1">
+                                <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">
+                                    Upcoming Sprints (Next Level)
+                                </h2>
+                                <Lock className="w-3 h-3 text-gray-400" />
+                            </div>
+                            <p className="text-xs text-gray-400 font-medium">
+                                Connected to your path • Unlocks after completing previous sprints
+                            </p>
+                        </div>
+                        
+                        <div className="space-y-6 px-2">
+                            {level2PlusItems.map((item) => (
+                                <SprintCard 
+                                    key={item.sprint.id}
+                                    sprint={item.sprint} 
+                                    coach={coaches.find(c => c.id === item.sprint.coachId) || ({} as Coach)} 
+                                    level={item.level}
+                                    isInactive={true}
+                                    inactiveLabel={`Level ${item.level} • Inactive`}
+                                />
                             ))}
                         </div>
                     </section>
