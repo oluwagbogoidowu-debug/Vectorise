@@ -227,8 +227,6 @@ const SprintSettingsModal: React.FC<{
   onToggleHaptics,
   sprint,
 }) => {
-  if (!isOpen) return null;
-
   const { user } = useAuth();
 
   // Local notification scheduler state
@@ -259,6 +257,8 @@ const SprintSettingsModal: React.FC<{
       setPermissionGranted(localNotificationScheduler.hasNotificationPermission());
     }
   }, [isOpen, sprint]);
+
+  if (!isOpen) return null;
 
   const handleToggleReminders = () => {
     if (!sprint) return;
