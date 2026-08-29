@@ -1096,11 +1096,55 @@ const ParticipantDashboard: React.FC = () => {
     }
   };
 
+  const isRecommendedCoinSprint = useMemo(() => {
+    if (!recommendedNextSprint) return true;
+    if (recommendedNextSprint.pricingType === 'credits') return true;
+    if (recommendedNextSprint.pricingType === 'cash') return false;
+    if ((recommendedNextSprint.pointCost ?? 0) > 0 && !(recommendedNextSprint.price && recommendedNextSprint.price > 0)) return true;
+    return (recommendedNextSprint.pointCost ?? 0) > 0;
+  }, [recommendedNextSprint]);
+
+  const isRecommendedCashSprint = !isRecommendedCoinSprint;
+
   const handleStartSprint = async () => {
     if (!user || !recommendedNextSprint || !isCommitted) return;
     
     setIsProcessing(true);
     try {
+        if (isRecommendedCashSprint) {
+            const cashPrice = recommendedNextSprint.price ?? 1000;
+            if (cashPrice === 0) {
+                const enrollment = await sprintService.enrollUser(
+                    user.id, 
+                    recommendedNextSprint.id, 
+                    recommendedNextSprint.duration || 7, 
+                    {
+                        coachId: recommendedNextSprint.coachId,
+                        pricePaid: 0,
+                        currency: recommendedNextSprint.currency || 'NGN',
+                        source: 'cash'
+                    }
+                );
+                toast.success("Sprint started successfully!");
+                setShowOverviewSheet(false);
+                navigate(`/participant/sprint/${enrollment.id}`);
+                return;
+            } else {
+                const payload = {
+                    userId: user.id,
+                    email: user.email.toLowerCase().trim(),
+                    sprintId: recommendedNextSprint.id,
+                    trackId: recommendedNextSprint.trackId,
+                    amount: cashPrice,
+                    currency: recommendedNextSprint.currency || "NGN",
+                    name: user.name || 'Vectorise User'
+                };
+                const checkoutUrl = await paymentService.initializeFlutterwave(payload);
+                window.location.href = checkoutUrl;
+                return;
+            }
+        }
+
         if (paymentMethod === 'coins') {
             const userBalance = (user as Participant).walletBalance || 0;
             const neededCoins = recommendedNextSprint.pointCost || 10;
@@ -2224,90 +2268,126 @@ const ParticipantDashboard: React.FC = () => {
                                     </button>
 
                                     {/* WALLET / PRICING SECTION */}
-                                    <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 space-y-2.5">
-                                        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                                            <span>Your Balance</span>
-                                            <span className="text-gray-900">{(user as Participant)?.walletBalance ?? 0} COINS</span>
-                                        </div>
-                                        <div className="h-[1px] bg-gray-200 w-full"></div>
-                                        <div className="space-y-2">
-                                            {/* Option 1: Coins */}
-                                            <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                                                paymentMethod === 'coins' 
-                                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                                : 'bg-white border-gray-150 text-gray-500'
-                                            } ${((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                                <div className="flex items-center gap-2">
-                                                    <input 
-                                                        type="radio" 
-                                                        name="dashboard_payment_method" 
-                                                        checked={paymentMethod === 'coins'} 
-                                                        onChange={() => ((user as Participant)?.walletBalance ?? 0) >= (recommendedNextSprint.pointCost || 10) && setPaymentMethod('coins')}
-                                                        disabled={((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) || isProcessing}
-                                                        className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
-                                                    />
-                                                    <span className="text-[11px] font-black uppercase text-gray-800">Use {recommendedNextSprint.pointCost || 10} Coins</span>
-                                                </div>
-                                                {((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) && (
-                                                    <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
-                                                )}
-                                            </label>
-                                        </div>
-
-                                        {/* Horizontal Coin Packages Cards inside the bottom modal bar */}
-                                        <BottomModalCoinCards 
-                                            userBalance={(user as Participant)?.walletBalance ?? 0}
-                                            sprintCost={recommendedNextSprint.pointCost || 10}
-                                            sprintId={recommendedNextSprint.id}
-                                            trackId={recommendedNextSprint.trackId}
-                                            selectedPaymentMethod={paymentMethod}
-                                            onSelectPaymentMethod={(method) => setPaymentMethod(method)}
-                                            isProcessing={isProcessing}
-                                        />
-
-                                        {/* Option 2: Card (Instant Topup - Subtle Styling) */}
-                                        <div 
-                                            onClick={() => !isProcessing && setPaymentMethod('card')}
-                                            className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
-                                                paymentMethod === 'card' 
-                                                ? 'bg-gray-100/90 border-gray-300 text-gray-600' 
-                                                : 'bg-gray-50/40 border-gray-200/50 text-gray-400 hover:bg-gray-50'
-                                            }`}
-                                        >
-                                            <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
-                                            {(() => {
-                                                const neededCoins = recommendedNextSprint.pointCost || 10;
-                                                const userBal = (user as Participant)?.walletBalance ?? 0;
-                                                const coinsRem = Math.max(0, neededCoins - userBal);
-                                                const topupPrice = coinsRem > 0 ? coinsRem * 20 : (recommendedNextSprint.price || 1000);
-                                                return (
-                                                    <span className="text-[10px] font-medium text-gray-400 shrink-0 ml-2">
-                                                        {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </div>
-
-                                        {/* Commitment Radio Button (Moved Below Instant Topup) */}
-                                        <button 
-                                            onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
-                                            disabled={isProcessing}
-                                            className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all border mt-3 text-left ${
-                                                isCommitted 
-                                                ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
-                                                : 'bg-white border-gray-200 hover:border-gray-300 text-gray-400'
-                                            }`}
-                                        >
-                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                                                isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
-                                            }`}>
-                                                {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                    {isRecommendedCashSprint ? (
+                                        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-4 space-y-3.5">
+                                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                                                <span>Sprint Program</span>
+                                                <span className="text-gray-900">{recommendedNextSprint.duration || 7} Days</span>
                                             </div>
-                                            <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
-                                                I commit to showing up and finishing this
-                                            </span>
-                                        </button>
-                                    </div>
+                                            <div className="h-[1px] bg-gray-200 w-full"></div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-gray-600">Total Cost</span>
+                                                <span className="text-base font-black text-[#0E7850]">
+                                                    {(recommendedNextSprint.price ?? 1000) === 0 ? 'FREE' : `₦${(recommendedNextSprint.price ?? 1000).toLocaleString()}`}
+                                                </span>
+                                            </div>
+
+                                            {/* Commitment Radio Button */}
+                                            <button 
+                                                onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
+                                                disabled={isProcessing}
+                                                className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all border mt-3 text-left ${
+                                                    isCommitted 
+                                                    ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                                    : 'bg-white border-gray-200 hover:border-gray-300 text-gray-400'
+                                                }`}
+                                            >
+                                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                                    isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                                                }`}>
+                                                    {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                                </div>
+                                                <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
+                                                    I commit to showing up and finishing this
+                                                </span>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 space-y-2.5">
+                                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
+                                                <span>Your Balance</span>
+                                                <span className="text-gray-900">{(user as Participant)?.walletBalance ?? 0} COINS</span>
+                                            </div>
+                                            <div className="h-[1px] bg-gray-200 w-full"></div>
+                                            <div className="space-y-2">
+                                                {/* Option 1: Coins */}
+                                                <label className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                                    paymentMethod === 'coins' 
+                                                    ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                                    : 'bg-white border-gray-150 text-gray-500'
+                                                } ${((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                    <div className="flex items-center gap-2">
+                                                        <input 
+                                                            type="radio" 
+                                                            name="dashboard_payment_method" 
+                                                            checked={paymentMethod === 'coins'} 
+                                                            onChange={() => ((user as Participant)?.walletBalance ?? 0) >= (recommendedNextSprint.pointCost || 10) && setPaymentMethod('coins')}
+                                                            disabled={((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) || isProcessing}
+                                                            className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
+                                                        />
+                                                        <span className="text-[11px] font-black uppercase text-gray-800">Use {recommendedNextSprint.pointCost || 10} Coins</span>
+                                                    </div>
+                                                    {((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) && (
+                                                        <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
+                                                    )}
+                                                </label>
+                                            </div>
+
+                                            {/* Horizontal Coin Packages Cards inside the bottom modal bar */}
+                                            <BottomModalCoinCards 
+                                                userBalance={(user as Participant)?.walletBalance ?? 0}
+                                                sprintCost={recommendedNextSprint.pointCost || 10}
+                                                sprintId={recommendedNextSprint.id}
+                                                trackId={recommendedNextSprint.trackId}
+                                                selectedPaymentMethod={paymentMethod}
+                                                onSelectPaymentMethod={(method) => setPaymentMethod(method)}
+                                                isProcessing={isProcessing}
+                                            />
+
+                                            {/* Option 2: Card (Instant Topup - Subtle Styling) */}
+                                            <div 
+                                                onClick={() => !isProcessing && setPaymentMethod('card')}
+                                                className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
+                                                    paymentMethod === 'card' 
+                                                        ? 'bg-gray-100/90 border-gray-300 text-gray-600' 
+                                                        : 'bg-gray-50/40 border-gray-200/50 text-gray-400 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
+                                                {(() => {
+                                                    const neededCoins = recommendedNextSprint.pointCost || 10;
+                                                    const userBal = (user as Participant)?.walletBalance ?? 0;
+                                                    const coinsRem = Math.max(0, neededCoins - userBal);
+                                                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : (recommendedNextSprint.price || 1000);
+                                                    return (
+                                                        <span className="text-[10px] font-medium text-gray-400 shrink-0 ml-2">
+                                                            {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                            {/* Commitment Radio Button (Moved Below Instant Topup) */}
+                                            <button 
+                                                onClick={() => !isProcessing && setIsCommitted(!isCommitted)}
+                                                disabled={isProcessing}
+                                                className={`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all border mt-3 text-left ${
+                                                    isCommitted 
+                                                    ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
+                                                    : 'bg-white border-gray-200 hover:border-gray-300 text-gray-400'
+                                                }`}
+                                            >
+                                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                                    isCommitted ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300 bg-white'
+                                                }`}>
+                                                    {isCommitted && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                                </div>
+                                                <span className={`text-[11px] font-bold tracking-tight ${isCommitted ? 'text-gray-950' : 'text-gray-400'}`}>
+                                                    I commit to showing up and finishing this
+                                                </span>
+                                            </button>
+                                        </div>
+                                    )}
 
                                     {/* Start Day 1 Button */}
                                     <button 
@@ -2319,7 +2399,11 @@ const ParticipantDashboard: React.FC = () => {
                                             : 'bg-gray-100 text-gray-300 cursor-not-allowed'
                                         }`}
                                     >
-                                        {isProcessing ? "Processing..." : (
+                                        {isProcessing ? "Processing..." : isRecommendedCashSprint ? (
+                                            (recommendedNextSprint.price ?? 1000) === 0
+                                                ? "Start Free Sprint"
+                                                : `Start Day 1 Now • Pay ₦${(recommendedNextSprint.price ?? 1000).toLocaleString()}`
+                                        ) : (
                                             paymentMethod === 'coins'
                                             ? `Start Day 1 Now • Use ${recommendedNextSprint.pointCost || 10} Coins`
                                             : paymentMethod === 'card'

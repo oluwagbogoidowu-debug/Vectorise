@@ -345,9 +345,23 @@ export const NextSprintRecommendation: React.FC = () => {
         loadNextSprint();
     }, [loadNextSprint]);
 
+    const userBalance = (user as Participant)?.walletBalance ?? 0;
+    const sprintCost = sprint?.pointCost || 10;
+    const sprintPrice = sprint?.price || 1000;
+
+    const isCoinSprint = useMemo(() => {
+        if (!sprint) return true;
+        if (sprint.pricingType === 'credits') return true;
+        if (sprint.pricingType === 'cash') return false;
+        if ((sprint.pointCost ?? 0) > 0 && !(sprint.price && sprint.price > 0)) return true;
+        return (sprint.pointCost ?? 0) > 0;
+    }, [sprint]);
+
+    const isCashSprint = !isCoinSprint;
+
     // Update payment method default based on user balance
     useEffect(() => {
-        if (sprint && user) {
+        if (sprint && user && isCoinSprint) {
             const cost = sprint.pointCost || 10;
             const balance = (user as Participant)?.walletBalance ?? 0;
             if (balance >= cost) {
@@ -356,7 +370,7 @@ export const NextSprintRecommendation: React.FC = () => {
                 setPaymentMethod('pkg_100');
             }
         }
-    }, [sprint, user]);
+    }, [sprint, user, isCoinSprint]);
 
     const handleConfirmCommitment = async () => {
         if (!user || !sprint || isProcessingPayment) return;
@@ -367,6 +381,49 @@ export const NextSprintRecommendation: React.FC = () => {
         }
 
         setIsProcessingPayment(true);
+
+        // Handle Cash-Based Sprint Payment
+        if (isCashSprint) {
+            try {
+                if (sprintPrice === 0) {
+                    const enrollment = await sprintService.enrollUser(
+                        user.id,
+                        sprint.id,
+                        sprint.duration || 7,
+                        {
+                            coachId: sprint.coachId,
+                            pricePaid: 0,
+                            currency: sprint.currency || 'NGN',
+                            source: 'cash'
+                        }
+                    );
+                    toast.success(`Unlocked ${sprint.title}! Let's start Day 1.`);
+                    setIsPaymentModalOpen(false);
+                    navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
+                    return;
+                } else {
+                    const checkoutUrl = await paymentService.initializeFlutterwave({
+                        userId: user.id,
+                        email: user.email,
+                        name: user.name,
+                        amount: sprintPrice,
+                        currency: sprint.currency || 'NGN',
+                        sprintId: sprint.id,
+                        trackId: sprint.trackId
+                    });
+                    window.location.href = checkoutUrl;
+                    return;
+                }
+            } catch (err) {
+                console.error("Failed to unlock cash sprint:", err);
+                toast.error("Failed to process payment. Please try again.");
+            } finally {
+                setIsProcessingPayment(false);
+            }
+            return;
+        }
+
+        // Handle Coin-Based Sprint Payment
         const cost = sprint.pointCost || 10;
         const currentBalance = (user as Participant)?.walletBalance ?? 0;
 
@@ -446,10 +503,6 @@ export const NextSprintRecommendation: React.FC = () => {
             setIsProcessingPayment(false);
         }
     };
-
-    const userBalance = (user as Participant)?.walletBalance ?? 0;
-    const sprintCost = sprint?.pointCost || 10;
-    const sprintPrice = sprint?.price || 1000;
 
     // Default to pkg_100 if user balance is lower than sprint cost
     useEffect(() => {
@@ -777,122 +830,181 @@ export const NextSprintRecommendation: React.FC = () => {
                                 <h3 className="text-xl sm:text-2xl font-black text-gray-950 dark:text-white tracking-tight leading-snug">
                                     {sprint.title}
                                 </h3>
-                            </div>
-
-                            {/* Wallet Balance Card */}
-                            <div className="bg-gray-50/90 dark:bg-zinc-800/80 rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-zinc-700 mb-4 text-left space-y-3.5">
-                                {/* Balance and Cost Row */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
-                                            Your Balance
-                                        </div>
-                                        <div className="text-base sm:text-lg font-black text-gray-950 dark:text-white flex items-center gap-1.5">
-                                            <span>🪙 {userBalance}</span>
-                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Coins</span>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
-                                            Sprint Cost
-                                        </div>
-                                        <div className="text-base sm:text-lg font-black text-[#0E7850] dark:text-emerald-400 flex items-center justify-end gap-1.5">
-                                            <span>{sprintCost}</span>
-                                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase">Coins</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Option: Use Coins (Only shown when coins are enough) */}
-                                {userBalance >= sprintCost && (
-                                    <div className="pt-3 border-t border-gray-200 dark:border-zinc-700">
-                                        <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 dark:bg-emerald-950/20 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
-                                                    <CheckCircle2 className="w-3.5 h-3.5" />
-                                                </div>
-                                                <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white">
-                                                    Use {sprintCost} coins of your balance to continue
-                                                </span>
-                                            </div>
-                                            <span className="text-xs font-black text-[#0E7850] bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
-                                                Available
-                                            </span>
-                                        </div>
-                                    </div>
+                                {(sprint.subtitle || sprint.description) && (
+                                    <p className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                                        {sprint.subtitle || sprint.description}
+                                    </p>
                                 )}
                             </div>
 
-                            {/* Outside the card on plain ground: Coin Packages & Direct remaining coin pay */}
-                            {userBalance < sprintCost && (
-                                <div className="space-y-3.5 mb-4 text-left">
-                                    {/* Horizontal Coin Packages on plain ground */}
-                                    <BottomModalCoinCards 
-                                        userBalance={userBalance}
-                                        sprintCost={sprintCost}
-                                        sprintId={sprint.id}
-                                        trackId={sprint.trackId}
-                                        selectedPaymentMethod={paymentMethod}
-                                        onSelectPaymentMethod={(method) => setPaymentMethod(method)}
-                                        isProcessing={isProcessingPayment}
-                                    />
+                            {isCashSprint ? (
+                                /* Cash-Based Sprint Payment Layout */
+                                <div className="space-y-4 text-left">
+                                    {/* Cost Summary Card */}
+                                    <div className="bg-gray-50/90 dark:bg-zinc-800/80 rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-zinc-700 space-y-3.5">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                                                    Sprint Program
+                                                </div>
+                                                <div className="text-sm font-bold text-gray-900 dark:text-white">
+                                                    {sprint.duration || 7} Days Guided Action
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                                                    Sprint Cost
+                                                </div>
+                                                <div className="text-lg sm:text-xl font-black text-[#0E7850] dark:text-emerald-400">
+                                                    {sprintPrice === 0 ? 'FREE' : `₦${sprintPrice.toLocaleString()}`}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                    {/* Pay for remaining coins directly on plain ground */}
-                                    <div 
-                                        onClick={() => !isProcessingPayment && setPaymentMethod('card')}
-                                        className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
-                                            paymentMethod === 'card' 
-                                                ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-[#0E7850] text-gray-900 dark:text-white shadow-xs ring-1 ring-[#0E7850]/30' 
-                                                : 'bg-white dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 text-gray-700 dark:text-gray-200'
-                                        }`}
-                                    >
-                                        <span className="text-sm sm:text-base font-bold">
-                                            Pay for remaining coins directly
-                                        </span>
-                                        {(() => {
-                                            const coinsRem = Math.max(0, sprintCost - userBalance);
-                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
-                                            return (
-                                                <span className="text-sm sm:text-base font-black text-[#0E7850] dark:text-emerald-400 shrink-0 ml-2">
-                                                    ₦{topupPrice.toLocaleString()}
-                                                </span>
-                                            );
-                                        })()}
+                                    {/* Pay & Unlock Action Button */}
+                                    <div className="pt-2">
+                                        <button
+                                            onClick={handleConfirmCommitment}
+                                            disabled={isProcessingPayment}
+                                            className={`w-full py-4.5 rounded-2xl shadow-xl transition-all text-sm sm:text-base font-black tracking-wider uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
+                                                !isProcessingPayment
+                                                    ? 'bg-[#0E7850] hover:bg-[#085C3D] text-white active:scale-95 shadow-[#0E7850]/20' 
+                                                    : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
+                                            }`}
+                                        >
+                                            {isProcessingPayment ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                    <span>Processing Payment...</span>
+                                                </div>
+                                            ) : sprintPrice === 0 ? (
+                                                <span>Start Free Sprint</span>
+                                            ) : (
+                                                <span>Pay ₦{sprintPrice.toLocaleString()} & Unlock</span>
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
-                            )}
-
-                            {/* Unlock Action Button */}
-                            <div className="pt-2">
-                                <button
-                                    onClick={handleConfirmCommitment}
-                                    disabled={isProcessingPayment || (paymentMethod === 'coins' && userBalance < sprintCost)}
-                                    className={`w-full py-4.5 rounded-2xl shadow-xl transition-all text-sm sm:text-base font-black tracking-wider uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
-                                        !isProcessingPayment && !(paymentMethod === 'coins' && userBalance < sprintCost)
-                                            ? 'bg-[#0E7850] hover:bg-[#085C3D] text-white active:scale-95 shadow-[#0E7850]/20' 
-                                            : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
-                                    }`}
-                                >
-                                    {isProcessingPayment ? (
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                            <span>Unlocking Day 1...</span>
+                            ) : (
+                                /* Coin-Based Sprint Payment Layout */
+                                <>
+                                    {/* Wallet Balance Card */}
+                                    <div className="bg-gray-50/90 dark:bg-zinc-800/80 rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-zinc-700 mb-4 text-left space-y-3.5">
+                                        {/* Balance and Cost Row */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                                                    Your Balance
+                                                </div>
+                                                <div className="text-base sm:text-lg font-black text-gray-950 dark:text-white flex items-center gap-1.5">
+                                                    <span>🪙 {userBalance}</span>
+                                                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Coins</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                                                    Sprint Cost
+                                                </div>
+                                                <div className="text-base sm:text-lg font-black text-[#0E7850] dark:text-emerald-400 flex items-center justify-end gap-1.5">
+                                                    <span>{sprintCost}</span>
+                                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase">Coins</span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    ) : userBalance >= sprintCost ? (
-                                        <span>Start Day 1 Now • Use {sprintCost} Coins</span>
-                                    ) : paymentMethod === 'card' ? (
-                                        (() => {
-                                            const coinsRem = Math.max(0, sprintCost - userBalance);
-                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
-                                            return <span>Instant Pay ₦{topupPrice.toLocaleString()} & Unlock</span>;
-                                        })()
-                                    ) : paymentMethod.startsWith('pkg_') ? (
-                                        <span>Purchase Package & Unlock</span>
-                                    ) : (
-                                        <span>Select Payment Method</span>
+
+                                        {/* Option: Use Coins (Only shown when coins are enough) */}
+                                        {userBalance >= sprintCost && (
+                                            <div className="pt-3 border-t border-gray-200 dark:border-zinc-700">
+                                                <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 dark:bg-emerald-950/20 flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
+                                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                                        </div>
+                                                        <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white">
+                                                            Use {sprintCost} coins of your balance to continue
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-xs font-black text-[#0E7850] bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
+                                                        Available
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Outside the card on plain ground: Coin Packages & Direct remaining coin pay */}
+                                    {userBalance < sprintCost && (
+                                        <div className="space-y-3.5 mb-4 text-left">
+                                            {/* Horizontal Coin Packages on plain ground */}
+                                            <BottomModalCoinCards 
+                                                userBalance={userBalance}
+                                                sprintCost={sprintCost}
+                                                sprintId={sprint.id}
+                                                trackId={sprint.trackId}
+                                                selectedPaymentMethod={paymentMethod}
+                                                onSelectPaymentMethod={(method) => setPaymentMethod(method)}
+                                                isProcessing={isProcessingPayment}
+                                            />
+
+                                            {/* Pay for remaining coins directly on plain ground */}
+                                            <div 
+                                                onClick={() => !isProcessingPayment && setPaymentMethod('card')}
+                                                className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
+                                                    paymentMethod === 'card' 
+                                                        ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-[#0E7850] text-gray-900 dark:text-white shadow-xs ring-1 ring-[#0E7850]/30' 
+                                                        : 'bg-white dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 text-gray-700 dark:text-gray-200'
+                                                }`}
+                                            >
+                                                <span className="text-sm sm:text-base font-bold">
+                                                    Pay for remaining coins directly
+                                                </span>
+                                                {(() => {
+                                                    const coinsRem = Math.max(0, sprintCost - userBalance);
+                                                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
+                                                    return (
+                                                        <span className="text-sm sm:text-base font-black text-[#0E7850] dark:text-emerald-400 shrink-0 ml-2">
+                                                            ₦{topupPrice.toLocaleString()}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
                                     )}
-                                </button>
-                            </div>
+
+                                    {/* Unlock Action Button */}
+                                    <div className="pt-2">
+                                        <button
+                                            onClick={handleConfirmCommitment}
+                                            disabled={isProcessingPayment || (paymentMethod === 'coins' && userBalance < sprintCost)}
+                                            className={`w-full py-4.5 rounded-2xl shadow-xl transition-all text-sm sm:text-base font-black tracking-wider uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
+                                                !isProcessingPayment && !(paymentMethod === 'coins' && userBalance < sprintCost)
+                                                    ? 'bg-[#0E7850] hover:bg-[#085C3D] text-white active:scale-95 shadow-[#0E7850]/20' 
+                                                    : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
+                                            }`}
+                                        >
+                                            {isProcessingPayment ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                    <span>Unlocking Day 1...</span>
+                                                </div>
+                                            ) : userBalance >= sprintCost ? (
+                                                <span>Start Day 1 Now • Use {sprintCost} Coins</span>
+                                            ) : paymentMethod === 'card' ? (
+                                                (() => {
+                                                    const coinsRem = Math.max(0, sprintCost - userBalance);
+                                                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
+                                                    return <span>Instant Pay ₦{topupPrice.toLocaleString()} & Unlock</span>;
+                                                })()
+                                            ) : paymentMethod.startsWith('pkg_') ? (
+                                                <span>Purchase Package & Unlock</span>
+                                            ) : (
+                                                <span>Select Payment Method</span>
+                                            )}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </motion.div>
                     </div>
                 )}
