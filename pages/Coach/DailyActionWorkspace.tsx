@@ -1071,6 +1071,15 @@ export default function DailyActionWorkspace({
                               {currentPlaceholderVal.placeholderDetails.map((detail, dIdx) => (
                                 <div key={dIdx} className="flex flex-wrap items-center justify-between gap-2 bg-white/80 p-2 rounded-lg border border-red-100">
                                   <div className="flex items-center gap-1.5">
+                                    {detail.isMetadata ? (
+                                      <span className="text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs font-mono">
+                                        ✨ {detail.token || detail.rawLabel}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-black text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
+                                        {detail.token || `{Step ${detail.stepNum}}`}
+                                      </span>
+                                    )}
                                     <span className="text-[10px] text-gray-500 italic">
                                       ({detail.mode === 'list' 
                                         ? 'List mode: bulleted list' 
@@ -1093,7 +1102,7 @@ export default function DailyActionWorkspace({
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'normal'
-                                          ? 'bg-red-600 text-white shadow-xs'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
                                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
                                       }`}
                                       title="Normal Tag: Displays data inline as lowercase text"
@@ -1109,7 +1118,7 @@ export default function DailyActionWorkspace({
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'sentence'
-                                          ? 'bg-red-600 text-white shadow-xs'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
                                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
                                       }`}
                                       title="Sentence Tag: Starts received input with sentence case"
@@ -1125,7 +1134,7 @@ export default function DailyActionWorkspace({
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'list'
-                                          ? 'bg-red-600 text-white shadow-xs'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
                                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
                                       }`}
                                       title="List Tag: Separates data into a bulleted list"
@@ -1141,7 +1150,7 @@ export default function DailyActionWorkspace({
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'main'
-                                          ? 'bg-red-600 text-white shadow-xs'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
                                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
                                       }`}
                                       title="Main Tag: Second layer connection narrowing multi-select to single active choice"
@@ -1157,7 +1166,7 @@ export default function DailyActionWorkspace({
                                       }}
                                       className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
                                         detail.mode === 'hide'
-                                          ? 'bg-red-600 text-white shadow-xs'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
                                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
                                       }`}
                                       title="Hide Tag: Logic linked to step, but hides input from display text"

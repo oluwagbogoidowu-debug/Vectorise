@@ -22,10 +22,74 @@ export interface MetadataTokenDetail {
   fieldKey: string;
   fieldLabel: string;
   mode: 'save' | 'receive';
+  formatMode?: StepPlaceholderMode;
   token: string;
 }
 
-export const METADATA_TOKEN_REGEX = /\{(?:\s*metadata(?:\s*[:\-]?\s*([a-zA-Z\s]+?))?(?:\s+(save|receive|s|r))?)\s*\}/gi;
+export const METADATA_TOKEN_REGEX = /\{(?:\s*metadata(?:\s*[:\-]?\s*([^}]+?))?)\s*\}/gi;
+
+/**
+ * Parses inner metadata directive parts (e.g. "Interests list", "Current Goal save s", "list", "save", "s")
+ */
+function parseMetadataInnerParts(innerStr: string): {
+  fieldKey: string;
+  fieldLabel: string;
+  mode: 'save' | 'receive';
+  formatMode: StepPlaceholderMode;
+} {
+  let text = innerStr.trim();
+  if (text.toLowerCase().startsWith('metadata')) {
+    text = text.slice(8).trim();
+  }
+  text = text.replace(/^[:\-]+/, '').trim();
+
+  let mode: 'save' | 'receive' = 'receive';
+  let formatMode: StepPlaceholderMode = 'normal';
+
+  // Check for save / receive flags
+  if (/\b(?:save)\b/i.test(text)) {
+    mode = 'save';
+    text = text.replace(/\b(?:save)\b/gi, '').trim();
+  } else if (/\b(?:receive)\b/i.test(text)) {
+    mode = 'receive';
+    text = text.replace(/\b(?:receive)\b/gi, '').trim();
+  }
+
+  // Check for format modes
+  if (/\b(?:list|l)\b/i.test(text)) {
+    formatMode = 'list';
+    text = text.replace(/\b(?:list|l)\b/gi, '').trim();
+  } else if (/\b(?:sentence)\b/i.test(text)) {
+    formatMode = 'sentence';
+    text = text.replace(/\b(?:sentence)\b/gi, '').trim();
+  } else if (/\b(?:hide|h)\b/i.test(text)) {
+    formatMode = 'hide';
+    text = text.replace(/\b(?:hide|h)\b/gi, '').trim();
+  } else if (/\b(?:main|m)\b/i.test(text)) {
+    formatMode = 'main';
+    text = text.replace(/\b(?:main|m)\b/gi, '').trim();
+  } else if (/\b(?:disconnect|d)\b/i.test(text)) {
+    formatMode = 'disconnect';
+    text = text.replace(/\b(?:disconnect|d)\b/gi, '').trim();
+  } else if (/\b(?:normal|n)\b/i.test(text)) {
+    formatMode = 'normal';
+    text = text.replace(/\b(?:normal|n)\b/gi, '').trim();
+  } else if (/\b(?:s)\b/i.test(text)) {
+    // Shorthand 's' without explicit save is sentence mode
+    formatMode = 'sentence';
+    text = text.replace(/\b(?:s)\b/gi, '').trim();
+  }
+
+  text = text.replace(/^[:\-]+/, '').replace(/[:\-]+$/, '').trim();
+  const fieldDef = normalizeMetadataField(text);
+
+  return {
+    fieldKey: fieldDef ? fieldDef.key : text,
+    fieldLabel: fieldDef ? fieldDef.label : (text || 'Metadata'),
+    mode,
+    formatMode
+  };
+}
 
 /**
  * Normalizes a field string against METADATA_FIELDS
@@ -60,34 +124,13 @@ export function parseMetadataToken(tokenStr: string): MetadataTokenDetail | null
   const inner = trimmed.slice(1, -1).trim();
   if (!inner.toLowerCase().startsWith('metadata')) return null;
 
-  const rest = inner.slice(8).replace(/^[\s:\-]+/, '').trim();
-  if (!rest) {
-    return {
-      raw: trimmed,
-      fieldKey: '',
-      fieldLabel: 'Metadata',
-      mode: 'receive',
-      token: trimmed
-    };
-  }
-
-  let mode: 'save' | 'receive' = 'receive';
-  let fieldPart = rest;
-
-  if (/\b(?:save|s)\b$/i.test(rest)) {
-    mode = 'save';
-    fieldPart = rest.replace(/\b(?:save|s)\b$/i, '').trim();
-  } else if (/\b(?:receive|r)\b$/i.test(rest)) {
-    mode = 'receive';
-    fieldPart = rest.replace(/\b(?:receive|r)\b$/i, '').trim();
-  }
-
-  const fieldDef = normalizeMetadataField(fieldPart);
+  const parsed = parseMetadataInnerParts(inner);
   return {
     raw: trimmed,
-    fieldKey: fieldDef ? fieldDef.key : fieldPart,
-    fieldLabel: fieldDef ? fieldDef.label : (fieldPart || 'Metadata'),
-    mode,
+    fieldKey: parsed.fieldKey,
+    fieldLabel: parsed.fieldLabel,
+    mode: parsed.mode,
+    formatMode: parsed.formatMode,
     token: trimmed
   };
 }
@@ -98,21 +141,20 @@ export function parseMetadataToken(tokenStr: string): MetadataTokenDetail | null
 export function extractMetadataTokens(text: string): MetadataTokenDetail[] {
   if (!text) return [];
   const results: MetadataTokenDetail[] = [];
-  const regex = /\{(?:\s*metadata(?:\s*[:\-]?\s*([a-zA-Z\s]+?))?(?:\s+(save|receive|s|r))?)\s*\}/gi;
+  const regex = /\{(?:\s*metadata(?:\s*[:\-]?\s*([^}]+?))?)\s*\}/gi;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
     const full = match[0];
-    const fieldRaw = match[1]?.trim() || '';
-    const modeRaw = match[2]?.trim() || '';
-    const mode: 'save' | 'receive' = (modeRaw.toLowerCase() === 'save' || modeRaw.toLowerCase() === 's') ? 'save' : 'receive';
-    const fieldDef = normalizeMetadataField(fieldRaw);
+    const inner = full.slice(1, -1).trim();
+    const parsed = parseMetadataInnerParts(inner);
 
     results.push({
       raw: full,
-      fieldKey: fieldDef ? fieldDef.key : fieldRaw,
-      fieldLabel: fieldDef ? fieldDef.label : (fieldRaw || 'Metadata'),
-      mode,
+      fieldKey: parsed.fieldKey,
+      fieldLabel: parsed.fieldLabel,
+      mode: parsed.mode,
+      formatMode: parsed.formatMode,
       token: full
     });
   }
@@ -192,29 +234,76 @@ export function resolveUserMetadataValue(fieldKeyOrAlias: string, userOrMetadata
 }
 
 /**
- * Replaces `{Metadata <field> receive}` and `{Metadata <field>}` with user's stored metadata value,
+ * Replaces `{Metadata <field> receive}`, `{Metadata list}`, `{Metadata sentence}` etc. with user's stored metadata value,
  * and removes `{Metadata <field> save}` from participant view.
  */
 export function interpolateMetadataInText(text: string, userOrMetadata?: any): string {
   if (!text || typeof text !== 'string') return '';
-  const regex = /\{(?:\s*metadata(?:\s*[:\-]?\s*([a-zA-Z\s]+?))?(?:\s+(save|receive|s|r))?)\s*\}/gi;
+  const tokens = extractMetadataTokens(text);
+  if (tokens.length === 0) return text;
 
-  return text.replace(regex, (fullMatch, fieldRaw, modeRaw) => {
-    const mode = (modeRaw && (modeRaw.toLowerCase() === 'save' || modeRaw.toLowerCase() === 's')) ? 'save' : 'receive';
-    if (mode === 'save') {
+  let result = text;
+  for (const tokenDetail of tokens) {
+    if (tokenDetail.mode === 'save') {
       // Save directives are instructions to store user answers; hide them in rendered prompt text
-      return '';
+      result = result.replace(tokenDetail.token, '');
+      continue;
     }
 
-    const fieldDef = normalizeMetadataField(fieldRaw);
-    const resolvedVal = resolveUserMetadataValue(fieldRaw || '', userOrMetadata);
+    if (tokenDetail.formatMode === 'hide' || tokenDetail.formatMode === 'disconnect') {
+      result = result.replace(tokenDetail.token, '');
+      continue;
+    }
+
+    const fieldDef = normalizeMetadataField(tokenDetail.fieldKey);
+    const resolvedVal = resolveUserMetadataValue(tokenDetail.fieldKey || '', userOrMetadata);
+
+    let replacement = '';
     if (resolvedVal && resolvedVal.trim()) {
-      return resolvedVal.trim();
+      const rawVal = resolvedVal.trim();
+
+      // Split into items if comma or newline separated
+      let items: string[] = [];
+      if (rawVal.startsWith('[') && rawVal.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(rawVal);
+          if (Array.isArray(parsed)) items = parsed.map(String).map(s => s.trim()).filter(Boolean);
+        } catch (e) {}
+      }
+      if (items.length === 0) {
+        items = rawVal.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+      }
+      if (items.length === 0) {
+        items = [rawVal];
+      }
+
+      if (tokenDetail.formatMode === 'list') {
+        replacement = '\n' + items.map(item => `• ${item}`).join('\n');
+      } else if (tokenDetail.formatMode === 'sentence') {
+        replacement = items.map(item => {
+          if (!item) return item;
+          return item.charAt(0).toUpperCase() + item.slice(1);
+        }).join(', ');
+      } else if (tokenDetail.formatMode === 'main') {
+        replacement = items[0] || rawVal;
+      } else {
+        // normal mode
+        replacement = items.map(c => c.toLowerCase()).join(', ');
+      }
+    } else {
+      // Fallback: If not yet set, show sample or clean placeholder
+      const placeholderText = fieldDef ? `[${fieldDef.label}]` : '[Metadata]';
+      if (tokenDetail.formatMode === 'list') {
+        replacement = `\n• ${placeholderText}`;
+      } else {
+        replacement = placeholderText;
+      }
     }
 
-    // Fallback: If not yet set, show sample or clean placeholder
-    return fieldDef ? `[${fieldDef.label}]` : '[Metadata]';
-  });
+    result = result.replace(tokenDetail.token, replacement);
+  }
+
+  return result;
 }
 
 /**
@@ -264,6 +353,10 @@ export interface StepPlaceholderDetail {
   mode: StepPlaceholderMode;
   rawLabel: string;
   token: string;
+  isMetadata?: boolean;
+  metadataFieldKey?: string;
+  metadataFieldLabel?: string;
+  metadataMode?: 'save' | 'receive';
 }
 
 export interface DualInputState {
@@ -456,6 +549,16 @@ export function validateStepPlaceholders(
   }
 
   const metaTokens = extractMetadataTokens(prompt);
+  const metaPlaceholderDetails: StepPlaceholderDetail[] = metaTokens.map((meta, idx) => ({
+    stepNum: -(idx + 99),
+    mode: meta.formatMode || 'normal',
+    rawLabel: meta.raw.replace(/^\{|\}$/g, ''),
+    token: meta.token,
+    isMetadata: true,
+    metadataFieldKey: meta.fieldKey,
+    metadataFieldLabel: meta.fieldLabel,
+    metadataMode: meta.mode
+  }));
 
   if (references.length === 0) {
     if (metaTokens.length > 0) {
@@ -466,7 +569,7 @@ export function validateStepPlaceholders(
         validStepRefs: [],
         validStepLabels: metaTokens.map(m => m.raw.replace(/^\{|\}$/g, '')),
         invalidStepLabels: [],
-        placeholderDetails: [],
+        placeholderDetails: metaPlaceholderDetails,
         isLogicLinked: true
       };
     }
@@ -580,6 +683,12 @@ export function validateStepPlaceholders(
     placeholderDetails.push(ref);
   }
 
+  // Include metadata tokens in valid labels and placeholderDetails
+  if (metaTokens.length > 0) {
+    validStepLabels.push(...metaTokens.map(m => m.raw.replace(/^\{|\}$/g, '')));
+    placeholderDetails.push(...metaPlaceholderDetails);
+  }
+
   if (invalidStepLabels.length > 0) {
     const finalReason = invalidReason || `Invalid placeholder logic: ${invalidStepLabels.map(l => `{${l}}`).join(', ')}.`;
     return {
@@ -608,29 +717,87 @@ export function validateStepPlaceholders(
 }
 
 /**
+ * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence' | 'disconnect' | 'main') of a metadata placeholder within a prompt string.
+ */
+export function toggleMetadataMode(
+  prompt: string,
+  fieldKeyOrToken: string | number,
+  targetMode: StepPlaceholderMode
+): string {
+  if (!prompt) return prompt;
+  const tokens = extractMetadataTokens(prompt);
+  if (tokens.length === 0) return prompt;
+
+  let result = prompt;
+  for (const tokenDetail of tokens) {
+    const isMatch = !fieldKeyOrToken
+      || fieldKeyOrToken === 'metadata'
+      || fieldKeyOrToken === -99
+      || fieldKeyOrToken === '-99'
+      || fieldKeyOrToken === -1
+      || fieldKeyOrToken === '-1'
+      || tokenDetail.token === fieldKeyOrToken
+      || tokenDetail.raw === fieldKeyOrToken
+      || (tokenDetail.fieldKey && tokenDetail.fieldKey.toLowerCase() === String(fieldKeyOrToken).toLowerCase())
+      || (tokenDetail.fieldLabel && tokenDetail.fieldLabel.toLowerCase() === String(fieldKeyOrToken).toLowerCase());
+
+    if (!isMatch) continue;
+
+    const fieldPart = tokenDetail.fieldKey ? ` ${tokenDetail.fieldLabel}` : '';
+    const savePart = tokenDetail.mode === 'save' ? ' save' : '';
+
+    let modePart = '';
+    if (targetMode === 'list') modePart = ' list';
+    else if (targetMode === 'hide') modePart = ' h';
+    else if (targetMode === 'disconnect') modePart = ' d';
+    else if (targetMode === 'sentence') modePart = ' s';
+    else if (targetMode === 'main') modePart = ' main';
+
+    const newToken = `{Metadata${fieldPart}${savePart}${modePart}}`.replace(/\s+/g, ' ');
+    result = result.replace(tokenDetail.token, newToken);
+  }
+
+  return result;
+}
+
+/**
  * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence' | 'disconnect' | 'main') of a placeholder within a prompt string.
  */
 export function togglePlaceholderMode(
   prompt: string,
-  targetStepNum: number,
+  targetStepNum: number | string,
   targetMode: StepPlaceholderMode,
   targetDayNum?: number
 ): string {
   if (!prompt) return prompt;
 
+  if (
+    (typeof targetStepNum === 'string' && (targetStepNum.toLowerCase().includes('meta') || targetStepNum.startsWith('{'))) ||
+    (typeof targetStepNum === 'number' && targetStepNum < 0)
+  ) {
+    return toggleMetadataMode(prompt, targetStepNum, targetMode);
+  }
+
+  const hasStepRegex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)/i;
+  if (!hasStepRegex.test(prompt) && /\{(?:\s*metadata)/i.test(prompt)) {
+    return toggleMetadataMode(prompt, targetStepNum, targetMode);
+  }
+
   const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
-  return prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr) => {
+  let replaced = false;
+  const result = prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr) => {
     const stepNum = parseInt(stepNumStr, 10);
     const dayNum = dayNumStr ? parseInt(dayNumStr, 10) : undefined;
 
-    if (stepNum !== targetStepNum) {
+    if (stepNum !== Number(targetStepNum)) {
       return fullMatch;
     }
     if (targetDayNum !== undefined && dayNum !== undefined && dayNum !== targetDayNum) {
       return fullMatch;
     }
 
+    replaced = true;
     const movePart = (dayNum !== undefined || targetDayNum !== undefined) ? `M${dayNum ?? targetDayNum} ` : '';
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
@@ -643,6 +810,12 @@ export function togglePlaceholderMode(
 
     return `{${movePart}Step ${stepNum}${opPart}${modePart}}`;
   });
+
+  if (!replaced && /\{(?:\s*metadata)/i.test(prompt)) {
+    return toggleMetadataMode(prompt, targetStepNum, targetMode);
+  }
+
+  return result;
 }
 
 export interface ProgressiveSelectionResult {
@@ -2240,18 +2413,20 @@ export function insertHintToken(
  */
 export function getMetadataHintTokens(): HintToken[] {
   const tokens: HintToken[] = [
-    { token: '{Metadata}', label: '{Metadata}', isOption: false },
+    { token: '{Metadata}', label: '{Metadata}', isOption: false, stepNum: 0 },
   ];
   for (const field of METADATA_FIELDS) {
     tokens.push({
       token: `{Metadata ${field.label} receive}`,
       label: `📥 Receive ${field.label}`,
-      isOption: false
+      isOption: false,
+      stepNum: 0
     });
     tokens.push({
       token: `{Metadata ${field.label} save}`,
       label: `💾 Save ${field.label}`,
-      isOption: false
+      isOption: false,
+      stepNum: 0
     });
   }
   return tokens;

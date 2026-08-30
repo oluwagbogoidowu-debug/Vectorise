@@ -434,6 +434,13 @@ export interface Participant extends User {
   walletBalance?: number;
   claimedMilestoneIds?: string[];
   onboardingAnswers?: Record<string, any>;
+  metadata?: Record<string, any>;
+  identificationData?: Record<string, any>;
+  lifeStage?: string;
+  currentGoal?: string;
+  currentPriority?: string;
+  desiredDirection?: string;
+  strengths?: string[];
   intention?: string;
   archetype?: string;
   growthAreas?: string[];
