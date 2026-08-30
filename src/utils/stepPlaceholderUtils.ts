@@ -761,6 +761,54 @@ export function toggleMetadataMode(
 }
 
 /**
+ * Updates a metadata token within a prompt with a new fieldKey, mode ('save' | 'receive'), and/or formatMode.
+ */
+export function updateMetadataTokenInPrompt(
+  prompt: string,
+  targetTokenOrKey: string | number,
+  updates: {
+    fieldKey?: string;
+    fieldLabel?: string;
+    mode?: 'save' | 'receive';
+    formatMode?: StepPlaceholderMode;
+  }
+): string {
+  if (!prompt) return prompt;
+  const tokens = extractMetadataTokens(prompt);
+  if (tokens.length === 0) return prompt;
+
+  let targetDetail = tokens.find(t => 
+    t.token === targetTokenOrKey || 
+    t.raw === targetTokenOrKey ||
+    (t.fieldKey && t.fieldKey.toLowerCase() === String(targetTokenOrKey).toLowerCase())
+  );
+  if (!targetDetail) {
+    targetDetail = tokens[0];
+  }
+  if (!targetDetail) return prompt;
+
+  const newFieldKey = updates.fieldKey !== undefined ? updates.fieldKey : targetDetail.fieldKey;
+  const fieldDef = normalizeMetadataField(newFieldKey || updates.fieldLabel);
+  const newFieldLabel = fieldDef ? fieldDef.label : (updates.fieldLabel || (newFieldKey && newFieldKey.toLowerCase() !== 'metadata' ? newFieldKey : ''));
+
+  const newMode = updates.mode !== undefined ? updates.mode : targetDetail.mode;
+  const newFormatMode = updates.formatMode !== undefined ? updates.formatMode : (targetDetail.formatMode || 'normal');
+
+  const fieldPart = newFieldLabel && newFieldLabel.toLowerCase() !== 'metadata' ? ` ${newFieldLabel}` : '';
+  const savePart = newMode === 'save' ? ' save' : '';
+
+  let modePart = '';
+  if (newFormatMode === 'list') modePart = ' list';
+  else if (newFormatMode === 'hide') modePart = ' h';
+  else if (newFormatMode === 'disconnect') modePart = ' d';
+  else if (newFormatMode === 'sentence') modePart = ' s';
+  else if (newFormatMode === 'main') modePart = ' main';
+
+  const newToken = `{Metadata${fieldPart}${savePart}${modePart}}`.replace(/\s+/g, ' ');
+  return prompt.replace(targetDetail.token, newToken);
+}
+
+/**
  * Toggles or sets the mode ('normal' | 'list' | 'hide' | 'sentence' | 'disconnect' | 'main') of a placeholder within a prompt string.
  */
 export function togglePlaceholderMode(

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -1174,6 +1174,63 @@ export default function DailyActionWorkspace({
                                       Hide (h)
                                     </button>
                                   </div>
+
+                                  {detail.isMetadata && (
+                                    <div className="w-full flex flex-wrap items-center gap-2.5 pt-2 mt-1 border-t border-purple-100/90 bg-purple-50/50 -mx-1 px-2.5 py-1.5 rounded-lg">
+                                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 flex-1 min-w-[170px]">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1 shrink-0">
+                                          <span>🏷️</span> Attribute:
+                                        </label>
+                                        <select
+                                          value={detail.metadataFieldKey || ''}
+                                          onChange={(e) => {
+                                            setSelectedDay(dayNum);
+                                            const selectedKey = e.target.value;
+                                            const fieldDef = METADATA_FIELDS.find(f => f.key === selectedKey);
+                                            const updatedPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
+                                              fieldKey: selectedKey,
+                                              fieldLabel: fieldDef?.label || (selectedKey ? selectedKey : ''),
+                                              mode: detail.metadataMode || 'receive',
+                                              formatMode: detail.mode
+                                            });
+                                            handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
+                                          }}
+                                          className="w-full sm:w-auto flex-1 text-[11px] font-bold bg-white text-purple-950 border border-purple-200 hover:border-purple-400 focus:border-purple-600 rounded-md px-2 py-1 shadow-2xs focus:ring-1 focus:ring-purple-300 focus:outline-none cursor-pointer transition-all"
+                                        >
+                                          <option value="">✨ General Metadata</option>
+                                          {METADATA_FIELDS.map(f => (
+                                            <option key={f.key} value={f.key}>
+                                              {f.label} ({f.placeholderSample})
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+
+                                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 flex-1 min-w-[170px]">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1 shrink-0">
+                                          <span>🔄</span> Action:
+                                        </label>
+                                        <select
+                                          value={detail.metadataMode || 'receive'}
+                                          onChange={(e) => {
+                                            setSelectedDay(dayNum);
+                                            const selectedMode = e.target.value as 'save' | 'receive';
+                                            const updatedPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
+                                              fieldKey: detail.metadataFieldKey,
+                                              fieldLabel: detail.metadataFieldLabel,
+                                              mode: selectedMode,
+                                              formatMode: detail.mode
+                                            });
+                                            handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
+                                          }}
+                                          className="w-full sm:w-auto flex-1 text-[11px] font-bold bg-white text-purple-950 border border-purple-200 hover:border-purple-400 focus:border-purple-600 rounded-md px-2 py-1 shadow-2xs focus:ring-1 focus:ring-purple-300 focus:outline-none cursor-pointer transition-all"
+                                        >
+                                          <option value="receive">📥 Receive (Read / Expand into prompt)</option>
+                                          <option value="save">📤 Send / Save (Store participant response)</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
