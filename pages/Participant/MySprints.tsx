@@ -8,6 +8,7 @@ import Button from '../../components/Button';
 import { sprintService } from '../../services/sprintService';
 import { userService, sanitizeData } from '../../services/userService';
 import { assetService } from '../../services/assetService';
+import { getSprintCoverImage } from '../../utils/sprintUtils';
 
 const MySprints: React.FC = () => {
     const { user, updateProfile } = useAuth();
@@ -215,15 +216,16 @@ const MySprints: React.FC = () => {
                             <div className="grid grid-cols-1 gap-3">
                                 {inProgress.map(({ enrollment, sprint }) => {
                                     const progress = calculateProgress(enrollment);
+                                    const sprintCover = getSprintCoverImage(sprint);
                                     return (
                                         <Link key={enrollment.id} to={`/participant/sprint/${enrollment.id}`} className="block group">
                                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
                                                 <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
                                                     <img 
-                                                        src={sprint.coverImageUrl || fallbackUrl} 
-                                                        alt="" 
+                                                        src={sprintCover} 
+                                                        alt={sprint.title} 
                                                         className="w-full h-full object-cover transition-transform group-hover:scale-105" 
-                                                        onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                                                        onError={(e) => { e.currentTarget.src = sprintCover }}
                                                     />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
@@ -265,15 +267,16 @@ const MySprints: React.FC = () => {
                                     const path = enrollment 
                                         ? `/participant/sprint/${enrollment.id}` 
                                         : `/sprint/${sprint.id}`;
+                                    const sprintCover = getSprintCoverImage(sprint);
                                     return (
                                         <div key={key} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
                                             <Link to={path} className="flex-shrink-0">
                                                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
                                                     <img 
-                                                        src={sprint.coverImageUrl || fallbackUrl} 
+                                                        src={sprintCover} 
                                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
-                                                        alt="" 
-                                                        onError={(e) => { e.currentTarget.src = fallbackUrl }}
+                                                        alt={sprint.title} 
+                                                        onError={(e) => { e.currentTarget.src = sprintCover }}
                                                     />
                                                 </div>
                                             </Link>
@@ -320,31 +323,34 @@ const MySprints: React.FC = () => {
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isWaitlistExpanded ? waitlist : waitlist.slice(0, 2)).map((sprint) => (
-                                    <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
-                                        <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
-                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
-                                                <img 
-                                                    src={sprint.coverImageUrl || fallbackUrl} 
-                                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
-                                                    alt="" 
-                                                    onError={(e) => { e.currentTarget.src = fallbackUrl }}
-                                                />
-                                            </div>
-                                        </Link>
-                                        <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
-                                            <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
-                                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
-                                        </Link>
-                                        <button 
-                                            onClick={() => handleRemoveFromWaitlist(sprint.id)}
-                                            className="p-2 text-gray-300 hover:text-red-400 transition-colors"
-                                            title="Remove from saved"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-                                        </button>
-                                    </div>
-                                ))}
+                                {(isWaitlistExpanded ? waitlist : waitlist.slice(0, 2)).map((sprint) => {
+                                    const sprintCover = getSprintCoverImage(sprint);
+                                    return (
+                                        <div key={sprint.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
+                                            <Link to={`/sprint/${sprint.id}`} className="flex-shrink-0">
+                                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
+                                                    <img 
+                                                        src={sprintCover} 
+                                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform" 
+                                                        alt={sprint.title} 
+                                                        onError={(e) => { e.currentTarget.src = sprintCover }}
+                                                    />
+                                                </div>
+                                            </Link>
+                                            <Link to={`/sprint/${sprint.id}`} className="min-w-0 flex-1">
+                                                <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
+                                            </Link>
+                                            <button 
+                                                onClick={() => handleRemoveFromWaitlist(sprint.id)}
+                                                className="p-2 text-gray-300 hover:text-red-400 transition-colors"
+                                                title="Remove from saved"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                        </div>
+                                    );
+                                })}
                             </div>
                             {waitlist.length > 2 && (
                                 <button 
@@ -365,27 +371,30 @@ const MySprints: React.FC = () => {
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isArchivedExpanded ? archived : archived.slice(0, 2)).map(({ enrollment, sprint }) => (
-                                    <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
-                                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
-                                            <img 
-                                                src={sprint.coverImageUrl || fallbackUrl} 
-                                                className="w-full h-full object-cover" 
-                                                alt="" 
-                                                onError={(e) => { e.currentTarget.src = fallbackUrl }}
-                                            />
+                                {(isArchivedExpanded ? archived : archived.slice(0, 2)).map(({ enrollment, sprint }) => {
+                                    const sprintCover = getSprintCoverImage(sprint);
+                                    return (
+                                        <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
+                                                <img 
+                                                    src={sprintCover} 
+                                                    className="w-full h-full object-cover" 
+                                                    alt={sprint.title} 
+                                                    onError={(e) => { e.currentTarget.src = sprintCover }}
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-700 text-[12px] truncate">{sprint.title}</h3>
+                                                <span className="text-[7px] font-black bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest border border-green-100">Mastered</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors hover:bg-gray-50 rounded-lg" title="Review">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                                                </Link>
+                                            </div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-gray-700 text-[12px] truncate">{sprint.title}</h3>
-                                            <span className="text-[7px] font-black bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest border border-green-100">Mastered</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors hover:bg-gray-50 rounded-lg" title="Review">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-                                            </Link>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                             {archived.length > 2 && (
                                 <button 

@@ -881,7 +881,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                             ) : sprintPrice === 0 ? (
                                                 <span>Start Free Sprint</span>
                                             ) : (
-                                                <span>Pay ₦{sprintPrice.toLocaleString()} & Unlock</span>
+                                                <span>Payment for Package • ₦{sprintPrice.toLocaleString()}</span>
                                             )}
                                         </button>
                                     </div>

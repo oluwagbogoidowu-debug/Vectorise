@@ -26,7 +26,7 @@ export type SprintType =
 
 export type EffortLevel = 'Low' | 'Medium' | 'High';
 export type EvidenceType = 'decision' | 'artifact' | 'habit';
-export type PaymentSource = 'direct' | 'influencer' | 'coin' | 'free_first_sprint';
+export type PaymentSource = 'direct' | 'influencer' | 'coin' | 'free_first_sprint' | 'cash';
 // Added 'successful' to match backend usage and fix comparison errors in services/paymentService.ts
 export type PaymentAttemptStatus = 'pending' | 'success' | 'successful' | 'failed' | 'refunded' | 'abandoned';
 

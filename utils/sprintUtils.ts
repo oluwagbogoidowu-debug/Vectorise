@@ -194,6 +194,55 @@ export const getSprintOutcomes = (sprint: Sprint | string) => {
     return outcomes[category] || outcomes['default'];
 };
 
+const DIVERSE_SPRINT_COVERS = [
+    'https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80', // Minimal desk & focus
+    'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&w=1200&q=80', // Planning notebook & coffee
+    'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1200&q=80', // Team collaboration
+    'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1200&q=80', // Runner morning energy
+    'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?auto=format&fit=crop&w=1200&q=80', // Sticky notes strategy
+    'https://images.unsplash.com/photo-1542744094-3a31f272c490?auto=format&fit=crop&w=1200&q=80', // Design / Creative layout
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80', // Deep network / space
+    'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&w=1200&q=80', // Fitness & strength
+    'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80', // Modern workspace team
+    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80', // Human connection / group
+    'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80', // Mindful meditation
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80', // Architecture / modern highrise
+    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80', // Data analysis / charts
+    'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80', // Code & development
+    'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=1200&q=80', // Modern creative office
+    'https://images.unsplash.com/photo-1448932223592-d1fc686e76ea?auto=format&fit=crop&w=1200&q=80', // Ideas / innovation
+    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80', // Mentoring & coaching
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80', // Personal growth
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80', // Technology & engineering
+    'https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?auto=format&fit=crop&w=1200&q=80'  // Clean desk focus
+];
+
+const GENERIC_DEFAULT_COVER = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80';
+
+/**
+ * Returns a high quality, distinct cover image for any sprint, ensuring each sprint has its own rich visual.
+ */
+export const getSprintCoverImage = (sprint?: Partial<Sprint> | null): string => {
+    if (!sprint) return DIVERSE_SPRINT_COVERS[0];
+    
+    const rawCover = sprint.coverImageUrl || (sprint as any).blogImage || (sprint as any).imageUrl;
+    if (rawCover && typeof rawCover === 'string' && rawCover.trim().length > 0) {
+        const trimmed = rawCover.trim();
+        if (trimmed !== GENERIC_DEFAULT_COVER && !trimmed.includes('1517048676732')) {
+            return trimmed;
+        }
+    }
+
+    const key = String(sprint.id || sprint.title || 'sprint');
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+        hash = (hash << 5) - hash + key.charCodeAt(i);
+        hash |= 0;
+    }
+    const index = Math.abs(hash) % DIVERSE_SPRINT_COVERS.length;
+    return DIVERSE_SPRINT_COVERS[index];
+};
+
 /**
  * Checks if the core landing page info is missing.
  */
@@ -379,14 +428,13 @@ export interface ExploreSprintItem {
 
 /**
  * Traverses and returns the exact ordered list of Explore items using strict Sprint-to-Sprint linking:
- * 1. Superior Option-Coded Linking ({M1 step op 1}) becomes superior to all once the user clicks that option.
- *    (Does not take effect until the user clicks that option).
- * 2. Level 1 Linking: All first-level direct links from the current sprint show first before second-level links.
- *    Level 1 cards are active and clickable.
- * 3. Level 2 Linking: Sprints that the first-level sprints link to.
- *    Level 2 cards are shown after Level 1, in an inactive, non-clickable state.
- * 4. Level 3+ Linking: Sprints linked from Level 2 sprints (also inactive and non-clickable).
- * 5. If the source sprint links back to itself (same sprint), it is treated as a repeat sprint recommendation.
+ * - Active or last finished sprint A is the root source.
+ * - Coded link {m1 step 3 op1} from Sprint A to Sprint B shows first in Explore ONLY when the option was clicked in Sprint A; otherwise it is disregarded.
+ * - Sprints connected to Sprint A via normal sprint-to-sprint links (e.g. Sprint C, Sprint D) show next in order of their first setup.
+ * - Level 1 is capped at maximum 6 visible sprints.
+ * - Sprint E connected to B cannot show as a second-level sprint UNTIL Sprint B has been unlocked via option clicking.
+ * - Sprints connected to visible Level 1 sprints (e.g. Sprint F connected to C and D) show in order of their first setup as second-level locked cards.
+ * - Level 2 is capped at maximum 4 visible sprints.
  */
 export const getExploreSprintItems = (
     sprints: Sprint[],
@@ -397,40 +445,13 @@ export const getExploreSprintItems = (
     currentOrCompletedSprintId?: string,
     allPublishedSprintsPool?: Sprint[]
 ): ExploreSprintItem[] => {
-    const list: ExploreSprintItem[] = [];
-    const seenIds = new Set<string>();
-
     const normalizeId = (val: any): string => String(val || '').trim();
-
     const lookupPool = (allPublishedSprintsPool && allPublishedSprintsPool.length > 0) ? allPublishedSprintsPool : sprints;
     const findSprint = (id: string): Sprint | undefined => {
         const norm = normalizeId(id);
         if (!norm) return undefined;
         return lookupPool.find(s => normalizeId(s.id) === norm) || 
                sprints.find(s => normalizeId(s.id) === norm);
-    };
-
-    const addSprintItem = (
-        sprint: Sprint | undefined | null,
-        level: number,
-        isSuperior: boolean = false,
-        isClickable: boolean = true,
-        sourceTitle?: string,
-        forceAllowRepeat: boolean = false
-    ) => {
-        if (!sprint) return;
-        const normId = normalizeId(sprint.id);
-        const isEnrolled = Array.from(enrolledSprintIds).some(id => normalizeId(id) === normId);
-        if ((!isEnrolled || forceAllowRepeat) && !seenIds.has(normId)) {
-            list.push({
-                sprint,
-                level,
-                isSuperior,
-                isClickable: level === 1 && isClickable,
-                linkSourceTitle: sourceTitle
-            });
-            seenIds.add(normId);
-        }
     };
 
     // Helper to get enrollment timestamp for recency sorting
@@ -448,210 +469,188 @@ export const getExploreSprintItems = (
         return Math.max(...dates.map(d => new Date(d).getTime() || 0));
     };
 
-    // 1. Identify Candidate Source Enrollments
-    const candidateEnrollments: ParticipantSprint[] = [];
-    if (currentOrCompletedSprintId) {
-        const normTarget = normalizeId(currentOrCompletedSprintId);
-        const exact = userEnrollments ? userEnrollments.find(e => normalizeId(e.sprint_id) === normTarget) : undefined;
-        if (exact) {
-            candidateEnrollments.push(exact);
-        } else {
-            // Synthesize enrollment for currentOrCompletedSprintId so linking is immediately rooted from it
-            candidateEnrollments.push({
-                id: `synthetic-${normTarget}`,
-                sprint_id: normTarget,
-                user_id: user?.id || 'current-user',
-                status: 'active',
-                progress: []
-            } as any);
-        }
-    }
-
-    if (userEnrollments && userEnrollments.length > 0) {
-        // Sort all user enrollments strictly by most recent interaction (completed or active)
-        const sortedEnrollments = [...userEnrollments]
-            .filter(e => !candidateEnrollments.some(ce => normalizeId(ce.sprint_id) === normalizeId(e.sprint_id)))
-            .sort((a, b) => getEnrollmentTimestamp(b) - getEnrollmentTimestamp(a));
-
-        candidateEnrollments.push(...sortedEnrollments);
-    }
-
-    // Helper to find all direct target sprint IDs from a source sprint ID (uncoded links, coded links, or nextSprintId)
-    const getDirectLinkedSprintIds = (sourceId: string): string[] => {
-        const targetIds: string[] = [];
-        const normSourceId = normalizeId(sourceId);
-        const srcSprint = findSprint(normSourceId);
-
-        // A. From configured sprintLinks (all links originating from this source sprint)
-        if (Array.isArray(sprintLinks)) {
-            const linksFromSource = sprintLinks.filter(l => {
-                const lSrc = normalizeId(l.sourceSprintId || l.source_sprint_id || l.sourceId);
-                return lSrc === normSourceId;
+    // Helper to sort configured links in setup order (earliest setup first)
+    const getSortedLinksFromSource = (sourceId: string): any[] => {
+        const normSrc = normalizeId(sourceId);
+        if (!Array.isArray(sprintLinks)) return [];
+        return sprintLinks
+            .filter(l => normalizeId(l.sourceSprintId || l.source_sprint_id || l.sourceId) === normSrc)
+            .sort((a, b) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return timeA - timeB;
             });
-            linksFromSource.forEach(l => {
-                const tgtId = normalizeId(l.targetSprintId || l.target_sprint_id || l.targetId);
-                if (tgtId && !targetIds.includes(tgtId)) {
-                    targetIds.push(tgtId);
-                }
-            });
-        }
-
-        // B. From direct nextSprintId or linkedSprintId on sprint entity
-        if (srcSprint) {
-            const directId = normalizeId(srcSprint.nextSprintId || srcSprint.linkedSprintId || (srcSprint as any).linked_sprint_id);
-            if (directId && !targetIds.includes(directId)) {
-                targetIds.push(directId);
-            }
-        }
-
-        return targetIds;
     };
 
-    // =========================================================================
-    // STEP 1: SUPERIOR LINKING WITH CODE {M1 step op 1} (Superior to all on click)
-    // This particular type of linking doesn't take effect until the person clicks that option.
-    // Once clicked, it becomes superior to all (Level 1, Clickable, #1 Priority).
-    // =========================================================================
-    const superiorSprintIds: string[] = [];
-    if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
-        for (const enrollment of candidateEnrollments) {
-            const normEnrollmentSprintId = normalizeId(enrollment.sprint_id);
-            const srcSprint = findSprint(normEnrollmentSprintId);
-            const codedLinks = sprintLinks.filter(l => {
-                const lSrc = normalizeId(l.sourceSprintId || l.source_sprint_id || l.sourceId);
-                const code = l.optionCode || l.option_code;
-                return lSrc === normEnrollmentSprintId && code && String(code).trim().length > 0;
-            });
+    // 1. Identify active or last finished Sprint A
+    let sprintAId: string | null = null;
+    let enrollmentA: ParticipantSprint | undefined = undefined;
 
-            for (const link of codedLinks) {
-                if (isOptionLinkMatchedByUser(enrollment, srcSprint, link)) {
-                    const tgtId = normalizeId(link.targetSprintId || link.target_sprint_id || link.targetId);
-                    const target = findSprint(tgtId);
-                    if (target && !superiorSprintIds.includes(normalizeId(target.id))) {
-                        superiorSprintIds.push(normalizeId(target.id));
-                        addSprintItem(target, 1, true, true, srcSprint?.title, true);
-                    }
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // STEP 2: FIRST LEVEL LINKING (Level 1)
-    // Every sprint at its first level linking shows first before second level linking.
-    // Level 1 cards are fully active and clickable.
-    // =========================================================================
-    const level1SprintIds: string[] = [];
-    
-    // Determine the root source sprint IDs for Level 1 expansion
-    if (candidateEnrollments.length > 0) {
-        // Enrolled user: Root sources are their active/completed sprints
-        const rootSourceIds = candidateEnrollments.map(e => normalizeId(e.sprint_id));
-
-        for (const srcId of rootSourceIds) {
-            const srcSprint = findSprint(srcId);
-            const directTargets = getDirectLinkedSprintIds(srcId);
-            for (const targetId of directTargets) {
-                const normTargetId = normalizeId(targetId);
-                if (!superiorSprintIds.includes(normTargetId) && !level1SprintIds.includes(normTargetId)) {
-                    level1SprintIds.push(normTargetId);
-                    const target = findSprint(normTargetId);
-                    if (target) {
-                        addSprintItem(target, 1, false, true, srcSprint?.title, true);
-                    }
-                }
-            }
-        }
-    } else if (currentOrCompletedSprintId) {
-        const normCurId = normalizeId(currentOrCompletedSprintId);
-        const srcSprint = findSprint(normCurId);
-        const directTargets = getDirectLinkedSprintIds(normCurId);
-        for (const targetId of directTargets) {
-            const normTargetId = normalizeId(targetId);
-            if (!superiorSprintIds.includes(normTargetId) && !level1SprintIds.includes(normTargetId)) {
-                level1SprintIds.push(normTargetId);
-                const target = findSprint(normTargetId);
-                if (target) {
-                    addSprintItem(target, 1, false, true, srcSprint?.title, true);
-                }
-            }
-        }
-    } else if (sprints.length > 0 || lookupPool.length > 0) {
-        // New user with no enrollments: Find root/entry sprints in the linking graph
-        const effectivePool = sprints.length > 0 ? sprints : lookupPool;
-        const allTargetIds = new Set<string>();
-        if (Array.isArray(sprintLinks)) {
-            sprintLinks.forEach(l => {
-                const tgtId = normalizeId(l.targetSprintId || l.target_sprint_id || l.targetId);
-                if (tgtId) allTargetIds.add(tgtId);
-            });
-        }
-        effectivePool.forEach(s => {
-            const directId = normalizeId(s.nextSprintId || s.linkedSprintId || (s as any).linked_sprint_id);
-            if (directId) allTargetIds.add(directId);
+    if (currentOrCompletedSprintId) {
+        sprintAId = normalizeId(currentOrCompletedSprintId);
+        enrollmentA = userEnrollments.find(e => normalizeId(e.sprint_id) === sprintAId);
+    } else if (userEnrollments && userEnrollments.length > 0) {
+        // Find active enrollment first, or the most recent finished/started enrollment
+        const sortedEnrollments = [...userEnrollments].sort((a, b) => {
+            const aIsActive = a.status === 'active';
+            const bIsActive = b.status === 'active';
+            if (aIsActive && !bIsActive) return -1;
+            if (!aIsActive && bIsActive) return 1;
+            return getEnrollmentTimestamp(b) - getEnrollmentTimestamp(a);
         });
+        enrollmentA = sortedEnrollments[0];
+        sprintAId = normalizeId(enrollmentA?.sprint_id);
+    }
 
-        // Entry sprints are published sprints that have links or start paths (not targets of other sprints)
-        const entrySprints = effectivePool.filter(s => !allTargetIds.has(normalizeId(s.id)));
-        const rootSprints = entrySprints.length > 0 ? entrySprints : [effectivePool[0]];
+    // If no user enrollment exists yet (new participant), find first source sprint in link setup or pool
+    if (!sprintAId) {
+        const firstLink = Array.isArray(sprintLinks) && sprintLinks.length > 0
+            ? [...sprintLinks].sort((a, b) => (new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()))[0]
+            : null;
+        if (firstLink) {
+            sprintAId = normalizeId(firstLink.sourceSprintId || firstLink.source_sprint_id || firstLink.sourceId);
+        } else if (lookupPool.length > 0) {
+            sprintAId = normalizeId(lookupPool[0].id);
+        }
+    }
 
-        for (const rootSprint of rootSprints) {
-            if (rootSprint && !seenIds.has(normalizeId(rootSprint.id))) {
-                level1SprintIds.push(normalizeId(rootSprint.id));
-                addSprintItem(rootSprint, 1, false, true, undefined, true);
+    if (!sprintAId) return [];
+
+    const sprintA = findSprint(sprintAId);
+    const sourceLinksA = getSortedLinksFromSource(sprintAId);
+
+    // =========================================================================
+    // LEVEL 1: Sprints that active or just finished Sprint A is connected to
+    // Priority:
+    // 1. Coded links {m1 step 3 op1}: Show first when the option was clicked.
+    //    If not clicked, it is disregarded.
+    // 2. Normal links: Show next in order of their first setup (e.g. C, then D).
+    // Capacity: Max 6 visible at Level 1. If up to 6, don't show others.
+    // =========================================================================
+    const level1Items: ExploreSprintItem[] = [];
+    const level1SprintIds = new Set<string>();
+
+    // A. Coded links from Sprint A
+    const codedLinksA = sourceLinksA.filter(l => {
+        const code = l.optionCode || l.option_code;
+        return code && String(code).trim().length > 0;
+    });
+
+    for (const link of codedLinksA) {
+        if (isOptionLinkMatchedByUser(enrollmentA, sprintA, link)) {
+            const tgtId = normalizeId(link.targetSprintId || link.target_sprint_id || link.targetId);
+            const targetSprint = findSprint(tgtId);
+            if (targetSprint && !level1SprintIds.has(tgtId)) {
+                level1SprintIds.add(tgtId);
+                level1Items.push({
+                    sprint: targetSprint,
+                    level: 1,
+                    isSuperior: true,
+                    isClickable: true,
+                    linkSourceTitle: sprintA?.title
+                });
+            }
+        }
+        // If not matched, it is completely disregarded.
+    }
+
+    // B. Normal (uncoded) links from Sprint A in setup order
+    const normalLinksA = sourceLinksA.filter(l => {
+        const code = l.optionCode || l.option_code;
+        return !code || String(code).trim().length === 0;
+    });
+
+    for (const link of normalLinksA) {
+        const tgtId = normalizeId(link.targetSprintId || link.target_sprint_id || link.targetId);
+        const targetSprint = findSprint(tgtId);
+        if (targetSprint && !level1SprintIds.has(tgtId)) {
+            level1SprintIds.add(tgtId);
+            level1Items.push({
+                sprint: targetSprint,
+                level: 1,
+                isSuperior: false,
+                isClickable: true,
+                linkSourceTitle: sprintA?.title
+            });
+        }
+    }
+
+    // Direct nextSprintId / linkedSprintId on Sprint A entity if configured
+    if (sprintA) {
+        const directId = normalizeId(sprintA.nextSprintId || sprintA.linkedSprintId || (sprintA as any).linked_sprint_id);
+        if (directId && !level1SprintIds.has(directId)) {
+            const targetSprint = findSprint(directId);
+            if (targetSprint) {
+                level1SprintIds.add(directId);
+                level1Items.push({
+                    sprint: targetSprint,
+                    level: 1,
+                    isSuperior: false,
+                    isClickable: true,
+                    linkSourceTitle: sprintA?.title
+                });
             }
         }
     }
 
-    // All Level 1 sources (both clicked superior links and direct links) form the base for Level 2 expansion
-    const allLevel1Sources = Array.from(new Set([...superiorSprintIds, ...level1SprintIds]));
+    // ENFORCE LEVEL 1 LIMIT: Exactly 6 is the maximum visible
+    const visibleLevel1Items = level1Items.slice(0, 6);
+    const visibleLevel1Ids = new Set(visibleLevel1Items.map(item => normalizeId(item.sprint.id)));
 
     // =========================================================================
-    // STEP 3: SECOND LEVEL LINKING (Level 2)
-    // Sprints that the first level sprints link to.
-    // The second level in Explore shows the card in an INACTIVE state (not clickable).
+    // LEVEL 2: Sprints that the visible Level 1 sprints are connected to
+    // Rules:
+    // 1. Sprint E connected to B cannot show until Sprint B has been unlocked.
+    // 2. Sprint F connected to C and D shows in setup order as a Level 2 locked card.
+    // 3. Max 4 visible at Level 2.
     // =========================================================================
-    const level2SprintIds: string[] = [];
-    for (const l1Id of allLevel1Sources) {
-        const normL1Id = normalizeId(l1Id);
-        const l1Sprint = findSprint(normL1Id);
-        const level2Targets = getDirectLinkedSprintIds(normL1Id);
-        for (const targetId of level2Targets) {
-            const normTargetId = normalizeId(targetId);
-            if (!seenIds.has(normTargetId) && !level2SprintIds.includes(normTargetId)) {
-                level2SprintIds.push(normTargetId);
-                const target = findSprint(normTargetId);
-                if (target) {
-                    addSprintItem(target, 2, false, false, l1Sprint?.title, true);
-                }
+    const level2Items: ExploreSprintItem[] = [];
+    const level2SprintIds = new Set<string>();
+
+    for (const l1Item of visibleLevel1Items) {
+        const l1Id = normalizeId(l1Item.sprint.id);
+        const sourceLinksL1 = getSortedLinksFromSource(l1Id);
+        const l1Sprint = l1Item.sprint;
+
+        for (const link of sourceLinksL1) {
+            const tgtId = normalizeId(link.targetSprintId || link.target_sprint_id || link.targetId);
+            if (!tgtId || tgtId === sprintAId || visibleLevel1Ids.has(tgtId) || level2SprintIds.has(tgtId)) {
+                continue;
+            }
+            const targetSprint = findSprint(tgtId);
+            if (targetSprint) {
+                level2SprintIds.add(tgtId);
+                level2Items.push({
+                    sprint: targetSprint,
+                    level: 2,
+                    isSuperior: false,
+                    isClickable: false,
+                    linkSourceTitle: l1Sprint?.title
+                });
+            }
+        }
+
+        // Direct nextSprintId on Level 1 sprint entity
+        const directL1Id = normalizeId(l1Sprint.nextSprintId || l1Sprint.linkedSprintId || (l1Sprint as any).linked_sprint_id);
+        if (directL1Id && directL1Id !== sprintAId && !visibleLevel1Ids.has(directL1Id) && !level2SprintIds.has(directL1Id)) {
+            const targetSprint = findSprint(directL1Id);
+            if (targetSprint) {
+                level2SprintIds.add(directL1Id);
+                level2Items.push({
+                    sprint: targetSprint,
+                    level: 2,
+                    isSuperior: false,
+                    isClickable: false,
+                    linkSourceTitle: l1Sprint?.title
+                });
             }
         }
     }
 
-    // =========================================================================
-    // STEP 4: THIRD LEVEL LINKING (Level 3+)
-    // Sprints that Level 2 links to, and so on. Also shown inactive and not clickable.
-    // =========================================================================
-    const level3SprintIds: string[] = [];
-    for (const l2Id of level2SprintIds) {
-        const normL2Id = normalizeId(l2Id);
-        const l2Sprint = findSprint(normL2Id);
-        const level3Targets = getDirectLinkedSprintIds(normL2Id);
-        for (const targetId of level3Targets) {
-            const normTargetId = normalizeId(targetId);
-            if (!seenIds.has(normTargetId) && !level3SprintIds.includes(normTargetId)) {
-                level3SprintIds.push(normTargetId);
-                const target = findSprint(normTargetId);
-                if (target) {
-                    addSprintItem(target, 3, false, false, l2Sprint?.title, true);
-                }
-            }
-        }
-    }
+    // ENFORCE LEVEL 2 LIMIT: Exactly 4 is the maximum visible
+    const visibleLevel2Items = level2Items.slice(0, 4);
 
-    // Strictly sprint-to-sprint linking only:
-    // No orchestrator fallbacks or unlinked arbitrary sprints are displayed in Explore.
-    return list;
+    return [...visibleLevel1Items, ...visibleLevel2Items];
 };
 
 /**

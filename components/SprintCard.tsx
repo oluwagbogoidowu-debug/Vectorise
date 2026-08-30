@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { MOCK_PARTICIPANT_SPRINTS } from '../services/mockData';
 import { userService, sanitizeData } from '../services/userService';
 import { assetService } from '../services/assetService';
+import { getSprintCoverImage } from '../utils/sprintUtils';
 
 interface SprintCardProps {
     sprint: Sprint;
@@ -91,7 +92,8 @@ const SprintCard: React.FC<SprintCardProps> = ({
     const CardContainer = effectiveIsStatic ? 'div' : Link;
     const containerProps = effectiveIsStatic ? {} : { to: `/sprint/${sprint.id}`, state: { fromExplore: true } };
 
-    const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
+    const resolvedCoverUrl = useMemo(() => getSprintCoverImage(sprint), [sprint]);
+    const fallbackUrl = resolvedCoverUrl || assetService.URLS.DEFAULT_SPRINT_COVER;
 
     const displayDescription = useMemo(() => {
         return sprint.description || sprint.subtitle || "No description available.";
@@ -164,8 +166,8 @@ const SprintCard: React.FC<SprintCardProps> = ({
 
                         <div className="mb-5 rounded-2xl overflow-hidden aspect-video border border-white/10 relative">
                             <img 
-                                src={sprint.coverImageUrl || fallbackUrl} 
-                                alt="" 
+                                src={resolvedCoverUrl} 
+                                alt={sprint.title || "Sprint cover"} 
                                 className={`w-full h-full object-cover opacity-80 transition-transform duration-700 ${!effectiveIsStatic ? 'group-hover:scale-105' : ''} ${isInactive ? 'grayscale' : ''}`} 
                                 onError={(e) => { e.currentTarget.src = fallbackUrl; }} 
                                 referrerPolicy="no-referrer"
@@ -285,8 +287,8 @@ const SprintCard: React.FC<SprintCardProps> = ({
             >
                 <div className="relative h-40 overflow-hidden bg-gray-100 dark:bg-zinc-800">
                     <img 
-                        src={sprint.coverImageUrl || fallbackUrl} 
-                        alt="" 
+                        src={resolvedCoverUrl} 
+                        alt={sprint.title || "Sprint cover"} 
                         className={`w-full h-full object-cover transition-transform duration-1000 ${!effectiveIsStatic ? 'group-hover:scale-110 group-hover:rotate-1' : ''} ${isInactive ? 'grayscale-[20%]' : ''}`} 
                         onError={(e) => { e.currentTarget.src = fallbackUrl; }} 
                         referrerPolicy="no-referrer"

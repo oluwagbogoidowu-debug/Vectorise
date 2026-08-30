@@ -15,6 +15,7 @@ import SprintCard from '../../components/SprintCard';
 import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
+import { getSprintCoverImage } from '../../utils/sprintUtils';
 
 import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X } from 'lucide-react';
 
@@ -66,7 +67,7 @@ const SprintLandingPage: React.FC = () => {
         approved: true
     };
     
-    const fallbackImage = assetService.URLS.DEFAULT_SPRINT_COVER;
+    const fallbackImage = useMemo(() => getSprintCoverImage(sprint), [sprint]);
     const selectedFocus = location.state?.selectedFocus;
 
     const isOnboardingPath = useMemo(() => {
@@ -896,6 +897,24 @@ const SprintLandingPage: React.FC = () => {
 
                         {/* Drag Handle indicator */}
                         <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+
+                        {/* Sprint Title & Subtitle Header */}
+                        <div className="text-left mb-4 pr-6">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 rounded-lg border border-emerald-200/60 mb-1.5">
+                                <Zap className="w-3 h-3 text-[#0E7850]" />
+                                <span className="text-[9px] font-black uppercase text-[#0E7850] tracking-wider">
+                                    {isCashSprint ? "Cash Sprint" : "Coin Sprint"}
+                                </span>
+                            </div>
+                            <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-tight">
+                                {sprint.title}
+                            </h3>
+                            {(sprint.subtitle || sprint.description) && (
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed font-medium">
+                                    {sprint.subtitle || sprint.description}
+                                </p>
+                            )}
+                        </div>
                         
                         {/* WALLET / PRICING SECTION - Only show if user is logged in */}
                         {user ? (
@@ -1070,7 +1089,7 @@ const SprintLandingPage: React.FC = () => {
                                         ? (
                                             (sprint.price ?? 1000) === 0
                                                 ? "Start Free Sprint"
-                                                : `Start Day 1 Now • Pay ₦${(sprint.price ?? 1000).toLocaleString()}`
+                                                : `Payment for Package • ₦${(sprint.price ?? 1000).toLocaleString()}`
                                         )
                                         : paymentMethod === 'coins'
                                         ? `Start Day 1 Now • Use ${sprint.pointCost || 10} Coins`
