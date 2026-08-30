@@ -1,5 +1,262 @@
 export type StepPlaceholderMode = 'normal' | 'list' | 'hide' | 'sentence' | 'disconnect' | 'main';
 
+export interface MetadataFieldDef {
+  key: string;
+  label: string;
+  category?: string;
+  aliases: string[];
+  placeholderSample: string;
+}
+
+export const METADATA_FIELDS: MetadataFieldDef[] = [
+  { key: 'lifeStage', label: 'Life Stage', aliases: ['lifestage', 'life stage', 'stage'], placeholderSample: 'College Graduate' },
+  { key: 'currentGoal', label: 'Current Goal', aliases: ['currentgoal', 'current goal', 'goal', 'primarygoal'], placeholderSample: 'Secure first tech role' },
+  { key: 'currentPriority', label: 'Current Priority', aliases: ['currentpriority', 'current priority', 'priority'], placeholderSample: 'Portfolio building & networking' },
+  { key: 'desiredDirection', label: 'Desired Direction', aliases: ['desireddirection', 'desired direction', 'direction', 'pathway', 'risepathway'], placeholderSample: 'Full-Stack Product Engineering' },
+  { key: 'interests', label: 'Interests', aliases: ['interests', 'interest', 'growthareas', 'growth areas'], placeholderSample: 'AI Systems, Web Development' },
+  { key: 'strengths', label: 'Strengths', aliases: ['strengths', 'strength', 'skills'], placeholderSample: 'System Design, Rapid Prototyping' },
+];
+
+export interface MetadataTokenDetail {
+  raw: string;
+  fieldKey: string;
+  fieldLabel: string;
+  mode: 'save' | 'receive';
+  token: string;
+}
+
+export const METADATA_TOKEN_REGEX = /\{(?:\s*metadata(?:\s*[:\-]?\s*([a-zA-Z\s]+?))?(?:\s+(save|receive|s|r))?)\s*\}/gi;
+
+/**
+ * Normalizes a field string against METADATA_FIELDS
+ */
+export function normalizeMetadataField(rawField?: string): MetadataFieldDef | null {
+  if (!rawField) return null;
+  const clean = rawField.toLowerCase().replace(/[\s_\-]+/g, '');
+  if (!clean) return null;
+  for (const def of METADATA_FIELDS) {
+    if (def.key.toLowerCase() === clean) return def;
+    if (def.label.toLowerCase().replace(/[\s_\-]+/g, '') === clean) return def;
+    for (const alias of def.aliases) {
+      if (alias.toLowerCase().replace(/[\s_\-]+/g, '') === clean) return def;
+    }
+  }
+  // Partial substring match
+  for (const def of METADATA_FIELDS) {
+    const defClean = def.label.toLowerCase().replace(/[\s_\-]+/g, '');
+    if (clean.includes(defClean) || defClean.includes(clean)) return def;
+  }
+  return null;
+}
+
+/**
+ * Parses a single `{Metadata ...}` string
+ */
+export function parseMetadataToken(tokenStr: string): MetadataTokenDetail | null {
+  if (!tokenStr) return null;
+  const trimmed = tokenStr.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+
+  const inner = trimmed.slice(1, -1).trim();
+  if (!inner.toLowerCase().startsWith('metadata')) return null;
+
+  const rest = inner.slice(8).replace(/^[\s:\-]+/, '').trim();
+  if (!rest) {
+    return {
+      raw: trimmed,
+      fieldKey: '',
+      fieldLabel: 'Metadata',
+      mode: 'receive',
+      token: trimmed
+    };
+  }
+
+  let mode: 'save' | 'receive' = 'receive';
+  let fieldPart = rest;
+
+  if (/\b(?:save|s)\b$/i.test(rest)) {
+    mode = 'save';
+    fieldPart = rest.replace(/\b(?:save|s)\b$/i, '').trim();
+  } else if (/\b(?:receive|r)\b$/i.test(rest)) {
+    mode = 'receive';
+    fieldPart = rest.replace(/\b(?:receive|r)\b$/i, '').trim();
+  }
+
+  const fieldDef = normalizeMetadataField(fieldPart);
+  return {
+    raw: trimmed,
+    fieldKey: fieldDef ? fieldDef.key : fieldPart,
+    fieldLabel: fieldDef ? fieldDef.label : (fieldPart || 'Metadata'),
+    mode,
+    token: trimmed
+  };
+}
+
+/**
+ * Extracts all `{Metadata ...}` tokens from text
+ */
+export function extractMetadataTokens(text: string): MetadataTokenDetail[] {
+  if (!text) return [];
+  const results: MetadataTokenDetail[] = [];
+  const regex = /\{(?:\s*metadata(?:\s*[:\-]?\s*([a-zA-Z\s]+?))?(?:\s+(save|receive|s|r))?)\s*\}/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    const full = match[0];
+    const fieldRaw = match[1]?.trim() || '';
+    const modeRaw = match[2]?.trim() || '';
+    const mode: 'save' | 'receive' = (modeRaw.toLowerCase() === 'save' || modeRaw.toLowerCase() === 's') ? 'save' : 'receive';
+    const fieldDef = normalizeMetadataField(fieldRaw);
+
+    results.push({
+      raw: full,
+      fieldKey: fieldDef ? fieldDef.key : fieldRaw,
+      fieldLabel: fieldDef ? fieldDef.label : (fieldRaw || 'Metadata'),
+      mode,
+      token: full
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Resolves the stored value of a metadata field from user object or cache
+ */
+export function resolveUserMetadataValue(fieldKeyOrAlias: string, userOrMetadata?: any): string {
+  let target = userOrMetadata;
+  if (!target && typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('vectorise_user') || localStorage.getItem('user');
+      if (stored) {
+        target = JSON.parse(stored);
+      }
+    } catch (e) {}
+  }
+  if (!target) return '';
+
+  const fieldDef = normalizeMetadataField(fieldKeyOrAlias);
+  const targetKey = fieldDef ? fieldDef.key : fieldKeyOrAlias;
+  const norm = targetKey.toLowerCase().replace(/[\s_\-]+/g, '');
+
+  // 1. Direct metadata object: target.metadata, target.userMetadata, target.identificationData
+  const metaObj = target.metadata || target.userMetadata || target.identificationData;
+  if (typeof metaObj === 'object' && metaObj !== null) {
+    if (metaObj[targetKey] !== undefined && metaObj[targetKey] !== null) {
+      const val = metaObj[targetKey];
+      if (typeof val === 'string') return val;
+      if (typeof val === 'object' && val !== null && 'value' in val) return String((val as any).value);
+      if (Array.isArray(val)) return val.join(', ');
+    }
+    for (const [k, v] of Object.entries(metaObj)) {
+      const kNorm = k.toLowerCase().replace(/[\s_\-]+/g, '');
+      if (kNorm === norm || (norm && (kNorm.includes(norm) || norm.includes(kNorm)))) {
+        if (typeof v === 'string') return v;
+        if (typeof v === 'object' && v !== null && 'value' in v) return String((v as any).value);
+        if (Array.isArray(v)) return v.join(', ');
+      }
+    }
+  }
+
+  // 2. Direct top-level properties on user
+  if (norm.includes('lifestage') || norm === 'stage') {
+    return target.lifeStage || target.occupation || target.persona || '';
+  }
+  if (norm.includes('goal')) {
+    return target.currentGoal || target.primaryGoal || target.goal || '';
+  }
+  if (norm.includes('priority')) {
+    return target.currentPriority || target.priority || '';
+  }
+  if (norm.includes('direction') || norm.includes('pathway')) {
+    return target.desiredDirection || target.risePathway || target.direction || '';
+  }
+  if (norm.includes('interest')) {
+    if (Array.isArray(target.interests)) return target.interests.join(', ');
+    if (typeof target.interests === 'string') return target.interests;
+    if (Array.isArray(target.growthAreas)) return target.growthAreas.join(', ');
+    return target.interests || '';
+  }
+  if (norm.includes('strength')) {
+    if (Array.isArray(target.strengths)) return target.strengths.join(', ');
+    if (typeof target.strengths === 'string') return target.strengths;
+    return target.strengths || '';
+  }
+
+  if (target[targetKey] !== undefined && target[targetKey] !== null) {
+    const val = target[targetKey];
+    return Array.isArray(val) ? val.join(', ') : String(val);
+  }
+
+  return '';
+}
+
+/**
+ * Replaces `{Metadata <field> receive}` and `{Metadata <field>}` with user's stored metadata value,
+ * and removes `{Metadata <field> save}` from participant view.
+ */
+export function interpolateMetadataInText(text: string, userOrMetadata?: any): string {
+  if (!text || typeof text !== 'string') return '';
+  const regex = /\{(?:\s*metadata(?:\s*[:\-]?\s*([a-zA-Z\s]+?))?(?:\s+(save|receive|s|r))?)\s*\}/gi;
+
+  return text.replace(regex, (fullMatch, fieldRaw, modeRaw) => {
+    const mode = (modeRaw && (modeRaw.toLowerCase() === 'save' || modeRaw.toLowerCase() === 's')) ? 'save' : 'receive';
+    if (mode === 'save') {
+      // Save directives are instructions to store user answers; hide them in rendered prompt text
+      return '';
+    }
+
+    const fieldDef = normalizeMetadataField(fieldRaw);
+    const resolvedVal = resolveUserMetadataValue(fieldRaw || '', userOrMetadata);
+    if (resolvedVal && resolvedVal.trim()) {
+      return resolvedVal.trim();
+    }
+
+    // Fallback: If not yet set, show sample or clean placeholder
+    return fieldDef ? `[${fieldDef.label}]` : '[Metadata]';
+  });
+}
+
+/**
+ * Inspects a step's prompt, hints, footnotes, and tag notes for any `{Metadata <field> save}` directive.
+ */
+export function extractSaveMetadataFromStep(
+  dayContent: any,
+  stepIndex: number
+): { fieldKey: string; fieldLabel: string; mode: 'save' } | null {
+  if (!dayContent) return null;
+
+  const textsToScan: string[] = [];
+  if (Array.isArray(dayContent.taskPrompts) && dayContent.taskPrompts[stepIndex]) {
+    textsToScan.push(dayContent.taskPrompts[stepIndex]);
+  } else if (stepIndex === 0 && dayContent.taskPrompt) {
+    textsToScan.push(dayContent.taskPrompt);
+  }
+  if (Array.isArray(dayContent.taskHints) && dayContent.taskHints[stepIndex]) {
+    textsToScan.push(dayContent.taskHints[stepIndex]);
+  }
+  if (Array.isArray(dayContent.taskFootnotes) && dayContent.taskFootnotes[stepIndex]) {
+    textsToScan.push(dayContent.taskFootnotes[stepIndex]);
+  }
+  if (Array.isArray(dayContent.taskTagNotes) && dayContent.taskTagNotes[stepIndex]) {
+    textsToScan.push(dayContent.taskTagNotes[stepIndex]);
+  }
+
+  for (const text of textsToScan) {
+    const tokens = extractMetadataTokens(text);
+    const saveToken = tokens.find(t => t.mode === 'save');
+    if (saveToken && saveToken.fieldKey) {
+      return {
+        fieldKey: saveToken.fieldKey,
+        fieldLabel: saveToken.fieldLabel,
+        mode: 'save'
+      };
+    }
+  }
+
+  return null;
+}
+
 export interface StepPlaceholderDetail {
   dayNum?: number;
   stepNum: number;
@@ -198,7 +455,21 @@ export function validateStepPlaceholders(
     }
   }
 
+  const metaTokens = extractMetadataTokens(prompt);
+
   if (references.length === 0) {
+    if (metaTokens.length > 0) {
+      return {
+        isValid: true,
+        hasPlaceholders: true,
+        invalidStepRefs: [],
+        validStepRefs: [],
+        validStepLabels: metaTokens.map(m => m.raw.replace(/^\{|\}$/g, '')),
+        invalidStepLabels: [],
+        placeholderDetails: [],
+        isLogicLinked: true
+      };
+    }
     return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
   }
 
@@ -839,12 +1110,16 @@ export function formatInterpolatedText(
   dayContent?: any,
   taskInputs?: any,
   allDaysContent?: any[],
-  allDaysInputs?: any[] | Record<number, any>
+  allDaysInputs?: any[] | Record<number, any>,
+  userOrMetadata?: any
 ): string {
   if (!prompt) return '';
 
+  // Interpolate metadata tokens first (e.g. {Metadata interest receive} or {Metadata life stage})
+  const textWithMetadata = interpolateMetadataInText(prompt, userOrMetadata);
+
   // Normalize bare coding tokens like "M2 Step 1 op 2" or "M1 Step 3" into "{M2 Step 1 op 2}"
-  const normalizedPrompt = prompt.replace(
+  const normalizedPrompt = textWithMetadata.replace(
     /\{([^{}]+)\}|(\b[dDmM]\d+\s+[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?(?:\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\b)/gi,
     (m, bracketed, bare) => bracketed ? `{${bracketed}}` : `{${bare}}`
   );
@@ -1916,6 +2191,9 @@ export function getHintTokensForContent(dayContent: any, currentStepIdx: number,
     }
   }
 
+  // Also include metadata tokens in task content tokens
+  tokens.push(...getMetadataHintTokens());
+
   return tokens;
 }
 
@@ -1955,6 +2233,28 @@ export function insertHintToken(
 ) {
   const updatedHint = currentHint && currentHint.trim() ? `${currentHint.trim()} ${token}` : token;
   onChangeHint(updatedHint);
+}
+
+/**
+ * Returns available metadata placeholder tokens (e.g. {Metadata}, {Metadata Life Stage receive}, {Metadata Life Stage save}, etc.)
+ */
+export function getMetadataHintTokens(): HintToken[] {
+  const tokens: HintToken[] = [
+    { token: '{Metadata}', label: '{Metadata}', isOption: false },
+  ];
+  for (const field of METADATA_FIELDS) {
+    tokens.push({
+      token: `{Metadata ${field.label} receive}`,
+      label: `📥 Receive ${field.label}`,
+      isOption: false
+    });
+    tokens.push({
+      token: `{Metadata ${field.label} save}`,
+      label: `💾 Save ${field.label}`,
+      isOption: false
+    });
+  }
+  return tokens;
 }
 
 /**
@@ -2018,6 +2318,9 @@ export function getHintTokensForBridgeNote(
       }
     }
   }
+
+  // Also include metadata tokens in bridge notes
+  tokens.push(...getMetadataHintTokens());
 
   return tokens;
 }

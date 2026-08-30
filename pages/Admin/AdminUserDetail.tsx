@@ -619,6 +619,43 @@ export default function AdminUserDetail() {
 
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
                         
+                        {/* Extracted Sprint Metadata & Profile Attributes Card */}
+                        <div className="flex-shrink-0 w-[300px] sm:w-[330px] min-h-[280px] bg-white border border-purple-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-purple-300 transition-all duration-300 relative overflow-hidden">
+                            <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-50 flex-shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm">✨</span>
+                                    <h4 className="text-[10px] font-black text-purple-900 uppercase tracking-widest">Sprint Metadata</h4>
+                                </div>
+                                <span className="text-[9px] font-black text-purple-700 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">
+                                    Dynamic Profile
+                                </span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden text-left">
+                                {[
+                                    { key: 'lifeStage', label: 'Life Stage', icon: '🎓', value: user.metadata?.lifeStage || (user as any).lifeStage || user.identificationData?.lifeStage?.value },
+                                    { key: 'currentGoal', label: 'Current Goal', icon: '🎯', value: user.metadata?.currentGoal || (user as any).currentGoal || user.identificationData?.currentGoal?.value },
+                                    { key: 'currentPriority', label: 'Current Priority', icon: '⚡', value: user.metadata?.currentPriority || (user as any).currentPriority || user.identificationData?.currentPriority?.value },
+                                    { key: 'desiredDirection', label: 'Desired Direction', icon: '🧭', value: user.metadata?.desiredDirection || (user as any).desiredDirection || user.identificationData?.desiredDirection?.value },
+                                    { key: 'interests', label: 'Interests', icon: '💡', value: user.metadata?.interests || (user as any).interests || user.identificationData?.interests?.value },
+                                    { key: 'strengths', label: 'Strengths', icon: '💪', value: user.metadata?.strengths || (user as any).strengths || user.identificationData?.strengths?.value }
+                                ].map((item) => (
+                                    <div key={item.key} className="p-2 bg-purple-50/30 rounded-xl border border-purple-50">
+                                        <div className="flex items-center justify-between text-[8px] font-black text-purple-700 uppercase tracking-wider mb-0.5">
+                                            <span>{item.icon} {item.label}</span>
+                                            {user.identificationData?.[item.key]?.sourceSprintTitle && (
+                                                <span className="text-[7px] text-gray-400 font-bold truncate max-w-[110px]" title={user.identificationData[item.key].sourceSprintTitle}>
+                                                    from {user.identificationData[item.key].sourceSprintTitle}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-[11px] font-bold text-gray-800 leading-snug">
+                                            {item.value ? String(item.value) : <span className="text-gray-300 font-normal italic">Not captured yet</span>}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Timeline Metrics Card (The 2nd Card) */}
                         <div className="flex-shrink-0 w-[290px] sm:w-[320px] min-h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-[#0E7850]/10 transition-all duration-300">
                             <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-50 flex-shrink-0">

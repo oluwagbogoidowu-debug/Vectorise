@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import { UserIdentificationRule, Sprint, ParticipantSprint } from '../types';
 import { parseOptionCodeHelper } from '../utils/sprintUtils';
+import { extractSaveMetadataFromStep, normalizeMetadataField, METADATA_FIELDS } from '../src/utils/stepPlaceholderUtils';
 
 const RULES_COLLECTION = 'user_identification_rules';
 
@@ -33,6 +34,134 @@ const sanitizeData = (data: any): any => {
 };
 
 export const userIdentificationService = {
+    /**
+     * Extracts dynamic {Metadata <field> save} tokens from sprint steps and persists directly to user profile.
+     */
+    extractAndSaveSprintMetadata: async (
+        userId: string,
+        sprint: Sprint | { id: string; title: string; dailyContent?: any[] } | null | undefined,
+        dayNum: number,
+        answers: any[]
+    ): Promise<Record<string, any>> => {
+        if (!userId || !sprint || !answers || !Array.isArray(answers) || answers.length === 0) {
+            return {};
+        }
+
+        try {
+            const dailyContentList = (sprint as any)?.dailyContent;
+            if (!Array.isArray(dailyContentList) || dailyContentList.length === 0) {
+                return {};
+            }
+
+            const currentDC = dailyContentList.find((d: any) => Number(d.day) === Number(dayNum)) || dailyContentList[dayNum - 1];
+            if (!currentDC) return {};
+
+            const userDocRef = doc(db, 'users', userId);
+            const userSnap = await getDoc(userDocRef);
+            if (!userSnap.exists()) return {};
+
+            const userData = userSnap.data() || {};
+            const existingMetadata = userData.metadata || userData.userMetadata || {};
+            const existingIdentification = userData.identificationData || {};
+
+            const updatesToUser: Record<string, any> = {};
+            const updatedMetadata = { ...existingMetadata };
+            const updatedIdentification = { ...existingIdentification };
+            let hasChanges = false;
+
+            const promptsCount = Math.max(
+                currentDC.taskPrompts?.length || 0,
+                currentDC.taskInputTypes?.length || 0,
+                answers.length
+            );
+
+            for (let stepIdx = 0; stepIdx < promptsCount; stepIdx++) {
+                if (stepIdx >= answers.length) continue;
+
+                const saveDirective = extractSaveMetadataFromStep(currentDC, stepIdx);
+                if (!saveDirective) continue;
+
+                const rawAns = answers[stepIdx];
+                if (rawAns === undefined || rawAns === null || rawAns === '') continue;
+
+                let answerText = '';
+                if (typeof rawAns === 'string') {
+                    const trimmed = rawAns.trim();
+                    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                        try {
+                            const parsed = JSON.parse(trimmed);
+                            answerText = parsed.text || parsed.choice || (Array.isArray(parsed.selectedChoices) ? parsed.selectedChoices.join(', ') : '') || trimmed;
+                        } catch (e) {
+                            answerText = trimmed;
+                        }
+                    } else if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                        try {
+                            const parsed = JSON.parse(trimmed);
+                            if (Array.isArray(parsed)) answerText = parsed.filter(Boolean).join(', ');
+                            else answerText = trimmed;
+                        } catch (e) {
+                            answerText = trimmed;
+                        }
+                    } else {
+                        answerText = trimmed;
+                    }
+                } else if (Array.isArray(rawAns)) {
+                    answerText = rawAns.map(a => String(a).trim()).filter(Boolean).join(', ');
+                } else if (typeof rawAns === 'object') {
+                    answerText = (rawAns as any).text || (rawAns as any).choice || Object.values(rawAns).join(', ');
+                } else {
+                    answerText = String(rawAns);
+                }
+
+                if (!answerText || !answerText.trim()) continue;
+
+                const cleanAnswer = answerText.trim();
+                const fieldKey = saveDirective.fieldKey;
+                const fieldLabel = saveDirective.fieldLabel;
+
+                // Update root property, metadata object, and identification tracking
+                updatesToUser[fieldKey] = cleanAnswer;
+                updatedMetadata[fieldKey] = cleanAnswer;
+                updatedIdentification[fieldKey] = {
+                    field: fieldKey,
+                    label: fieldLabel,
+                    value: cleanAnswer,
+                    sourceSprintId: sprint.id,
+                    sourceSprintTitle: sprint.title,
+                    capturedAt: new Date().toISOString()
+                };
+                hasChanges = true;
+            }
+
+            if (hasChanges) {
+                updatesToUser.metadata = updatedMetadata;
+                updatesToUser.identificationData = updatedIdentification;
+                updatesToUser.lastMetadataUpdate = new Date().toISOString();
+                await updateDoc(userDocRef, sanitizeData(updatesToUser));
+
+                // Sync to local storage & broadcast update event
+                if (typeof window !== 'undefined') {
+                    try {
+                        const localRaw = localStorage.getItem('vectorise_user') || localStorage.getItem('user');
+                        if (localRaw) {
+                            const parsed = JSON.parse(localRaw);
+                            const merged = { ...parsed, ...updatesToUser, metadata: updatedMetadata, identificationData: updatedIdentification };
+                            localStorage.setItem('vectorise_user', JSON.stringify(merged));
+                            localStorage.setItem('user', JSON.stringify(merged));
+                            window.dispatchEvent(new CustomEvent('vectorise_user_updated', { detail: merged }));
+                        }
+                    } catch (e) {}
+                }
+
+                console.log(`[userIdentificationService] Extracted & saved dynamic sprint metadata for user ${userId}:`, updatesToUser);
+            }
+
+            return updatesToUser;
+        } catch (err) {
+            console.error("[userIdentificationService] Error extracting sprint metadata:", err);
+            return {};
+        }
+    },
     /**
      * Get all configured identification rules
      */
@@ -120,6 +249,9 @@ export const userIdentificationService = {
         }
 
         try {
+            // First extract and persist direct step metadata tokens {Metadata <field> save}
+            await userIdentificationService.extractAndSaveSprintMetadata(userId, sprint, dayNum, answers);
+
             const allRules = await userIdentificationService.getUserIdentificationRules();
             const activeRules = allRules.filter(r => r.isActive && (r.sourceSprintId === 'ALL' || r.sourceSprintId === sprint.id));
 

@@ -1516,91 +1516,52 @@ const ParticipantDashboard: React.FC = () => {
                         }}
                         className="block group animate-fade-in cursor-pointer text-left"
                     >
-                        {!isIdentitySet ? (
-                            <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-rose-100 dark:border-rose-900/40 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
-                                {/* Left Visual Section */}
-                                <div className="w-full md:w-2/5 h-36 md:h-auto relative overflow-hidden bg-gradient-to-br from-rose-500 via-rose-600 to-amber-600 flex items-center justify-center p-6">
-                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white/20 via-transparent to-black/30"></div>
-                                    <div className="relative z-10 text-center">
-                                        <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl shadow-lg mx-auto border border-white/30">
-                                            👤
-                                        </div>
-                                    </div>
-                                </div>
+                        <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 dark:border-zinc-800/80 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
+                            {/* Left Image Section */}
+                            <div className="w-full md:w-2/5 h-36 md:h-auto relative overflow-hidden">
+                                <img 
+                                    src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
+                                    alt="" 
+                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                    onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
+                                    referrerPolicy="no-referrer"
+                                 />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20"></div>
                                 
-                                {/* Right Content Section */}
-                                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between bg-white dark:bg-[#1c1c1e]">
-                                    <div className="mb-4 text-left">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-100 dark:border-rose-900/40">
-                                                First Step
-                                            </span>
-                                            <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400">
-                                                &lt; 1 Minute
-                                            </span>
-                                        </div>
-                                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 dark:text-white leading-tight tracking-tight">Tell Us About You</h3>
-                                        <p className="text-xs md:text-sm text-gray-500 dark:text-zinc-400 font-medium leading-relaxed mt-2.5 line-clamp-3">
-                                            This helps us match you with the exact sprint you need to start making real progress immediately.
-                                        </p>
-                                    </div>
-                                    
-                                    <div className="w-full py-4 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
-                                        Begin My Journey
-                                        <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
-                                        </svg>
-                                    </div>
+                                {/* Top Position: Category (Left) and Duration (Right) */}
+                                <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+                                    <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
+                                        {recommendedNextSprint?.category || "Growth"}
+                                    </span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
+                                        {recommendedNextSprint?.duration || 7} Days
+                                    </span>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] border border-gray-150 dark:border-zinc-800/80 relative overflow-hidden flex flex-col md:flex-row transition-all duration-500 group-hover:shadow-xl min-h-[220px]">
-                                {/* Left Image Section */}
-                                <div className="w-full md:w-2/5 h-36 md:h-auto relative overflow-hidden">
-                                    <img 
-                                        src={recommendedNextSprint?.coverImageUrl || assetService.URLS.DEFAULT_SPRINT_COVER} 
-                                        alt="" 
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                        onError={(e) => { e.currentTarget.src = assetService.URLS.DEFAULT_SPRINT_COVER; }} 
-                                        referrerPolicy="no-referrer"
-                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20"></div>
-                                    
-                                    {/* Top Position: Category (Left) and Duration (Right) */}
-                                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-                                        <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-white/20 text-white backdrop-blur-sm truncate max-w-[110px]">
-                                            {recommendedNextSprint?.category || "Growth"}
-                                        </span>
-                                        <span className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-rose-500/80 text-white backdrop-blur-sm shrink-0">
-                                            {recommendedNextSprint?.duration || 7} Days
-                                        </span>
-                                    </div>
 
-                                    {/* Down position within the image: Sprint Title */}
-                                    <div className="absolute bottom-4 left-4 right-4 z-10">
-                                        <h3 className="text-base md:text-xl font-black text-white leading-tight tracking-tight drop-shadow-md line-clamp-2">
-                                            {recommendedNextSprint?.title || "Growth Foundations"}
-                                        </h3>
-                                    </div>
-                                </div>
-                                
-                                {/* Right Content Section */}
-                                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between bg-white dark:bg-[#1c1c1e]">
-                                    <div className="mb-4 text-left">
-                                        <p className="text-xs md:text-sm text-gray-500 dark:text-zinc-400 font-medium leading-relaxed line-clamp-3">
-                                            {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
-                                        </p>
-                                    </div>
-                                    
-                                    <div className="w-full py-4 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
-                                        {!hasCompletedFirstSprint ? "Start for Free" : "Start This Sprint"}
-                                        <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
-                                        </svg>
-                                    </div>
+                                {/* Down position within the image: Sprint Title */}
+                                <div className="absolute bottom-4 left-4 right-4 z-10">
+                                    <h3 className="text-base md:text-xl font-black text-white leading-tight tracking-tight drop-shadow-md line-clamp-2">
+                                        {recommendedNextSprint?.title || "Growth Foundations"}
+                                    </h3>
                                 </div>
                             </div>
-                        )}
+                            
+                            {/* Right Content Section */}
+                            <div className="flex-1 p-6 md:p-8 flex flex-col justify-between bg-white dark:bg-[#1c1c1e]">
+                                <div className="mb-4 text-left">
+                                    <p className="text-xs md:text-sm text-gray-500 dark:text-zinc-400 font-medium leading-relaxed line-clamp-3">
+                                        {recommendedNextSprint?.description || recommendedNextSprint?.subtitle || "Unlock consistency and start your rise with templates."}
+                                    </p>
+                                </div>
+                                
+                                <div className="w-full py-4 bg-[#0E7850] text-white rounded-2xl md:rounded-3xl font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] shadow-2xl shadow-emerald-900/30 flex items-center justify-center gap-3 md:gap-4 group-hover:scale-[1.01] transition-transform active:scale-[0.98]">
+                                    {!hasCompletedFirstSprint ? "Start for Free" : "Start This Sprint"}
+                                    <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7-7 7m7-7H3" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -1631,44 +1592,62 @@ const ParticipantDashboard: React.FC = () => {
                 `}</style>
                 <div className="flex gap-6 overflow-x-auto pb-4 pt-4 px-1.5 snap-x snap-mandatory no-scrollbar relative items-center">
 
-                        {/* Identity Setup Card (Visible for users who have NOT set up their identity) */}
-                        {!isIdentitySet && (
-                            <button 
-                                onClick={() => toast("Coming soon")}
-                                className="flex-shrink-0 w-60 h-60 bg-white border border-rose-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-rose-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative"
-                            >
-                                <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-rose-50 text-rose-700 border border-rose-100/40 z-20">
-                                    Identity Setup
-                                </div>
+                        {/* Extracted Sprint Metadata Card (Shows attributes dynamically extracted from sprints) */}
+                        {(() => {
+                            const metadataObj = (user as any)?.metadata || (user as any)?.identificationData || {};
+                            const hasAnyMetadata = Object.keys(metadataObj).length > 0 || (user as any)?.interests || (user as any)?.strengths || (user as any)?.lifeStage || (user as any)?.currentGoal;
+                            const topItems = [
+                                { label: 'Goal', val: (user as any)?.metadata?.currentGoal || (user as any)?.currentGoal || (user as any)?.identificationData?.currentGoal?.value },
+                                { label: 'Priority', val: (user as any)?.metadata?.currentPriority || (user as any)?.currentPriority || (user as any)?.identificationData?.currentPriority?.value },
+                                { label: 'Interest', val: (user as any)?.metadata?.interests || (user as any)?.interests || (user as any)?.identificationData?.interests?.value },
+                                { label: 'Strength', val: (user as any)?.metadata?.strengths || (user as any)?.strengths || (user as any)?.identificationData?.strengths?.value },
+                            ].filter(item => Boolean(item.val));
 
-                                <div className="flex-1 flex flex-col justify-between pt-2">
-                                    <div className="space-y-2 mt-2 text-left">
-                                        <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center border border-rose-100/50 shadow-sm">
-                                            <span className="text-lg">👤</span>
+                            return (
+                                <div 
+                                    onClick={() => navigate("/explore")}
+                                    className="flex-shrink-0 w-60 h-60 bg-white border border-purple-100 rounded-[2rem] p-5 shadow-sm hover:shadow-md hover:border-purple-500/20 cursor-pointer flex flex-col justify-between group snap-start animate-fade-in relative text-left"
+                                >
+                                    <div className="absolute -top-3 left-6 text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md bg-purple-50 text-purple-700 border border-purple-100/40 z-20">
+                                        Sprint Metadata
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col justify-between pt-2">
+                                        <div className="space-y-2 mt-2">
+                                            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center border border-purple-100/50 shadow-sm">
+                                                <span className="text-lg">✨</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[11px] font-black text-gray-950 leading-tight">
+                                                    Dynamic Profile
+                                                </h4>
+                                                <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
+                                                    {hasAnyMetadata 
+                                                        ? `${topItems.length} profile attributes extracted from completed moves.`
+                                                        : "Attributes are automatically captured as you complete sprint steps."}
+                                                </p>
+                                            </div>
+                                            {topItems.length > 0 && (
+                                                <div className="space-y-1 pt-1">
+                                                    {topItems.slice(0, 2).map((it, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between text-[9px] bg-purple-50/40 px-2 py-0.5 rounded border border-purple-50">
+                                                            <span className="font-black text-purple-800 uppercase">{it.label}:</span>
+                                                            <span className="font-bold text-gray-700 truncate max-w-[110px]">{String(it.val)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
+
                                         <div>
-                                            <h4 className="text-[11px] font-black text-gray-950 leading-tight">
-                                                Set Up Your Identity
-                                            </h4>
-                                            <p className="text-[10px] font-medium text-gray-500 mt-1 leading-snug">
-                                                Define your growth pathway and archetype to customize your Rise experience.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <div className="w-full py-2 bg-[#0E7850] hover:bg-[#13a372] text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
-                                            [ Complete Setup ]
-                                        </div>
-                                        <div className="text-center mt-1.5">
-                                            <span className="text-[9px] font-bold text-gray-400">
-                                                Takes under 1 min
-                                            </span>
+                                            <div className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-center font-black uppercase tracking-widest text-[9px] shadow-sm transition-all active:scale-[0.98] mt-2 group-hover:scale-[1.01]">
+                                                [ Explore Sprints ]
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </button>
-                        )}
+                            );
+                        })()}
 
                         {/* Notifications Setup Card (Pops up permission modal) */}
                         {!isNotificationActive && (
