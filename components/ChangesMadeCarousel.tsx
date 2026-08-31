@@ -211,9 +211,9 @@ export function detectSprintChanges(original: Sprint | null, current: Sprint): S
       });
     }
 
-    // Check Completion Prompt
-    const origComp = normalize(origDay?.completionPrompt);
-    const currComp = normalize(currDay?.completionPrompt);
+    // Check Submission / Completion Prompt
+    const origComp = normalize(origDay?.submissionPrompt);
+    const currComp = normalize(currDay?.submissionPrompt);
     if (origComp !== currComp) {
       const snippet = extractContextSnippet(origComp, currComp);
       items.push({

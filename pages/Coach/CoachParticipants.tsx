@@ -10,7 +10,19 @@ import { chatService } from '../../services/chatService';
 import { notificationService } from '../../services/notificationService';
 import { db } from '../../services/firebase';
 import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
-import { parseStepVersions, formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
+import { 
+    parseStepVersions, 
+    formatInterpolatedText, 
+    resolveTaskHintForUser, 
+    resolveStepVersionIndex, 
+    getStepVersionValue, 
+    getStepInputType, 
+    getStepPollOptions, 
+    getAllStepPollOptions, 
+    isStepOrSubStepPoll, 
+    parsePollLinkInfo, 
+    parseDualInputState 
+} from '../../src/utils/stepPlaceholderUtils';
 import FormattedText from '../../components/FormattedText';
 import { 
     Flame, Sparkles, BookOpen, Trophy, Eye, Heart, MessageSquare, 
@@ -48,6 +60,220 @@ export const CoachParticipants: React.FC = () => {
     const [viewingSubmission, setViewingSubmission] = useState<{enrollment: ExtendedEnrollment, day: number} | null>(null);
     const [activeDayContent, setActiveDayContent] = useState<DailyContent | null>(null);
     const [isDayContentLoading, setIsDayContentLoading] = useState<boolean>(false);
+    const [revealedHints, setRevealedHints] = useState<{ [key: number]: boolean }>({});
+
+    // Helper functions for dynamic step reconstruction matching SprintView
+    const parseAnswerValues = (val: any, srcType: string): string[] => {
+        if (!val) return [];
+        const res: string[] = [];
+        if (typeof val === 'string') {
+            const trimmed = val.trim();
+            if (!trimmed) return [];
+            if (trimmed.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                        return parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                    }
+                } catch (e) {}
+            }
+            if (trimmed.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (parsed && typeof parsed === 'object') {
+                        if (typeof parsed.choice === 'string' && parsed.choice) res.push(parsed.choice.trim());
+                        if (Array.isArray(parsed.choices)) res.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+                        if (Array.isArray(parsed.selectedChoices)) res.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+                        if (typeof parsed.text === 'string' && parsed.text && res.length === 0) res.push(parsed.text.trim());
+                        if (typeof parsed.answer === 'string' && parsed.answer && res.length === 0) res.push(parsed.answer.trim());
+                        if (res.length > 0) return Array.from(new Set(res));
+                        return Object.values(parsed).map((s: any) => String(s).trim()).filter(Boolean);
+                    }
+                } catch (e) {}
+            }
+            if (srcType === 'tags' || srcType.includes('tags')) {
+                return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+            }
+            return [trimmed];
+        }
+        if (Array.isArray(val)) {
+            return val.map((s: any) => String(s).trim()).filter(Boolean);
+        }
+        return [];
+    };
+
+    const getLinkedTagsForStep = (
+        stepIndex: number, 
+        dayContent: any, 
+        taskInputs: string[], 
+        dailyContent: any, 
+        progressList: any
+    ): string[] => {
+        if (!dayContent) return [];
+        const allTags: string[] = [];
+
+        // 1. Check if taskLinkedSources has explicit links
+        if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
+            const sources = dayContent.taskLinkedSources[stepIndex];
+            sources.forEach((srcIndex: any) => {
+                if (typeof srcIndex !== 'number') return;
+                if (srcIndex >= 0) {
+                    const rawSrcType = dayContent.taskInputTypes?.[srcIndex];
+                    const srcType = getStepInputType(dayContent, srcIndex, taskInputs, dailyContent, progressList);
+                    if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
+                        const val = (taskInputs && taskInputs[srcIndex]) || progressList?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[srcIndex];
+                        if (val) {
+                            allTags.push(...parseAnswerValues(val, srcType));
+                        } else {
+                            const configuredOpts = getAllStepPollOptions(dayContent, srcIndex, taskInputs, dailyContent, progressList);
+                            if (configuredOpts.length > 0) {
+                                allTags.push(...configuredOpts);
+                            }
+                        }
+                    }
+                } else {
+                    // Cross-day link
+                    const absVal = Math.abs(srcIndex);
+                    const targetDay = Math.floor(absVal / 100);
+                    const targetStepIdx = absVal % 100;
+                    
+                    const targetProgress = progressList?.find((p: any) => Number(p.day) === targetDay);
+                    const targetDayContent = Array.isArray(dailyContent)
+                        ? dailyContent.find((dc: any) => Number(dc.day) === targetDay)
+                        : undefined;
+                        
+                    if (targetDayContent) {
+                        const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
+                        const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                        if (isStepOrSubStepPoll(rawTargetType) || targetType === "poll" || targetType === "tags" || targetType.includes("tags") || targetType === "dual") {
+                            const val = targetProgress?.answers?.[targetStepIdx];
+                            if (val) {
+                                allTags.push(...parseAnswerValues(val, targetType));
+                            } else {
+                                const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                                if (configuredOpts.length > 0) {
+                                    allTags.push(...configuredOpts);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            if (allTags.length > 0) {
+                return Array.from(new Set(allTags)).filter(Boolean);
+            }
+        }
+
+        // 2. Check taskPollOptionLinks (e.g. "Step 2" or "step1:poll 1")
+        const pollLinkRaw = dayContent.taskPollOptionLinks?.[stepIndex];
+        if (pollLinkRaw) {
+            const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
+            if (pollLinkInfo && pollLinkInfo.targetPollIdx >= 0) {
+                const tIdx = pollLinkInfo.targetPollIdx;
+                const rawSrcType = dayContent.taskInputTypes?.[tIdx];
+                const srcType = getStepInputType(dayContent, tIdx, taskInputs, dailyContent, progressList);
+                const val = (taskInputs && taskInputs[tIdx]) || progressList?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[tIdx];
+                if (val) {
+                    allTags.push(...parseAnswerValues(val, srcType));
+                } else {
+                    const configuredOpts = getAllStepPollOptions(dayContent, tIdx, taskInputs, dailyContent, progressList);
+                    if (configuredOpts.length > 0) {
+                        if (pollLinkInfo.optNum !== undefined && configuredOpts[pollLinkInfo.optNum - 1]) {
+                            allTags.push(configuredOpts[pollLinkInfo.optNum - 1]);
+                        } else {
+                            allTags.push(...configuredOpts);
+                        }
+                    }
+                }
+                if (allTags.length > 0) {
+                    return Array.from(new Set(allTags)).filter(Boolean);
+                }
+            }
+        }
+
+        // 3. Check taskLinkedToNext
+        if (stepIndex > 0 && dayContent.taskLinkedToNext?.[stepIndex - 1] === true) {
+            const prevIdx = stepIndex - 1;
+            const rawSrcType = dayContent.taskInputTypes?.[prevIdx];
+            const srcType = getStepInputType(dayContent, prevIdx, taskInputs, dailyContent, progressList);
+            if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
+                const val = (taskInputs && taskInputs[prevIdx]) || progressList?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[prevIdx];
+                if (val) {
+                    allTags.push(...parseAnswerValues(val, srcType));
+                } else {
+                    const configuredOpts = getAllStepPollOptions(dayContent, prevIdx, taskInputs, dailyContent, progressList);
+                    if (configuredOpts.length > 0) {
+                        allTags.push(...configuredOpts);
+                    }
+                }
+                if (allTags.length > 0) {
+                    return Array.from(new Set(allTags)).filter(Boolean);
+                }
+            }
+        }
+
+        // 4. Check explicit placeholders configured directly inside taskPollOptions (e.g. "{Step 2}")
+        const pollOptsRaw = dayContent.taskPollOptions?.[stepIndex];
+        if (typeof pollOptsRaw === 'string' && /\{[^{}]+\}/.test(pollOptsRaw)) {
+            const currentDay = Number(dayContent.day || 1);
+            const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+            let match: RegExpExecArray | null;
+            let lastStepNum = 1;
+            while ((match = regex.exec(pollOptsRaw)) !== null) {
+                const dNum = match[1] ? parseInt(match[1], 10) : currentDay;
+                const sNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
+                if (match[2]) lastStepNum = sNum;
+                const targetStepIdx = sNum - 1;
+                
+                if (dNum === currentDay) {
+                    const rawSrcType = dayContent.taskInputTypes?.[targetStepIdx];
+                    const srcType = getStepInputType(dayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                    const val = (taskInputs && taskInputs[targetStepIdx]) || progressList?.find((p: any) => Number(p.day) === dNum)?.answers?.[targetStepIdx];
+                    if (val) {
+                        allTags.push(...parseAnswerValues(val, srcType));
+                    } else {
+                        const configuredOpts = getAllStepPollOptions(dayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                        if (configuredOpts.length > 0) {
+                            allTags.push(...configuredOpts);
+                        }
+                    }
+                } else {
+                    const targetProgress = progressList?.find((p: any) => Number(p.day) === dNum);
+                    const targetDayContent = Array.isArray(dailyContent)
+                        ? dailyContent.find((dc: any) => Number(dc.day) === dNum)
+                        : undefined;
+                    if (targetDayContent) {
+                        const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
+                        const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                        const val = targetProgress?.answers?.[targetStepIdx];
+                        if (val) {
+                            allTags.push(...parseAnswerValues(val, targetType));
+                        } else {
+                            const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                            if (configuredOpts.length > 0) {
+                                allTags.push(...configuredOpts);
+                            }
+                        }
+                    }
+                }
+            }
+            if (allTags.length > 0) {
+                return Array.from(new Set(allTags)).filter(Boolean);
+            }
+        }
+
+        return [];
+    };
+
+    const isMultiTextStep = (stepIndex: number, dayContent: any): boolean => {
+        if (!dayContent) return false;
+        const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
+        const isText = type === "text" || type === "" || type === "undefined";
+        const labels = Array.isArray(dayContent.taskMultiTextLabels?.[stepIndex])
+            ? dayContent.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim().length > 0)
+            : [];
+        return isText && labels.length > 0;
+    };
     
     // Experience interaction tracking modal (for Ignite, Riseblog, Challenge)
     const [viewingExperienceTracker, setViewingExperienceTracker] = useState<Sprint | null>(null);
@@ -555,7 +781,7 @@ export const CoachParticipants: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* 2. Today's Moves (Participant's Submitted Responses) */}
+                        {/* 2. Today's Moves (Participant's Submitted Responses - SprintView UI Parity) */}
                         <div className="space-y-6">
                             <div className="flex items-center gap-2 px-1">
                                 <div className="w-2 h-2 rounded-full bg-[#0E7850]"></div>
@@ -568,6 +794,8 @@ export const CoachParticipants: React.FC = () => {
                                 const progressObj = viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day);
                                 const sub = progressObj?.submission;
                                 const contentData = activeDayContent || viewingSubmission.enrollment.sprint.dailyContent?.find(c => c.day === viewingSubmission.day);
+                                const sprintDailyContent = viewingSubmission.enrollment.sprint.dailyContent;
+                                const progressList = viewingSubmission.enrollment.progress;
                                 
                                 let candidatePrompts: string[] = [];
                                 if (Array.isArray(contentData?.taskPrompts) && contentData.taskPrompts.some(p => p && typeof p === 'string' && p.trim().length > 0)) {
@@ -578,8 +806,7 @@ export const CoachParticipants: React.FC = () => {
                                     candidatePrompts = (progressObj as any).taskPrompts;
                                 }
 
-                                const answers = progressObj?.answers || (typeof sub === 'string' ? sub.split(' | ') : []);
-                                const inputTypes = contentData?.taskInputTypes || [];
+                                const answers: string[] = progressObj?.answers || (typeof sub === 'string' ? sub.split(' | ') : []);
                                 const totalCount = Math.max(answers.length, candidatePrompts.length, 1);
 
                                 if (!progressObj?.completed && answers.length === 0 && !sub) {
@@ -595,90 +822,360 @@ export const CoachParticipants: React.FC = () => {
                                 return (
                                     <div className="space-y-6">
                                         {Array.from({ length: totalCount }).map((_, idx) => {
-                                            let rawPrompt = candidatePrompts[idx] || (idx === 0 && contentData?.taskPrompt ? contentData.taskPrompt : `Move ${viewingSubmission.day} Question ${idx + 1}`);
+                                            const stepVerIdx = resolveStepVersionIndex(idx, contentData, answers, sprintDailyContent, progressList);
+                                            const rawPrompt = candidatePrompts[idx] || (idx === 0 && contentData?.taskPrompt ? contentData.taskPrompt : `Move ${viewingSubmission.day} Question ${idx + 1}`);
+                                            const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
                                             
-                                            if (rawPrompt && typeof rawPrompt === 'string' && rawPrompt.includes('|') && rawPrompt.startsWith('[') && rawPrompt.endsWith(']')) {
-                                                const versions = parseStepVersions(rawPrompt);
-                                                rawPrompt = versions[0] || rawPrompt;
-                                            }
-
-                                            let formattedPrompt = rawPrompt;
+                                            let formattedPrompt = effectivePrompt;
                                             try {
                                                 formattedPrompt = formatInterpolatedText(
-                                                    rawPrompt,
+                                                    effectivePrompt,
                                                     contentData,
                                                     answers,
-                                                    viewingSubmission.enrollment.sprint.dailyContent,
-                                                    viewingSubmission.enrollment.progress
+                                                    sprintDailyContent,
+                                                    progressList
                                                 );
                                             } catch (e) {
-                                                formattedPrompt = rawPrompt;
+                                                formattedPrompt = effectivePrompt;
                                             }
 
-                                            const answerVal = answers[idx] !== undefined ? answers[idx] : '';
-                                            const itemType = inputTypes[idx] || 'text';
-                                            const isArrayFormat = typeof answerVal === 'string' && answerVal.trim().startsWith('[') && answerVal.trim().endsWith(']');
-                                            
-                                            let tags: string[] = [];
-                                            let displayAsTags = false;
-                                            if ((itemType === 'tags' || itemType === 'poll' || isArrayFormat) && answerVal) {
-                                                if (isArrayFormat) {
+                                            const footnote = contentData?.taskFootnotes?.[idx];
+                                            const resolvedHint = resolveTaskHintForUser(contentData?.taskHints?.[idx], idx, contentData, answers, sprintDailyContent, progressList);
+                                            const effectiveInputType = getStepInputType(contentData, idx, answers, sprintDailyContent, progressList);
+                                            const customPollOptions = getStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
+                                            const linkedTags = getLinkedTagsForStep(idx, contentData, answers, sprintDailyContent, progressList);
+                                            const effectivePollOptions = Array.from(new Set([...linkedTags, ...customPollOptions])).filter(Boolean);
+                                            const isMultiSelect = Boolean(contentData?.taskPollMultiSelect?.[idx]);
+                                            const isMultiText = isMultiTextStep(idx, contentData);
+
+                                            const answerVal = answers[idx] !== undefined ? String(answers[idx]) : '';
+                                            const isDualMode = Boolean((contentData as any)?.taskInputChoices?.[idx] && (contentData as any)?.taskInputChoices[idx].length > 0) || effectiveInputType === 'dual';
+
+                                            // Parse selected choices for polls / tags / dual
+                                            let selectedPollChoices: string[] = [];
+                                            if (answerVal) {
+                                                if (answerVal.startsWith('[')) {
                                                     try {
-                                                        const parsed = JSON.parse(answerVal);
-                                                        if (Array.isArray(parsed)) {
-                                                            tags = parsed.map(String).filter(Boolean);
-                                                            displayAsTags = true;
-                                                        }
-                                                    } catch (e) {}
-                                                }
-                                                if (!displayAsTags) {
-                                                    tags = [answerVal.trim()].filter(Boolean);
-                                                    displayAsTags = true;
+                                                        const p = JSON.parse(answerVal);
+                                                        if (Array.isArray(p)) selectedPollChoices = p.map(String);
+                                                    } catch (e) {
+                                                        selectedPollChoices = [answerVal];
+                                                    }
+                                                } else if (answerVal.startsWith('{')) {
+                                                    try {
+                                                        const p = JSON.parse(answerVal);
+                                                        if (p.choice) selectedPollChoices = [p.choice];
+                                                        else if (Array.isArray(p.choices)) selectedPollChoices = p.choices.map(String);
+                                                        else if (Array.isArray(p.selectedChoices)) selectedPollChoices = p.selectedChoices.map(String);
+                                                    } catch (e) {
+                                                        selectedPollChoices = [answerVal];
+                                                    }
+                                                } else if (effectiveInputType === 'tags') {
+                                                    selectedPollChoices = answerVal.split(',').map(s => s.trim()).filter(Boolean);
+                                                } else {
+                                                    selectedPollChoices = [answerVal.trim()];
                                                 }
                                             }
 
                                             return (
                                                 <div 
                                                     key={idx} 
-                                                    className="p-6 sm:p-8 bg-[#0E7850]/5 rounded-3xl border border-[#0E7850]/15 space-y-4 relative"
+                                                    className="p-6 sm:p-8 bg-primary/5 rounded-3xl border border-primary/15 space-y-4 relative group text-left shadow-sm"
                                                 >
+                                                    {/* Step Header */}
                                                     <div className="flex items-center justify-between">
-                                                        <span className="px-3 py-1 bg-white text-[#0E7850] text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-100 shadow-sm">
-                                                            Step {idx + 1} of {totalCount}
-                                                        </span>
-                                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                                            {itemType.toUpperCase()}
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2.5 h-2.5 rounded-full bg-[#0E7850]"></div>
+                                                            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gray-500">
+                                                                Action Step {idx + 1}
+                                                            </span>
+                                                        </div>
+                                                        <span className="px-3 py-1 bg-white text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 shadow-sm">
+                                                            {effectiveInputType.toUpperCase()}
                                                         </span>
                                                     </div>
 
-                                                    <h4 className="text-base sm:text-lg font-black text-gray-900 leading-snug">
-                                                        {formattedPrompt}
-                                                    </h4>
+                                                    {/* Prompt with High-Contrast Typography */}
+                                                    <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed">
+                                                        <FormattedText text={formattedPrompt} />
+                                                    </div>
 
+                                                    {/* Footnote */}
+                                                    {footnote && (
+                                                        <div className="text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed">
+                                                            <FormattedText text={formatInterpolatedText(footnote, contentData, answers, sprintDailyContent, progressList)} />
+                                                        </div>
+                                                    )}
+
+                                                    {/* Hint Button & Revealed State */}
+                                                    {resolvedHint && (
+                                                        <div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setRevealedHints(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-extrabold uppercase tracking-widest transition-all cursor-pointer ${
+                                                                    revealedHints[idx] ? "bg-amber-100 text-amber-800 border border-amber-200" : "bg-gray-100 text-gray-500 hover:text-[#0E7850] hover:bg-emerald-50"
+                                                                }`}
+                                                            >
+                                                                <svg
+                                                                    className={`w-3 h-3 transition-transform duration-300 ${revealedHints[idx] ? "rotate-180" : ""}`}
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
+                                                                >
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                <span>Hint</span>
+                                                            </button>
+                                                            {revealedHints[idx] && (
+                                                                <div className="mt-3 p-4 rounded-2xl text-xs sm:text-sm font-medium bg-amber-50/70 border border-amber-200/80 text-amber-950 animate-fade-in leading-relaxed italic">
+                                                                    <FormattedText text={resolvedHint} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Exact Interactive Render of Student's Response State */}
                                                     <div className="pt-2">
-                                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                                                            Student's Response
-                                                        </p>
-                                                        {displayAsTags ? (
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {tags.map((t, tIdx) => (
-                                                                    <span 
-                                                                        key={tIdx}
-                                                                        className="px-3.5 py-1.5 bg-white text-[#0E7850] font-bold text-xs rounded-xl border border-emerald-200 shadow-sm"
-                                                                    >
-                                                                        ✓ {t}
-                                                                    </span>
-                                                                ))}
+                                                        {effectiveInputType === "poll" ? (
+                                                            <div className="space-y-4">
+                                                                {effectivePollOptions.length > 6 ? (
+                                                                    <div className="space-y-2">
+                                                                        <p className="text-[10px] font-black uppercase text-[#0E7850] tracking-widest pl-1">
+                                                                            {isMultiSelect ? "☑️ Poll Multi-Select State:" : "🔘 Selected Poll Option:"}
+                                                                        </p>
+                                                                        <div className="flex flex-wrap gap-2 w-full">
+                                                                            {effectivePollOptions.map((opt, optIndex) => {
+                                                                                const isSelected = selectedPollChoices.some(s => s.trim().toLowerCase() === opt.trim().toLowerCase());
+                                                                                return (
+                                                                                    <div
+                                                                                        key={optIndex}
+                                                                                        className={`px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
+                                                                                            isSelected
+                                                                                                ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md flex items-center gap-1.5"
+                                                                                                : "bg-white border-gray-200 text-gray-400 opacity-60"
+                                                                                        }`}
+                                                                                    >
+                                                                                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                                                                                        <span>{opt}</span>
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-2.5">
+                                                                        {effectivePollOptions.map((opt, optIndex) => {
+                                                                            const isSelected = selectedPollChoices.some(s => s.trim().toLowerCase() === opt.trim().toLowerCase());
+                                                                            return (
+                                                                                <div
+                                                                                    key={optIndex}
+                                                                                    className={`p-3.5 sm:p-4 rounded-xl border flex items-center justify-between text-left transition-all ${
+                                                                                        isSelected
+                                                                                            ? "bg-primary/10 border-primary text-[#0E7850] font-bold shadow-sm"
+                                                                                            : "bg-white border-gray-200 text-gray-600 opacity-70 font-medium"
+                                                                                    }`}
+                                                                                >
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                                                                            isSelected ? "bg-[#0E7850] text-white" : "bg-gray-100 text-gray-500"
+                                                                                        }`}>
+                                                                                            {String.fromCharCode(65 + optIndex)}
+                                                                                        </span>
+                                                                                        <span className="text-sm">{opt}</span>
+                                                                                    </div>
+                                                                                    {isSelected && (
+                                                                                        <span className="px-2.5 py-0.5 bg-[#0E7850] text-white rounded-md text-[10px] font-black uppercase tracking-wider">
+                                                                                            Selected
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : effectiveInputType === "tags" ? (
+                                                            <div className="space-y-3">
+                                                                {linkedTags.length > 0 && (
+                                                                    <div className="space-y-1.5">
+                                                                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
+                                                                            Connected Choices:
+                                                                        </p>
+                                                                        <div className="flex flex-wrap gap-2">
+                                                                            {linkedTags.map((tag, tIndex) => {
+                                                                                const isSel = selectedPollChoices.includes(tag);
+                                                                                return (
+                                                                                    <span 
+                                                                                        key={tIndex}
+                                                                                        className={`px-3 py-1 text-xs font-bold rounded-xl border ${
+                                                                                            isSel ? "bg-[#0E7850] text-white border-[#0E7850] shadow-sm" : "bg-white text-gray-500 border-gray-200"
+                                                                                        }`}
+                                                                                    >
+                                                                                        {isSel ? `✓ ${tag}` : tag}
+                                                                                    </span>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                <div className="space-y-1.5">
+                                                                    <p className="text-[10px] font-black uppercase text-[#0E7850] tracking-widest pl-1">
+                                                                        Student Tag Selections:
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        {selectedPollChoices.length > 0 ? (
+                                                                            selectedPollChoices.map((t, tIdx) => (
+                                                                                <span 
+                                                                                    key={tIdx}
+                                                                                    className="px-3.5 py-1.5 bg-[#0E7850] text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5"
+                                                                                >
+                                                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                                    <span>{t}</span>
+                                                                                </span>
+                                                                            ))
+                                                                        ) : (
+                                                                            <span className="text-xs text-gray-400 italic">No tags selected</span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ) : effectiveInputType === "mark" ? (
+                                                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-between">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-9 h-9 rounded-full bg-[#0E7850] text-white flex items-center justify-center shrink-0">
+                                                                        <CheckCircle2 className="w-5 h-5" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-xs font-black text-emerald-900 uppercase tracking-wider">Completed & Verified!</p>
+                                                                        <p className="text-xs text-emerald-700 font-semibold">Participant completed and verified this action step.</p>
+                                                                    </div>
+                                                                </div>
+                                                                <span className="px-3 py-1 bg-[#0E7850] text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-sm">
+                                                                    DONE
+                                                                </span>
+                                                            </div>
+                                                        ) : effectiveInputType === "note" ? (
+                                                            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/15 flex items-center gap-3">
+                                                                <div className="w-9 h-9 rounded-full bg-[#0E7850] text-white flex items-center justify-center shrink-0">
+                                                                    <CheckCircle2 className="w-5 h-5" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-xs font-black text-emerald-900 uppercase tracking-wider">Informational Step Completed</p>
+                                                                    <p className="text-xs text-emerald-700 font-semibold">Reviewed and acknowledged by participant.</p>
+                                                                </div>
+                                                            </div>
+                                                        ) : isMultiText && answerVal.startsWith('{') ? (
+                                                            <div className="space-y-3">
+                                                                {(() => {
+                                                                    try {
+                                                                        const parsed = JSON.parse(answerVal);
+                                                                        return Object.entries(parsed).map(([lbl, ans], pIdx) => (
+                                                                            <div key={pIdx} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-1.5">
+                                                                                <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-black bg-primary/10 text-[#0E7850] uppercase tracking-wider rounded-md">
+                                                                                    📝 {lbl}
+                                                                                </span>
+                                                                                <p className="text-gray-800 font-medium text-sm sm:text-base leading-relaxed pl-1 whitespace-pre-wrap">
+                                                                                    {String(ans) || <span className="text-gray-400 italic">No entry</span>}
+                                                                                </p>
+                                                                            </div>
+                                                                        ));
+                                                                    } catch (e) {
+                                                                        return (
+                                                                            <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-800 text-sm">
+                                                                                {answerVal}
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                })()}
+                                                            </div>
+                                                        ) : isDualMode && answerVal.startsWith('{') ? (
+                                                            <div className="space-y-3">
+                                                                {(() => {
+                                                                    const dualState = parseDualInputState(answerVal);
+                                                                    return (
+                                                                        <>
+                                                                            {dualState.choice && (
+                                                                                <div className="space-y-1">
+                                                                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Selected Focus:</p>
+                                                                                    <span className="inline-flex items-center px-3.5 py-1.5 bg-[#0E7850] text-white font-bold text-xs rounded-xl shadow-sm">
+                                                                                        ✓ {dualState.choice}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                            {dualState.text && (
+                                                                                <div className="space-y-1">
+                                                                                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">Participant Note / Reflection:</p>
+                                                                                    <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-900 font-medium text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                                                                                        {dualState.text}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         ) : (
-                                                            <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-900 font-medium text-sm whitespace-pre-wrap leading-relaxed">
+                                                            <div className="p-4 sm:p-5 bg-white rounded-2xl border border-gray-100 shadow-sm text-gray-900 font-medium text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
                                                                 {answerVal || <span className="text-gray-400 italic">No response written</span>}
                                                             </div>
                                                         )}
                                                     </div>
+
+                                                    {/* Response Confirmation Pill Banner (Matching SprintView line 3891) */}
+                                                    {progressObj?.completed && (
+                                                        <div className="px-4 py-3 bg-white/80 border border-[#0E7850]/20 rounded-xl text-xs sm:text-sm font-bold text-[#0E7850] italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                                                            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#0E7850]" />
+                                                            {selectedPollChoices.length > 0 ? (
+                                                                <div className="flex flex-wrap gap-1.5 items-center">
+                                                                    {selectedPollChoices.map((c, cIdx) => (
+                                                                        <span key={cIdx} className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-[#0E7850]/10 text-[#0E7850] uppercase tracking-wider rounded-md">
+                                                                            {c}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <span>{answerVal || "Completed"}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
+
+                                        {/* Move Completion Summary and Bridge Note (Matching SprintView) */}
+                                        {progressObj?.completed && (
+                                            <div className="space-y-4 pt-2">
+                                                <div className="w-full py-4 bg-emerald-50 text-[#0E7850] rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center border border-emerald-100 flex items-center justify-center gap-2">
+                                                    <CheckCircle2 className="w-4 h-4 text-[#0E7850]" />
+                                                    <span>Move {viewingSubmission.day} Mission Complete</span>
+                                                </div>
+
+                                                {/* Confirmed Outcome / Proof Selection */}
+                                                {progressObj?.proofSelection && (
+                                                    <div className="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-2">
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                                            Confirmed Outcome
+                                                        </p>
+                                                        <p className="text-gray-900 font-bold text-sm">
+                                                            {progressObj.proofSelection}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                {/* Bridge Note */}
+                                                {contentData?.bridgeNote && (
+                                                    <div className="p-5 bg-[#0E7850]/5 rounded-3xl border border-[#0E7850]/15 space-y-2">
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0E7850]">
+                                                            Bridge Note
+                                                        </p>
+                                                        <div className="text-gray-700 font-medium text-sm leading-relaxed">
+                                                            <FormattedText text={formatInterpolatedText(contentData.bridgeNote, contentData, answers, sprintDailyContent, progressList)} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })()}

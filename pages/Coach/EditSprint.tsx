@@ -18,6 +18,7 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
+import { ChangesMadeCarousel } from '../../components/ChangesMadeCarousel';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
 import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
@@ -2786,6 +2787,15 @@ const EditSprint: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Changes Made Diff Carousel for Previous Versions / Auditing */}
+          <ChangesMadeCarousel
+            originalSprint={originalSprint}
+            currentSprint={sprint}
+            selectedDay={selectedDay}
+            onSelectDay={(day) => handleSelectDay(day)}
+            className="mb-6"
+          />
 
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-6">
             <div className="flex items-center justify-between mb-6 px-1">
