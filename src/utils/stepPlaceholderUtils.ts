@@ -737,11 +737,18 @@ export function validateStepPlaceholders(
     if (ref.opNum !== undefined) {
       const targetVersions = parseStepVersions(targetType);
       const isTargetPoll = targetVersions.some(v => v && v.toLowerCase() === 'poll') || targetType === 'poll';
-      if (targetType && !isTargetPoll) {
+      let hasMultiText = false;
+      if (allDaysContent && Array.isArray(allDaysContent)) {
+        const foundDC = allDaysContent.find(d => d && Number(d.day) === targetDay);
+        if (foundDC?.taskMultiTextLabels?.[targetStepIndex] && foundDC.taskMultiTextLabels[targetStepIndex].length > 0) {
+          hasMultiText = true;
+        }
+      }
+      if (targetType && !isTargetPoll && !hasMultiText) {
         invalidStepRefs.push(ref.stepNum);
         invalidStepLabels.push(ref.rawLabel);
         if (!invalidReason) {
-          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Option syntax (Op${ref.opNum}) can only be used on 'poll' steps. Target step is '${targetType}'.`;
+          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Option syntax (Op${ref.opNum}) can only be used on 'poll' or multi-text steps. Target step is '${targetType}'.`;
         }
         continue;
       }
@@ -1598,6 +1605,46 @@ export function formatInterpolatedText(
       }
 
       const optIndex = opNum - 1;
+      const targetMultiLabels = Array.isArray(activeDC?.taskMultiTextLabels?.[activeStepIndex])
+        ? activeDC.taskMultiTextLabels[activeStepIndex].filter((l: any) => l && String(l).trim())
+        : [];
+
+      if (targetMultiLabels.length > 0) {
+        const val = getTargetInputValue(targetDay, activeStepIndex);
+        let multiValText = '';
+        if (val !== undefined && val !== null && typeof val === 'string' && val.trim()) {
+          try {
+            if (val.trim().startsWith('{')) {
+              const parsed = JSON.parse(val);
+              const label = targetMultiLabels[optIndex];
+              if (label && parsed[label] !== undefined && String(parsed[label]).trim()) {
+                multiValText = `"${String(parsed[label]).trim()}"`;
+              } else {
+                const vals = Object.values(parsed);
+                if (vals[optIndex] !== undefined && String(vals[optIndex]).trim()) {
+                  multiValText = `"${String(vals[optIndex]).trim()}"`;
+                }
+              }
+            } else if (val.trim().startsWith('[')) {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed) && parsed[optIndex] !== undefined && String(parsed[optIndex]).trim()) {
+                multiValText = `"${String(parsed[optIndex]).trim()}"`;
+              }
+            } else if (optIndex === 0) {
+              multiValText = `"${val.trim()}"`;
+            }
+          } catch (e) {
+            if (optIndex === 0) multiValText = `"${val.trim()}"`;
+          }
+        }
+        if (multiValText) {
+          return formatOutput([multiValText]);
+        }
+        if (targetMultiLabels[optIndex]) {
+          return formatOutput([`"${targetMultiLabels[optIndex]}"`]);
+        }
+      }
+
       const writtenOpts = getWrittenPollOptions(activeDC, activeStepIndex);
 
       let optionHintText = '';
@@ -1681,10 +1728,45 @@ export function formatInterpolatedText(
     // CASE 2: General Step Reference e.g. {M1 Step 3} or {Step 6}
     let items: string[] = [];
 
+    // Check if target step is a multi-text step
+    const targetMultiLabels = Array.isArray(targetDC?.taskMultiTextLabels?.[stepIndex])
+      ? targetDC.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim())
+      : [];
+
     // Normal placeholders: return the target step's direct value (or its configured poll options)
     let val = getTargetInputValue(targetDay, stepIndex);
 
-      if (val !== undefined && val !== null) {
+      if (targetMultiLabels.length > 0) {
+        if (val !== undefined && val !== null && typeof val === 'string' && val.trim()) {
+          try {
+            if (val.trim().startsWith('{')) {
+              const parsed = JSON.parse(val);
+              const formattedMulti: string[] = [];
+              targetMultiLabels.forEach((lbl: string, idx: number) => {
+                const ans = parsed[lbl] !== undefined ? parsed[lbl] : Object.values(parsed)[idx];
+                if (ans !== undefined && String(ans).trim()) {
+                  formattedMulti.push(`Op${idx + 1}: "${String(ans).trim()}"`);
+                }
+              });
+              if (formattedMulti.length > 0) {
+                items = formattedMulti;
+              }
+            } else if (val.trim().startsWith('[')) {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                items = parsed.map((item: any, idx: number) => `Op${idx + 1}: "${String(item).trim()}"`).filter(Boolean);
+              }
+            } else {
+              items = [`Op1: "${val.trim()}"`];
+            }
+          } catch (e) {
+            items = [`Op1: "${val.trim()}"`];
+          }
+        }
+        if (items.length === 0) {
+          items = targetMultiLabels.map((lbl: string, idx: number) => `Op${idx + 1}: "${lbl}"`);
+        }
+      } else if (val !== undefined && val !== null) {
         if (typeof val === 'boolean') {
           if (val) items = ['Completed'];
         } else if (typeof val === 'string' && val.trim()) {

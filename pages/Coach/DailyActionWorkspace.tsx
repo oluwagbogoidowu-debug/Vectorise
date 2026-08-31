@@ -103,6 +103,7 @@ export default function DailyActionWorkspace({
     const safeTagNotes = Array.isArray((content as any).taskTagNotes) ? (content as any).taskTagNotes : [];
     const safeFootnotes = Array.isArray((content as any).taskFootnotes) ? (content as any).taskFootnotes : [];
     const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect) ? (content as any).taskPollMultiSelect : [];
+    const safePollArrange = Array.isArray((content as any).taskPollArrange) ? (content as any).taskPollArrange : [];
     const safeMultiTextLabels = Array.isArray((content as any).taskMultiTextLabels) ? (content as any).taskMultiTextLabels : [];
 
     return {
@@ -113,6 +114,7 @@ export default function DailyActionWorkspace({
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
         taskPollMultiSelect: safePollMultiSelect,
+        taskPollArrange: safePollArrange,
         taskMultiTextLabels: safeMultiTextLabels
     } as any;
   };
@@ -261,6 +263,7 @@ export default function DailyActionWorkspace({
         (dayContent as any).taskTags = reorderArr((dayContent as any).taskTags);
       }
       dayContent.taskPollMultiSelect = reorderArr(dayContent.taskPollMultiSelect);
+      dayContent.taskPollArrange = reorderArr(dayContent.taskPollArrange);
       dayContent.taskSpread = reorderArr(dayContent.taskSpread);
       dayContent.taskLinkedToNext = reorderArr(dayContent.taskLinkedToNext);
       dayContent.taskLinkedSources = reorderArr(dayContent.taskLinkedSources);
@@ -435,6 +438,14 @@ export default function DailyActionWorkspace({
     while (multi.length <= index) multi.push(false);
     multi[index] = !multi[index];
     updateFieldForDay(dayNum, 'taskPollMultiSelect', multi);
+  };
+
+  const handleTogglePollArrange = (dayNum: number, index: number) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const arrange = [...(dayContent.taskPollArrange || [])];
+    while (arrange.length <= index) arrange.push(false);
+    arrange[index] = !arrange[index];
+    updateFieldForDay(dayNum, 'taskPollArrange', arrange);
   };
 
   const handleToggleSpread = (dayNum: number, index: number) => {
@@ -1431,6 +1442,28 @@ export default function DailyActionWorkspace({
                                   )}
                                 </button>
                               )}
+                              {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleTogglePollArrange(dayNum, activeIdx);
+                                  }}
+                                  title={dayContent.taskPollArrange?.[activeIdx] ? "Arrange Poll Active: In Sprint View, participants drag options up/down to reposition and rank them. Click to disable." : "Arrange Poll: In Sprint View, participants drag options up/down to reposition and rank them."}
+                                  className={`p-1 rounded-md transition-all flex items-center justify-center ${dayContent.taskPollArrange?.[activeIdx] ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
+                                >
+                                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="7 15 12 20 17 15" />
+                                    <polyline points="7 9 12 4 17 9" />
+                                    <line x1="12" y1="4" x2="12" y2="20" />
+                                  </svg>
+                                  {dayContent.taskPollArrange?.[activeIdx] && (
+                                    <span className="ml-0.5 text-[9px] font-black bg-indigo-800 text-white rounded-full px-1 min-w-[12px]">
+                                      ✓
+                                    </span>
+                                  )}
+                                </button>
+                              )}
                             </div>
                           );
                         })()}
@@ -2108,18 +2141,33 @@ export default function DailyActionWorkspace({
                           </div>
                         )}
 
-                        <div className="flex items-center gap-2 mb-2 bg-white p-2 rounded-xl border border-gray-100 shadow-2xs">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedDay(dayNum);
-                              handleTogglePollMultiSelect(dayNum, activeIdx);
-                            }}
-                            className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollMultiSelect?.[activeIdx] ? 'bg-purple-650 justify-end' : 'bg-gray-200 justify-start'}`}
-                          >
-                            <span className="w-3 h-3 rounded-full bg-white shadow-xs" />
-                          </button>
-                          <span className="text-[10px] font-bold text-gray-750 select-none">Multi-Select</span>
+                        <div className="flex items-center gap-4 mb-2 bg-white p-2 rounded-xl border border-gray-100 shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                handleTogglePollMultiSelect(dayNum, activeIdx);
+                              }}
+                              className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollMultiSelect?.[activeIdx] ? 'bg-purple-650 justify-end' : 'bg-gray-200 justify-start'}`}
+                            >
+                              <span className="w-3 h-3 rounded-full bg-white shadow-xs" />
+                            </button>
+                            <span className="text-[10px] font-bold text-gray-750 select-none">Multi-Select</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                handleTogglePollArrange(dayNum, activeIdx);
+                              }}
+                              className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollArrange?.[activeIdx] ? 'bg-indigo-600 justify-end' : 'bg-gray-200 justify-start'}`}
+                            >
+                              <span className="w-3 h-3 rounded-full bg-white shadow-xs" />
+                            </button>
+                            <span className="text-[10px] font-bold text-gray-750 select-none">Arrange</span>
+                          </div>
                         </div>
 
                         <div className="space-y-1.5">

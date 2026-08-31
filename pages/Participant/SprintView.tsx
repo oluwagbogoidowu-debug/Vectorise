@@ -29,6 +29,7 @@ import SprintCompletionModal from "../../components/SprintCompletionModal";
 import PushPermissionModal from "../../components/PushPermissionModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import ActionStepConfirmModal from "../../components/ActionStepConfirmModal";
+import { ArrangePollOptions } from "../../src/components/ArrangePollOptions";
 import { Participant } from "../../types";
 import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, getSoundSettings, setSoundSettings } from "../../utils/haptics";
 
@@ -3619,8 +3620,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       const linkedTags = getLinkedTagsForStep(i);
                                       pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
 
-                                      // MULTI-SELECT SUPPORTED
+                                      // MULTI-SELECT & ARRANGE SUPPORTED
                                       const isMultiSelect = !!dayContent.taskPollMultiSelect?.[i];
+                                      const isArrange = !!dayContent.taskPollArrange?.[i];
+
+                                      if (isArrange) {
+                                        return (
+                                          <ArrangePollOptions
+                                            options={pollOptions}
+                                            value={taskInputs[i] || ""}
+                                            onChange={(newVal) => {
+                                              const newInputs = [...taskInputs];
+                                              newInputs[i] = newVal;
+                                              setTaskInputs(newInputs);
+                                            }}
+                                            isFullBleed={isFullBleed}
+                                          />
+                                        );
+                                      }
+
                                       let selectedOpts: string[] = [];
                                       try {
                                         if (taskInputs[i] && taskInputs[i].startsWith("[")) {
@@ -3902,7 +3920,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       clipRule="evenodd"
                                     />
                                   </svg>
-                                  {dayContent.taskInputTypes?.[i] === "tags" || dayContent.taskInputTypes?.[i] === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]"))
+                                  {dayContent.taskPollArrange?.[i] && taskInputs[i]?.startsWith("[") ? (
+                                    <div className="flex flex-col gap-1.5 w-full text-left">
+                                      {(() => {
+                                        try {
+                                          const arr = JSON.parse(taskInputs[i]);
+                                          return arr.map((item: string, rIdx: number) => (
+                                            <div key={rIdx} className="flex items-center gap-2">
+                                              <span className={`w-5 h-5 rounded-md flex items-center justify-center font-black text-[10px] ${rIdx === 0 ? 'bg-primary text-white' : 'bg-gray-150 text-gray-700'}`}>
+                                                #{rIdx + 1}
+                                              </span>
+                                              <span className="text-gray-800 font-semibold">{item}</span>
+                                            </div>
+                                          ));
+                                        } catch (e) {
+                                          return <span>{taskInputs[i]}</span>;
+                                        }
+                                      })()}
+                                    </div>
+                                  ) : dayContent.taskInputTypes?.[i] === "tags" || dayContent.taskInputTypes?.[i] === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]"))
                                     ? (() => {
                                         let tags: string[] = [];
                                         const cleanVal = taskInputs[i] ? taskInputs[i].trim() : "";
@@ -4258,6 +4294,23 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   );
                                 } catch (e) {}
                                 const isMultiSelect = !!dayContent?.taskPollMultiSelect?.[0];
+                                const isArrange = !!dayContent?.taskPollArrange?.[0];
+
+                                if (isArrange) {
+                                  return (
+                                    <ArrangePollOptions
+                                      options={pollOpts}
+                                      value={taskInputs[0] || ""}
+                                      onChange={(newVal) => {
+                                        const newInputs = [...taskInputs];
+                                        newInputs[0] = newVal;
+                                        setTaskInputs(newInputs);
+                                      }}
+                                      isFullBleed={isFullBleed}
+                                    />
+                                  );
+                                }
+
                                 let selectedOpts: string[] = [];
                                 try {
                                   if (taskInputs[0] && taskInputs[0].startsWith("[")) {

@@ -391,6 +391,7 @@ export interface DailyContent {
   taskTagNoteActive?: boolean[];
   taskFootnotes?: string[];
   taskPollMultiSelect?: boolean[];
+  taskPollArrange?: boolean[];
   taskSpread?: boolean[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;

@@ -805,6 +805,10 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskPollMultiSelect
       : [];
 
+    const safePollArrange = Array.isArray((content as any).taskPollArrange)
+      ? (content as any).taskPollArrange
+      : [];
+
     const safeSpread = Array.isArray((content as any).taskSpread)
       ? (content as any).taskSpread
       : [];
@@ -851,6 +855,7 @@ const EditSprint: React.FC = () => {
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
         taskPollMultiSelect: safePollMultiSelect,
+        taskPollArrange: safePollArrange,
         taskSpread: safeSpread,
         taskMultiTextLabels: safeMultiTextLabels
     };
@@ -1544,6 +1549,31 @@ const EditSprint: React.FC = () => {
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
             taskPollMultiSelect: currentMultiSelect
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTogglePollArrange = (index: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentArrange = Array.isArray(updatedDailyContent[existingContentIndex].taskPollArrange)
+            ? [...(updatedDailyContent[existingContentIndex].taskPollArrange || [])]
+            : [];
+        
+        while (currentArrange.length <= index) {
+            currentArrange.push(false);
+        }
+        currentArrange[index] = !currentArrange[index];
+        
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskPollArrange: currentArrange
         };
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -3643,6 +3673,25 @@ const EditSprint: React.FC = () => {
                                                                             )}
                                                                         </button>
                                                                     )}
+                                                                    {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => handleTogglePollArrange(index)}
+                                                                            title={currentContent.taskPollArrange?.[index] ? "Arrange Poll Active: In Sprint View, participants drag options up/down to reposition and rank them. Click to disable." : "Arrange Poll: In Sprint View, participants drag options up/down to reposition and rank them."}
+                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskPollArrange?.[index] ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                        >
+                                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <polyline points="7 15 12 20 17 15" />
+                                                                                <polyline points="7 9 12 4 17 9" />
+                                                                                <line x1="12" y1="4" x2="12" y2="20" />
+                                                                            </svg>
+                                                                            {currentContent.taskPollArrange?.[index] && (
+                                                                                <span className="ml-1 text-[10px] font-black bg-indigo-800 text-white rounded-full px-1 min-w-[14px]">
+                                                                                    ✓
+                                                                                </span>
+                                                                            )}
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         })()}
@@ -4155,16 +4204,29 @@ const EditSprint: React.FC = () => {
                                             )}
                                             {activeInputType === 'poll' && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
-                                                    <div className="flex items-center gap-2 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleTogglePollMultiSelect(index)}
-                                                            className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
-                                                            title="Multi-Select: Toggle whether the participant can choose multiple options instead of a single choice."
-                                                        >
-                                                            <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                        </button>
-                                                        <span className="text-xs font-black text-gray-700 select-none cursor-help" title="Multi-Select: Toggle whether participants can choose multiple options or are constrained to a single response.">Allow multiple options selection (Multi-Select)</span>
+                                                    <div className="flex items-center gap-6 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleTogglePollMultiSelect(index)}
+                                                                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
+                                                                title="Multi-Select: Toggle whether the participant can choose multiple options instead of a single choice."
+                                                            >
+                                                                <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollMultiSelect?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                            </button>
+                                                            <span className="text-xs font-black text-gray-700 select-none cursor-help">Multi-Select</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleTogglePollArrange(index)}
+                                                                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${currentContent.taskPollArrange?.[index] ? 'bg-indigo-600 justify-end' : 'bg-gray-200 justify-start'}`}
+                                                                title="Arrange: In Sprint View, participants drag options up/down to reposition and rank them."
+                                                            >
+                                                                <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollArrange?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                            </button>
+                                                            <span className="text-xs font-black text-gray-700 select-none cursor-help">Arrange (Drag & Reposition)</span>
+                                                        </div>
                                                     </div>
                                                     <div className="space-y-4">
                                                         {isLinkedFromPrevious ? (
@@ -5006,6 +5068,7 @@ const EditSprint: React.FC = () => {
                   handleContentChange('taskTagNoteActive', []);
                   handleContentChange('taskFootnotes', []);
                   handleContentChange('taskPollMultiSelect', []);
+                  handleContentChange('taskPollArrange', []);
                   handleContentChange('taskMultiTextLabels', []);
                   handleContentChange('taskLinkedToNext', []);
                   handleContentChange('taskLinkedSources', []);

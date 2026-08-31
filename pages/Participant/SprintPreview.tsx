@@ -24,6 +24,7 @@ import { X, Eye, EyeOff } from 'lucide-react';
 
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
+import { ArrangePollOptions } from '../../src/components/ArrangePollOptions';
 
 const AutoGrowingTextarea: React.FC<{
   value: string;
@@ -1637,6 +1638,22 @@ const SprintPreview: React.FC = () => {
                                                     pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
 
                                                     const isMultiSelect = !!day1Content?.taskPollMultiSelect?.[i];
+                                                    const isArrange = !!day1Content?.taskPollArrange?.[i];
+
+                                                    if (isArrange) {
+                                                        return (
+                                                            <ArrangePollOptions
+                                                                options={pollOptions}
+                                                                value={taskInputs[i] || ""}
+                                                                onChange={(newVal) => {
+                                                                    const newInputs = [...taskInputs];
+                                                                    newInputs[i] = newVal;
+                                                                    setTaskInputs(newInputs);
+                                                                }}
+                                                            />
+                                                        );
+                                                    }
+
                                                     let selectedOpts: string[] = [];
                                                     try {
                                                         if (taskInputs[i] && taskInputs[i].startsWith("[")) {
