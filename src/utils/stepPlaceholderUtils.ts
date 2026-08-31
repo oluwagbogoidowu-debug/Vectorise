@@ -1431,13 +1431,13 @@ export function formatInterpolatedText(
   // Interpolate metadata tokens first (e.g. {Metadata interest receive} or {Metadata life stage})
   const textWithMetadata = interpolateMetadataInText(prompt, userOrMetadata);
 
-  // Normalize bare coding tokens like "M2 Step 1 op 2" or "M1 Step 3" into "{M2 Step 1 op 2}"
+  // Normalize bare coding tokens like "M2 Step 1 op 2", "M1 Step 1.1 h", or "Step 1.2" into "{M2 Step 1 op 2}"
   const normalizedPrompt = textWithMetadata.replace(
-    /\{([^{}]+)\}|(\b[dDmM]\d+\s+[sS]?tep\s*\d+(?:\s*[oO][pP]\s*\d+)?(?:\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\b)/gi,
+    /\{([^{}]+)\}|(\b[dDmM]\d+\s+[sS]?tep\s*\d+(?:[.:_]\d+)?(?:\s*[oO][pP]\s*\d+(?:[.:_]\d+)?)?(?:\s*(?:list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\b)/gi,
     (m, bracketed, bare) => bracketed ? `{${bracketed}}` : `{${bare}}`
   );
 
-  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   const currentDayNum = Number(dayContent?.day || 1);
 
