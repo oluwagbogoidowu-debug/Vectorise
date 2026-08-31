@@ -3395,6 +3395,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
                                 const effectiveInputType = getStepInputType(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const effectivePollOptions = getStepPollOptions(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                                const rawFootnote = dayContent?.taskFootnotes?.[i];
+                                const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
                                 return (
                                   <motion.div
                               key={i}
@@ -3462,9 +3464,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <div className={`text-gray-950 font-black leading-tight ${isFullBleed ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
-                              {dayContent?.taskFootnotes?.[i] && (
+                              {effectiveFootnote && (
                                 <div className={`mb-6 text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
-                                  <FormattedText text={formatInterpolatedText(dayContent.taskFootnotes[i], dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                  <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                                 </div>
                               )}
                               {(() => {
@@ -4167,14 +4169,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             )}
                           </SectionHeading>
 
-                        <div className={`text-gray-950 font-black leading-tight ${isFullBleed ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[0] ? 'mb-3' : 'mb-6'}`}>
-                          <FormattedText text={dayContent?.taskPrompt || ""} />
-                        </div>
-                        {dayContent?.taskFootnotes?.[0] && (
-                          <div className={`mb-6 text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
-                            <FormattedText text={dayContent.taskFootnotes[0]} />
-                          </div>
-                        )}
+                        {(() => {
+                          const stepVerIdx = resolveStepVersionIndex(0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                          const rawPrompt = dayContent?.taskPrompt || dayContent?.taskPrompts?.[0] || "";
+                          const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
+                          const rawFootnote = dayContent?.taskFootnotes?.[0];
+                          const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
+                          const effectiveInputType = getStepInputType(dayContent, 0, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                          const effectivePollOptions = getStepPollOptions(dayContent, 0, taskInputs, sprint?.dailyContent, enrollment?.progress);
+
+                          return (
+                            <>
+                              <div className={`text-gray-950 font-black leading-tight ${isFullBleed ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
+                                <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                              </div>
+                              {effectiveFootnote && (
+                                <div className={`mb-6 text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
+                                  <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                         {(() => {
                           const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[0], 0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                           if (!resolvedHint) return null;

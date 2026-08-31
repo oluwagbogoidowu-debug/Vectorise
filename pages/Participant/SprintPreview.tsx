@@ -1403,6 +1403,8 @@ const SprintPreview: React.FC = () => {
                             const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
                             const rawPrompt = day1Content?.taskPrompts?.[i] || activePrompts[i] || activePrompts[0] || "";
                             const prompt = getStepVersionValue(rawPrompt, stepVerIdx);
+                            const rawFootnote = day1Content?.taskFootnotes?.[i];
+                            const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
                             const effectiveInputType = getStepInputType(day1Content, i, taskInputs, sprint?.dailyContent);
                             const effectivePollOptions = getStepPollOptions(day1Content, i, taskInputs, sprint?.dailyContent);
                             return (
@@ -1490,9 +1492,9 @@ const SprintPreview: React.FC = () => {
                                         <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                             <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent)} />
                                         </div>
-                                        {day1Content?.taskFootnotes?.[i] && (
+                                        {effectiveFootnote && (
                                             <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
-                                                <FormattedText text={formatInterpolatedText(day1Content.taskFootnotes[i], day1Content, taskInputs, sprint?.dailyContent)} />
+                                                <FormattedText text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent)} />
                                             </div>
                                         )}
                                         {(() => {

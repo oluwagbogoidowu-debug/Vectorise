@@ -21,7 +21,7 @@ import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import { ChangesMadeCarousel } from '../../components/ChangesMadeCarousel';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 
@@ -3412,7 +3412,8 @@ const EditSprint: React.FC = () => {
                                                                                     value={detail.metadataFieldKey || ''}
                                                                                     onChange={(val) => {
                                                                                         const selectedKey = String(val);
-                                                                                        const fieldDef = METADATA_FIELDS.find(f => f.key === selectedKey);
+                                                                                        const allFields = getMetadataFields();
+                                                                                        const fieldDef = allFields.find(f => f.key === selectedKey);
                                                                                         const newPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
                                                                                             fieldKey: selectedKey,
                                                                                             fieldLabel: fieldDef?.label || (selectedKey ? selectedKey : ''),
@@ -3423,7 +3424,7 @@ const EditSprint: React.FC = () => {
                                                                                     }}
                                                                                     options={[
                                                                                         { value: '', label: '✨ General Metadata' },
-                                                                                        ...METADATA_FIELDS.map(f => ({
+                                                                                        ...getMetadataFields().map(f => ({
                                                                                             value: f.key,
                                                                                             label: `${f.label} (${f.placeholderSample})`
                                                                                         }))

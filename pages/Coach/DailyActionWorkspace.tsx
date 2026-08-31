@@ -3,7 +3,7 @@ import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -1187,7 +1187,8 @@ export default function DailyActionWorkspace({
                                           onChange={(val) => {
                                             setSelectedDay(dayNum);
                                             const selectedKey = String(val);
-                                            const fieldDef = METADATA_FIELDS.find(f => f.key === selectedKey);
+                                            const allFields = getMetadataFields();
+                                            const fieldDef = allFields.find(f => f.key === selectedKey);
                                             const updatedPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
                                               fieldKey: selectedKey,
                                               fieldLabel: fieldDef?.label || (selectedKey ? selectedKey : ''),
@@ -1198,7 +1199,7 @@ export default function DailyActionWorkspace({
                                           }}
                                           options={[
                                             { value: '', label: '✨ General Metadata' },
-                                            ...METADATA_FIELDS.map(f => ({
+                                            ...getMetadataFields().map(f => ({
                                               value: f.key,
                                               label: `${f.label} (${f.placeholderSample})`
                                             }))

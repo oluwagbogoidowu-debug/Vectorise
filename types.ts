@@ -772,3 +772,19 @@ export interface UserIdentificationEntry {
   capturedAt: string;
 }
 
+export interface SystemMetadataField {
+  id: string;
+  key: string;
+  label: string;
+  category: string;
+  aliases: string[];
+  placeholderSample: string;
+  description?: string;
+  icon?: string;
+  isSystemDefault?: boolean;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+

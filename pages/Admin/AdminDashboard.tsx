@@ -296,7 +296,7 @@ export default function AdminDashboard() {
                                             : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
                                         }`}
                                     >
-                                        🆔 User Identification
+                                        🆔 User Identity Management
                                     </button>
                                     <button
                                         type="button"

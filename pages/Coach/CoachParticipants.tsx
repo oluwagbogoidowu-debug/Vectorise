@@ -21,7 +21,8 @@ import {
     getAllStepPollOptions, 
     isStepOrSubStepPoll, 
     parsePollLinkInfo, 
-    parseDualInputState 
+    parseDualInputState,
+    isStepVisibleForSprint 
 } from '../../src/utils/stepPlaceholderUtils';
 import FormattedText from '../../components/FormattedText';
 import { 
@@ -819,9 +820,29 @@ export const CoachParticipants: React.FC = () => {
                                     );
                                 }
 
+                                const isStepVisible = (stepIdx: number): boolean => {
+                                    return isStepVisibleForSprint(
+                                        stepIdx,
+                                        contentData,
+                                        answers,
+                                        sprintDailyContent,
+                                        progressList,
+                                        viewingSubmission.enrollment.sprint_id || viewingSubmission.enrollment.sprint?.id
+                                    );
+                                };
+
+                                let visibleStepCounter = 0;
+                                const renderedSteps = Array.from({ length: totalCount }).map((_, idx) => {
+                                    const isVisible = isStepVisible(idx);
+                                    const hasAnswer = answers[idx] !== undefined && String(answers[idx]).trim().length > 0;
+                                    if (!isVisible && !hasAnswer) return null;
+                                    visibleStepCounter++;
+                                    return { idx, order: visibleStepCounter };
+                                }).filter((item): item is { idx: number; order: number } => item !== null);
+
                                 return (
                                     <div className="space-y-6">
-                                        {Array.from({ length: totalCount }).map((_, idx) => {
+                                        {renderedSteps.map(({ idx, order }) => {
                                             const stepVerIdx = resolveStepVersionIndex(idx, contentData, answers, sprintDailyContent, progressList);
                                             const rawPrompt = candidatePrompts[idx] || (idx === 0 && contentData?.taskPrompt ? contentData.taskPrompt : `Move ${viewingSubmission.day} Question ${idx + 1}`);
                                             const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
@@ -839,7 +860,17 @@ export const CoachParticipants: React.FC = () => {
                                                 formattedPrompt = effectivePrompt;
                                             }
 
-                                            const footnote = contentData?.taskFootnotes?.[idx];
+                                            const rawFootnote = contentData?.taskFootnotes?.[idx];
+                                            const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
+                                            let formattedFootnote = '';
+                                            if (effectiveFootnote) {
+                                                try {
+                                                    formattedFootnote = formatInterpolatedText(effectiveFootnote, contentData, answers, sprintDailyContent, progressList);
+                                                } catch (e) {
+                                                    formattedFootnote = effectiveFootnote;
+                                                }
+                                            }
+
                                             const resolvedHint = resolveTaskHintForUser(contentData?.taskHints?.[idx], idx, contentData, answers, sprintDailyContent, progressList);
                                             const effectiveInputType = getStepInputType(contentData, idx, answers, sprintDailyContent, progressList);
                                             const customPollOptions = getStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
@@ -887,7 +918,7 @@ export const CoachParticipants: React.FC = () => {
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2.5 h-2.5 rounded-full bg-[#0E7850]"></div>
                                                             <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gray-500">
-                                                                Action Step {idx + 1}
+                                                                Action Step {order}
                                                             </span>
                                                         </div>
                                                         <span className="px-3 py-1 bg-white text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 shadow-sm">
@@ -901,9 +932,9 @@ export const CoachParticipants: React.FC = () => {
                                                     </div>
 
                                                     {/* Footnote */}
-                                                    {footnote && (
+                                                    {formattedFootnote && (
                                                         <div className="text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed">
-                                                            <FormattedText text={formatInterpolatedText(footnote, contentData, answers, sprintDailyContent, progressList)} />
+                                                            <FormattedText text={formattedFootnote} />
                                                         </div>
                                                     )}
 

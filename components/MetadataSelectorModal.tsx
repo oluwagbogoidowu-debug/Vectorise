@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { METADATA_FIELDS, MetadataFieldDef } from '../src/utils/stepPlaceholderUtils';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getMetadataFields, MetadataFieldDef } from '../src/utils/stepPlaceholderUtils';
+import { metadataService } from '../services/metadataService';
 
 interface MetadataSelectorModalProps {
   isOpen: boolean;
@@ -18,12 +19,52 @@ export const MetadataSelectorModal: React.FC<MetadataSelectorModalProps> = ({
   initialMode = 'receive',
   targetFieldName = 'Step'
 }) => {
+  const [fields, setFields] = useState<MetadataFieldDef[]>(() => getMetadataFields());
   const [selectedFieldKey, setSelectedFieldKey] = useState<string>(initialField);
   const [mode, setMode] = useState<'save' | 'receive'>(initialMode);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFields(getMetadataFields());
+    const unsub = metadataService.subscribeToMetadataFields((all) => {
+      setFields(getMetadataFields());
+    });
+    return () => unsub();
+  }, [isOpen]);
+
+  // Extract unique categories
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    fields.forEach(f => {
+      if (f.category) cats.add(f.category);
+      else cats.add('General');
+    });
+    return ['ALL', ...Array.from(cats)];
+  }, [fields]);
+
+  // Filtered fields
+  const filteredFields = useMemo(() => {
+    return fields.filter(f => {
+      const matchCat = selectedCategory === 'ALL' || (f.category || 'General') === selectedCategory;
+      const matchSearch = !searchQuery.trim() || 
+        f.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        f.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        f.aliases.some(a => a.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchCat && matchSearch;
+    });
+  }, [fields, selectedCategory, searchQuery]);
 
   if (!isOpen) return null;
 
-  const currentFieldDef = METADATA_FIELDS.find(f => f.key === selectedFieldKey) || METADATA_FIELDS[0];
+  const currentFieldDef = fields.find(f => f.key === selectedFieldKey) || fields[0] || {
+    key: 'metadata',
+    label: 'Metadata',
+    aliases: ['metadata'],
+    placeholderSample: 'User profile value',
+    category: 'General'
+  };
 
   const generatedToken = mode === 'save'
     ? `{Metadata ${currentFieldDef.label} save}`
@@ -38,14 +79,18 @@ export const MetadataSelectorModal: React.FC<MetadataSelectorModalProps> = ({
     onClose();
   };
 
-  const getFieldIcon = (key: string) => {
-    switch (key) {
+  const getFieldIcon = (field: MetadataFieldDef) => {
+    switch (field.key) {
       case 'lifeStage': return '🎓';
       case 'currentGoal': return '🎯';
       case 'currentPriority': return '⚡';
       case 'desiredDirection': return '🧭';
       case 'interests': return '💡';
       case 'strengths': return '💪';
+      case 'occupation': return '💼';
+      case 'industry': return '🏢';
+      case 'gender': return '👤';
+      case 'targetNiche': return '🎯';
       default: return '🏷️';
     }
   };
@@ -53,7 +98,7 @@ export const MetadataSelectorModal: React.FC<MetadataSelectorModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
       <div 
-        className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden animate-scale-up"
+        className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden animate-scale-up flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -79,14 +124,42 @@ export const MetadataSelectorModal: React.FC<MetadataSelectorModalProps> = ({
         </div>
 
         {/* Body Content */}
-        <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1">
           {/* Step 1: Select Field */}
           <div>
-            <label className="block text-[11px] font-black uppercase tracking-wider text-slate-700 mb-2">
-              1. Select Metadata Field
-            </label>
-            <div className="grid grid-cols-2 gap-2.5">
-              {METADATA_FIELDS.map((field) => {
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+              <label className="text-[11px] font-black uppercase tracking-wider text-slate-700">
+                1. Select Metadata Field ({fields.length} available)
+              </label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search metadata..."
+                className="px-3 py-1 bg-slate-100 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-500/20"
+              />
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2.5 scrollbar-thin">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    selectedCategory === cat
+                      ? 'bg-purple-700 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  {cat === 'ALL' ? '🌟 All Categories' : cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
+              {filteredFields.map((field) => {
                 const isSelected = selectedFieldKey === field.key;
                 return (
                   <button
@@ -95,13 +168,20 @@ export const MetadataSelectorModal: React.FC<MetadataSelectorModalProps> = ({
                     onClick={() => setSelectedFieldKey(field.key)}
                     className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-purple-600 bg-purple-50/80 text-purple-950 ring-2 ring-purple-500/20 shadow-xs'
+                        ? 'border-purple-600 bg-purple-50/90 text-purple-950 ring-2 ring-purple-500/20 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/80 text-slate-700'
                     }`}
                   >
-                    <span className="text-lg">{getFieldIcon(field.key)}</span>
+                    <span className="text-xl flex-shrink-0">{getFieldIcon(field)}</span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold truncate">{field.label}</div>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="text-xs font-bold truncate">{field.label}</div>
+                        {field.category && (
+                          <span className="text-[8px] font-semibold uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                            {field.category}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-slate-400 truncate">e.g. {field.placeholderSample}</div>
                     </div>
                   </button>

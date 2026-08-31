@@ -8,14 +8,78 @@ export interface MetadataFieldDef {
   placeholderSample: string;
 }
 
-export const METADATA_FIELDS: MetadataFieldDef[] = [
-  { key: 'lifeStage', label: 'Life Stage', aliases: ['lifestage', 'life stage', 'stage'], placeholderSample: 'College Graduate' },
-  { key: 'currentGoal', label: 'Current Goal', aliases: ['currentgoal', 'current goal', 'goal', 'primarygoal'], placeholderSample: 'Secure first tech role' },
-  { key: 'currentPriority', label: 'Current Priority', aliases: ['currentpriority', 'current priority', 'priority'], placeholderSample: 'Portfolio building & networking' },
-  { key: 'desiredDirection', label: 'Desired Direction', aliases: ['desireddirection', 'desired direction', 'direction', 'pathway', 'risepathway'], placeholderSample: 'Full-Stack Product Engineering' },
-  { key: 'interests', label: 'Interests', aliases: ['interests', 'interest', 'growthareas', 'growth areas'], placeholderSample: 'AI Systems, Web Development' },
-  { key: 'strengths', label: 'Strengths', aliases: ['strengths', 'strength', 'skills'], placeholderSample: 'System Design, Rapid Prototyping' },
+export const DEFAULT_METADATA_FIELDS: MetadataFieldDef[] = [
+  { key: 'lifeStage', label: 'Life Stage', category: 'Identity', aliases: ['lifestage', 'life stage', 'stage'], placeholderSample: 'College Graduate' },
+  { key: 'currentGoal', label: 'Current Goal', category: 'Objectives', aliases: ['currentgoal', 'current goal', 'goal', 'primarygoal'], placeholderSample: 'Secure first tech role' },
+  { key: 'currentPriority', label: 'Current Priority', category: 'Objectives', aliases: ['currentpriority', 'current priority', 'priority'], placeholderSample: 'Portfolio building & networking' },
+  { key: 'desiredDirection', label: 'Desired Direction', category: 'Progression', aliases: ['desireddirection', 'desired direction', 'direction', 'pathway', 'risepathway'], placeholderSample: 'Full-Stack Product Engineering' },
+  { key: 'interests', label: 'Interests', category: 'Identity', aliases: ['interests', 'interest', 'growthareas', 'growth areas'], placeholderSample: 'AI Systems, Web Development' },
+  { key: 'strengths', label: 'Strengths', category: 'Experience', aliases: ['strengths', 'strength', 'skills'], placeholderSample: 'System Design, Rapid Prototyping' },
+  { key: 'occupation', label: 'Occupation / Role', category: 'Demographics', aliases: ['occupation', 'role', 'job', 'career'], placeholderSample: 'Product Designer' },
+  { key: 'industry', label: 'Industry / Domain', category: 'Demographics', aliases: ['industry', 'domain', 'sector'], placeholderSample: 'FinTech & AI' },
+  { key: 'gender', label: 'Gender', category: 'Demographics', aliases: ['gender', 'sex'], placeholderSample: 'Female' },
+  { key: 'targetNiche', label: 'Target Audience / Niche', category: 'Business', aliases: ['targetniche', 'target niche', 'niche', 'audience'], placeholderSample: 'Early-stage SaaS Founders' },
 ];
+
+export const METADATA_FIELDS: MetadataFieldDef[] = [...DEFAULT_METADATA_FIELDS];
+
+// Load initial custom metadata from localStorage if present
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem('vectorise_system_metadata_fields');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const map = new Map<string, MetadataFieldDef>();
+        DEFAULT_METADATA_FIELDS.forEach(f => map.set(f.key.toLowerCase(), { ...f }));
+        parsed.forEach((f: any) => {
+          if (f && f.key && f.label && f.isActive !== false) {
+            map.set(f.key.toLowerCase(), {
+              key: f.key,
+              label: f.label,
+              category: f.category || 'Custom',
+              aliases: Array.isArray(f.aliases) ? f.aliases : [f.key.toLowerCase(), f.label.toLowerCase()],
+              placeholderSample: f.placeholderSample || 'Sample text'
+            });
+          }
+        });
+        METADATA_FIELDS.length = 0;
+        METADATA_FIELDS.push(...Array.from(map.values()));
+      }
+    }
+  } catch (e) {}
+
+  window.addEventListener('vectorise_metadata_fields_updated', ((e: CustomEvent) => {
+    if (e.detail && Array.isArray(e.detail)) {
+      setDynamicMetadataFields(e.detail);
+    }
+  }) as EventListener);
+}
+
+export function setDynamicMetadataFields(fields: any[]) {
+  const map = new Map<string, MetadataFieldDef>();
+  DEFAULT_METADATA_FIELDS.forEach(f => map.set(f.key.toLowerCase(), { ...f }));
+  if (Array.isArray(fields)) {
+    fields.forEach((f: any) => {
+      if (f && f.key && f.label && f.isActive !== false) {
+        map.set(f.key.toLowerCase(), {
+          key: f.key,
+          label: f.label,
+          category: f.category || 'Custom',
+          aliases: Array.isArray(f.aliases) ? f.aliases : [f.key.toLowerCase(), f.label.toLowerCase()],
+          placeholderSample: f.placeholderSample || 'Sample text'
+        });
+      }
+    });
+  }
+  METADATA_FIELDS.length = 0;
+  METADATA_FIELDS.push(...Array.from(map.values()));
+}
+
+export function getMetadataFields(): MetadataFieldDef[] {
+  return METADATA_FIELDS;
+}
+
 
 export interface MetadataTokenDetail {
   raw: string;
@@ -349,6 +413,7 @@ export function extractSaveMetadataFromStep(
 export interface StepPlaceholderDetail {
   dayNum?: number;
   stepNum: number;
+  subStepNum?: number;
   opNum?: number;
   mode: StepPlaceholderMode;
   rawLabel: string;
@@ -500,12 +565,12 @@ export function parsePlaceholderMode(modeStr?: string): StepPlaceholderMode {
 }
 
 /**
- * Regex matching placeholders like {Step 1}, {Step 1 Op2}, {M1 Step 3}, {M2 Step 4 Op1 m}, {Move 1 Step 3 list}, {D1 Step 3}, {d2 step 4 op 1 h}, {Step 1 Op 4 d}, etc.
+ * Regex matching placeholders like {Step 1}, {Step 1.2}, {Step 1 Op2}, {Step 1.2 Op 2}, {M1 Step 3}, {M2 Step 4 Op1 m}, {Move 1 Step 3 list}, {D1 Step 3}, {d2 step 4 op 1 h}, {Step 1 Op 4 d}, etc.
  */
-export const PLACEHOLDER_REGEX = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+export const PLACEHOLDER_REGEX = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
 /**
- * Validates `{step N}`, `{M1 Step 3}`, `{M2 Step 4 op 1}`, `{Step N list}`, `{Step N h}`, `{Step N Op 4 d}`, `{Step 1 Op 2 m}` etc. placeholders in prompt text.
+ * Validates `{step N}`, `{Step 1.1}`, `{Step 1.2 Op 2}`, `{M1 Step 3}`, `{M2 Step 4 op 1}`, `{Step N list}`, `{Step N h}`, `{Step N Op 4 d}`, `{Step 1 Op 2 m}` etc. placeholders in prompt text.
  */
 export function validateStepPlaceholders(
   prompt: string,
@@ -518,7 +583,7 @@ export function validateStepPlaceholders(
 ): StepPlaceholderValidation {
   if (!prompt) return { isValid: true, hasPlaceholders: false, invalidStepRefs: [], validStepRefs: [], validStepLabels: [], invalidStepLabels: [], placeholderDetails: [] };
 
-  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
   let match: RegExpExecArray | null;
   const references: StepPlaceholderDetail[] = [];
   let lastStepNum = 1;
@@ -527,8 +592,9 @@ export function validateStepPlaceholders(
     const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
     const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
     if (match[2]) lastStepNum = stepNum;
-    const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-    const modeStr = match[4];
+    const subStepNum = match[3] ? parseInt(match[3], 10) : undefined;
+    const opNum = match[4] ? parseInt(match[4], 10) : undefined;
+    const modeStr = match[6];
     const mode = parsePlaceholderMode(modeStr);
 
     let modeSuffix = '';
@@ -539,12 +605,13 @@ export function validateStepPlaceholders(
     else if (mode === 'main') modeSuffix = ' main';
 
     const movePrefix = dayNum !== undefined ? `M${dayNum} ` : '';
+    const subStepPart = subStepNum !== undefined ? `.${subStepNum}` : '';
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
-    const rawLabel = `${movePrefix}Step ${stepNum}${opPart}${modeSuffix}`.trim();
+    const rawLabel = `${movePrefix}Step ${stepNum}${subStepPart}${opPart}${modeSuffix}`.trim();
     const token = match[0];
 
     if (!references.some(r => r.token === token)) {
-      references.push({ dayNum, stepNum, opNum, mode, rawLabel, token });
+      references.push({ dayNum, stepNum, subStepNum, opNum, mode, rawLabel, token });
     }
   }
 
@@ -628,11 +695,15 @@ export function validateStepPlaceholders(
           }
           continue;
         }
-      } else if (targetStepIndex < 0 || targetStepIndex >= stepIndex) {
+      } else if (targetStepIndex < 0 || targetStepIndex > stepIndex || (targetStepIndex === stepIndex && ref.opNum === undefined && ref.subStepNum === undefined && ref.mode !== 'hide' && ref.mode !== 'disconnect' && ref.mode !== 'main')) {
         invalidStepRefs.push(ref.stepNum);
         invalidStepLabels.push(ref.rawLabel);
         if (!invalidReason) {
-          invalidReason = `Invalid placeholder {${ref.rawLabel}}: Step ${ref.stepNum} must precede Step ${stepIndex + 1} on Move ${currentDay}.`;
+          if (targetStepIndex === stepIndex) {
+            invalidReason = `Invalid self-referencing placeholder {${ref.rawLabel}} on Step ${stepIndex + 1}.`;
+          } else {
+            invalidReason = `Invalid placeholder {${ref.rawLabel}}: Step ${ref.stepNum} must precede Step ${stepIndex + 1} on Move ${currentDay}.`;
+          }
         }
         continue;
       }
@@ -831,12 +902,13 @@ export function togglePlaceholderMode(
     return toggleMetadataMode(prompt, targetStepNum, targetMode);
   }
 
-  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   let replaced = false;
-  const result = prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr) => {
+  const result = prompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, subStepNumStr, opNumStr) => {
     const stepNum = parseInt(stepNumStr, 10);
     const dayNum = dayNumStr ? parseInt(dayNumStr, 10) : undefined;
+    const subStepNum = subStepNumStr ? parseInt(subStepNumStr, 10) : undefined;
 
     if (stepNum !== Number(targetStepNum)) {
       return fullMatch;
@@ -847,6 +919,7 @@ export function togglePlaceholderMode(
 
     replaced = true;
     const movePart = (dayNum !== undefined || targetDayNum !== undefined) ? `M${dayNum ?? targetDayNum} ` : '';
+    const subStepPart = subStepNum !== undefined ? `.${subStepNum}` : '';
     const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
     const opPart = opNum !== undefined ? ` Op${opNum}` : '';
     let modePart = '';
@@ -856,7 +929,7 @@ export function togglePlaceholderMode(
     else if (targetMode === 'sentence') modePart = ' s';
     else if (targetMode === 'main') modePart = ' main';
 
-    return `{${movePart}Step ${stepNum}${opPart}${modePart}}`;
+    return `{${movePart}Step ${stepNum}${subStepPart}${opPart}${modePart}}`;
   });
 
   if (!replaced && /\{(?:\s*metadata)/i.test(prompt)) {
@@ -883,7 +956,8 @@ export interface ProgressiveSelectionResult {
 export function getExplicitLinkedSteps(
   stepIdx: number,
   dayContent?: any,
-  allDaysContent?: any[]
+  allDaysContent?: any[],
+  versionIdx?: number
 ): { day: number; stepIdx: number; opNum?: number; mode?: StepPlaceholderMode }[] {
   if (!dayContent) return [];
   const currentDay = Number(dayContent.day || 1);
@@ -891,10 +965,10 @@ export function getExplicitLinkedSteps(
 
   const addLink = (d: number, s: number, opNum?: number, mode?: StepPlaceholderMode) => {
     if (s < 0 || d < 1) return;
-    // An upstream link can ONLY come from a preceding day or a strictly preceding step on the same day
-    if (d > currentDay || (d === currentDay && s >= stepIdx)) return;
+    // An upstream link can come from a preceding day, a preceding step, or option branch on the same step
+    if (d > currentDay || (d === currentDay && s > stepIdx) || (d === currentDay && s === stepIdx && opNum === undefined && mode !== 'main' && mode !== 'hide')) return;
     if (mode === 'disconnect') return; // 'd' means disconnect only this
-    const existing = links.find(l => l.day === d && l.stepIdx === s);
+    const existing = links.find(l => l.day === d && l.stepIdx === s && (opNum === undefined || l.opNum === opNum));
     if (!existing) {
       links.push({ day: d, stepIdx: s, opNum, mode });
     } else {
@@ -926,20 +1000,36 @@ export function getExplicitLinkedSteps(
     }
   }
 
-  // 3. Scan writeup texts for explicit 'main' mode links only (e.g. {Step M Op N m}, {Step M main})
-  // Plain {Step 1}, {Step 1 s}, {Step 1 list}, etc. in writeups are purely for writeup text interpolation and do not create choice connections!
+  // 3. Scan writeup texts
   const writeupTexts: string[] = [];
   const promptVal = dayContent.taskPrompts?.[stepIdx];
-  if (typeof promptVal === 'string') writeupTexts.push(promptVal);
-  else if (stepIdx === 0 && typeof dayContent.taskPrompt === 'string') writeupTexts.push(dayContent.taskPrompt);
+  if (typeof promptVal === 'string') {
+    if (versionIdx !== undefined) {
+      const pVersions = parseStepVersions(promptVal);
+      if (pVersions[versionIdx]) writeupTexts.push(pVersions[versionIdx]);
+      else writeupTexts.push(promptVal);
+    } else {
+      writeupTexts.push(promptVal);
+    }
+  } else if (stepIdx === 0 && typeof dayContent.taskPrompt === 'string') {
+    writeupTexts.push(dayContent.taskPrompt);
+  }
   const hintVal = dayContent.taskHints?.[stepIdx];
-  if (typeof hintVal === 'string') writeupTexts.push(hintVal);
+  if (typeof hintVal === 'string') {
+    if (versionIdx !== undefined) {
+      const hVersions = parseHintVersions(hintVal);
+      if (hVersions[versionIdx]) writeupTexts.push(hVersions[versionIdx]);
+      else writeupTexts.push(hintVal);
+    } else {
+      writeupTexts.push(hintVal);
+    }
+  }
   const footnoteVal = dayContent.taskFootnotes?.[stepIdx];
   if (typeof footnoteVal === 'string') writeupTexts.push(footnoteVal);
   const tagNoteVal = dayContent.taskTagNotes?.[stepIdx];
   if (typeof tagNoteVal === 'string') writeupTexts.push(tagNoteVal);
 
-  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+  const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
 
   for (const text of writeupTexts) {
     let match: RegExpExecArray | null;
@@ -949,18 +1039,19 @@ export function getExplicitLinkedSteps(
       const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
       const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
       if (match[2]) lastStepNum = stepNum;
-      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-      const mode = parsePlaceholderMode(match[4]);
+      const subStepNum = match[3] ? parseInt(match[3], 10) : undefined;
+      const opNum = match[4] ? parseInt(match[4], 10) : subStepNum;
+      const mode = parsePlaceholderMode(match[6]);
       const targetStepIdx = stepNum - 1;
       
-      // ONLY include if the writeup explicitly declared 'main' mode (e.g. {M1 Step 1 main}, {Step 1 main}, {Step Op 2 m})
-      if (mode === 'main') {
+      // Include if explicitly declared 'main' mode or option link (e.g. {Step 1 Op 2}, {Step 1.2}, {Step 1 main})
+      if (mode === 'main' || opNum !== undefined || mode === 'hide') {
         addLink(dayNum, targetStepIdx, opNum, mode);
       }
     }
   }
 
-  // 4. Scan explicit option placeholders configured directly in taskPollOptions (e.g. ["{Step 1}", "Option B"] or "{Step 1 Op 2}")
+  // 4. Scan explicit option placeholders configured directly in taskPollOptions
   const optionsVal = dayContent.taskPollOptions?.[stepIdx];
   if (typeof optionsVal === 'string') {
     let match: RegExpExecArray | null;
@@ -970,8 +1061,9 @@ export function getExplicitLinkedSteps(
       const dayNum = match[1] ? parseInt(match[1], 10) : currentDay;
       const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
       if (match[2]) lastStepNum = stepNum;
-      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-      const mode = parsePlaceholderMode(match[4]);
+      const subStepNum = match[3] ? parseInt(match[3], 10) : undefined;
+      const opNum = match[4] ? parseInt(match[4], 10) : subStepNum;
+      const mode = parsePlaceholderMode(match[6]);
       const targetStepIdx = stepNum - 1;
       addLink(dayNum, targetStepIdx, opNum, mode);
     }
@@ -1446,11 +1538,12 @@ export function formatInterpolatedText(
   regex.lastIndex = 0;
   let lastStepNum = 1;
 
-  return normalizedPrompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, opNumStr, modeStr) => {
+  return normalizedPrompt.replace(regex, (fullMatch, dayNumStr, stepNumStr, subStepNumStr, opNumStr, subOpNumStr, modeStr) => {
     const targetDay = dayNumStr ? parseInt(dayNumStr, 10) : currentDayNum;
     const stepNum = stepNumStr ? parseInt(stepNumStr, 10) : lastStepNum;
     if (stepNumStr) lastStepNum = stepNum;
-    const opNum = opNumStr ? parseInt(opNumStr, 10) : undefined;
+    const subStepNum = subStepNumStr ? parseInt(subStepNumStr, 10) : undefined;
+    const opNum = opNumStr ? parseInt(opNumStr, 10) : subStepNum;
     const mode = parsePlaceholderMode(modeStr);
     const stepIndex = stepNum - 1;
 
@@ -1947,6 +2040,8 @@ export function getStepMultiTextLabels(
  * Resolves the active sub-context version index (0, 1, 2...) for a step.
  * Tracks connected poll steps, option links, and linked sources so that an option selected in Step 1
  * determines the path & version active in a linked step (e.g. Step 6) or downstream action steps (Step 1.1, 1.2...).
+ * Ensures that if step versions (1.1, 1.2, 1.3) are connected to (Op 1, Op 2, Op 3), each resolves independently
+ * to its linked option without clashing in path, being omitted, or being hijacked by the first version.
  */
 export function resolveStepVersionIndex(
   stepIdx: number = 0,
@@ -1956,81 +2051,187 @@ export function resolveStepVersionIndex(
   allDaysInputs?: any[] | Record<number, any>
 ): number {
   if (!dayContent) return 0;
+  const currentDayNum = Number(dayContent.day || 1);
 
-  // Direct poll input on current step (if participant is actively answering current step poll)
-  const currentType = dayContent?.taskInputTypes?.[stepIdx];
-  if (currentType === 'poll') {
-    const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[stepIdx] : taskInputs[stepIdx]) : undefined;
-    if (val) {
-      let options: string[] = [];
-      if (dayContent?.taskPollOptions?.[stepIdx]) {
-        try {
-          const parsed = JSON.parse(dayContent.taskPollOptions[stepIdx]);
-          if (Array.isArray(parsed)) options = parsed.map((o: any) => String(o).trim());
-        } catch (e) {}
-      }
-      if (options.length > 0) {
-        const valStr = String(val).trim().toLowerCase();
-        const idx = options.findIndex(o => o.toLowerCase() === valStr);
-        if (idx >= 0) return idx;
-      }
-    }
-  }
-
-  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
-
-  // If prompt has multiple versions (e.g. Step 1.1, 1.2, 1.3, 1.4...)
+  // If prompt has multiple versions (e.g. Step 1.1, 1.2, 1.3, 1.4... separated by |||)
   const rawPrompt = dayContent?.taskPrompts?.[stepIdx] || (stepIdx === 0 ? dayContent?.taskPrompt : undefined);
-  if (rawPrompt) {
-    const promptVersions = parseStepVersions(rawPrompt);
-    if (promptVersions.length > 1) {
-      const targetOpNum = (progRes.activeOptionIndex !== undefined ? progRes.activeOptionIndex : 0) + 1;
-      const opTokenRegex = new RegExp(`\\{(?:[dDmM](?:ay|ove)?\\s*\\d+\\s+)?\\s*[sS]?tep\\s*\\d+\\s*[oO][pP]\\s*${targetOpNum}(?:\\s+[a-zA-Z]+)?\\}`, 'i');
-      
-      for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
-        if (opTokenRegex.test(promptVersions[vIdx])) {
-          return vIdx;
+  const promptVersions = rawPrompt ? parseStepVersions(rawPrompt) : [''];
+
+  if (promptVersions.length <= 1) {
+    // Single version step: Check if it's a poll with direct answer
+    const currentType = dayContent?.taskInputTypes?.[stepIdx];
+    if (currentType === 'poll') {
+      const val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[stepIdx] : taskInputs[stepIdx]) : undefined;
+      if (val) {
+        const options = getAllStepPollOptions(dayContent, stepIdx, taskInputs, allDaysContent, allDaysInputs);
+        if (options.length > 0) {
+          const valStr = String(val).trim().toLowerCase();
+          const idx = options.findIndex(o => o.toLowerCase() === valStr);
+          if (idx >= 0) return idx;
         }
       }
+    }
+    return 0;
+  }
 
-      // Check if any version matches an explicit option token for the source step
-      if (progRes.activeSelection) {
-        const lowerSel = progRes.activeSelection.toLowerCase().trim();
-        for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
-          const vText = promptVersions[vIdx];
-          const regex = /\{(?:\s*[dD](?:ay)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
-          let m: RegExpExecArray | null;
-          while ((m = regex.exec(vText)) !== null) {
-            const vDay = m[1] ? parseInt(m[1], 10) : Number(dayContent.day || 1);
-            const vStep = parseInt(m[2], 10) - 1;
-            const vOp = m[3] ? parseInt(m[3], 10) : undefined;
-            if (vOp !== undefined) {
-              const vDC = (allDaysContent && Array.isArray(allDaysContent))
-                ? (allDaysContent.find(d => Number(d.day) === vDay) || dayContent)
-                : dayContent;
-              let vOpts: string[] = [];
-              if (vDC?.taskPollOptions?.[vStep]) {
-                try {
-                  const parsed = JSON.parse(vDC.taskPollOptions[vStep]);
-                  if (Array.isArray(parsed)) vOpts = parsed.map((o: any) => String(o).trim());
-                } catch (e) {}
-              }
-              const optText = vOpts[vOp - 1];
-              if (optText && optText.toLowerCase().trim() === lowerSel) {
-                return vIdx;
-              }
-            }
+  // Helper to extract input value for any day and step
+  const getInputValue = (targetDay: number, targetStepIdx: number) => {
+    if (targetDay === currentDayNum) {
+      if (taskInputs) {
+        if (Array.isArray(taskInputs)) return taskInputs[targetStepIdx];
+        if (typeof taskInputs === 'object') return taskInputs[targetStepIdx];
+      }
+    }
+    if (allDaysInputs) {
+      if (Array.isArray(allDaysInputs)) {
+        const prog = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+        if (prog) {
+          if (Array.isArray(prog.answers)) return prog.answers[targetStepIdx];
+          if (prog.answersMap && typeof prog.answersMap === 'object') return (prog.answersMap as any)[targetStepIdx];
+          if (typeof prog.submission === 'string' && prog.submission.includes(' | ')) {
+            const parts = prog.submission.split(' | ');
+            if (parts[targetStepIdx] !== undefined) return parts[targetStepIdx];
           }
         }
+        const dayArr = allDaysInputs[targetDay - 1];
+        if (dayArr) {
+          if (Array.isArray(dayArr)) return dayArr[targetStepIdx];
+          if (typeof dayArr === 'object') return (dayArr as any)[targetStepIdx];
+        }
+      } else if (typeof allDaysInputs === 'object') {
+        const dayVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+        if (dayVal) {
+          if (Array.isArray(dayVal)) return dayVal[targetStepIdx];
+          if (typeof dayVal === 'object') return (dayVal as any)[targetStepIdx];
+        }
       }
+    }
+    return undefined;
+  };
 
-      if (progRes.activeOptionIndex < promptVersions.length && progRes.activeOptionIndex >= 0) {
-        return progRes.activeOptionIndex;
+  const parseUserAnswers = (val: any): string[] => {
+    if (val === undefined || val === null) return [];
+    if (typeof val === 'boolean') return val ? ['Completed'] : [];
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed.map(s => String(s).trim()).filter(Boolean);
+        } catch (e) {}
+      }
+      if (trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed && typeof parsed === 'object') {
+            const list: string[] = [];
+            if (typeof parsed.choice === 'string' && parsed.choice) list.push(parsed.choice);
+            if (Array.isArray(parsed.choices)) list.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+            if (Array.isArray(parsed.selectedChoices)) list.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+            if (typeof parsed.text === 'string' && parsed.text) list.push(parsed.text);
+            if (typeof parsed.answer === 'string' && parsed.answer) list.push(parsed.answer);
+            if (list.length > 0) return Array.from(new Set(list));
+            return Object.values(parsed).map(s => String(s).trim()).filter(Boolean);
+          }
+        } catch (e) {}
+      }
+      return [trimmed];
+    }
+    if (Array.isArray(val)) return val.map(s => String(s).trim()).filter(Boolean);
+    return [];
+  };
+
+  const isOptionMatchedByAnswers = (targetDay: number, targetStepIdx: number, targetOpNum: number): boolean => {
+    const rawVal = getInputValue(targetDay, targetStepIdx);
+    const answers = parseUserAnswers(rawVal);
+    if (answers.length === 0) return false;
+
+    const targetDC = (targetDay === currentDayNum || !allDaysContent)
+      ? dayContent
+      : (allDaysContent.find(d => Number(d.day) === targetDay) || dayContent);
+    const opts = getAllStepPollOptions(targetDC, targetStepIdx, taskInputs, allDaysContent, allDaysInputs);
+    const optIndex = targetOpNum - 1;
+    const targetOptText = opts[optIndex] || `Option ${targetOpNum}`;
+
+    return answers.some(ans => {
+      const lowerAns = ans.toLowerCase().trim();
+      if (targetOptText && lowerAns === targetOptText.toLowerCase().trim()) return true;
+      if (lowerAns === `poll ${targetOpNum}` || lowerAns === `op ${targetOpNum}` || lowerAns === `op${targetOpNum}` || lowerAns === `option ${targetOpNum}` || lowerAns === String(targetOpNum)) return true;
+      return false;
+    });
+  };
+
+  // Check each version independently to find which one matches the user's choices!
+  // Versioned steps (1.1, 1.2, 1.3) connect to (Op 1, Op 2, Op 3) without clashing or omitting.
+  for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
+    const vPrompt = promptVersions[vIdx] || '';
+    const vHint = getStepVersionValue(dayContent.taskHints?.[stepIdx], vIdx, '');
+    const vFootnote = getStepVersionValue(dayContent.taskFootnotes?.[stepIdx], vIdx, '');
+    const vTagNote = getStepVersionValue(dayContent.taskTagNotes?.[stepIdx], vIdx, '');
+    const vCombined = [vPrompt, vHint, vFootnote, vTagNote].join(' ');
+
+    const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+    let match: RegExpExecArray | null;
+    let hasMatchedToken = false;
+
+    while ((match = regex.exec(vCombined)) !== null) {
+      const dayNum = match[1] ? parseInt(match[1], 10) : currentDayNum;
+      const stepNum = match[2] ? parseInt(match[2], 10) : (stepIdx + 1);
+      const subStepNum = match[3] ? parseInt(match[3], 10) : undefined;
+      const opNum = match[4] ? parseInt(match[4], 10) : undefined;
+      const targetStepIdx = stepNum - 1;
+
+      const targetOpNum = opNum !== undefined ? opNum : subStepNum;
+      if (targetOpNum !== undefined) {
+        if (isOptionMatchedByAnswers(dayNum, targetStepIdx, targetOpNum)) {
+          hasMatchedToken = true;
+          break;
+        }
+      }
+    }
+
+    if (hasMatchedToken) {
+      return vIdx;
+    }
+  }
+
+  // If current step is a poll and user directly answered current step, map answer to version index
+  const currentType = dayContent?.taskInputTypes?.[stepIdx];
+  if (currentType === 'poll' || isStepOrSubStepPoll(currentType)) {
+    const val = getInputValue(currentDayNum, stepIdx);
+    const answers = parseUserAnswers(val);
+    if (answers.length > 0) {
+      const opts = getAllStepPollOptions(dayContent, stepIdx, taskInputs, allDaysContent, allDaysInputs);
+      for (let i = 0; i < opts.length; i++) {
+        if (opts[i] && answers.some(a => a.toLowerCase().trim() === opts[i].toLowerCase().trim() || a.toLowerCase().trim() === `option ${i + 1}` || a.toLowerCase().trim() === `op ${i + 1}` || a.toLowerCase().trim() === String(i + 1))) {
+          if (i < promptVersions.length) return i;
+        }
       }
     }
   }
 
-  return progRes.activeOptionIndex >= 0 ? progRes.activeOptionIndex : 0;
+  // If step has taskPollOptionLinks (e.g. step0:poll 2)
+  const pollLink = dayContent.taskPollOptionLinks?.[stepIdx];
+  if (pollLink && pollLink !== 'none') {
+    const info = parsePollLinkInfo(pollLink);
+    if (info && info.optNum !== undefined && info.optNum > 0) {
+      const optIdx = info.optNum - 1;
+      if (optIdx < promptVersions.length) {
+        if (isOptionMatchedByAnswers(currentDayNum, info.targetPollIdx >= 0 ? info.targetPollIdx : 0, info.optNum)) {
+          return optIdx;
+        }
+      }
+    }
+  }
+
+  // Check progressive selection narrowing
+  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  if (progRes.isNarrowed && progRes.activeOptionIndex >= 0 && progRes.activeOptionIndex < promptVersions.length) {
+    return progRes.activeOptionIndex;
+  }
+
+  return 0;
 }
 
 /**
@@ -2186,18 +2387,19 @@ export function isStepVisibleForSprint(
 
   const checkTextVisibility = (promptText: string): boolean => {
     if (!promptText) return true;
-    const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+    const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
     let match: RegExpExecArray | null;
 
-    const stepPlaceholders: { dayNum?: number; stepNum: number; opNum?: number; mode: StepPlaceholderMode }[] = [];
+    const stepPlaceholders: { dayNum?: number; stepNum: number; subStepNum?: number; opNum?: number; mode: StepPlaceholderMode }[] = [];
     let lastStepNum = 1;
     while ((match = regex.exec(promptText)) !== null) {
       const dayNum = match[1] ? parseInt(match[1], 10) : undefined;
       const stepNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
       if (match[2]) lastStepNum = stepNum;
-      const opNum = match[3] ? parseInt(match[3], 10) : undefined;
-      const mode = parsePlaceholderMode(match[4]);
-      stepPlaceholders.push({ dayNum, stepNum, opNum, mode });
+      const subStepNum = match[3] ? parseInt(match[3], 10) : undefined;
+      const opNum = match[4] ? parseInt(match[4], 10) : subStepNum;
+      const mode = parsePlaceholderMode(match[6]);
+      stepPlaceholders.push({ dayNum, stepNum, subStepNum, opNum, mode });
     }
 
     if (stepPlaceholders.length === 0) return true;
