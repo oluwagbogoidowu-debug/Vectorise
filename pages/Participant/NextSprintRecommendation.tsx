@@ -49,15 +49,18 @@ export const NextSprintRecommendation: React.FC = () => {
         typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : false
     );
     const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<any | null>(null);
+    const [userEnrollments, setUserEnrollments] = useState<any[]>([]);
 
     // Subscribe to user enrollments to track active in-progress sprint
     useEffect(() => {
         if (!user) {
             setActiveOngoingEnrollment(null);
+            setUserEnrollments([]);
             return;
         }
 
         const unsubscribe = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
+            setUserEnrollments(enrollments);
             const active = enrollments.find((e) => {
                 if (e.status !== 'active') return false;
                 if (e.completed_at) return false;
@@ -69,6 +72,16 @@ export const NextSprintRecommendation: React.FC = () => {
 
         return () => unsubscribe();
     }, [user]);
+
+    const isCoachRequestEligible = useMemo(() => {
+        if (!user) return false;
+        if ((user as any).isCoachRequestMode) return true;
+        return userEnrollments.some(e => {
+            const sprintAudience = e.sprint?.audience;
+            if (!sprintAudience) return false;
+            return Array.isArray(sprintAudience) && sprintAudience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach"));
+        });
+    }, [user, userEnrollments]);
 
     const hasDualOrMultiMode = useMemo(() => {
         return hasMultipleModes(user);
@@ -642,8 +655,31 @@ export const NextSprintRecommendation: React.FC = () => {
             {/* Main Content */}
             <div className="w-full max-w-[340px] sm:max-w-[380px] my-auto py-6 z-10 animate-fade-in space-y-6 text-center bg-transparent dark:bg-transparent">
                 <div className="space-y-2">
-                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950 dark:text-white">
-                        Your Next Sprint
+                    {user && isCoachRequestEligible && !user?.coachApplicationSubmitted && (
+                        <div className="w-full pb-3 animate-fade-in">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    triggerHaptic(hapticPatterns.light);
+                                    navigate('/onboarding/coach/welcome');
+                                }}
+                                className="w-full py-4 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5"
+                                id="next-sprint-coach-request-btn"
+                            >
+                                <span className="text-[10px] opacity-90 tracking-widest font-bold">Request for Coach Mode</span>
+                                <span className="text-[8px] bg-white/20 text-white px-2.5 py-0.5 rounded-full uppercase font-black tracking-wider">
+                                    Fill Coach Onboarding Quiz
+                                </span>
+                            </button>
+                        </div>
+                    )}
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950 dark:text-white flex flex-wrap items-center justify-center gap-2">
+                        <span>Your Next Sprint</span>
+                        {isCoachRequestEligible && !user?.coachApplicationSubmitted && (
+                            <span className="inline-block px-2.5 py-0.5 bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 text-[8px] font-black uppercase tracking-wider rounded-full">
+                                request for coach mode
+                            </span>
+                        )}
                     </h1>
                 </div>
 

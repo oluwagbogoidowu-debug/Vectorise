@@ -566,7 +566,7 @@ const SprintPreview: React.FC = () => {
                     id: firebaseUser.uid,
                     name: firebaseUser.displayName || 'Rise Seeker',
                     email: firebaseUser.email || '',
-                    role: isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT,
+                    role: UserRole.PARTICIPANT,
                     profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${nameParts[0]}+${nameParts[1] || ''}&background=0E7850&color=fff`,
                     persona: isCoachRegistration ? 'Coach' : 'Seeker',
                     onboardingAnswers: {},
@@ -577,7 +577,8 @@ const SprintPreview: React.FC = () => {
                     referrerId: storedRef || null,
                     referralFirstTouch: storedRef || null,
                     defaultLoginMode: undefined,
-                    bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow."
+                    bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow.",
+                    isCoachRequestMode: isCoachRegistration ? true : undefined
                 };
                 await userService.createUserDocument(firebaseUser.uid, newUser);
             }
@@ -678,7 +679,7 @@ const SprintPreview: React.FC = () => {
                 email: authEmail.trim().toLowerCase(),
                 phone: authPhone.trim(),
                 phoneNumber: authPhone.trim(),
-                role: isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT,
+                role: UserRole.PARTICIPANT,
                 profileImageUrl: `https://ui-avatars.com/api/?name=${authFirstName}+${authLastName}&background=0E7850&color=fff`,
                 persona: isCoachRegistration ? 'Coach' : 'Seeker',
                 onboardingAnswers: {},
@@ -695,6 +696,7 @@ const SprintPreview: React.FC = () => {
                 approved: isCoachRegistration ? false : undefined,
                 bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow.",
                 niche: isCoachRegistration ? "Executive Coaching" : undefined,
+                isCoachRequestMode: isCoachRegistration ? true : undefined,
             };
             await userService.createUserDocument(firebaseUser.uid, newUser);
 

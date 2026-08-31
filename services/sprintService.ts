@@ -1716,11 +1716,15 @@ export const sprintService = {
 
         try {
             const userRef = doc(db, 'users', userId);
+            const spr = await sprintService.getSprintById(sprintId);
+            const isCoachSprint = !!(spr && spr.audience && spr.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
+            
             await updateDoc(userRef, {
-                enrolledSprintIds: arrayUnion(sprintId)
+                enrolledSprintIds: arrayUnion(sprintId),
+                ...(isCoachSprint ? { isCoachRequestMode: true } : {})
             });
         } catch (e) {
-            console.warn("[SprintService] Failed to update enrolledSprintIds on user doc:", e);
+            console.warn("[SprintService] Failed to update enrolledSprintIds or isCoachRequestMode on user doc:", e);
         }
         
         // Notify coach(es) via push and in-app notification when a user starts a sprint

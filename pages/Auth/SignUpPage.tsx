@@ -331,7 +331,7 @@ const SignUpPage: React.FC = () => {
         id: firebaseUser.uid,
         name: `${firstName} ${lastName}`,
         email: email.trim().toLowerCase(),
-        role: isPartnerApplication ? UserRole.PARTNER : (isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT),
+        role: isPartnerApplication ? UserRole.PARTNER : UserRole.PARTICIPANT,
         profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
         persona: persona || (isPartnerApplication ? 'Growth Partner' : (isCoachRegistration ? 'Coach' : 'Seeker')),
         onboardingAnswers: answers || {},
@@ -339,6 +339,7 @@ const SignUpPage: React.FC = () => {
         isPartner: !!isPartnerApplication,
         partnerData: partnerData || null,
         walletBalance: 0, // No coin is given on signup
+        isCoachRequestMode: isCoachRegistration ? true : undefined,
         
         // ATTACH REFERRAL DATA PERMANENTLY
         referrerId: resolvedReferrerId || null,
