@@ -461,13 +461,7 @@ const notifyCoachesOnSprintStart = async (userId: string, sprintId: string, coac
             coachesToNotify.add(sprint.coachId.trim());
         }
 
-        // Fetch all registered coaches so no assigned/available coach is missed
-        const coachesList = await userService.getCoaches();
-        coachesList.forEach(c => {
-            if (c.id && c.id !== userId) {
-                coachesToNotify.add(c.id);
-            }
-        });
+
 
         const title = `🚀 New Sprint Started: ${sprintTitle}`;
         const body = `${userName} just started "${sprintTitle}". Check the app to review their progress and respond!`;
