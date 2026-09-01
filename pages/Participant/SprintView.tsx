@@ -9,6 +9,7 @@ import {
   MicroSelectorStep,
   CoachingComment,
   Coach,
+  UserRole,
 } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
 import { sprintService } from "../../services/sprintService";
@@ -35,7 +36,7 @@ import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, ge
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
@@ -1299,6 +1300,49 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
   const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
+  // Express Note State
+  const [isExpressNoteOpen, setIsExpressNoteOpen] = useState(false);
+  const [expressNoteStepIndex, setExpressNoteStepIndex] = useState(0);
+  const [expressNoteText, setExpressNoteText] = useState("");
+  const [expressNoteSaved, setExpressNoteSaved] = useState(false);
+
+  const isCoachRole = Boolean(user?.role === UserRole.COACH || (user as any)?.role === 'COACH' || (user as any)?.role === 'coach' || (user as any)?.isCoach || (user as any)?.accountType === 'coach');
+  const isCoachConnected = Boolean(
+    sprint?.coachId || 
+    (sprint as any)?.coach_id || 
+    coach || 
+    (enrollment as any)?.coachId || 
+    (enrollment as any)?.coach_id || 
+    (enrollment as any)?.coach
+  );
+  const canAccessExpressNote = Boolean(isCoachRole || isCoachConnected || isPreview);
+
+  const handleOpenExpressNote = (stepIdx: number) => {
+    setExpressNoteStepIndex(stepIdx);
+    const sprintKey = sprint?.id || previewSprintId || 'default';
+    const storageKey = `express_note_${sprintKey}_day_${viewingDay}_step_${stepIdx}`;
+    const saved = localStorage.getItem(storageKey) || "";
+    setExpressNoteText(saved);
+    setExpressNoteSaved(false);
+    setIsExpressNoteOpen(true);
+  };
+
+  const handleSaveExpressNote = () => {
+    const sprintKey = sprint?.id || previewSprintId || 'default';
+    const storageKey = `express_note_${sprintKey}_day_${viewingDay}_step_${expressNoteStepIndex}`;
+    localStorage.setItem(storageKey, expressNoteText);
+    setExpressNoteSaved(true);
+    triggerHaptic(hapticPatterns.success);
+    setTimeout(() => {
+      setExpressNoteSaved(false);
+    }, 2000);
+  };
+
+  const handleCloseExpressNote = () => {
+    setIsExpressNoteOpen(false);
+    setExpressNoteSaved(false);
+  };
+
   // YouTube Embed State & Helpers
   interface YoutubeConfig {
     url: string;
@@ -1381,14 +1425,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const parseTimeToSeconds = (timeStr: string | number): number => {
+  const parseTimeToSeconds = (timeStr?: string | number | null): number => {
+    if (timeStr === undefined || timeStr === null || timeStr === '') return 0;
     if (typeof timeStr === 'number') return timeStr;
-    if (!timeStr) return 0;
     const parts = String(timeStr).split(':');
     if (parts.length === 2) {
       return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
     }
-    return parseInt(timeStr, 10) || 0;
+    return parseInt(String(timeStr), 10) || 0;
   };
 
   useEffect(() => {
@@ -3148,6 +3192,63 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
       />
+
+      {/* Express Note Full Bleed Modal */}
+      {isExpressNoteOpen && (
+        <div className="fixed inset-0 z-[250] bg-white dark:bg-zinc-950 flex flex-col p-6 sm:p-12 md:p-16 animate-fade-in text-left">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4">
+            <div className="flex flex-col">
+              <span className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-gray-400 dark:text-gray-500">
+                Express Note
+              </span>
+              <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mt-0.5">
+                {sprint?.title || "Sprint"} • Move {viewingDay} • Step {expressNoteStepIndex + 1}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCloseExpressNote}
+              className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-500 dark:text-gray-300 transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+              title="Close Express Note"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Full Bleed Note Text Area */}
+          <div className="flex-1 flex flex-col relative w-full max-w-5xl mx-auto py-2">
+            <textarea
+              value={expressNoteText}
+              onChange={(e) => setExpressNoteText(e.target.value)}
+              placeholder="Write your quick thoughts, coaching notes, or step reflections here..."
+              autoFocus
+              className="flex-1 w-full bg-transparent resize-none outline-none border-none text-gray-900 dark:text-zinc-100 text-lg sm:text-xl md:text-2xl leading-relaxed placeholder-gray-300 dark:placeholder-zinc-700 focus:ring-0"
+            />
+          </div>
+
+          {/* Fixed Save Icon at bottom right of the screen */}
+          <div className="fixed bottom-6 sm:bottom-10 right-6 sm:right-10 z-[260] flex items-center gap-3">
+            {expressNoteSaved && (
+              <span className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest px-3.5 py-1.5 rounded-full shadow-lg animate-fade-in">
+                Saved!
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleSaveExpressNote}
+              className="p-4 sm:p-5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer border border-white/20"
+              title="Save Note"
+            >
+              {expressNoteSaved ? (
+                <CheckCircle2 className="w-6 h-6 text-white" />
+              ) : (
+                <Save className="w-6 h-6 text-white" />
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 
@@ -3540,160 +3641,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
 
-                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
+                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
-                              <div className="mb-6 flex flex-col gap-4">
-                                <div className="flex items-center justify-between gap-4 flex-wrap">
-                                  {effectiveFootnote ? (
-                                    <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${activeFullBleed ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base'} flex-1`}>
-                                      <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
-                                    </div>
-                                  ) : (
-                                    <div className="flex-1"></div>
-                                  )}
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setOpenYtConfigIndex(openYtConfigIndex === i ? null : i)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold cursor-pointer shrink-0 ${
-                                      ytConfigs[i]?.added 
-                                        ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" 
-                                        : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
-                                    }`}
-                                    title={ytConfigs[i]?.added ? "Edit Attached YouTube Video" : "Attach YouTube Video to this step"}
-                                  >
-                                    <Youtube className="w-4 h-4 text-red-500" />
-                                    <span>{ytConfigs[i]?.added ? "Video Attached" : "Add Video"}</span>
-                                  </button>
+                              {effectiveFootnote && (
+                                <div className="mb-6 flex flex-col gap-4">
+                                  <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${activeFullBleed ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base'}`}>
+                                    <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                  </div>
                                 </div>
-
-                                {/* Inline YouTube Configuration Panel */}
-                                {openYtConfigIndex === i && (
-                                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl animate-fade-in text-left space-y-3 w-full max-w-lg shadow-sm">
-                                    <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                                      <span className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-1">
-                                        <Youtube className="w-4 h-4 text-red-600" /> Configure YouTube Resource
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => setOpenYtConfigIndex(null)}
-                                        className="text-gray-400 hover:text-gray-650 p-1 rounded-lg hover:bg-gray-200/50 text-[10px] uppercase font-bold"
-                                      >
-                                        Close
-                                      </button>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">YouTube URL or Video ID</label>
-                                      <input
-                                        type="text"
-                                        placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                                        value={ytInputs[i]?.url || ""}
-                                        onChange={(e) => handleYtInputChange(i, 'url', e.target.value)}
-                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
-                                      />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div className="space-y-2">
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start Time (e.g., 0:30 or 30)</label>
-                                        <input
-                                          type="text"
-                                          placeholder="0"
-                                          value={ytInputs[i]?.start || ""}
-                                          onChange={(e) => handleYtInputChange(i, 'start', e.target.value)}
-                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">End Time (e.g., 2:15 or 135)</label>
-                                        <input
-                                          type="text"
-                                          placeholder="e.g. 120"
-                                          value={ytInputs[i]?.end || ""}
-                                          onChange={(e) => handleYtInputChange(i, 'end', e.target.value)}
-                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <div className="flex gap-2 pt-1 justify-end">
-                                      {ytConfigs[i]?.added && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveYtVideo(i)}
-                                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
-                                        >
-                                          Remove Video
-                                        </button>
-                                      )}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSaveYtVideo(i)}
-                                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm transition-all"
-                                      >
-                                        {ytConfigs[i]?.added ? "Update Video" : "Add Video"}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Display YouTube video or locked placeholder */}
-                                {ytConfigs[i]?.added && (
-                                  <div className="w-full mt-2 animate-fade-in">
-                                    {(() => {
-                                      const hasInput = !!taskInputs[i] && taskInputs[i].trim() !== "";
-                                      const videoId = extractYouTubeId(ytConfigs[i].url);
-
-                                      if (!videoId) {
-                                        return (
-                                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800 text-center">
-                                            ⚠️ Invalid YouTube URL or Video ID. Please re-configure.
-                                          </div>
-                                        );
-                                      }
-
-                                      if (hasInput) {
-                                        const startSec = parseTimeToSeconds(ytConfigs[i].start);
-                                        const endSec = parseTimeToSeconds(ytConfigs[i].end);
-                                        const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ""}&rel=0`;
-
-                                        return (
-                                          <div className="space-y-2 text-left">
-                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1 pl-1">
-                                              🎥 Video Active: Playing {ytConfigs[i].start || '0'}s to {ytConfigs[i].end || 'end'}
-                                            </p>
-                                            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
-                                              <iframe
-                                                src={embedUrl}
-                                                title="YouTube video player"
-                                                frameBorder="0"
-                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                                allowFullScreen
-                                                className="absolute top-0 left-0 w-full h-full"
-                                                referrerPolicy="no-referrer"
-                                              ></iframe>
-                                            </div>
-                                          </div>
-                                        );
-                                      } else {
-                                        return (
-                                          <div className="p-6 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border-dashed">
-                                            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
-                                              <Youtube className="w-5 h-5" />
-                                            </div>
-                                            <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Resource Locked</p>
-                                            <p className="text-xs text-gray-500 font-semibold max-w-sm">
-                                              Enter your action step input above to unlock and play the attached video resource!
-                                            </p>
-                                          </div>
-                                        );
-                                      }
-                                    })()}
-                                  </div>
-                                )}
-                              </div>
+                              )}
                               {(() => {
                                 const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[i], i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 if (!resolvedHint) return null;
@@ -4227,22 +4184,74 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     ) : (
                                       taskInputs[i] || "Completed"
                                     )}
-                                </div>
+                                 </div>
                               )}
+
+                              {/* Attached YouTube video after action step input */}
+                              {(() => {
+                                const configuredVideo = dayContent?.taskVideos?.[i] || (ytConfigs[i]?.added ? ytConfigs[i] : null);
+                                if (!configuredVideo || !configuredVideo.url) return null;
+                                const hasInput = !!taskInputs[i] && taskInputs[i].trim() !== "" && taskInputs[i] !== "[]";
+                                const videoId = extractYouTubeId(configuredVideo.url);
+
+                                if (!videoId) return null;
+
+                                if (hasInput || isPreview) {
+                                  const startSec = parseTimeToSeconds(configuredVideo.start);
+                                  const endSec = parseTimeToSeconds(configuredVideo.end);
+                                  const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ""}&rel=0`;
+
+                                  return (
+                                    <div className="w-full mt-4 animate-fade-in space-y-2 text-left">
+                                      <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5 pl-1">
+                                        <Youtube className="w-3.5 h-3.5 text-red-600" /> Attached Video Resource {configuredVideo.start || configuredVideo.end ? `(${configuredVideo.start || '0'}s - ${configuredVideo.end || 'end'})` : ''}
+                                      </p>
+                                      <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
+                                        <iframe
+                                          src={embedUrl}
+                                          title="YouTube video player"
+                                          frameBorder="0"
+                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                          allowFullScreen
+                                          className="absolute top-0 left-0 w-full h-full"
+                                          referrerPolicy="no-referrer"
+                                        ></iframe>
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <div className="w-full mt-4 animate-fade-in p-6 bg-red-50/30 border border-red-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border-dashed">
+                                      <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                        <Youtube className="w-5 h-5" />
+                                      </div>
+                                      <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Resource Locked</p>
+                                      <p className="text-xs text-gray-500 font-semibold max-w-sm">
+                                        Enter your action step input above to unlock and play the attached video resource!
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                              })()}
+
                               {i === activeTaskIndex && (
                                 <div className="mt-6 flex flex-col gap-4 w-full">
                                   <div className="flex justify-between items-center gap-4 w-full">
                                     {getPrevVisibleStepIndex(i) !== -1 ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          saveParticipantInputImmediately(taskInputs);
-                                          setActiveTaskIndex(getPrevVisibleStepIndex(i));
-                                        }}
-                                        className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
-                                      >
-                                        Back
-                                      </button>
+                                      sprintMode !== "guided" ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            saveParticipantInputImmediately(taskInputs);
+                                            setActiveTaskIndex(getPrevVisibleStepIndex(i));
+                                          }}
+                                          className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
+                                        >
+                                          Back
+                                        </button>
+                                      ) : (
+                                        <div></div>
+                                      )
                                     ) : (
                                       <button
                                         type="button"
@@ -4310,16 +4319,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         const isValid =
                                           !!dayProgress?.completed || stepCompleted;
                                         return (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(getNextVisibleStepIndex(i)); }
-                                            }
-                                            disabled={!isValid}
-                                            className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
-                                          >
-                                            Next
-                                          </button>
+                                          <div className="flex items-center gap-2">
+                                            {canAccessExpressNote && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenExpressNote(i)}
+                                                className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                                title="Express Note"
+                                              >
+                                                <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                                              </button>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(getNextVisibleStepIndex(i)); }
+                                              }
+                                              disabled={!isValid}
+                                              className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                            >
+                                              Next
+                                            </button>
+                                          </div>
                                         );
                                       })()
                                     ) : (
@@ -4327,36 +4348,72 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         if (dayProgress?.completed || enrollment?.status === "completed") {
                                           if (viewingDay < (sprint?.duration || 0)) {
                                             return (
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  saveParticipantInputImmediately(taskInputs);
-                                                  setViewingDay(viewingDay + 1);
-                                                  setActiveTaskIndex(0);
-                                                  setGuidedStage("insight");
-                                                }}
-                                                className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-[#0E7850] text-white hover:shadow-lg hover:shadow-[#0E7850]/20 cursor-pointer active:scale-95`}
-                                              >
-                                                Continue to Move {viewingDay + 1}
-                                              </button>
+                                              <div className="flex items-center gap-2">
+                                                {canAccessExpressNote && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleOpenExpressNote(i)}
+                                                    className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                                    title="Express Note"
+                                                  >
+                                                    <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                                                  </button>
+                                                )}
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    saveParticipantInputImmediately(taskInputs);
+                                                    setViewingDay(viewingDay + 1);
+                                                    setActiveTaskIndex(0);
+                                                    setGuidedStage("insight");
+                                                  }}
+                                                  className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-[#0E7850] text-white hover:shadow-lg hover:shadow-[#0E7850]/20 cursor-pointer active:scale-95`}
+                                                >
+                                                  Continue to Move {viewingDay + 1}
+                                                </button>
+                                              </div>
                                             );
                                           } else {
                                             return (
-                                              <div className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'px-6 py-2.5 text-xs font-bold'} text-emerald-600 dark:text-emerald-400 font-bold`}>
-                                                Move Complete
+                                              <div className="flex items-center gap-2">
+                                                {canAccessExpressNote && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleOpenExpressNote(i)}
+                                                    className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                                    title="Express Note"
+                                                  >
+                                                    <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                                                  </button>
+                                                )}
+                                                <div className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'px-6 py-2.5 text-xs font-bold'} text-emerald-600 dark:text-emerald-400 font-bold`}>
+                                                  Move Complete
+                                                </div>
                                               </div>
                                             );
                                           }
                                         } else {
                                           return (
-                                            <button
-                                              type="button"
-                                              onClick={handleFinishDay}
-                                              disabled={isSubmitting || !isProofMet}
-                                              className={`${isFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isProofMet ? "bg-[#159E5B] text-white hover:shadow-lg hover:shadow-emerald-500/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
-                                            >
-                                              {isSubmitting ? "Submitting..." : "Submit Task"}
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                              {canAccessExpressNote && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleOpenExpressNote(i)}
+                                                  className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                                  title="Express Note"
+                                                >
+                                                  <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                                                </button>
+                                              )}
+                                              <button
+                                                type="button"
+                                                onClick={handleFinishDay}
+                                                disabled={isSubmitting || !isProofMet}
+                                                className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isProofMet ? "bg-[#159E5B] text-white hover:shadow-lg hover:shadow-emerald-500/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                              >
+                                                {isSubmitting ? "Submitting..." : "Submit Task"}
+                                              </button>
+                                            </div>
                                           );
                                         }
                                       })()
@@ -4478,160 +4535,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                           return (
                             <>
-                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
+                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
-                              <div className="mb-6 flex flex-col gap-4">
-                                <div className="flex items-center justify-between gap-4 flex-wrap">
-                                  {effectiveFootnote ? (
-                                    <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${activeFullBleed ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base'} flex-1`}>
-                                      <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
-                                    </div>
-                                  ) : (
-                                    <div className="flex-1"></div>
-                                  )}
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setOpenYtConfigIndex(openYtConfigIndex === 0 ? null : 0)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold cursor-pointer shrink-0 ${
-                                      ytConfigs[0]?.added 
-                                        ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" 
-                                        : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
-                                    }`}
-                                    title={ytConfigs[0]?.added ? "Edit Attached YouTube Video" : "Attach YouTube Video to this step"}
-                                  >
-                                    <Youtube className="w-4 h-4 text-red-500" />
-                                    <span>{ytConfigs[0]?.added ? "Video Attached" : "Add Video"}</span>
-                                  </button>
+                              {effectiveFootnote && (
+                                <div className="mb-6 flex flex-col gap-4">
+                                  <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${activeFullBleed ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base'}`}>
+                                    <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                  </div>
                                 </div>
-
-                                {/* Inline YouTube Configuration Panel */}
-                                {openYtConfigIndex === 0 && (
-                                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl animate-fade-in text-left space-y-3 w-full max-w-lg shadow-sm">
-                                    <div className="flex items-center justify-between border-b border-gray-200 pb-2">
-                                      <span className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-1">
-                                        <Youtube className="w-4 h-4 text-red-600" /> Configure YouTube Resource
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => setOpenYtConfigIndex(null)}
-                                        className="text-gray-400 hover:text-gray-650 p-1 rounded-lg hover:bg-gray-200/50 text-[10px] uppercase font-bold"
-                                      >
-                                        Close
-                                      </button>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">YouTube URL or Video ID</label>
-                                      <input
-                                        type="text"
-                                        placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                                        value={ytInputs[0]?.url || ""}
-                                        onChange={(e) => handleYtInputChange(0, 'url', e.target.value)}
-                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
-                                      />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
-                                      <div className="space-y-2">
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start Time (e.g., 0:30 or 30)</label>
-                                        <input
-                                          type="text"
-                                          placeholder="0"
-                                          value={ytInputs[0]?.start || ""}
-                                          onChange={(e) => handleYtInputChange(0, 'start', e.target.value)}
-                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">End Time (e.g., 2:15 or 135)</label>
-                                        <input
-                                          type="text"
-                                          placeholder="e.g. 120"
-                                          value={ytInputs[0]?.end || ""}
-                                          onChange={(e) => handleYtInputChange(0, 'end', e.target.value)}
-                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
-                                        />
-                                      </div>
-                                    </div>
-
-                                    <div className="flex gap-2 pt-1 justify-end">
-                                      {ytConfigs[0]?.added && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveYtVideo(0)}
-                                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
-                                        >
-                                          Remove Video
-                                        </button>
-                                      )}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleSaveYtVideo(0)}
-                                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm transition-all"
-                                      >
-                                        {ytConfigs[0]?.added ? "Update Video" : "Add Video"}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Display YouTube video or locked placeholder */}
-                                {ytConfigs[0]?.added && (
-                                  <div className="w-full mt-2 animate-fade-in">
-                                    {(() => {
-                                      const hasInput = !!taskInputs[0] && taskInputs[0].trim() !== "";
-                                      const videoId = extractYouTubeId(ytConfigs[0].url);
-
-                                      if (!videoId) {
-                                        return (
-                                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800 text-center">
-                                            ⚠️ Invalid YouTube URL or Video ID. Please re-configure.
-                                          </div>
-                                        );
-                                      }
-
-                                      if (hasInput) {
-                                        const startSec = parseTimeToSeconds(ytConfigs[0].start);
-                                        const endSec = parseTimeToSeconds(ytConfigs[0].end);
-                                        const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ""}&rel=0`;
-
-                                        return (
-                                          <div className="space-y-2 text-left">
-                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1 pl-1">
-                                              🎥 Video Active: Playing {ytConfigs[0].start || '0'}s to {ytConfigs[0].end || 'end'}
-                                            </p>
-                                            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
-                                              <iframe
-                                                src={embedUrl}
-                                                title="YouTube video player"
-                                                frameBorder="0"
-                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                                allowFullScreen
-                                                className="absolute top-0 left-0 w-full h-full"
-                                                referrerPolicy="no-referrer"
-                                              ></iframe>
-                                            </div>
-                                          </div>
-                                        );
-                                      } else {
-                                        return (
-                                          <div className="p-6 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border-dashed">
-                                            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
-                                              <Youtube className="w-5 h-5" />
-                                            </div>
-                                            <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Resource Locked</p>
-                                            <p className="text-xs text-gray-500 font-semibold max-w-sm">
-                                              Enter your action step input above to unlock and play the attached video resource!
-                                            </p>
-                                          </div>
-                                        );
-                                      }
-                                    })()}
-                                  </div>
-                                )}
-                              </div>
+                              )}
                             </>
                           );
                         })()}
@@ -5000,9 +4913,57 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     }
                                   })()}
                                 </div>
-                              ) : taskInputs[0] || "Completed"}
+                               ) : taskInputs[0] || "Completed"}
                           </div>
                         )}
+
+                        {/* Attached YouTube video after action step input */}
+                        {(() => {
+                          const configuredVideo = dayContent?.taskVideos?.[0] || (ytConfigs[0]?.added ? ytConfigs[0] : null);
+                          if (!configuredVideo || !configuredVideo.url) return null;
+                          const hasInput = !!taskInputs[0] && taskInputs[0].trim() !== "" && taskInputs[0] !== "[]";
+                          const videoId = extractYouTubeId(configuredVideo.url);
+
+                          if (!videoId) return null;
+
+                          if (hasInput || isPreview) {
+                            const startSec = parseTimeToSeconds(configuredVideo.start);
+                            const endSec = parseTimeToSeconds(configuredVideo.end);
+                            const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ""}&rel=0`;
+
+                            return (
+                              <div className="w-full mt-4 animate-fade-in space-y-2 text-left">
+                                <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5 pl-1">
+                                  <Youtube className="w-3.5 h-3.5 text-red-600" /> Attached Video Resource {configuredVideo.start || configuredVideo.end ? `(${configuredVideo.start || '0'}s - ${configuredVideo.end || 'end'})` : ''}
+                                </p>
+                                <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
+                                  <iframe
+                                    src={embedUrl}
+                                    title="YouTube video player"
+                                    frameBorder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                    className="absolute top-0 left-0 w-full h-full"
+                                    referrerPolicy="no-referrer"
+                                  ></iframe>
+                                </div>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div className="w-full mt-4 animate-fade-in p-6 bg-red-50/30 border border-red-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border-dashed">
+                                <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                  <Youtube className="w-5 h-5" />
+                                </div>
+                                <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Resource Locked</p>
+                                <p className="text-xs text-gray-500 font-semibold max-w-sm">
+                                  Enter your action step input above to unlock and play the attached video resource!
+                                </p>
+                              </div>
+                            );
+                          }
+                        })()}
+
                         {/* Removed absolute green dot and old bottom progress bar */}
                         {activeFullBleed && (
                           <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col sm:flex-row gap-4 w-full">
@@ -5022,20 +4983,32 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               Back
                             </button>
 
-                            {!dayProgress?.completed ? (
-                              <button
-                                type="button"
-                                onClick={handleFinishDay}
-                                disabled={isSubmitting || !isProofMet}
-                                className={`flex-1 ${activeFullBleed ? 'py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'py-2.5 text-xs font-bold'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
-                              >
-                                Today's task completed
-                              </button>
-                            ) : (
-                              <div className="flex-1 py-3.5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100 flex items-center justify-center">
-                                Mission Complete
-                              </div>
-                            )}
+                            <div className="flex-1 flex items-center gap-2">
+                              {canAccessExpressNote && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenExpressNote(0)}
+                                  className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                  title="Express Note"
+                                >
+                                  <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                                </button>
+                              )}
+                              {!dayProgress?.completed ? (
+                                <button
+                                  type="button"
+                                  onClick={handleFinishDay}
+                                  disabled={isSubmitting || !isProofMet}
+                                  className={`flex-1 ${activeFullBleed ? 'py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'py-2.5 text-xs font-bold'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                >
+                                  Today's task completed
+                                </button>
+                              ) : (
+                                <div className="flex-1 py-3.5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100 flex items-center justify-center">
+                                  Mission Complete
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
 

@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video } from 'lucide-react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -18,6 +18,38 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
+
+const extractYouTubeId = (url: string): string | null => {
+  if (!url) return null;
+  const cleanUrl = url.trim();
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = cleanUrl.match(regExp);
+  if (match && match[2].length === 11) {
+    return match[2];
+  }
+  if (/^[a-zA-Z0-9_-]{11}$/.test(cleanUrl)) {
+    return cleanUrl;
+  }
+  return null;
+};
+
+const parseTimeToSeconds = (timeStr?: string | number): number => {
+  if (timeStr === undefined || timeStr === null || timeStr === '') return 0;
+  if (typeof timeStr === 'number') return timeStr;
+  const str = String(timeStr).trim();
+  if (!str) return 0;
+  if (str.includes(':')) {
+    const parts = str.split(':').map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] * 60 + parts[1];
+    }
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+  }
+  const parsed = parseInt(str, 10);
+  return isNaN(parsed) ? 0 : parsed;
+};
 import { ChangesMadeCarousel } from '../../components/ChangesMadeCarousel';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
@@ -801,6 +833,10 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskFootnotes
       : [];
 
+    const safeVideos = Array.isArray((content as any).taskVideos)
+      ? (content as any).taskVideos
+      : [];
+
     const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect)
       ? (content as any).taskPollMultiSelect
       : [];
@@ -854,6 +890,7 @@ const EditSprint: React.FC = () => {
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
+        taskVideos: safeVideos,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
         taskSpread: safeSpread,
@@ -1014,6 +1051,40 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskFootnotes: currentFootnotes,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskVideoChange = (index: number, value: { url: string; start?: string | number; end?: string | number } | null) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentVideos = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskVideos || [])]
+            : [];
+        
+        while (currentVideos.length <= index) {
+            currentVideos.push(null as any);
+        }
+        currentVideos[index] = value as any;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskVideos: currentVideos,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskVideos: currentVideos,
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1635,6 +1706,10 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
 
+        let currentVideos = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskVideos || [])]
+            : [];
+
         let currentMultiTextLabels = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
             : [];
@@ -1653,6 +1728,7 @@ const EditSprint: React.FC = () => {
         currentNotes.push(null as any);
         currentTagNotes.push('{}');
         currentFootnotes.push(null as any);
+        currentVideos.push(null as any);
         currentMultiTextLabels.push(null as any);
         currentSpread.push(false);
         currentPollLinks.push(null as any);
@@ -1666,6 +1742,7 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
+              taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
               taskSpread: currentSpread,
               taskPollOptionLinks: currentPollLinks
@@ -1681,6 +1758,7 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
+            taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
             taskSpread: currentSpread,
             taskPollOptionLinks: currentPollLinks
@@ -1731,6 +1809,10 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
 
+        let currentVideos = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskVideos || [])]
+            : [];
+
         let currentMultiTextLabels = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
             : [];
@@ -1756,6 +1838,7 @@ const EditSprint: React.FC = () => {
         while (currentNotes.length < maxNeeded) currentNotes.push(null as any);
         while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
         while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
+        while (currentVideos.length < maxNeeded) currentVideos.push(null as any);
         while (currentMultiTextLabels.length < maxNeeded) currentMultiTextLabels.push(null as any);
         while (currentSpread.length < maxNeeded) currentSpread.push(false);
         while (currentPollLinks.length < maxNeeded) currentPollLinks.push(null as any);
@@ -1780,6 +1863,7 @@ const EditSprint: React.FC = () => {
         currentNotes.splice(index, deleteCount);
         currentTagNotes.splice(index, deleteCount);
         currentFootnotes.splice(index, deleteCount);
+        currentVideos.splice(index, deleteCount);
         currentMultiTextLabels.splice(index, deleteCount);
         currentSpread.splice(index, deleteCount);
         currentPollLinks.splice(index, deleteCount);
@@ -1799,6 +1883,7 @@ const EditSprint: React.FC = () => {
             currentNotes.push(null as any);
             currentTagNotes.push('{}');
             currentFootnotes.push(null as any);
+            currentVideos.push(null as any);
             currentMultiTextLabels.push(null as any);
             currentSpread.push(false);
             currentLinkedSources.push([]);
@@ -1820,6 +1905,7 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
+              taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
               taskSpread: currentSpread,
               taskLinkedSources: currentLinkedSources,
@@ -1838,6 +1924,7 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
+            taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
             taskSpread: currentSpread,
             taskLinkedSources: currentLinkedSources,
@@ -3800,6 +3887,32 @@ const EditSprint: React.FC = () => {
                                                         )}
                                                     </button>
 
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const currentVideo = currentContent.taskVideos?.[index];
+                                                            if (currentVideo === undefined || currentVideo === null) {
+                                                                handleTaskVideoChange(index, { url: '', start: '', end: '' });
+                                                            }
+                                                        }}
+                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? 'bg-red-50 text-red-600 border border-red-100' : 'text-gray-400 hover:text-red-600 hover:bg-red-50/50'}`}
+                                                        title="YouTube Video: Attach a YouTube video to this action step with custom start and end points."
+                                                    >
+                                                        {(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? (
+                                                            <>
+                                                                <span className="text-[10px] text-red-500 mr-0.5">●</span>
+                                                                <Youtube size={13} className="text-red-500" />
+                                                                <span>Video</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Plus size={14} />
+                                                                <Youtube size={13} />
+                                                                <span>Video</span>
+                                                            </>
+                                                        )}
+                                                    </button>
+
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
                                                         <button 
                                                             type="button"
@@ -4049,6 +4162,96 @@ const EditSprint: React.FC = () => {
                                                         className={footnoteInputClasses} 
                                                         placeholder="Add a footnote to show just below the question..." 
                                                     />
+                                                </div>
+                                            )}
+                                            {(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) && (
+                                                <div className="mt-2.5 p-3.5 bg-red-50/30 border border-red-200/70 rounded-2xl animate-fade-in text-left space-y-3">
+                                                    <div className="flex justify-between items-center pb-1 border-b border-red-100">
+                                                        <label className="text-[9px] font-black text-red-600 uppercase tracking-widest px-0.5 flex items-center gap-1.5">
+                                                            <Youtube size={14} className="text-red-600" /> Attached YouTube Resource
+                                                        </label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const newVideos = [...(currentContent.taskVideos || [])];
+                                                                newVideos[index] = null as any;
+                                                                handleContentChange('taskVideos', newVideos);
+                                                            }}
+                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                                            title="Remove video resource"
+                                                        >
+                                                            <X size={13} />
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-1">
+                                                        <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">YouTube URL or Video ID</label>
+                                                        <input 
+                                                            type="text"
+                                                            value={currentContent.taskVideos[index]?.url || ''}
+                                                            onChange={e => {
+                                                                const curr = currentContent.taskVideos?.[index] || { url: '', start: '', end: '' };
+                                                                handleTaskVideoChange(index, { ...curr, url: e.target.value });
+                                                            }}
+                                                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                                            placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ or dQw4w9WgXcQ"
+                                                        />
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">Start Time (sec or mm:ss)</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={currentContent.taskVideos[index]?.start ?? ''}
+                                                                onChange={e => {
+                                                                    const curr = currentContent.taskVideos?.[index] || { url: '', start: '', end: '' };
+                                                                    handleTaskVideoChange(index, { ...curr, start: e.target.value });
+                                                                }}
+                                                                className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                                                placeholder="e.g. 0:30 or 30"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">End Time (sec or mm:ss)</label>
+                                                            <input 
+                                                                type="text"
+                                                                value={currentContent.taskVideos[index]?.end ?? ''}
+                                                                onChange={e => {
+                                                                    const curr = currentContent.taskVideos?.[index] || { url: '', start: '', end: '' };
+                                                                    handleTaskVideoChange(index, { ...curr, end: e.target.value });
+                                                                }}
+                                                                className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                                                placeholder="e.g. 2:15 or 135"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Video Preview if valid URL/ID */}
+                                                    {(() => {
+                                                        const vidUrl = currentContent.taskVideos[index]?.url;
+                                                        const videoId = vidUrl ? extractYouTubeId(vidUrl) : null;
+                                                        if (!videoId) return null;
+                                                        const startSec = parseTimeToSeconds(currentContent.taskVideos[index]?.start);
+                                                        const endSec = parseTimeToSeconds(currentContent.taskVideos[index]?.end);
+                                                        const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ''}&rel=0`;
+                                                        return (
+                                                            <div className="pt-1.5">
+                                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Coach Preview (Embed)</p>
+                                                                <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-gray-200 shadow-xs bg-black">
+                                                                    <iframe 
+                                                                        src={embedUrl}
+                                                                        title="Video Preview"
+                                                                        frameBorder="0"
+                                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                                        allowFullScreen
+                                                                        className="absolute top-0 left-0 w-full h-full"
+                                                                        referrerPolicy="no-referrer"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             )}
                                             {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (

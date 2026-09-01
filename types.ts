@@ -373,6 +373,12 @@ export interface Sprint {
   likedBy?: InteractionUser[];
 }
 
+export interface TaskVideoConfig {
+  url: string;
+  start?: string | number;
+  end?: string | number;
+}
+
 export interface DailyContent {
   day: number;
   lessonText: string;
@@ -390,6 +396,7 @@ export interface DailyContent {
   taskTagNotes?: string[];
   taskTagNoteActive?: boolean[];
   taskFootnotes?: string[];
+  taskVideos?: (TaskVideoConfig | null | undefined)[];
   taskPollMultiSelect?: boolean[];
   taskPollArrange?: boolean[];
   taskSpread?: boolean[];

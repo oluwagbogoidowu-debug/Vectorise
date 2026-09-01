@@ -1,9 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
-import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter } from 'lucide-react';
+import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
 import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
+
+const extractYouTubeId = (url: string): string | null => {
+  if (!url) return null;
+  const cleanUrl = url.trim();
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = cleanUrl.match(regExp);
+  if (match && match[2].length === 11) {
+    return match[2];
+  }
+  if (/^[a-zA-Z0-9_-]{11}$/.test(cleanUrl)) {
+    return cleanUrl;
+  }
+  return null;
+};
+
+const parseTimeToSeconds = (timeStr?: string | number): number => {
+  if (timeStr === undefined || timeStr === null || timeStr === '') return 0;
+  if (typeof timeStr === 'number') return timeStr;
+  const str = String(timeStr).trim();
+  if (!str) return 0;
+  if (str.includes(':')) {
+    const parts = str.split(':').map(Number);
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts[0] * 60 + parts[1];
+    }
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+  }
+  const parsed = parseInt(str, 10);
+  return isNaN(parsed) ? 0 : parsed;
+};
 
 interface DailyActionWorkspaceProps {
   sprint: Sprint | null;
@@ -256,6 +288,7 @@ export default function DailyActionWorkspace({
       dayContent.taskTagNotes = reorderArr(dayContent.taskTagNotes);
       dayContent.taskTagNoteActive = reorderArr(dayContent.taskTagNoteActive);
       dayContent.taskFootnotes = reorderArr(dayContent.taskFootnotes);
+      dayContent.taskVideos = reorderArr(dayContent.taskVideos);
       dayContent.taskPollOptionLinks = reorderArr(dayContent.taskPollOptionLinks);
       dayContent.taskMultiTextLabels = reorderArr(dayContent.taskMultiTextLabels);
       dayContent.taskPollOptions = reorderArr(dayContent.taskPollOptions as any);
@@ -411,6 +444,14 @@ export default function DailyActionWorkspace({
     while (footnotes.length <= index) footnotes.push(null as any);
     footnotes[index] = value as any;
     updateFieldForDay(dayNum, 'taskFootnotes', footnotes);
+  };
+
+  const handleTaskVideoChange = (dayNum: number, index: number, value: { url: string; start?: string | number; end?: string | number } | null) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const videos = [...(dayContent.taskVideos || [])];
+    while (videos.length <= index) videos.push(null as any);
+    videos[index] = value as any;
+    updateFieldForDay(dayNum, 'taskVideos', videos);
   };
 
   const handleTaskPromptTypeChange = (dayNum: number, index: number, value: 'text' | 'tags' | 'poll' | 'mark' | 'none') => {
@@ -1538,6 +1579,21 @@ export default function DailyActionWorkspace({
                         >
                           <span>Footnote</span>
                         </button>
+
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setSelectedDay(dayNum);
+                            const currentVideo = dayContent.taskVideos?.[activeIdx];
+                            if (currentVideo === undefined || currentVideo === null) {
+                              handleTaskVideoChange(dayNum, activeIdx, { url: '', start: '', end: '' });
+                            }
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskVideos?.[activeIdx] !== undefined && dayContent.taskVideos?.[activeIdx] !== null) ? 'bg-red-50 text-red-600 border border-red-100 shadow-xs' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+                        >
+                          <Youtube size={12} className={dayContent.taskVideos?.[activeIdx] ? 'text-red-500' : ''} />
+                          <span>Video</span>
+                        </button>
                       </div>
                     </div>
 
@@ -1934,6 +1990,100 @@ export default function DailyActionWorkspace({
                           className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-medium text-sm"} 
                           placeholder="Add a footnote..." 
                         />
+                      </div>
+                    )}
+
+                    {/* Task Video edit input */}
+                    {dayContent.taskVideos?.[activeIdx] !== undefined && dayContent.taskVideos?.[activeIdx] !== null && (
+                      <div className="mt-2.5 p-3.5 bg-red-50/20 border border-red-200/70 rounded-2xl animate-fade-in text-left space-y-2.5">
+                        <div className="flex justify-between items-center pb-1 border-b border-red-100">
+                          <label className="text-[9px] font-black text-red-600 uppercase tracking-widest px-0.5 flex items-center gap-1.5">
+                            <Youtube size={14} className="text-red-600" /> Attached YouTube Resource
+                          </label>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              handleTaskVideoChange(dayNum, activeIdx, null as any);
+                            }}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                            title="Remove video resource"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">YouTube URL or Video ID</label>
+                          <input 
+                            type="text"
+                            value={dayContent.taskVideos[activeIdx]?.url || ''}
+                            onChange={e => {
+                              setSelectedDay(dayNum);
+                              const curr = dayContent.taskVideos?.[activeIdx] || { url: '', start: '', end: '' };
+                              handleTaskVideoChange(dayNum, activeIdx, { ...curr, url: e.target.value });
+                            }}
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                            placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ or dQw4w9WgXcQ"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">Start Time (sec or mm:ss)</label>
+                            <input 
+                              type="text"
+                              value={dayContent.taskVideos[activeIdx]?.start ?? ''}
+                              onChange={e => {
+                                setSelectedDay(dayNum);
+                                const curr = dayContent.taskVideos?.[activeIdx] || { url: '', start: '', end: '' };
+                                handleTaskVideoChange(dayNum, activeIdx, { ...curr, start: e.target.value });
+                              }}
+                              className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                              placeholder="e.g. 0:30 or 30"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">End Time (sec or mm:ss)</label>
+                            <input 
+                              type="text"
+                              value={dayContent.taskVideos[activeIdx]?.end ?? ''}
+                              onChange={e => {
+                                setSelectedDay(dayNum);
+                                const curr = dayContent.taskVideos?.[activeIdx] || { url: '', start: '', end: '' };
+                                handleTaskVideoChange(dayNum, activeIdx, { ...curr, end: e.target.value });
+                              }}
+                              className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                              placeholder="e.g. 2:15 or 135"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Video Preview if valid URL/ID */}
+                        {(() => {
+                          const vidUrl = dayContent.taskVideos[activeIdx]?.url;
+                          const videoId = vidUrl ? extractYouTubeId(vidUrl) : null;
+                          if (!videoId) return null;
+                          const startSec = parseTimeToSeconds(dayContent.taskVideos[activeIdx]?.start);
+                          const endSec = parseTimeToSeconds(dayContent.taskVideos[activeIdx]?.end);
+                          const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ''}&rel=0`;
+                          return (
+                            <div className="pt-1">
+                              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Coach Preview (Embed)</p>
+                              <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-gray-200 shadow-xs bg-black">
+                                <iframe 
+                                  src={embedUrl}
+                                  title="Video Preview"
+                                  frameBorder="0"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                  className="absolute top-0 left-0 w-full h-full"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
 
