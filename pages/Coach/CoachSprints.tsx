@@ -1208,66 +1208,54 @@ const CoachSprints: React.FC = () => {
               })}
           </div>
       ) : sprints.length === 0 ? (
-          <div className="max-w-3xl mx-auto py-8 px-4 animate-fade-in">
-              {/* Main Welcome Hero Card */}
-              <div className="bg-gradient-to-b from-white to-gray-50/80 rounded-[2.5rem] border border-gray-200 shadow-sm p-8 sm:p-12 text-center mb-12">
-                  <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mb-4">
+          <div className="w-full max-w-4xl mx-auto py-6 px-4 flex flex-col items-center justify-center min-h-[calc(100vh-180px)] animate-fade-in select-none">
+              <div className="text-center max-w-xl mx-auto mb-10">
+                  <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-sm text-2xl border border-emerald-100">
+                      🚀
+                  </div>
+                  <h1 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-3">
                       Welcome to Coach Mode
                   </h1>
-                  <p className="text-sm sm:text-base text-gray-600 font-medium max-w-xl mx-auto mb-3 leading-relaxed">
-                      Turn what you know into a guided experience that helps people make real progress.
-                  </p>
-                  <p className="text-xs sm:text-sm text-gray-500 font-medium max-w-lg mx-auto mb-8 leading-relaxed">
-                      You’ll build the experience, guide participants through it, and see how they move.
+                  <p className="text-sm sm:text-base text-gray-600 font-medium leading-relaxed mb-6">
+                      Turn what you know into a guided experience that helps people make real progress. You’ll build the experience, guide participants through it, and see how they move.
                   </p>
                   <button
                       type="button"
                       onClick={() => setIsCreateTypeOpen(true)}
-                      className="px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
+                      className="px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2.5"
                   >
-                      <span>Create your first experience</span>
+                      <span>+ Create your first experience</span>
                   </button>
               </div>
 
               {/* How it works section */}
-              <div className="mb-12">
-                  <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight mb-6 text-center">
+              <div className="w-full mt-2">
+                  <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 text-center mb-6">
                       How it works
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xs flex flex-col">
-                          <span className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3">01 · Build</span>
-                          <h3 className="text-sm font-bold text-gray-900 mb-2">Define the transformation</h3>
-                          <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                              Structure the journey and map out clear actionable milestones.
-                          </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all">
+                          <div>
+                              <span className="text-xs font-black text-emerald-600 uppercase tracking-widest block mb-2">01 · Build</span>
+                              <h3 className="font-bold text-gray-900 text-sm mb-1">Structure the Journey</h3>
+                              <p className="text-xs text-gray-500 leading-relaxed font-medium">Define the transformation and structure the journey.</p>
+                          </div>
                       </div>
-                      <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xs flex flex-col">
-                          <span className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3">02 · Guide</span>
-                          <h3 className="text-sm font-bold text-gray-900 mb-2">Give focused actions</h3>
-                          <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                              Keep participants moving forward instead of overwhelming them with information.
-                          </p>
+                      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all">
+                          <div>
+                              <span className="text-xs font-black text-emerald-600 uppercase tracking-widest block mb-2">02 · Guide</span>
+                              <h3 className="font-bold text-gray-900 text-sm mb-1">Focused Actions</h3>
+                              <p className="text-xs text-gray-500 leading-relaxed font-medium">Give participants focused actions instead of overwhelming them with information.</p>
+                          </div>
                       </div>
-                      <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-xs flex flex-col">
-                          <span className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3">03 · See progress</span>
-                          <h3 className="text-sm font-bold text-gray-900 mb-2">Review and give feedback</h3>
-                          <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                              Understand where participants are and support their growth in real time.
-                          </p>
+                      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all">
+                          <div>
+                              <span className="text-xs font-black text-emerald-600 uppercase tracking-widest block mb-2">03 · See progress</span>
+                              <h3 className="font-bold text-gray-900 text-sm mb-1">Feedback & Growth</h3>
+                              <p className="text-xs text-gray-500 leading-relaxed font-medium">Review their work, give feedback, and understand where they are.</p>
+                          </div>
                       </div>
                   </div>
-              </div>
-
-              {/* Bottom CTA */}
-              <div className="text-center pb-8">
-                  <button
-                      type="button"
-                      onClick={() => setIsCreateTypeOpen(true)}
-                      className="px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
-                  >
-                      <span>Create your first experience</span>
-                  </button>
               </div>
           </div>
       ) : (
