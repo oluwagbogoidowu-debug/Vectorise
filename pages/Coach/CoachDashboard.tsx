@@ -7,6 +7,7 @@ import { notificationService } from '../../services/notificationService';
 import { userService } from '../../services/userService';
 import { Sprint, Notification, Review, UserRole } from '../../types';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
+import LocalLogo from '../../components/LocalLogo';
 import CreateTypeModal from '../../components/CreateTypeModal';
 import { MoreVertical, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -276,51 +277,53 @@ const CoachDashboard: React.FC = () => {
 
   if (mySprints.length === 0) {
     return (
-      <div className="w-full max-w-4xl mx-auto py-10 px-6 sm:px-10 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] bg-gradient-to-b from-white via-gray-50/50 to-white rounded-[3rem] border border-gray-100 shadow-sm my-4 animate-fade-in select-none">
-          <div className="text-center max-w-xl mx-auto mb-12">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-sm text-2xl border border-emerald-100">
-                  🚀
+      <div className="w-full max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-8 flex flex-col items-center justify-between min-h-[calc(100vh-140px)] bg-gradient-to-b from-white via-gray-50/50 to-white rounded-[2.5rem] sm:rounded-[3rem] border border-gray-100 shadow-sm my-2 animate-fade-in select-none">
+          {/* Header & Hero */}
+          <div className="text-center max-w-xl mx-auto w-full my-auto py-2">
+              <div className="flex flex-col items-center justify-center mb-3">
+                  <LocalLogo type="green" className="h-8 sm:h-10 w-auto object-contain mb-2" />
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">
+                      Empowering growth through focused sprints.
+                  </p>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight mb-3">
+
+              <h1 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight mb-2 sm:mb-3">
                   Welcome to Coach Mode
               </h1>
-              <p className="text-sm sm:text-base text-gray-600 font-medium leading-relaxed mb-8">
+              <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed mb-6 max-w-lg mx-auto">
                   Turn what you know into a guided experience that helps people make real progress. You’ll build the experience, guide participants through it, and see how they move.
               </p>
               <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2.5"
+                  className="px-7 sm:px-8 py-3.5 sm:py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
               >
                   <span>+ Create your first experience</span>
               </button>
           </div>
 
-          {/* How it works section */}
-          <div className="w-full mt-4">
-              <h2 className="text-xs font-black uppercase tracking-widest text-gray-400 text-center mb-6">
+          {/* How it works section (Side by Side cards) */}
+          <div className="w-full mt-auto pt-4 border-t border-gray-100/80">
+              <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 text-center mb-3 sm:mb-4">
                   How it works
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full">
+                  <div className="bg-white p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all text-left">
                       <div>
-                          <span className="text-xs font-black text-emerald-600 uppercase tracking-widest block mb-2">01 · Build</span>
-                          <h3 className="font-bold text-gray-900 text-sm mb-1">Structure the Journey</h3>
-                          <p className="text-xs text-gray-500 leading-relaxed font-medium">Define the transformation and structure the journey.</p>
+                          <span className="text-[9px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest block mb-1">01 · Build</span>
+                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">Define the transformation and structure the journey.</p>
                       </div>
                   </div>
-                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all">
+                  <div className="bg-white p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all text-left">
                       <div>
-                          <span className="text-xs font-black text-emerald-600 uppercase tracking-widest block mb-2">02 · Guide</span>
-                          <h3 className="font-bold text-gray-900 text-sm mb-1">Focused Actions</h3>
-                          <p className="text-xs text-gray-500 leading-relaxed font-medium">Give participants focused actions instead of overwhelming them with information.</p>
+                          <span className="text-[9px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest block mb-1">02 · Guide</span>
+                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">Give participants focused actions instead of overwhelming them with information.</p>
                       </div>
                   </div>
-                  <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all">
+                  <div className="bg-white p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all text-left">
                       <div>
-                          <span className="text-xs font-black text-emerald-600 uppercase tracking-widest block mb-2">03 · See progress</span>
-                          <h3 className="font-bold text-gray-900 text-sm mb-1">Feedback & Growth</h3>
-                          <p className="text-xs text-gray-500 leading-relaxed font-medium">Review their work, give feedback, and understand where they are.</p>
+                          <span className="text-[9px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest block mb-1">03 · See progress</span>
+                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">Review their work, give feedback, and understand where they are.</p>
                       </div>
                   </div>
               </div>
