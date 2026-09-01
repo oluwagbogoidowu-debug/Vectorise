@@ -19,6 +19,7 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
+import SprintEditorTour from '../../components/SprintEditorTour';
 
 const extractYouTubeId = (url: string): string | null => {
   if (!url) return null;
@@ -412,8 +413,16 @@ const EditSprint: React.FC = () => {
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
   const [scrolledDown, setScrolledDown] = useState(false);
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
+  const [isTourOpen, setIsTourOpen] = useState(false);
   const kebabMenuRef = useRef<HTMLDivElement>(null);
   
+  useEffect(() => {
+    const hasSeenTour = localStorage.getItem('vectorise_sprint_editor_tour_seen');
+    if (!hasSeenTour) {
+      setIsTourOpen(true);
+    }
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (kebabMenuRef.current && !kebabMenuRef.current.contains(event.target as Node)) {
@@ -426,9 +435,39 @@ const EditSprint: React.FC = () => {
 
   const renderKebabMenuContent = () => (
     <div className="py-1">
-      <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl">Coach Guide</button>
-      <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl">Sprint Versioning</button>
-      <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl">Sprint Settings</button>
+      <button 
+        type="button"
+        onClick={() => {
+          setIsKebabMenuOpen(false);
+          setIsTourOpen(true);
+        }}
+        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer"
+      >
+        <span>Coach Guide</span>
+        <BookOpen className="w-4 h-4 text-gray-400" />
+      </button>
+      <button 
+        type="button"
+        onClick={() => {
+          setIsKebabMenuOpen(false);
+          setShowAddVersionFullBleed(true);
+        }}
+        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer"
+      >
+        <span>Sprint Versioning</span>
+        <Layers className="w-4 h-4 text-gray-400" />
+      </button>
+      <button 
+        type="button"
+        onClick={() => {
+          setIsKebabMenuOpen(false);
+          setShowSettings(true);
+        }}
+        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer"
+      >
+        <span>Sprint Settings</span>
+        <Settings className="w-4 h-4 text-gray-400" />
+      </button>
     </div>
   );
 
@@ -2567,6 +2606,7 @@ const EditSprint: React.FC = () => {
 
           </div>
         </div>
+        <SprintEditorTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
       </ErrorBoundary>
     );
   }
@@ -2779,6 +2819,7 @@ const EditSprint: React.FC = () => {
 
           </div>
         </div>
+        <SprintEditorTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
       </ErrorBoundary>
     );
   }
@@ -2810,11 +2851,15 @@ const EditSprint: React.FC = () => {
           <div className="w-full">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
-                <button onClick={() => navigate(-1)} className="group flex items-center text-gray-400 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-widest cursor-pointer">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                  Go Back
+                <button
+                  type="button"
+                  onClick={() => navigate(-1)}
+                  className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                  title="Go Back"
+                >
+                  <ArrowLeft className="w-5 h-5" />
                 </button>
-                <span className={`px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border shrink-0 ${
+                <span className={`px-3 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border shrink-0 ${
                   sprint.approvalStatus === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                   sprint.approvalStatus === 'pending_approval' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                   sprint.approvalStatus === 'rejected' ? 'bg-orange-50 text-orange-700 border-orange-200' :
@@ -2825,38 +2870,53 @@ const EditSprint: React.FC = () => {
                    sprint.approvalStatus === 'rejected' ? 'Amendments Required' :
                    'Draft'}
                 </span>
-              </div>
-              
-              {!sprint.parentSprintId ? (
-                <div className="flex items-center gap-2">
-                  {sprint.versionTag && (
-                    <span className="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest">
-                      {sprint.versionTag}
-                    </span>
-                  )}
-                  <button 
-                    onClick={handleInitiateAddVersion}
-                    className="group flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-lg text-[8px] font-black uppercase tracking-widest cursor-pointer transition-all"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Create New Version
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="px-3.5 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0">
+                {sprint.versionTag && (
+                  <span className="px-3 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                    {sprint.versionTag}
+                  </span>
+                )}
+                {sprint.parentSprintId && (
+                  <span className="px-3.5 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-[10px] font-black uppercase tracking-widest shrink-0">
                     Version {sprint.versionNumber || 2}
                   </span>
-                  {sprint.versionTag && (
-                    <span className="px-3.5 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest shrink-0">
-                      {sprint.versionTag}
-                    </span>
-                  )}
-                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest hidden sm:inline-block">
-                    (Locked Version)
-                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {!sprint.parentSprintId && (
+                  <button 
+                    onClick={handleInitiateAddVersion}
+                    className="group flex items-center gap-1 px-3 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Create New Version</span>
+                  </button>
+                )}
+
+                <div className="relative" ref={kebabMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                    className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                    title="Sprint options"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                  <AnimatePresence>
+                    {isKebabMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
+                        className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                      >
+                        {renderKebabMenuContent()}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              )}
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">{sprint.title}</h1>
@@ -6515,6 +6575,9 @@ const EditSprint: React.FC = () => {
           )}
         </button>
       )}
+
+      {/* First-Time Sprint Tour & Coach Guide */}
+      <SprintEditorTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
     </ErrorBoundary>
   );
 };
