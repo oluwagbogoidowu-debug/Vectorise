@@ -9,7 +9,8 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -410,6 +411,26 @@ const EditSprint: React.FC = () => {
   const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
   const [scrolledDown, setScrolledDown] = useState(false);
+  const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
+  const kebabMenuRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (kebabMenuRef.current && !kebabMenuRef.current.contains(event.target as Node)) {
+        setIsKebabMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const renderKebabMenuContent = () => (
+    <div className="py-1">
+      <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl">Coach Guide</button>
+      <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl">Sprint Versioning</button>
+      <button className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl">Sprint Settings</button>
+    </div>
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -2321,14 +2342,41 @@ const EditSprint: React.FC = () => {
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div className="w-full">
                 <div className="flex justify-between items-center mb-4">
-                  <button onClick={() => navigate(-1)} className="group flex items-center text-gray-400 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-widest cursor-pointer bg-transparent border-0 outline-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                    Go Back
-                  </button>
                   <div className="flex items-center gap-2">
-                    <span className="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                    <button
+                      type="button"
+                      onClick={() => navigate(-1)}
+                      className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                      title="Go Back"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <span className="px-3 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest">
                       RiseBlog
                     </span>
+                  </div>
+                  <div className="relative" ref={kebabMenuRef}>
+                    <button
+                        type="button"
+                        onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                        className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                        title="Sprint options"
+                    >
+                        <MoreVertical className="w-5 h-5" />
+                    </button>
+                    <AnimatePresence>
+                        {isKebabMenuOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                            transition={{ duration: 0.16, ease: "easeOut" }}
+                            className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                        >
+                            {renderKebabMenuContent()}
+                        </motion.div>
+                        )}
+                    </AnimatePresence>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -2531,14 +2579,41 @@ const EditSprint: React.FC = () => {
             <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <div className="w-full">
                 <div className="flex justify-between items-center mb-4">
-                  <button onClick={() => navigate(-1)} className="group flex items-center text-gray-400 hover:text-primary transition-colors text-[10px] font-black uppercase tracking-widest cursor-pointer bg-transparent border-0 outline-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
-                    Go Back
-                  </button>
                   <div className="flex items-center gap-2">
-                    <span className="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                    <button
+                      type="button"
+                      onClick={() => navigate(-1)}
+                      className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                      title="Go Back"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <span className="px-3 py-2.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest">
                       Ignite
                     </span>
+                  </div>
+                  <div className="relative" ref={kebabMenuRef}>
+                    <button
+                        type="button"
+                        onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                        className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                        title="Sprint options"
+                    >
+                        <MoreVertical className="w-5 h-5" />
+                    </button>
+                    <AnimatePresence>
+                        {isKebabMenuOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.92, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: -4 }}
+                            transition={{ duration: 0.16, ease: "easeOut" }}
+                            className="absolute right-0 mt-2 w-64 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
+                        >
+                            {renderKebabMenuContent()}
+                        </motion.div>
+                        )}
+                    </AnimatePresence>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
