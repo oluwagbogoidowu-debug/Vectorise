@@ -801,6 +801,7 @@ export const userService = {
 
   isIdentitySet: (user: Participant | null): boolean => {
     if (!user) return false;
+    if ((user as any).isCoachRequestMode) return true;
     if (user.isIdentityComplete) return true;
     if (user.claimedMilestoneIds?.includes('setup_identity')) return true;
     return (user.growthAreas?.length || 0) === 5 && !!user.risePathway && !!user.profileImageUrl;

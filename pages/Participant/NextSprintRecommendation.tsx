@@ -663,13 +663,10 @@ export const NextSprintRecommendation: React.FC = () => {
                                     triggerHaptic(hapticPatterns.light);
                                     navigate('/onboarding/coach/welcome');
                                 }}
-                                className="w-full py-4 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5"
+                                className="w-full py-4 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
                                 id="next-sprint-coach-request-btn"
                             >
                                 <span className="text-[10px] opacity-90 tracking-widest font-bold">Request for Coach Mode</span>
-                                <span className="text-[8px] bg-white/20 text-white px-2.5 py-0.5 rounded-full uppercase font-black tracking-wider">
-                                    Fill Coach Onboarding Quiz
-                                </span>
                             </button>
                         </div>
                     )}
@@ -677,7 +674,7 @@ export const NextSprintRecommendation: React.FC = () => {
                         <span>Your Next Sprint</span>
                         {isCoachRequestEligible && !user?.coachApplicationSubmitted && (
                             <span className="inline-block px-2.5 py-0.5 bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 text-[8px] font-black uppercase tracking-wider rounded-full">
-                                request for coach mode
+                                request coach mode
                             </span>
                         )}
                     </h1>
