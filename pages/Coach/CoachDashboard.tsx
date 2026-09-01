@@ -9,7 +9,7 @@ import { Sprint, Notification, Review, UserRole } from '../../types';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import LocalLogo from '../../components/LocalLogo';
 import CreateTypeModal from '../../components/CreateTypeModal';
-import { MoreVertical, User } from 'lucide-react';
+import { MoreVertical, User, Layers, Compass, TrendingUp, Plus, Sparkles, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CoachDashboard: React.FC = () => {
@@ -277,53 +277,105 @@ const CoachDashboard: React.FC = () => {
 
   if (mySprints.length === 0) {
     return (
-      <div className="w-full max-w-4xl mx-auto py-6 sm:py-8 px-4 sm:px-8 flex flex-col items-center justify-between min-h-[calc(100vh-140px)] bg-gradient-to-b from-white via-gray-50/50 to-white rounded-[2.5rem] sm:rounded-[3rem] border border-gray-100 shadow-sm my-2 animate-fade-in select-none">
+      <div className="relative w-full max-w-4xl mx-auto py-7 sm:py-9 px-5 sm:px-10 flex flex-col items-center justify-between min-h-[calc(100vh-140px)] bg-gradient-to-b from-white via-gray-50/70 to-emerald-50/20 rounded-[2.5rem] sm:rounded-[3rem] border border-gray-200/80 shadow-sm my-2 animate-fade-in select-none overflow-hidden">
+          {/* Subtle decorative background glow */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl pointer-events-none -z-10" />
+
           {/* Header & Hero */}
-          <div className="text-center max-w-xl mx-auto w-full my-auto py-2">
-              <div className="flex flex-col items-center justify-center mb-3">
-                  <LocalLogo type="green" className="h-8 sm:h-10 w-auto object-contain mb-2" />
-                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">
-                      Empowering growth through focused sprints.
-                  </p>
+          <div className="text-center max-w-xl mx-auto w-full my-auto py-2 z-10">
+              {/* Brand Logo & Tagline Pill */}
+              <div className="flex flex-col items-center justify-center mb-4">
+                  <LocalLogo type="green" className="h-9 sm:h-11 w-auto object-contain mb-3 hover:scale-105 transition-transform" />
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-full shadow-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-emerald-800">
+                          Empowering growth through focused sprints.
+                      </p>
+                  </div>
               </div>
 
-              <h1 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight mb-2 sm:mb-3">
+              {/* Main Headline */}
+              <h1 className="text-2xl sm:text-4xl font-black text-gray-900 tracking-tight mb-2.5 sm:mb-3">
                   Welcome to Coach Mode
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed mb-6 max-w-lg mx-auto">
+              <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed mb-7 max-w-lg mx-auto">
                   Turn what you know into a guided experience that helps people make real progress. You’ll build the experience, guide participants through it, and see how they move.
               </p>
+
+              {/* Action Button */}
               <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="px-7 sm:px-8 py-3.5 sm:py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
+                  className="group relative px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-[11px] sm:text-xs font-black uppercase tracking-widest shadow-xl shadow-emerald-700/20 hover:shadow-emerald-700/30 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer inline-flex items-center gap-2.5"
               >
-                  <span>+ Create your first experience</span>
+                  <Plus className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" />
+                  <span>Create your first experience</span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
               </button>
           </div>
 
           {/* How it works section (Side by Side cards) */}
-          <div className="w-full mt-auto pt-4 border-t border-gray-100/80">
-              <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400 text-center mb-3 sm:mb-4">
-                  How it works
-              </h2>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full">
-                  <div className="bg-white p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all text-left">
+          <div className="w-full mt-auto pt-5 border-t border-gray-100 z-10">
+              <div className="flex items-center justify-center gap-2 mb-3.5">
+                  <span className="h-px w-8 bg-gray-200" />
+                  <h2 className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-gray-400">
+                      How it works
+                  </h2>
+                  <span className="h-px w-8 bg-gray-200" />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 w-full">
+                  {/* Card 1: Build */}
+                  <div className="group bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100/90 shadow-xs hover:shadow-md hover:border-emerald-200 transition-all duration-200 flex flex-col justify-between text-left relative overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div>
-                          <span className="text-[9px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest block mb-1">01 · Build</span>
-                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">Define the transformation and structure the journey.</p>
+                          <div className="flex items-center justify-between mb-2">
+                              <span className="text-[9px] sm:text-[11px] font-black text-emerald-700 uppercase tracking-wider">
+                                  01 · Build
+                              </span>
+                              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                  <Layers className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                              </div>
+                          </div>
+                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">
+                              Define the transformation and structure the journey.
+                          </p>
                       </div>
                   </div>
-                  <div className="bg-white p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all text-left">
+
+                  {/* Card 2: Guide */}
+                  <div className="group bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100/90 shadow-xs hover:shadow-md hover:border-emerald-200 transition-all duration-200 flex flex-col justify-between text-left relative overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-teal-400 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div>
-                          <span className="text-[9px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest block mb-1">02 · Guide</span>
-                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">Give participants focused actions instead of overwhelming them with information.</p>
+                          <div className="flex items-center justify-between mb-2">
+                              <span className="text-[9px] sm:text-[11px] font-black text-emerald-700 uppercase tracking-wider">
+                                  02 · Guide
+                              </span>
+                              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                  <Compass className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                              </div>
+                          </div>
+                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">
+                              Give participants focused actions instead of overwhelming them with information.
+                          </p>
                       </div>
                   </div>
-                  <div className="bg-white p-3 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100 shadow-sm flex flex-col justify-between hover:border-emerald-200 transition-all text-left">
+
+                  {/* Card 3: See progress */}
+                  <div className="group bg-white p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl border border-gray-100/90 shadow-xs hover:shadow-md hover:border-emerald-200 transition-all duration-200 flex flex-col justify-between text-left relative overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div>
-                          <span className="text-[9px] sm:text-xs font-black text-emerald-600 uppercase tracking-widest block mb-1">03 · See progress</span>
-                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">Review their work, give feedback, and understand where they are.</p>
+                          <div className="flex items-center justify-between mb-2">
+                              <span className="text-[9px] sm:text-[11px] font-black text-emerald-700 uppercase tracking-wider">
+                                  03 · See progress
+                              </span>
+                              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                  <TrendingUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                              </div>
+                          </div>
+                          <p className="text-[9px] sm:text-xs text-gray-600 leading-snug sm:leading-relaxed font-medium">
+                              Review their work, give feedback, and understand where they are.
+                          </p>
                       </div>
                   </div>
               </div>
