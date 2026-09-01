@@ -2005,10 +2005,38 @@ export function updateStepVersionValue(rawField: string | null | undefined, vers
 export function isStepOrSubStepPoll(rawType?: string | null, pollOptions?: any, prompt?: string | null): boolean {
   if (pollOptions && Array.isArray(pollOptions) && pollOptions.length > 0) return true;
   if (!rawType && !prompt) return false;
+
+  if (rawType) {
+    const trimmed = rawType.trim().toLowerCase();
+    const versions = parseStepVersions(trimmed);
+    
+    // Check if any version is explicitly a non-poll type (none, note, mark, tags, text)
+    const hasExplicitNonPoll = versions.some(v => {
+      const val = v.trim().toLowerCase();
+      return ['none', 'note', 'mark', 'tags', 'text'].includes(val);
+    });
+
+    if (hasExplicitNonPoll) {
+      // If there is an explicit non-poll, respect it unless there is also an explicit poll version
+      const hasExplicitPoll = versions.some(v => {
+        const val = v.trim().toLowerCase();
+        return val === 'poll' || val === 'multiple choice';
+      });
+      if (!hasExplicitPoll) {
+        return false;
+      }
+    }
+
+    if (versions.some(v => v.trim().toLowerCase() === 'poll' || v.trim().toLowerCase() === 'multiple choice')) {
+      return true;
+    }
+  }
+
   const combined = `${rawType || ''} ${prompt || ''}`.toLowerCase();
-  if (combined.includes('poll') || combined.includes('multiple choice') || combined.includes('op ') || combined.includes('options')) return true;
-  const versions = parseStepVersions(rawType);
-  return versions.some(v => v.trim().toLowerCase() === 'poll' || v.trim().toLowerCase() === 'multiple choice');
+  if (combined.includes('poll') || combined.includes('multiple choice') || combined.includes('op ') || combined.includes('options')) {
+    return true;
+  }
+  return false;
 }
 
 export function getStepInputType(

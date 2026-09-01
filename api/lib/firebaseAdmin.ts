@@ -34,34 +34,69 @@ if (!admin.apps.length) {
 
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     try {
-      let keyVal = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
-      
-      // Handle potential wrapping quotes from shell/env files
-      if ((keyVal.startsWith("'") && keyVal.endsWith("'")) || 
-          (keyVal.startsWith('"') && keyVal.endsWith('"'))) {
-        keyVal = keyVal.slice(1, -1).trim();
-      }
+      const keyVal = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
+      let parsedConfig: any = null;
+      const errors: string[] = [];
 
-      // If the user copied the contents without the curly braces
-      if (keyVal.startsWith('"type"') || keyVal.startsWith("'type'") || keyVal.startsWith("type")) {
-        keyVal = "{" + keyVal + "}";
-      }
-
-      // 🔍 Attempt to extract JSON if there's wrapping text
-      const firstBrace = keyVal.indexOf('{');
-      const lastBrace = keyVal.lastIndexOf('}');
-      
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        const jsonCandidate = keyVal.substring(firstBrace, lastBrace + 1);
-        try {
-          config = parseRelaxedJSON(jsonCandidate);
-        } catch (e: any) {
-          console.error("Failed to parse extracted JSON from FIREBASE_SERVICE_ACCOUNT_KEY:", e.message);
-          // Fallback to trying the whole string if extraction failed for some reason
-          config = parseRelaxedJSON(keyVal);
+      const strategies = [
+        // Strategy 1: As-is
+        (s: string) => s,
+        // Strategy 2: Wrap in braces if missing
+        (s: string) => {
+          let trimmed = s.trim();
+          if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+            return '{' + trimmed + '}';
+          }
+          return trimmed;
+        },
+        // Strategy 3: Strip outer quotes and try as-is
+        (s: string) => {
+          let trimmed = s.trim();
+          if ((trimmed.startsWith("'") && trimmed.endsWith("'")) || 
+              (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+            trimmed = trimmed.slice(1, -1).trim();
+          }
+          return trimmed;
+        },
+        // Strategy 4: Strip outer quotes and wrap in braces if missing
+        (s: string) => {
+          let trimmed = s.trim();
+          if ((trimmed.startsWith("'") && trimmed.endsWith("'")) || 
+              (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+            trimmed = trimmed.slice(1, -1).trim();
+          }
+          if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+            return '{' + trimmed + '}';
+          }
+          return trimmed;
         }
+      ];
+
+      for (const strategy of strategies) {
+        try {
+          const processed = strategy(keyVal);
+          const firstBrace = processed.indexOf('{');
+          const lastBrace = processed.lastIndexOf('}');
+          let candidate: any = null;
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            const jsonCandidate = processed.substring(firstBrace, lastBrace + 1);
+            candidate = parseRelaxedJSON(jsonCandidate);
+          } else {
+            candidate = parseRelaxedJSON(processed);
+          }
+          if (candidate && typeof candidate === "object") {
+            parsedConfig = candidate;
+            break;
+          }
+        } catch (err: any) {
+          errors.push(err.message);
+        }
+      }
+
+      if (parsedConfig) {
+        config = parsedConfig;
       } else {
-        config = parseRelaxedJSON(keyVal);
+        throw new Error("All parsing strategies failed: " + errors.join("; "));
       }
     } catch (e: any) {
       console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", e.message);

@@ -4482,7 +4482,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 )}
                               </button>
                             </div>
-                          ) : dayContent?.taskInputTypes?.[0] === "none" ? null : isMultiTextStep(0) ? (
+                          ) : getStepInputType(dayContent, 0, taskInputs, sprint?.dailyContent, enrollment?.progress) === "none" ? null : isMultiTextStep(0) ? (
                             <div className="space-y-4 animate-fade-in text-left">
                               {(dayContent?.taskMultiTextLabels?.[0] || []).map((lbl, lblIndex) => {
                                 let currentAnswers: Record<string, string> = {};
@@ -4547,7 +4547,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 clipRule="evenodd"
                               />
                             </svg>
-                            {dayContent?.taskInputTypes?.[0] === "tags" || dayContent?.taskInputTypes?.[0] === "poll" || (taskInputs[0] && taskInputs[0].trim().startsWith("[") && taskInputs[0].trim().endsWith("]"))
+                            {(() => {
+                              const resolvedType = getStepInputType(dayContent, 0, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                              return resolvedType === "tags" || resolvedType === "poll" || (taskInputs[0] && taskInputs[0].trim().startsWith("[") && taskInputs[0].trim().endsWith("]"));
+                            })()
                               ? (() => {
                                   let tags: string[] = [];
                                   const cleanVal = taskInputs[0] ? taskInputs[0].trim() : "";
