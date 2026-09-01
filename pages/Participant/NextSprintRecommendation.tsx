@@ -709,13 +709,19 @@ export const NextSprintRecommendation: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="p-8 text-center bg-gray-50 dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800">
-                            <p className="text-xs font-bold text-gray-700 dark:text-gray-300">No additional sprints found.</p>
+                        <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xl shadow-gray-100/40 dark:shadow-none flex flex-col items-center justify-center space-y-4">
+                            <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <Sparkles className="w-6 h-6 animate-pulse" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight italic">Your next sprint is in view.</h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">We are working on it. We will get back to you soon.</p>
+                            </div>
                             <button
                                 onClick={() => navigate('/explore')}
-                                className="mt-4 px-4 py-2 bg-[#0E7850] text-white text-xs font-black uppercase tracking-wider rounded-xl cursor-pointer"
+                                className="px-6 py-2.5 bg-[#0E7850] hover:bg-[#085C3D] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
                             >
-                                Browse All Sprints
+                                Browse Sprints
                             </button>
                         </div>
                     )}

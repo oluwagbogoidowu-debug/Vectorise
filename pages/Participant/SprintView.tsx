@@ -35,7 +35,7 @@ import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, ge
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
@@ -1146,12 +1146,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [guidedStage, setGuidedStage] = useState<"insight" | "action">("insight");
   const [isFullBleed, setIsFullBleed] = useState(false);
 
-  // Force Guided Mode to start from Move 1 when active
+  // Set Guided Mode to start from the current incomplete move (or last progress day) when active
   useEffect(() => {
-    if (sprintMode === "guided") {
-      setViewingDay(1);
+    if (sprintMode === "guided" && enrollment?.progress) {
+      const firstIncomplete = enrollment.progress.find((p) => !p.completed)?.day || 1;
+      setViewingDay(firstIncomplete);
     }
-  }, [sprintMode]);
+  }, [sprintMode, enrollment?.progress]);
 
   // Close kebab menu when clicking outside
   useEffect(() => {
@@ -1297,6 +1298,98 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
   const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
+
+  // YouTube Embed State & Helpers
+  interface YoutubeConfig {
+    url: string;
+    start: string;
+    end: string;
+    added: boolean;
+  }
+
+  const [ytConfigs, setYtConfigs] = useState<Record<number, YoutubeConfig>>({});
+  const [ytInputs, setYtInputs] = useState<Record<number, { url: string; start: string; end: string }>>({});
+  const [openYtConfigIndex, setOpenYtConfigIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    const key = `sprint_yt_configs_${enrollment?.id || sprint?.id || 'default'}_${viewingDay}`;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setYtConfigs(parsed);
+        setYtInputs(parsed);
+      } else {
+        setYtConfigs({});
+        setYtInputs({});
+      }
+    } catch (e) {
+      setYtConfigs({});
+      setYtInputs({});
+    }
+  }, [viewingDay, enrollment?.id, sprint?.id]);
+
+  const handleSaveYtVideo = (index: number) => {
+    const currentInput = ytInputs[index] || { url: "", start: "", end: "" };
+    if (!currentInput.url.trim()) return;
+
+    const updatedConfigs = {
+      ...ytConfigs,
+      [index]: {
+        url: currentInput.url.trim(),
+        start: currentInput.start || "0",
+        end: currentInput.end || "",
+        added: true,
+      }
+    };
+
+    setYtConfigs(updatedConfigs);
+    
+    const key = `sprint_yt_configs_${enrollment?.id || sprint?.id || 'default'}_${viewingDay}`;
+    localStorage.setItem(key, JSON.stringify(updatedConfigs));
+    setOpenYtConfigIndex(null);
+  };
+
+  const handleRemoveYtVideo = (index: number) => {
+    const updatedConfigs = { ...ytConfigs };
+    delete updatedConfigs[index];
+    setYtConfigs(updatedConfigs);
+
+    const updatedInputs = { ...ytInputs };
+    delete updatedInputs[index];
+    setYtInputs(updatedInputs);
+
+    const key = `sprint_yt_configs_${enrollment?.id || sprint?.id || 'default'}_${viewingDay}`;
+    localStorage.setItem(key, JSON.stringify(updatedConfigs));
+    setOpenYtConfigIndex(null);
+  };
+
+  const handleYtInputChange = (index: number, field: 'url' | 'start' | 'end', value: string) => {
+    setYtInputs(prev => ({
+      ...prev,
+      [index]: {
+        ...(prev[index] || { url: "", start: "", end: "" }),
+        [field]: value
+      }
+    }));
+  };
+
+  const extractYouTubeId = (url: string): string | null => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const parseTimeToSeconds = (timeStr: string | number): number => {
+    if (typeof timeStr === 'number') return timeStr;
+    if (!timeStr) return 0;
+    const parts = String(timeStr).split(':');
+    if (parts.length === 2) {
+      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    }
+    return parseInt(timeStr, 10) || 0;
+  };
 
   useEffect(() => {
     if (location.state?.resetPreview) {
@@ -3412,22 +3505,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             >
                               {/* Header & Back/Focus Bar in Top */}
                               <div className="absolute top-6 left-6 sm:left-12 right-6 sm:right-12 z-55 flex items-center justify-between pointer-events-none">
-                                {sprintMode === "guided" ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      saveParticipantInputImmediately(taskInputs);
-                                      setGuidedStage("insight");
-                                      window.scrollTo({ top: 0, behavior: "smooth" });
-                                    }}
-                                    className="pointer-events-auto p-2.5 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-950 border border-gray-200/90 rounded-2xl shadow-sm cursor-pointer active:scale-95 transition-all flex items-center justify-center"
-                                    title="Back"
-                                  >
-                                    <ArrowLeft className="w-4 h-4" />
-                                  </button>
-                                ) : (
-                                  <div></div>
-                                )}
+                                <div></div>
 
                                 <div className="pointer-events-auto flex items-center gap-2">
                                   {sprintMode === "guided" ? (
@@ -3454,22 +3532,168 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 </div>
                               </div>
 
-                              <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
+                              <div className={activeFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
                                 <SectionHeading 
                                   showDot={!dayProgress?.completed}
-                                  className={isFullBleed ? "text-xs sm:text-sm tracking-[0.3em]" : "text-[8px]"}
+                                  className={activeFullBleed ? "text-xs sm:text-sm tracking-[0.3em]" : "text-[8px]"}
                                 >
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
 
-                              <div className={`text-gray-950 font-black leading-tight ${isFullBleed ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
+                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
-                              {effectiveFootnote && (
-                                <div className={`mb-6 text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
-                                  <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                              <div className="mb-6 flex flex-col gap-4">
+                                <div className="flex items-center justify-between gap-4 flex-wrap">
+                                  {effectiveFootnote ? (
+                                    <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${activeFullBleed ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base'} flex-1`}>
+                                      <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                    </div>
+                                  ) : (
+                                    <div className="flex-1"></div>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setOpenYtConfigIndex(openYtConfigIndex === i ? null : i)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold cursor-pointer shrink-0 ${
+                                      ytConfigs[i]?.added 
+                                        ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" 
+                                        : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
+                                    }`}
+                                    title={ytConfigs[i]?.added ? "Edit Attached YouTube Video" : "Attach YouTube Video to this step"}
+                                  >
+                                    <Youtube className="w-4 h-4 text-red-500" />
+                                    <span>{ytConfigs[i]?.added ? "Video Attached" : "Add Video"}</span>
+                                  </button>
                                 </div>
-                              )}
+
+                                {/* Inline YouTube Configuration Panel */}
+                                {openYtConfigIndex === i && (
+                                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl animate-fade-in text-left space-y-3 w-full max-w-lg shadow-sm">
+                                    <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                                      <span className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-1">
+                                        <Youtube className="w-4 h-4 text-red-600" /> Configure YouTube Resource
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setOpenYtConfigIndex(null)}
+                                        className="text-gray-400 hover:text-gray-650 p-1 rounded-lg hover:bg-gray-200/50 text-[10px] uppercase font-bold"
+                                      >
+                                        Close
+                                      </button>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">YouTube URL or Video ID</label>
+                                      <input
+                                        type="text"
+                                        placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                                        value={ytInputs[i]?.url || ""}
+                                        onChange={(e) => handleYtInputChange(i, 'url', e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                      />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-2">
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start Time (e.g., 0:30 or 30)</label>
+                                        <input
+                                          type="text"
+                                          placeholder="0"
+                                          value={ytInputs[i]?.start || ""}
+                                          onChange={(e) => handleYtInputChange(i, 'start', e.target.value)}
+                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">End Time (e.g., 2:15 or 135)</label>
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. 120"
+                                          value={ytInputs[i]?.end || ""}
+                                          onChange={(e) => handleYtInputChange(i, 'end', e.target.value)}
+                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="flex gap-2 pt-1 justify-end">
+                                      {ytConfigs[i]?.added && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveYtVideo(i)}
+                                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
+                                        >
+                                          Remove Video
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveYtVideo(i)}
+                                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm transition-all"
+                                      >
+                                        {ytConfigs[i]?.added ? "Update Video" : "Add Video"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Display YouTube video or locked placeholder */}
+                                {ytConfigs[i]?.added && (
+                                  <div className="w-full mt-2 animate-fade-in">
+                                    {(() => {
+                                      const hasInput = !!taskInputs[i] && taskInputs[i].trim() !== "";
+                                      const videoId = extractYouTubeId(ytConfigs[i].url);
+
+                                      if (!videoId) {
+                                        return (
+                                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800 text-center">
+                                            ⚠️ Invalid YouTube URL or Video ID. Please re-configure.
+                                          </div>
+                                        );
+                                      }
+
+                                      if (hasInput) {
+                                        const startSec = parseTimeToSeconds(ytConfigs[i].start);
+                                        const endSec = parseTimeToSeconds(ytConfigs[i].end);
+                                        const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ""}&rel=0`;
+
+                                        return (
+                                          <div className="space-y-2 text-left">
+                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1 pl-1">
+                                              🎥 Video Active: Playing {ytConfigs[i].start || '0'}s to {ytConfigs[i].end || 'end'}
+                                            </p>
+                                            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
+                                              <iframe
+                                                src={embedUrl}
+                                                title="YouTube video player"
+                                                frameBorder="0"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                allowFullScreen
+                                                className="absolute top-0 left-0 w-full h-full"
+                                                referrerPolicy="no-referrer"
+                                              ></iframe>
+                                            </div>
+                                          </div>
+                                        );
+                                      } else {
+                                        return (
+                                          <div className="p-6 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border-dashed">
+                                            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                              <Youtube className="w-5 h-5" />
+                                            </div>
+                                            <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Resource Locked</p>
+                                            <p className="text-xs text-gray-500 font-semibold max-w-sm">
+                                              Enter your action step input above to unlock and play the attached video resource!
+                                            </p>
+                                          </div>
+                                        );
+                                      }
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
                               {(() => {
                                 const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[i], i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 if (!resolvedHint) return null;
@@ -4015,15 +4239,29 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           saveParticipantInputImmediately(taskInputs);
                                           setActiveTaskIndex(getPrevVisibleStepIndex(i));
                                         }}
-                                        className={`${isFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
+                                        className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
                                       >
                                         Back
                                       </button>
                                     ) : (
-                                      <div></div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          saveParticipantInputImmediately(taskInputs);
+                                          if (sprintMode === "guided") {
+                                            setGuidedStage("insight");
+                                          } else {
+                                            setIsFullBleed(false);
+                                          }
+                                          window.scrollTo({ top: 0, behavior: "smooth" });
+                                        }}
+                                        className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
+                                      >
+                                        Back
+                                      </button>
                                     )}
 
-                                    {getNextVisibleStepIndex(i) !== -1 &&
+                                    {getNextVisibleStepIndex(i) !== -1 ? (
                                       (() => {
                                         const val = taskInputs[i];
                                         const isTags =
@@ -4078,12 +4316,51 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                               { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(getNextVisibleStepIndex(i)); }
                                             }
                                             disabled={!isValid}
-                                            className={`${isFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                            className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                           >
                                             Next
                                           </button>
                                         );
-                                      })()}
+                                      })()
+                                    ) : (
+                                      (() => {
+                                        if (dayProgress?.completed || enrollment?.status === "completed") {
+                                          if (viewingDay < (sprint?.duration || 0)) {
+                                            return (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  saveParticipantInputImmediately(taskInputs);
+                                                  setViewingDay(viewingDay + 1);
+                                                  setActiveTaskIndex(0);
+                                                  setGuidedStage("insight");
+                                                }}
+                                                className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-[#0E7850] text-white hover:shadow-lg hover:shadow-[#0E7850]/20 cursor-pointer active:scale-95`}
+                                              >
+                                                Continue to Move {viewingDay + 1}
+                                              </button>
+                                            );
+                                          } else {
+                                            return (
+                                              <div className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'px-6 py-2.5 text-xs font-bold'} text-emerald-600 dark:text-emerald-400 font-bold`}>
+                                                Move Complete
+                                              </div>
+                                            );
+                                          }
+                                        } else {
+                                          return (
+                                            <button
+                                              type="button"
+                                              onClick={handleFinishDay}
+                                              disabled={isSubmitting || !isProofMet}
+                                              className={`${isFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isProofMet ? "bg-[#159E5B] text-white hover:shadow-lg hover:shadow-emerald-500/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                            >
+                                              {isSubmitting ? "Submitting..." : "Submit Task"}
+                                            </button>
+                                          );
+                                        }
+                                      })()
+                                    )}
                                   </div>
 
                                   {/* Pagination indicator below Back and Next, flowing with the page */}
@@ -4141,29 +4418,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                       </AnimatePresence>
                     ) : (
                       <div 
-                          className={isFullBleed 
+                          className={activeFullBleed 
                             ? "w-full min-h-full bg-white dark:bg-zinc-900 px-6 sm:px-16 md:px-24 lg:px-32 py-12 md:py-20 text-left flex flex-col relative !transition-none" 
                             : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
                           }
                         >
                         {/* Header & Back/Focus Bar in Top */}
                         <div className="absolute top-4 sm:top-6 left-4 sm:left-12 right-4 sm:right-12 z-55 flex items-center justify-between pointer-events-none">
-                          {sprintMode === "guided" ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                saveParticipantInputImmediately(taskInputs);
-                                setGuidedStage("insight");
-                                window.scrollTo({ top: 0, behavior: "smooth" });
-                              }}
-                              className="pointer-events-auto px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-950 border border-gray-200/90 rounded-2xl shadow-sm text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
-                            >
-                              <ArrowLeft className="w-4 h-4" />
-                              <span>Insight</span>
-                            </button>
-                          ) : (
-                            <div></div>
-                          )}
+                          <div></div>
 
                           <div className="pointer-events-auto flex items-center gap-2">
                             {sprintMode === "guided" && (
@@ -4193,12 +4455,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           </div>
                         </div>
 
-                        <div className={isFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
+                        <div className={activeFullBleed ? "w-full max-w-7xl mx-auto space-y-8 flex flex-col relative text-lg sm:text-xl" : "relative z-10"}>
                           <SectionHeading 
                             showDot={!dayProgress?.completed}
-                            className={isFullBleed ? "text-xs sm:text-sm tracking-[0.3em]" : "text-[8px]"}
+                            className={activeFullBleed ? "text-xs sm:text-sm tracking-[0.3em]" : "text-[8px]"}
                           >
-                            {isFullBleed ? (
+                            {activeFullBleed ? (
                               <>Action Step 1</>
                             ) : (
                               "Today's Action Steps"
@@ -4216,14 +4478,160 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                           return (
                             <>
-                              <div className={`text-gray-950 font-black leading-tight ${isFullBleed ? 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
+                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
-                              {effectiveFootnote && (
-                                <div className={`mb-6 text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${isFullBleed ? 'text-lg sm:text-xl md:text-2xl' : 'text-sm sm:text-base'}`}>
-                                  <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                              <div className="mb-6 flex flex-col gap-4">
+                                <div className="flex items-center justify-between gap-4 flex-wrap">
+                                  {effectiveFootnote ? (
+                                    <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in ${activeFullBleed ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base'} flex-1`}>
+                                      <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                    </div>
+                                  ) : (
+                                    <div className="flex-1"></div>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setOpenYtConfigIndex(openYtConfigIndex === 0 ? null : 0)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all text-xs font-bold cursor-pointer shrink-0 ${
+                                      ytConfigs[0]?.added 
+                                        ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" 
+                                        : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
+                                    }`}
+                                    title={ytConfigs[0]?.added ? "Edit Attached YouTube Video" : "Attach YouTube Video to this step"}
+                                  >
+                                    <Youtube className="w-4 h-4 text-red-500" />
+                                    <span>{ytConfigs[0]?.added ? "Video Attached" : "Add Video"}</span>
+                                  </button>
                                 </div>
-                              )}
+
+                                {/* Inline YouTube Configuration Panel */}
+                                {openYtConfigIndex === 0 && (
+                                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl animate-fade-in text-left space-y-3 w-full max-w-lg shadow-sm">
+                                    <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+                                      <span className="text-xs font-black text-gray-700 uppercase tracking-widest flex items-center gap-1">
+                                        <Youtube className="w-4 h-4 text-red-600" /> Configure YouTube Resource
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setOpenYtConfigIndex(null)}
+                                        className="text-gray-400 hover:text-gray-650 p-1 rounded-lg hover:bg-gray-200/50 text-[10px] uppercase font-bold"
+                                      >
+                                        Close
+                                      </button>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">YouTube URL or Video ID</label>
+                                      <input
+                                        type="text"
+                                        placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                                        value={ytInputs[0]?.url || ""}
+                                        onChange={(e) => handleYtInputChange(0, 'url', e.target.value)}
+                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                      />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div className="space-y-2">
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Start Time (e.g., 0:30 or 30)</label>
+                                        <input
+                                          type="text"
+                                          placeholder="0"
+                                          value={ytInputs[0]?.start || ""}
+                                          onChange={(e) => handleYtInputChange(0, 'start', e.target.value)}
+                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">End Time (e.g., 2:15 or 135)</label>
+                                        <input
+                                          type="text"
+                                          placeholder="e.g. 120"
+                                          value={ytInputs[0]?.end || ""}
+                                          onChange={(e) => handleYtInputChange(0, 'end', e.target.value)}
+                                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-red-100 focus:border-red-400 outline-none text-gray-800"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="flex gap-2 pt-1 justify-end">
+                                      {ytConfigs[0]?.added && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveYtVideo(0)}
+                                          className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
+                                        >
+                                          Remove Video
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveYtVideo(0)}
+                                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-white bg-red-600 hover:bg-red-700 rounded-xl shadow-sm transition-all"
+                                      >
+                                        {ytConfigs[0]?.added ? "Update Video" : "Add Video"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Display YouTube video or locked placeholder */}
+                                {ytConfigs[0]?.added && (
+                                  <div className="w-full mt-2 animate-fade-in">
+                                    {(() => {
+                                      const hasInput = !!taskInputs[0] && taskInputs[0].trim() !== "";
+                                      const videoId = extractYouTubeId(ytConfigs[0].url);
+
+                                      if (!videoId) {
+                                        return (
+                                          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-800 text-center">
+                                            ⚠️ Invalid YouTube URL or Video ID. Please re-configure.
+                                          </div>
+                                        );
+                                      }
+
+                                      if (hasInput) {
+                                        const startSec = parseTimeToSeconds(ytConfigs[0].start);
+                                        const endSec = parseTimeToSeconds(ytConfigs[0].end);
+                                        const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ""}&rel=0`;
+
+                                        return (
+                                          <div className="space-y-2 text-left">
+                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1 pl-1">
+                                              🎥 Video Active: Playing {ytConfigs[0].start || '0'}s to {ytConfigs[0].end || 'end'}
+                                            </p>
+                                            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
+                                              <iframe
+                                                src={embedUrl}
+                                                title="YouTube video player"
+                                                frameBorder="0"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                allowFullScreen
+                                                className="absolute top-0 left-0 w-full h-full"
+                                                referrerPolicy="no-referrer"
+                                              ></iframe>
+                                            </div>
+                                          </div>
+                                        );
+                                      } else {
+                                        return (
+                                          <div className="p-6 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border-dashed">
+                                            <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                              <Youtube className="w-5 h-5" />
+                                            </div>
+                                            <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Resource Locked</p>
+                                            <p className="text-xs text-gray-500 font-semibold max-w-sm">
+                                              Enter your action step input above to unlock and play the attached video resource!
+                                            </p>
+                                          </div>
+                                        );
+                                      }
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
                             </>
                           );
                         })()}
@@ -4596,19 +5004,35 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           </div>
                         )}
                         {/* Removed absolute green dot and old bottom progress bar */}
-                        {isFullBleed && (
-                          <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
+                        {activeFullBleed && (
+                          <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col sm:flex-row gap-4 w-full">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                saveParticipantInputImmediately(taskInputs);
+                                if (sprintMode === "guided") {
+                                  setGuidedStage("insight");
+                                } else {
+                                  setIsFullBleed(false);
+                                }
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
+                            >
+                              Back
+                            </button>
+
                             {!dayProgress?.completed ? (
                               <button
                                 type="button"
                                 onClick={handleFinishDay}
                                 disabled={isSubmitting || !isProofMet}
-                                className={`w-full ${isFullBleed ? 'py-5 sm:py-6 text-sm sm:text-base md:text-lg' : 'py-4.5 text-xs'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                className={`flex-1 ${activeFullBleed ? 'py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'py-2.5 text-xs font-bold'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                               >
                                 Today's task completed
                               </button>
                             ) : (
-                              <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100">
+                              <div className="flex-1 py-3.5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100 flex items-center justify-center">
                                 Mission Complete
                               </div>
                             )}

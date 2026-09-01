@@ -134,6 +134,7 @@ const ParticipantDashboard: React.FC = () => {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [orchestration, setOrchestration] = useState<Record<string, any>>({});
   const [sprintLinks, setSprintLinks] = useState<any[]>([]);
+  const [sprintBlogLinks, setSprintBlogLinks] = useState<any[]>([]);
   const [activePlayIgnite, setActivePlayIgnite] = useState<Sprint | null>(null);
   const [showPulse, setShowPulse] = useState(false);
   const [checkedIgnites, setCheckedIgnites] = useState<Record<string, boolean>>({});
@@ -392,7 +393,18 @@ const ParticipantDashboard: React.FC = () => {
   const [currentBlogIndex, setCurrentBlogIndex] = useState(0);
 
   const recentBlogPosts = useMemo(() => {
-    const approvedDbBlogs = blogPosts.filter(s => (s.approvalStatus === 'approved' || !s.approvalStatus) && s.published !== false);
+    let approvedDbBlogs = blogPosts.filter(s => (s.approvalStatus === 'approved' || !s.approvalStatus) && s.published !== false);
+
+    const isStaff = user?.role === UserRole.ADMIN || user?.role === UserRole.COACH;
+    if (!isStaff) {
+      const enrolledSprintIds = new Set(allEnrollments.map(e => e.sprint_id));
+      const linkedBlogIds = new Set(
+        sprintBlogLinks
+          .filter(link => enrolledSprintIds.has(link.sourceSprintId))
+          .map(link => link.targetBlogId)
+      );
+      approvedDbBlogs = approvedDbBlogs.filter(s => linkedBlogIds.has(s.id));
+    }
 
     const mappedDbPosts = approvedDbBlogs.map((sprint) => {
       const coach = coaches.find(c => c.id === sprint.coachId);
@@ -445,7 +457,7 @@ const ParticipantDashboard: React.FC = () => {
     });
 
     return mappedDbPosts.slice(0, 3);
-  }, [blogPosts, coaches]);
+  }, [blogPosts, coaches, user, allEnrollments, sprintBlogLinks]);
 
   useEffect(() => {
     if (recentBlogPosts.length <= 1) return;
@@ -616,7 +628,14 @@ const ParticipantDashboard: React.FC = () => {
       setSprintLinks(links || []);
     });
 
-    return () => unsubLinks();
+    const unsubBlogLinks = sprintService.subscribeToSprintBlogLinks((links) => {
+      setSprintBlogLinks(links || []);
+    });
+
+    return () => {
+      unsubLinks();
+      unsubBlogLinks();
+    };
   }, []);
 
   const recommendedNextSprintCoach = useMemo(() => {

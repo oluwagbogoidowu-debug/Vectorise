@@ -4,7 +4,7 @@ import { blogService, BlogPost, getBlogPostUrl, slugify, calculateReadingTimeSta
 import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
-import { Sprint, Coach } from '../../types';
+import { Sprint, Coach, ParticipantSprint, UserRole } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Clock, Calendar, Heart, Share2, Bookmark, Check, Home, Coins, Sparkles, CheckCircle2, Eye, Award, History, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
@@ -133,6 +133,8 @@ export const RiseBlog: React.FC = () => {
 
   const [dbSprints, setDbSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
+  const [sprintBlogLinks, setSprintBlogLinks] = useState<any[]>([]);
+  const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Big Card Slider State (3 posts)
@@ -174,6 +176,25 @@ export const RiseBlog: React.FC = () => {
       console.error('Error fetching coaches:', err);
     });
   }, []);
+
+  // Subscribe to sprint blog links and user enrollments
+  useEffect(() => {
+    const unsubscribeLinks = sprintService.subscribeToSprintBlogLinks((links) => {
+      setSprintBlogLinks(links);
+    });
+
+    let unsubscribeEnrollments = () => {};
+    if (user?.id) {
+      unsubscribeEnrollments = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
+        setUserEnrollments(enrollments);
+      });
+    }
+
+    return () => {
+      unsubscribeLinks();
+      unsubscribeEnrollments();
+    };
+  }, [user?.id]);
 
   // Subscribe to published sprints (blogs)
   useEffect(() => {
@@ -267,21 +288,41 @@ export const RiseBlog: React.FC = () => {
     });
   }, [dbSprints, coaches]);
 
+  // Derive visible blog posts based on participant enrolled links
+  const visiblePosts = useMemo(() => {
+    const isStaff = user?.role === UserRole.ADMIN || user?.role === UserRole.COACH;
+    if (isStaff) {
+      return posts;
+    }
+
+    const enrolledSprintIds = new Set(userEnrollments.map(e => e.sprint_id));
+    const linkedBlogIds = new Set(
+      sprintBlogLinks
+        .filter(link => enrolledSprintIds.has(link.sourceSprintId))
+        .map(link => link.targetBlogId)
+    );
+
+    return posts.filter(post => {
+      // Allow if it's explicitly linked to an enrolled sprint
+      return linkedBlogIds.has(post.id);
+    });
+  }, [posts, user, userEnrollments, sprintBlogLinks]);
+
   // Filtered posts
   const filteredPosts = useMemo(() => {
-    return posts.filter(post => {
+    return visiblePosts.filter(post => {
       const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                             post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             post.content.toLowerCase().includes(searchTerm.toLowerCase());
       
       return matchesSearch;
     });
-  }, [posts, searchTerm]);
+  }, [visiblePosts, searchTerm]);
 
   // 3 Featured posts for the big top slider
   const sliderPosts = useMemo(() => {
-    return posts.slice(0, 3);
-  }, [posts]);
+    return visiblePosts.slice(0, 3);
+  }, [visiblePosts]);
 
   // Auto-advance slider every 5 seconds if not hovered
   useEffect(() => {
@@ -299,9 +340,9 @@ export const RiseBlog: React.FC = () => {
     if (searchTerm) {
       return filteredPosts;
     }
-    const remaining = posts.slice(3);
-    return remaining.length > 0 ? remaining : posts;
-  }, [filteredPosts, posts, searchTerm]);
+    const remaining = visiblePosts.slice(3);
+    return remaining.length > 0 ? remaining : visiblePosts;
+  }, [filteredPosts, visiblePosts, searchTerm]);
 
   const handleLike = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -352,10 +393,10 @@ export const RiseBlog: React.FC = () => {
 
   // Find active post for details view
   const activePost = useMemo(() => {
+    let rawPost = null;
     if (postId) {
-      return posts.find(p => p.id === postId) || blogService.getPostById(postId);
-    }
-    if (blogSlug) {
+      rawPost = posts.find(p => p.id === postId) || blogService.getPostById(postId);
+    } else if (blogSlug) {
       const targetAudience = (audienceSlug || 'general').toLowerCase();
       const targetSlug = blogSlug.toLowerCase();
       const match = posts.find(p => {
@@ -363,11 +404,24 @@ export const RiseBlog: React.FC = () => {
         const expectedUrl = `/${targetAudience}/${targetSlug}`;
         return url === expectedUrl || slugify(p.title) === targetSlug || p.id === targetSlug;
       });
-      if (match) return match;
-      return posts.find(p => p.id === blogSlug) || blogService.getPostById(blogSlug);
+      if (match) {
+        rawPost = match;
+      } else {
+        rawPost = posts.find(p => p.id === blogSlug) || blogService.getPostById(blogSlug);
+      }
     }
-    return null;
-  }, [postId, audienceSlug, blogSlug, posts]);
+
+    if (!rawPost) return null;
+
+    // Strict linking check for participants
+    const isStaff = user?.role === UserRole.ADMIN || user?.role === UserRole.COACH;
+    if (!isStaff) {
+      const isLinked = visiblePosts.some(p => p.id === rawPost.id);
+      if (!isLinked) return null;
+    }
+
+    return rawPost;
+  }, [postId, audienceSlug, blogSlug, posts, visiblePosts, user]);
 
   // Active reading and milestone progress state for current article
   const endMarkerRef = useRef<HTMLDivElement | null>(null);
@@ -680,7 +734,7 @@ export const RiseBlog: React.FC = () => {
   if (activePost) {
     const isLiked = likedPosts[activePost.id];
     const isBookmarked = bookmarkedPosts[activePost.id];
-    const otherPosts = posts.filter(p => p.id !== activePost.id);
+    const otherPosts = visiblePosts.filter(p => p.id !== activePost.id);
 
     return (
       <motion.div 
