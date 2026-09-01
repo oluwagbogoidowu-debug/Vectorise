@@ -4238,20 +4238,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 <div className="mt-6 flex flex-col gap-4 w-full">
                                   <div className="flex justify-between items-center gap-4 w-full">
                                     {getPrevVisibleStepIndex(i) !== -1 ? (
-                                      sprintMode !== "guided" ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            saveParticipantInputImmediately(taskInputs);
-                                            setActiveTaskIndex(getPrevVisibleStepIndex(i));
-                                          }}
-                                          className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
-                                        >
-                                          Back
-                                        </button>
-                                      ) : (
-                                        <div></div>
-                                      )
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          saveParticipantInputImmediately(taskInputs);
+                                          setActiveTaskIndex(getPrevVisibleStepIndex(i));
+                                        }}
+                                        className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95`}
+                                      >
+                                        Back
+                                      </button>
                                     ) : (
                                       <button
                                         type="button"

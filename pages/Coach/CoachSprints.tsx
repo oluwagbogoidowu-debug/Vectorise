@@ -1207,6 +1207,25 @@ const CoachSprints: React.FC = () => {
                   );
               })}
           </div>
+      ) : sprints.length === 0 ? (
+          <div className="text-center py-16 px-6 bg-gradient-to-b from-white to-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-200 shadow-sm max-w-xl mx-auto my-8 animate-fade-in">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-sm text-2xl">
+                  🚀
+              </div>
+              <h3 className="text-lg font-black text-gray-900 tracking-tight mb-2">
+                  Create Your First Experience
+              </h3>
+              <p className="text-xs text-gray-500 font-medium max-w-sm mx-auto mb-6 leading-relaxed">
+                  You haven't created any sprints, challenges, or stories yet. Build your first experience to empower participants and start growing your community.
+              </p>
+              <button
+                  type="button"
+                  onClick={() => setIsCreateTypeOpen(true)}
+                  className="px-8 py-3.5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer inline-flex items-center gap-2"
+              >
+                  <span>+ Create First Experience</span>
+              </button>
+          </div>
       ) : (
           <div className="text-center py-20 bg-gray-50/50 rounded-[2.5rem] border-2 border-dashed border-gray-100">
               <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm grayscale opacity-30">🏝️</div>
