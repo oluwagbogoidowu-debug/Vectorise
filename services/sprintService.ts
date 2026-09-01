@@ -999,7 +999,7 @@ export const sprintService = {
                     const { contentType, subcategory } = determineExperienceContentType(data);
                     data.contentType = contentType;
                     data.subcategory = subcategory;
-                    if ((data.coachId === coachId || (data.contentType === 'blog' && (data.coachId === 'admin1' || coachId === 'admin1'))) && data.deleted !== true) {
+                    if (data.coachId === coachId && data.deleted !== true) {
                         rawMap.set(id, data);
                     }
                 }
