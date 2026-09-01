@@ -1,4 +1,4 @@
-import admin, { db } from '../api/lib/firebaseAdmin.js';
+import admin, { db, isFirebaseAdminAvailable } from '../api/lib/firebaseAdmin.js';
 import { Participant, UserNotificationState, ParticipantSprint, Sprint, Notification } from '../types.js';
 
 const processingNotifications = new Set<string>();
@@ -17,6 +17,9 @@ export const pushNotificationManager = {
    * Save an FCM registration token for a user.
    */
   saveSubscription: async (userId: string, fcmToken: string) => {
+    if (!isFirebaseAdminAvailable()) {
+      return false;
+    }
     try {
       const userRef = db.collection('users').doc(userId);
       await userRef.update({
@@ -54,6 +57,9 @@ export const pushNotificationManager = {
    * Send a push notification to a specific user via FCM.
    */
   sendPush: async (userId: string, payload: { title: string; body: string; url?: string; tag?: string }, bypassActiveCheck: boolean = false) => {
+    if (!isFirebaseAdminAvailable()) {
+      return false;
+    }
     try {
       const userRef = db.collection('users').doc(userId);
       const userSnap = await userRef.get();
@@ -276,8 +282,7 @@ export const pushNotificationManager = {
    * Start a listener on the notifications collection to send pushes for new notifications.
    */
   startNotificationListener: () => {
-    if (!admin.apps.length) {
-      console.log('[PushManager] Firebase Admin not initialized, skipping notification listener.');
+    if (!isFirebaseAdminAvailable()) {
       return;
     }
     console.log('[PushManager] Starting FCM notification listener...');
@@ -351,7 +356,7 @@ export const pushNotificationManager = {
                   }
                 }
               }, (err: any) => {
-                console.error(`[PushManager] Notification listener error for user ${userId}:`, err);
+                console.warn(`[PushManager] Notification listener error for user ${userId}:`, err?.message || err);
               });
 
             activeListeners.set(userId, unsubscribe);
@@ -365,10 +370,10 @@ export const pushNotificationManager = {
             }
           }
         }, (error: any) => {
-          console.error('[PushManager] User-based FCM push subscription setup error:', error);
+          console.warn('[PushManager] User-based FCM push subscription listener warning:', error?.message || error);
         });
-    } catch (err) {
-      console.error('[PushManager] Error setting up startNotificationListener:', err);
+    } catch (err: any) {
+      console.warn('[PushManager] Error setting up startNotificationListener:', err?.message || err);
     }
   },
 
@@ -376,11 +381,10 @@ export const pushNotificationManager = {
    * Process and retry pending/failed notifications on a queue timer.
    */
   processPendingNotifications: async () => {
-    if (!admin.apps.length) return;
+    if (!isFirebaseAdminAvailable()) return;
     try {
       const now = new Date();
 
-      
       const usersSnap = await db.collection('users')
         .where('fcmToken', '!=', null)
         .get();
@@ -450,8 +454,8 @@ export const pushNotificationManager = {
           }
         }
       }
-    } catch (err) {
-      console.error('[PushManager] Error in background queued notification worker:', err);
+    } catch (err: any) {
+      console.warn('[PushManager] Warning in background queued notification worker:', err?.message || err);
     }
   },
 
@@ -510,55 +514,56 @@ export const pushNotificationManager = {
    * Process all users and check for notification triggers.
    */
   processTriggers: async () => {
-    if (!admin.apps.length) return;
-    console.log('[PushManager] Processing notification triggers...');
-    const now = new Date();
-    const currentHour = now.getHours();
-    
-    // Fetch system configurations from Firestore with default values as fallbacks
-    const DEFAULT_SYSTEM_REMINDERS = {
-      unlockHour: 8,
-      unlockTitle: "Today’s Focus: {sprintTitle}",
-      unlockBody: "Day {currentDay} starts now. This step moves you forward. Start Task.",
-      middayHour: 15,
-      middayTitle: "You haven’t completed today’s step ({sprintTitle})",
-      middayBody: "Day {currentDay} is still open. Get it done before the day slips. Start Task.",
-      eveningHour: 20,
-      eveningTitle: "Don’t break the streak ({sprintTitle})",
-      eveningBody: "Finish Day {currentDay} before today ends. Keep your momentum. Start Task.",
-      inactivityHour: 10,
-      nudge_1: "Missing your momentum? Day {day} is waiting for you in '{title}'.",
-      nudge_2: "Your growth cycle is stalling. Let's get back to it and finish Day {day} of '{title}'.",
-      nudge_4: "Consistency is the only bridge to mastery. Resume '{title}' now to stay on track.",
-      nudge_7: "It's been a week since your last win. Re-ignite your spark in '{title}' before it fades.",
-      nudge_10: "The path is still there. One small win today changes everything for your '{title}' journey.",
-      nudge_15: "Your '{title}' sprint is at high risk of abandonment. Your future self is counting on you to finish."
-    };
-
-    let systemConfig = DEFAULT_SYSTEM_REMINDERS;
+    if (!isFirebaseAdminAvailable()) return;
     try {
-      const configSnap = await db.collection('system_notifications').doc('active_reminders').get();
-      if (configSnap.exists) {
-        systemConfig = { ...DEFAULT_SYSTEM_REMINDERS, ...configSnap.data() };
+      console.log('[PushManager] Processing notification triggers...');
+      const now = new Date();
+      const currentHour = now.getHours();
+      
+      // Fetch system configurations from Firestore with default values as fallbacks
+      const DEFAULT_SYSTEM_REMINDERS = {
+        unlockHour: 8,
+        unlockTitle: "Today’s Focus: {sprintTitle}",
+        unlockBody: "Day {currentDay} starts now. This step moves you forward. Start Task.",
+        middayHour: 15,
+        middayTitle: "You haven’t completed today’s step ({sprintTitle})",
+        middayBody: "Day {currentDay} is still open. Get it done before the day slips. Start Task.",
+        eveningHour: 20,
+        eveningTitle: "Don’t break the streak ({sprintTitle})",
+        eveningBody: "Finish Day {currentDay} before today ends. Keep your momentum. Start Task.",
+        inactivityHour: 10,
+        nudge_1: "Missing your momentum? Day {day} is waiting for you in '{title}'.",
+        nudge_2: "Your growth cycle is stalling. Let's get back to it and finish Day {day} of '{title}'.",
+        nudge_4: "Consistency is the only bridge to mastery. Resume '{title}' now to stay on track.",
+        nudge_7: "It's been a week since your last win. Re-ignite your spark in '{title}' before it fades.",
+        nudge_10: "The path is still there. One small win today changes everything for your '{title}' journey.",
+        nudge_15: "Your '{title}' sprint is at high risk of abandonment. Your future self is counting on you to finish."
+      };
+
+      let systemConfig = DEFAULT_SYSTEM_REMINDERS;
+      try {
+        const configSnap = await db.collection('system_notifications').doc('active_reminders').get();
+        if (configSnap && configSnap.exists) {
+          systemConfig = { ...DEFAULT_SYSTEM_REMINDERS, ...configSnap.data() };
+        }
+      } catch (e: any) {
+        console.warn('[PushManager] Using hardcoded system reminders config fallback:', e?.message || e);
       }
-    } catch (e) {
-      console.error('[PushManager] Failed to fetch system reminders config, using hardcoded fallbacks:', e);
-    }
 
-    const getReplacedMessage = (templateStr: string, replacements: Record<string, string | number>) => {
-      let result = templateStr;
-      Object.entries(replacements).forEach(([key, val]) => {
-        result = result.replace(new RegExp(`{${key}}`, 'g'), String(val));
-      });
-      return result;
-    };
+      const getReplacedMessage = (templateStr: string, replacements: Record<string, string | number>) => {
+        let result = templateStr;
+        Object.entries(replacements).forEach(([key, val]) => {
+          result = result.replace(new RegExp(`{${key}}`, 'g'), String(val));
+        });
+        return result;
+      };
 
-    // 1. Get all users with FCM tokens
-    const usersSnap = await db.collection('users')
-      .where('fcmToken', '!=', null)
-      .get();
-    
-    console.log(`[PushManager] Found ${usersSnap.size} users with active FCM tokens.`);
+      // 1. Get all users with FCM tokens
+      const usersSnap = await db.collection('users')
+        .where('fcmToken', '!=', null)
+        .get();
+      
+      console.log(`[PushManager] Found ${usersSnap.size} users with active FCM tokens.`);
 
     const getUserTimezoneDetails = (userDate: Date, uData: Participant) => {
       const tz = (uData as any).tz || (uData as any).timezone || (uData as any).timeZone;
@@ -859,5 +864,8 @@ export const pushNotificationManager = {
         }
       }
     }
+  } catch (err: any) {
+    console.warn('[PushManager] Trigger processing warning:', err?.message || err);
   }
+}
 };

@@ -6,7 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import puppeteer from 'puppeteer';
 import { pushNotificationManager } from './services/pushNotificationManager.js';
-import { db } from './api/lib/firebaseAdmin.js';
+import { db, isFirebaseAdminAvailable } from './api/lib/firebaseAdmin.js';
 
 // @ts-ignore
 import provisionPartner from './api/admin/provision-partner.js';
@@ -428,15 +428,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
 
   // Health check
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', firebaseAdminAvailable: isFirebaseAdminAvailable() });
   });
-
-  // Background Job for Push Notifications (runs every 1 minute to ensure prompt delivery)
-  setInterval(() => {
-    pushNotificationManager.processTriggers().catch(err => {
-      console.error('[Server] Push trigger processing failed:', err);
-    });
-  }, 1 * 60 * 1000);
 
   let vite: any;
   if (process.env.NODE_ENV !== 'production') {
@@ -531,24 +524,39 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
     
-    // Start real-time notification listener for pushes
-    pushNotificationManager.startNotificationListener();
+    if (isFirebaseAdminAvailable()) {
+      // Start real-time notification listener for pushes
+      pushNotificationManager.startNotificationListener();
 
-    // Start background processor for failed/pending pushes and retry queue
-    setInterval(() => {
-      pushNotificationManager.processPendingNotifications().catch(err => {
-        console.error('[Server] Pending notifications processing failed:', err);
+      // Start background processor for failed/pending pushes and retry queue
+      setInterval(() => {
+        if (isFirebaseAdminAvailable()) {
+          pushNotificationManager.processPendingNotifications().catch(err => {
+            console.warn('[Server] Pending notifications processing warning:', err?.message || err);
+          });
+        }
+      }, 60 * 1000);
+
+      // Background Job for Push Notifications (runs every 1 minute to check timed triggers)
+      setInterval(() => {
+        if (isFirebaseAdminAvailable()) {
+          pushNotificationManager.processTriggers().catch(err => {
+            console.warn('[Server] Push trigger processing warning:', err?.message || err);
+          });
+        }
+      }, 60 * 1000);
+
+      // Run initial trigger check and pending processor on startup
+      pushNotificationManager.processTriggers().catch(err => {
+        console.warn('[Server] Initial push trigger processing warning:', err?.message || err);
       });
-    }, 60 * 1000);
 
-    // Run initial trigger check and pending processor on startup
-    pushNotificationManager.processTriggers().catch(err => {
-      console.error('[Server] Initial push trigger processing failed:', err);
-    });
-
-    pushNotificationManager.processPendingNotifications().catch(err => {
-      console.error('[Server] Initial push pending retrieval failed:', err);
-    });
+      pushNotificationManager.processPendingNotifications().catch(err => {
+        console.warn('[Server] Initial push pending retrieval warning:', err?.message || err);
+      });
+    } else {
+      console.log('[Server] Firebase Admin service account not configured. Background push triggers and Firestore Admin sync will run in safe mode.');
+    }
   });
 }
 
