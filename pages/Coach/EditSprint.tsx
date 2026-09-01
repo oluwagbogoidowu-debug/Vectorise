@@ -2893,7 +2893,7 @@ const EditSprint: React.FC = () => {
                   </button>
                 )}
 
-                <div className="relative" ref={kebabMenuRef}>
+                <div className="relative" ref={kebabMenuRef} id="tour-step-kebab-menu">
                   <button
                     type="button"
                     onClick={() => setIsKebabMenuOpen((prev) => !prev)}
@@ -2923,7 +2923,7 @@ const EditSprint: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3" id="tour-step-save-submit">
             {!(isAdmin && !isFoundational) && (
               <button 
                 type="button"
@@ -2964,6 +2964,7 @@ const EditSprint: React.FC = () => {
               </button>
             )}
             <button 
+              id="tour-step-preview"
               onClick={() => navigate(`/coach/sprint/preview/${sprintId}`, { state: { sprint: sprint, resetPreview: true } })} 
               title="Sprint Stimulation"
               className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-primary transition-all shadow-sm cursor-pointer shrink-0"
@@ -3083,7 +3084,7 @@ const EditSprint: React.FC = () => {
             {/* EDITOR COLUMN */}
             <div className="space-y-8">
                 {/* Today's Insight Section */}
-                <div className="space-y-2">
+                <div className="space-y-2" id="tour-step-insight">
                     <div className="flex justify-between items-end gap-4">
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-3">
@@ -3152,7 +3153,7 @@ const EditSprint: React.FC = () => {
                 </div>
 
                 {/* Today's Action Steps Section */}
-                <div className="space-y-4">
+                <div className="space-y-4" id="tour-step-action-steps">
                     {setupView === 'mirror' ? (
                         <div className="space-y-6 bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm animate-fade-in">
                             {/* Mirror Report Header with Left Arrow and On/Off Toggle */}
@@ -3715,7 +3716,7 @@ const EditSprint: React.FC = () => {
                                                     <span>{placeholderVal.errorMsg}</span>
                                                 </div>
                                             )}
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100" id={index === 0 ? "tour-step-input-type" : undefined}>
                                                 <div className="flex items-center gap-2">
                                                     <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
                                                     <div className="flex items-center gap-1">
@@ -3798,7 +3799,7 @@ const EditSprint: React.FC = () => {
                                                             const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
 
                                                             return (
-                                                                <div className="flex items-center gap-1.5 ml-2">
+                                                                <div className="flex items-center gap-1.5 ml-2" id={index === 0 ? "tour-step-dynamic-logic" : undefined}>
                                                                     {showSingleLink && (
                                                                         <button 
                                                                             type="button"
@@ -4849,7 +4850,7 @@ const EditSprint: React.FC = () => {
                         );
 
                         return (
-                            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm space-y-3 mt-6">
+                            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm space-y-3 mt-6" id="tour-step-bridge-note">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <div className="w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
