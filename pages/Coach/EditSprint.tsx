@@ -3207,15 +3207,6 @@ const EditSprint: React.FC = () => {
                                             <Sparkles size={11} className="text-purple-500" />
                                             <span>Smart setup</span>
                                         </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setSetupView('mirror')}
-                                            className="h-8 rounded-xl bg-gray-50 text-gray-500 hover:bg-primary/10 hover:text-primary border border-gray-150 px-2.5 transition-all flex items-center gap-1 shadow-xs shrink-0 cursor-pointer text-[10px] font-black uppercase tracking-wider"
-                                            title="Configure Rise Report: Set up statements and phrasing that frame daily outputs inside the participant's Rise Report."
-                                        >
-                                            <BookOpen size={11} className="text-primary/70" />
-                                            <span>Rise Report</span>
-                                        </button>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 self-end mb-1">
@@ -3798,7 +3789,7 @@ const EditSprint: React.FC = () => {
                                                                     handleTaskMultiTextLabelsChange(index, null as any);
                                                                 }
                                                             }}
-                                                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
                                                             title="Multi Text Option: Add multiple labeled text inputs for participants to answer contextually."
                                                         >
                                                             {(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? (
@@ -3845,7 +3836,7 @@ const EditSprint: React.FC = () => {
                                                                 // but here it's always visible if it's not undefined
                                                             }
                                                         }}
-                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
                                                         title="Hint Option: Toggle an optional expandable hint or helper prompt to guide the participant if they get stuck."
                                                     >
                                                         {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? (
@@ -3871,7 +3862,7 @@ const EditSprint: React.FC = () => {
                                                                 // Toggle
                                                             }
                                                         }}
-                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
                                                         title="Footnote Option: Add normal text that appears just below the question step."
                                                     >
                                                         {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? (
@@ -3895,7 +3886,7 @@ const EditSprint: React.FC = () => {
                                                                 handleTaskVideoChange(index, { url: '', start: '', end: '' });
                                                             }
                                                         }}
-                                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? 'bg-red-50 text-red-600 border border-red-100' : 'text-gray-400 hover:text-red-600 hover:bg-red-50/50'}`}
+                                                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? 'bg-red-50 text-red-600 border border-red-100' : 'text-gray-400 hover:text-red-600 hover:bg-red-50/50'}`}
                                                         title="YouTube Video: Attach a YouTube video to this action step with custom start and end points."
                                                     >
                                                         {(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? (
@@ -6519,17 +6510,8 @@ const CoachMirrorPreviewModal: React.FC<CoachMirrorPreviewModalProps> = ({ isOpe
         {/* Header */}
         <div className="flex items-start justify-between mb-6 pb-4 border-b border-gray-100">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/10">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Rise Report</h2>
-              <p className="text-[10px] font-semibold text-gray-400 tracking-wide mt-1 normal-case">
-                Revise on day {day} of {totalDays || 5} sprint for intentional progress
-              </p>
-            </div>
+            {/* Removed Rise Report title block */}
+            <div/>
           </div>
           <button 
             type="button"

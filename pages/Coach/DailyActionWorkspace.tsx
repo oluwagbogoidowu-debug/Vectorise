@@ -2492,17 +2492,7 @@ export default function DailyActionWorkspace({
                           </p>
                         )}
 
-                        {/* Live Interpolated Preview */}
-                        {dayContent.bridgeNote && dayContent.bridgeNote.trim() && (
-                          <div className="bg-purple-50/40 border border-purple-100/60 rounded-xl p-3 text-left">
-                            <span className="text-[9px] font-black uppercase tracking-wider text-purple-700 block mb-1">
-                              Participant Preview:
-                            </span>
-                            <p className="text-xs text-gray-800 italic font-medium">
-                              "{previewBridgeText || dayContent.bridgeNote}"
-                            </p>
-                          </div>
-                        )}
+
                       </div>
                     );
                   })()}

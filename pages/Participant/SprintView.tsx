@@ -5067,7 +5067,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         Mission Complete
                       </div>
 
-                      {dayContent?.mirrorActive && (
+                      {/* No Rise Report button here */}
+                      
+                      {/* {dayContent?.mirrorActive && (
                         <button
                           type="button"
                           onClick={() => setIsMirrorReportModalOpen(true)}
@@ -5076,7 +5078,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           <BookOpen className="w-4 h-4 text-emerald-650 shrink-0" size={16} />
                           Rise Report
                         </button>
-                      )}
+                      )} */}
 
                       {dayProgress.proofSelection && (
                         <div className="animate-fade-in pt-4 border-t border-gray-50">
