@@ -10,11 +10,9 @@ import {
   Send, 
   X, 
   ChevronLeft, 
-  ChevronRight, 
-  BookOpen
+  ChevronRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import LocalLogo from './LocalLogo';
 
 export interface SpotlightStep {
   id: string;
@@ -452,28 +450,18 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Card Header */}
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 via-white to-gray-50/50">
-          <div className="flex items-center gap-2">
-            <LocalLogo type="green" className="h-4 w-auto object-contain" />
-            <div className="h-3.5 w-[1px] bg-gray-200" />
-            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0E7850]">
-              Spotlight Sprint Tour
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-black text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-              {currentStepIndex + 1} / {SPOTLIGHT_STEPS.length}
-            </span>
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-              title="Close Spotlight Tour"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
+          <span className="text-[11px] font-black text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
+            {currentStepIndex + 1} / {SPOTLIGHT_STEPS.length}
+          </span>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            title="Close Spotlight Tour"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Card Body */}
@@ -521,24 +509,13 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
 
         {/* Card Footer */}
         <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between gap-2">
-          {onOpenCoachGuide ? (
-            <button
-              type="button"
-              onClick={handleOpenGuideFromTour}
-              className="text-[11px] font-bold text-gray-500 hover:text-[#0E7850] flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Coach Guide</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleDismiss}
-              className="text-[11px] font-bold text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-            >
-              Skip
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="text-[11px] font-bold text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+          >
+            Skip
+          </button>
 
           {/* Step Dots */}
           <div className="flex items-center gap-1">

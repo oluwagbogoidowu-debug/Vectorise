@@ -3184,7 +3184,7 @@ const EditSprint: React.FC = () => {
                 </div>
 
                 {/* Today's Action Steps Section */}
-                <div className="space-y-4" id="tour-step-action-steps">
+                <div className="space-y-4">
                     {setupView === 'mirror' ? (
                         <div className="space-y-6 bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm animate-fade-in">
                             {/* Mirror Report Header with Left Arrow and On/Off Toggle */}
@@ -3405,7 +3405,7 @@ const EditSprint: React.FC = () => {
 
                             const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || [], currentContent.taskPollOptions, Number(currentContent.day || selectedDay || 1), sprint?.dailyContent);
                             return (
-                                <div key={index} className="group relative">
+                                <div key={index} className="group relative" id={index === 0 ? "tour-step-action-steps" : undefined}>
                                     <div className="absolute -left-10 top-6 w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-300 group-focus-within:bg-primary/10 group-focus-within:text-primary transition-all z-10">
                                         {index + 1}
                                         {placeholderVal.hasPlaceholders && (
