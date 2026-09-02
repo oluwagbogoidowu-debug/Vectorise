@@ -19,7 +19,8 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
-import SprintEditorTour from '../../components/SprintEditorTour';
+import SprintSpotlightTour from '../../components/SprintSpotlightTour';
+import CoachGuideModal from '../../components/CoachGuideModal';
 
 const extractYouTubeId = (url: string): string | null => {
   if (!url) return null;
@@ -413,13 +414,14 @@ const EditSprint: React.FC = () => {
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
   const [scrolledDown, setScrolledDown] = useState(false);
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
-  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [isSpotlightTourOpen, setIsSpotlightTourOpen] = useState(false);
+  const [isCoachGuideOpen, setIsCoachGuideOpen] = useState(false);
   const kebabMenuRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    const hasSeenTour = localStorage.getItem('vectorise_sprint_editor_tour_seen');
-    if (!hasSeenTour) {
-      setIsTourOpen(true);
+    const hasSeenSpotlight = localStorage.getItem('vectorise_sprint_spotlight_tour_seen');
+    if (!hasSeenSpotlight) {
+      setIsSpotlightTourOpen(true);
     }
   }, []);
 
@@ -439,9 +441,20 @@ const EditSprint: React.FC = () => {
         type="button"
         onClick={() => {
           setIsKebabMenuOpen(false);
-          setIsTourOpen(true);
+          setIsSpotlightTourOpen(true);
         }}
-        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer"
+        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-emerald-50/60 hover:text-[#0E7850] rounded-2xl flex items-center justify-between cursor-pointer transition-colors"
+      >
+        <span>Spotlight Tour</span>
+        <Sparkles className="w-4 h-4 text-[#0E7850]" />
+      </button>
+      <button 
+        type="button"
+        onClick={() => {
+          setIsKebabMenuOpen(false);
+          setIsCoachGuideOpen(true);
+        }}
+        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer transition-colors"
       >
         <span>Coach Guide</span>
         <BookOpen className="w-4 h-4 text-gray-400" />
@@ -452,7 +465,7 @@ const EditSprint: React.FC = () => {
           setIsKebabMenuOpen(false);
           setShowAddVersionFullBleed(true);
         }}
-        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer"
+        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer transition-colors"
       >
         <span>Sprint Versioning</span>
         <Layers className="w-4 h-4 text-gray-400" />
@@ -463,7 +476,7 @@ const EditSprint: React.FC = () => {
           setIsKebabMenuOpen(false);
           setShowSettings(true);
         }}
-        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer"
+        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer transition-colors"
       >
         <span>Sprint Settings</span>
         <Settings className="w-4 h-4 text-gray-400" />
@@ -2606,7 +2619,16 @@ const EditSprint: React.FC = () => {
 
           </div>
         </div>
-        <SprintEditorTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
+        <SprintSpotlightTour 
+          isOpen={isSpotlightTourOpen} 
+          onClose={() => setIsSpotlightTourOpen(false)} 
+          onOpenCoachGuide={() => setIsCoachGuideOpen(true)}
+        />
+        <CoachGuideModal 
+          isOpen={isCoachGuideOpen} 
+          onClose={() => setIsCoachGuideOpen(false)} 
+          onStartSpotlightTour={() => setIsSpotlightTourOpen(true)}
+        />
       </ErrorBoundary>
     );
   }
@@ -2819,7 +2841,16 @@ const EditSprint: React.FC = () => {
 
           </div>
         </div>
-        <SprintEditorTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
+        <SprintSpotlightTour 
+          isOpen={isSpotlightTourOpen} 
+          onClose={() => setIsSpotlightTourOpen(false)} 
+          onOpenCoachGuide={() => setIsCoachGuideOpen(true)}
+        />
+        <CoachGuideModal 
+          isOpen={isCoachGuideOpen} 
+          onClose={() => setIsCoachGuideOpen(false)} 
+          onStartSpotlightTour={() => setIsSpotlightTourOpen(true)}
+        />
       </ErrorBoundary>
     );
   }
@@ -6577,8 +6608,17 @@ const EditSprint: React.FC = () => {
         </button>
       )}
 
-      {/* First-Time Sprint Tour & Coach Guide */}
-      <SprintEditorTour isOpen={isTourOpen} onClose={() => setIsTourOpen(false)} />
+      {/* First-Time Spotlight Tour & Coach Guide */}
+      <SprintSpotlightTour 
+        isOpen={isSpotlightTourOpen} 
+        onClose={() => setIsSpotlightTourOpen(false)} 
+        onOpenCoachGuide={() => setIsCoachGuideOpen(true)}
+      />
+      <CoachGuideModal 
+        isOpen={isCoachGuideOpen} 
+        onClose={() => setIsCoachGuideOpen(false)} 
+        onStartSpotlightTour={() => setIsSpotlightTourOpen(true)}
+      />
     </ErrorBoundary>
   );
 };
