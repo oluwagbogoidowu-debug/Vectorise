@@ -4896,40 +4896,8 @@ const EditSprint: React.FC = () => {
                                     )}
                                 </div>
                                 <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                                    This note bridges Move {selectedDay} and Move {selectedDay + 1}. It is shown on the full-screen celebration after completing Move {selectedDay}. You can insert step coding (e.g. &#123;M2 Step 1 op 2&#125;).
+                                    This note bridges Move {selectedDay} and Move {selectedDay + 1}. It is shown on the full-screen celebration after completing Move {selectedDay}.
                                 </p>
-
-                                {/* Available placeholder coding tokens */}
-                                {bridgeTokens.length > 0 && (
-                                    <div className="space-y-1.5 pt-1">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
-                                                Insert Step Coding
-                                            </span>
-                                            <span className="text-[9px] text-gray-400 font-medium">Click to insert at end</span>
-                                        </div>
-                                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 py-1 custom-scrollbar">
-                                            {bridgeTokens.map((t, tIdx) => (
-                                                <button
-                                                    key={tIdx}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        insertHintToken(
-                                                            currentContent.bridgeNote || '',
-                                                            (newVal) => handleContentChange('bridgeNote', newVal),
-                                                            t.token
-                                                        );
-                                                    }}
-                                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 hover:bg-purple-100/80 border border-purple-200/80 text-purple-800 text-[10px] font-bold rounded-lg transition-all active:scale-95 cursor-pointer shadow-xs"
-                                                    title={`Insert ${t.token}`}
-                                                >
-                                                    <span>+</span>
-                                                    <span>{t.label}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
 
                                 {isAdmin && !isFoundational && originalSprint && (
                                     <DiffHighlight 
@@ -4943,7 +4911,7 @@ const EditSprint: React.FC = () => {
                                     onChange={(e) => handleContentChange('bridgeNote', e.target.value)}
                                     rows={3}
                                     className={editorInputClasses}
-                                    placeholder="Write a note to bridge current move and next move (e.g. 'Great work on {M2 Step 1 op 2}! Next, we build...')"
+                                    placeholder="Write a note to bridge current move and next move..."
                                 />
 
                                 {/* Validation warning if invalid */}
