@@ -11,10 +11,9 @@ import {
   X, 
   ChevronLeft, 
   ChevronRight, 
-  Sparkles,
   BookOpen
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import LocalLogo from './LocalLogo';
 
 export interface SpotlightStep {
@@ -22,13 +21,14 @@ export interface SpotlightStep {
   targetId: string;
   stepNumber: number;
   title: string;
+  subtitle: string;
   badge: string;
   icon: React.ReactNode;
   accentBg: string;
   accentText: string;
-  description: string;
-  keyRule: string;
-  proTip: string;
+  body: string;
+  detail?: React.ReactNode;
+  learnMoreText?: string;
   preferredPlacement?: 'top' | 'bottom' | 'auto';
 }
 
@@ -38,13 +38,17 @@ export const SPOTLIGHT_STEPS: SpotlightStep[] = [
     targetId: 'tour-step-insight',
     stepNumber: 1,
     title: "Today's Insight",
-    badge: "01 · Context & Thinking",
+    subtitle: "Set the thinking before the action.",
+    badge: "01 · Thinking",
     icon: <Lightbulb className="w-4 h-4 text-amber-500" />,
     accentBg: "bg-amber-50",
     accentText: "text-amber-700",
-    description: "Prime participants with the core idea, perspective shift, or mental model before asking them to take action.",
-    keyRule: "Keep it focused on one concise, high-impact takeaway.",
-    proTip: "Short, engaging insights lead to significantly higher step completion rates.",
+    body: "Give the participant the key idea they need to understand before taking action.",
+    detail: (
+      <p className="text-[11px] text-gray-600 leading-relaxed font-normal">
+        Use a story, example, tension, perspective shift, or explanation when it helps. You don't need all of them.
+      </p>
+    ),
     preferredPlacement: 'bottom'
   },
   {
@@ -52,41 +56,53 @@ export const SPOTLIGHT_STEPS: SpotlightStep[] = [
     targetId: 'tour-step-action-steps',
     stepNumber: 2,
     title: "Action Steps",
-    badge: "02 · Practical Moves",
+    subtitle: "Turn understanding into action.",
+    badge: "02 · Action",
     icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,
     accentBg: "bg-emerald-50",
     accentText: "text-emerald-700",
-    description: "Define the specific, practical actions the participant must execute today.",
-    keyRule: "Every Move requires a minimum of 3 distinct action steps.",
-    proTip: "Use 'Smart Setup' to paste raw outlines and auto-assign steps instantly.",
+    body: "Create what the participant will actually do to move the Move forward.",
+    detail: (
+      <p className="text-[11px] text-gray-600 leading-relaxed font-normal">
+        Keep the action connected to the Insight and the outcome of the Move.
+      </p>
+    ),
     preferredPlacement: 'bottom'
   },
   {
     id: 'input-type',
     targetId: 'tour-step-input-type',
     stepNumber: 3,
-    title: "Input Selection",
-    badge: "03 · Output Format",
+    title: "Input",
+    subtitle: "Capture what matters.",
+    badge: "03 · Input",
     icon: <TextCursorInput className="w-4 h-4 text-blue-600" />,
     accentBg: "bg-blue-50",
     accentText: "text-blue-700",
-    description: "Choose how participants respond: written reflection (Text), classification (Tags), multiple-choice (Poll), or completion check (Mark).",
-    keyRule: "Match the input format to the cognitive load of the step.",
-    proTip: "Poll and Tag choices can dynamically branch into subsequent questions.",
+    body: "Choose what the participant should provide after completing the action.",
+    detail: (
+      <p className="text-[11px] text-gray-600 leading-relaxed font-normal">
+        This could be a choice, written response, number, tag, upload, link, or another useful output.
+      </p>
+    ),
     preferredPlacement: 'top'
   },
   {
     id: 'dynamic-logic',
     targetId: 'tour-step-dynamic-logic',
     stepNumber: 4,
-    title: "Dynamic Logic & Branching",
-    badge: "04 · Adaptive Journeys",
+    title: "Dynamic Logic",
+    subtitle: "Let the Sprint respond to the participant.",
+    badge: "04 · Logic",
     icon: <GitFork className="w-4 h-4 text-purple-600" />,
     accentBg: "bg-purple-50",
     accentText: "text-purple-700",
-    description: "Connect choices and insert previous answers directly into future prompts.",
-    keyRule: "Use {Step 1} tokens or Poll link icons to create personalized flows.",
-    proTip: "Write customized feedback for specific poll answers using the sub-tabs (+ 1 2).",
+    body: "Use a participant's response to influence what they see or do next.",
+    detail: (
+      <p className="text-[11px] text-gray-600 leading-relaxed font-normal">
+        For example, a choice can determine the next question, tag, input, or path.
+      </p>
+    ),
     preferredPlacement: 'top'
   },
   {
@@ -94,55 +110,88 @@ export const SPOTLIGHT_STEPS: SpotlightStep[] = [
     targetId: 'tour-step-bridge-note',
     stepNumber: 5,
     title: "Bridge Note",
-    badge: "05 · Daily Continuity",
+    subtitle: "Connect one Move to the next.",
+    badge: "05 · Bridge",
     icon: <ArrowRight className="w-4 h-4 text-teal-600" />,
     accentBg: "bg-teal-50",
     accentText: "text-teal-700",
-    description: "Displays on the completion screen to celebrate today's progress and create anticipation for tomorrow.",
-    keyRule: "Acknowledge today's win in 1-2 sentences and hint at tomorrow's Move.",
-    proTip: "Dynamic answer tokens work inside the Bridge Note as well.",
+    body: "Acknowledge what the participant just discovered, decided, or accomplished, then connect it naturally to what's coming next.",
+    detail: (
+      <p className="text-[11px] text-gray-600 leading-relaxed font-normal">
+        Use it to create continuity, reinforce learning, or build anticipation.
+      </p>
+    ),
     preferredPlacement: 'top'
   },
   {
     id: 'kebab-menu',
     targetId: 'tour-step-kebab-menu',
     stepNumber: 6,
-    title: "⋮ Menu & Settings",
-    badge: "06 · Builder Utilities",
+    title: "⋮ Menu",
+    subtitle: "Access tools beyond the main builder.",
+    badge: "06 · Menu",
     icon: <MoreVertical className="w-4 h-4 text-indigo-600" />,
     accentBg: "bg-indigo-50",
     accentText: "text-indigo-700",
-    description: "Access Sprint Versioning, Sprint Metadata/Settings, and reopen the full Coach Guide anytime.",
-    keyRule: "Create immutable snapshots before publishing major updates.",
-    proTip: "Open this menu anytime you want to re-read the Coach Guide.",
+    body: "Open the menu for deeper guidance and Sprint management tools.",
+    detail: (
+      <div className="space-y-1 text-[11px] text-gray-700 font-medium">
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+          <span><strong>Coach Guide</strong> → Learn how to build each part of a Sprint.</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+          <span><strong>Sprint Versioning</strong> → Manage different versions.</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+          <span><strong>Sprint Settings</strong> → Manage your Sprint configuration.</span>
+        </div>
+      </div>
+    ),
     preferredPlacement: 'bottom'
   },
   {
     id: 'preview',
     targetId: 'tour-step-preview',
     stepNumber: 7,
-    title: "Preview & Stimulation",
-    badge: "07 · Participant Simulation",
+    title: "Preview",
+    subtitle: "Experience the Sprint as your participant will.",
+    badge: "07 · Preview",
     icon: <Eye className="w-4 h-4 text-cyan-600" />,
     accentBg: "bg-cyan-50",
     accentText: "text-cyan-700",
-    description: "Simulate the live participant experience in real-time with full animations, timers, and branch logic.",
-    keyRule: "Always test both primary and branching pathways before submitting.",
-    proTip: "Simulating gives you immediate visual feedback on spacing and readability.",
+    body: "Preview the complete experience before submitting it.",
+    detail: (
+      <p className="text-[11px] text-gray-600 leading-relaxed font-normal">
+        Check that the Insight, Actions, Inputs, Dynamic Logic, and Bridge Notes work together and lead toward the intended outcome.
+      </p>
+    ),
     preferredPlacement: 'bottom'
   },
   {
     id: 'save-submit',
     targetId: 'tour-step-save-submit',
     stepNumber: 8,
-    title: "Save & Submit for Review",
-    badge: "08 · Publishing",
+    title: "Save / Submit",
+    subtitle: "Finish and manage your Sprint.",
+    badge: "08 · Save / Submit",
     icon: <Send className="w-4 h-4 text-emerald-700" />,
     accentBg: "bg-emerald-50",
     accentText: "text-emerald-800",
-    description: "Save drafts safely as you build, and submit the completed sprint for admin verification when ready.",
-    keyRule: "Drafts are auto-saved locally and can be published after approval.",
-    proTip: "You're all set! Enjoy crafting high-impact sprint experiences.",
+    body: "Save your progress and continue editing later.",
+    detail: (
+      <div className="space-y-1.5 text-[11px] text-gray-700">
+        <p className="font-medium text-gray-800">
+          Submit for Approval when the Sprint is complete and ready for review.
+        </p>
+        <p className="text-gray-500">
+          Once submitted, it enters the approval process.
+        </p>
+      </div>
+    ),
+    learnMoreText: "Learn more: Open Coach Guide for a complete walkthrough of creating and preparing a Sprint.",
     preferredPlacement: 'bottom'
   }
 ];
@@ -174,27 +223,11 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
     left: 20,
     placement: 'bottom'
   });
-  const [windowDimensions, setWindowDimensions] = useState({
-    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
-    height: typeof window !== 'undefined' ? window.innerHeight : 800
-  });
 
   const cardRef = useRef<HTMLDivElement>(null);
   const currentStep = SPOTLIGHT_STEPS[currentStepIndex] || SPOTLIGHT_STEPS[0];
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === SPOTLIGHT_STEPS.length - 1;
-
-  // Handle resize and scroll
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight
-      });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Calculate target element position and scroll into view
   const updateTargetBounds = useCallback(() => {
@@ -229,7 +262,7 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
 
         // Position the card relative to target
         const cardWidth = Math.min(420, window.innerWidth - 32);
-        const cardHeight = 310;
+        const cardHeight = 290;
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
 
@@ -282,8 +315,17 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
         updateTargetBounds();
       }
     };
+    const handleResize = () => {
+      if (isOpen) {
+        updateTargetBounds();
+      }
+    };
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [updateTargetBounds, isOpen]);
 
   // Keyboard navigation
@@ -401,7 +443,7 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
         initial={{ opacity: 0, scale: 0.95, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         key={currentStep.id}
-        transition={{ duration: 0.22, ease: "easeOut" }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
         className="fixed z-[255] w-[calc(100vw-32px)] max-w-[420px] bg-white rounded-3xl shadow-2xl border border-gray-150 overflow-hidden flex flex-col pointer-events-auto"
         style={{
           top: cardPosition.top,
@@ -415,7 +457,7 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
             <LocalLogo type="green" className="h-4 w-auto object-contain" />
             <div className="h-3.5 w-[1px] bg-gray-200" />
             <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#0E7850]">
-              Spotlight Tour
+              Spotlight Sprint Tour
             </span>
           </div>
 
@@ -435,40 +477,46 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
         </div>
 
         {/* Card Body */}
-        <div className="p-5 space-y-3.5">
-          {/* Step Title & Icon */}
+        <div className="p-5 space-y-3">
+          {/* Step Title & Subtitle */}
           <div className="flex items-start gap-3">
-            <div className={`w-10 h-10 rounded-xl ${currentStep.accentBg} flex items-center justify-center shrink-0 shadow-xs border border-gray-100`}>
+            <div className={`w-9 h-9 rounded-xl ${currentStep.accentBg} flex items-center justify-center shrink-0 shadow-xs border border-gray-100`}>
               {currentStep.icon}
             </div>
             <div>
-              <span className={`text-[10px] font-black uppercase tracking-wider ${currentStep.accentText} block mb-0.5`}>
-                {currentStep.badge}
-              </span>
               <h3 className="text-base font-black text-gray-900 tracking-tight leading-tight">
                 {currentStep.title}
               </h3>
+              <p className="text-xs font-bold text-[#0E7850] mt-0.5">
+                {currentStep.subtitle}
+              </p>
             </div>
           </div>
 
-          {/* Description */}
-          <p className="text-xs text-gray-600 font-medium leading-relaxed">
-            {currentStep.description}
+          {/* Body Description */}
+          <p className="text-xs text-gray-700 font-medium leading-relaxed">
+            {currentStep.body}
           </p>
 
-          {/* Key Rule Box */}
-          <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-150/80 text-[11px] text-gray-800 font-semibold flex items-start gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0E7850] mt-1.5 shrink-0" />
-            <span>{currentStep.keyRule}</span>
-          </div>
+          {/* Details / Guidance */}
+          {currentStep.detail && (
+            <div className="p-3 rounded-xl bg-gray-50 border border-gray-150/80">
+              {currentStep.detail}
+            </div>
+          )}
 
-          {/* Pro-Tip Box */}
-          <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-950 font-medium flex items-start gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-            <p>
-              <span className="font-bold text-amber-900">Pro-Tip:</span> {currentStep.proTip}
-            </p>
-          </div>
+          {/* Learn More link for Step 8 */}
+          {currentStep.learnMoreText && (
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={handleOpenGuideFromTour}
+                className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 underline decoration-emerald-500 underline-offset-2 transition-colors cursor-pointer text-left block"
+              >
+                {currentStep.learnMoreText}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Card Footer */}
@@ -480,7 +528,7 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
               className="text-[11px] font-bold text-gray-500 hover:text-[#0E7850] flex items-center gap-1 transition-colors cursor-pointer"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Open Guide</span>
+              <span>Coach Guide</span>
             </button>
           ) : (
             <button
