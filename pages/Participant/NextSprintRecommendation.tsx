@@ -705,17 +705,6 @@ export const NextSprintRecommendation: React.FC = () => {
                                 isRerun={isRerun}
                                 onOpenOverview={() => setShowOverviewModal(true)}
                             />
-                            {isSameSprintLinked && (
-                                <div className="flex justify-end pr-1 pt-0.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowOverviewModal(true)}
-                                        className="text-xs font-bold text-[#0E7850] dark:text-emerald-400 hover:text-[#085C3D] hover:underline transition-all cursor-pointer flex items-center gap-1 active:scale-95"
-                                    >
-                                        View overview.
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     ) : (
                         <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xl shadow-gray-100/40 dark:shadow-none flex flex-col items-center justify-center space-y-4">

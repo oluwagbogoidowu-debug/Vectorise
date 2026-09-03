@@ -33,6 +33,9 @@ import ActionStepConfirmModal from "../../components/ActionStepConfirmModal";
 import { ArrangePollOptions } from "../../src/components/ArrangePollOptions";
 import { Participant } from "../../types";
 import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, getSoundSettings, setSoundSettings } from "../../utils/haptics";
+import { getEffectiveSprintPricing } from "../../utils/sprintUtils";
+import { paymentService } from "../../services/paymentService";
+import BottomModalCoinCards from "../../components/BottomModalCoinCards";
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
@@ -1135,7 +1138,48 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
   const [isRestartModalOpen, setIsRestartModalOpen] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [isRerunModalOpen, setIsRerunModalOpen] = useState(false);
+  const [isProcessingRerun, setIsProcessingRerun] = useState(false);
+  const [rerunPaymentMethod, setRerunPaymentMethod] = useState<string>("coins");
   const kebabMenuRef = useRef<HTMLDivElement>(null);
+
+  const isSprintCompleted = useMemo(() => {
+    if (!enrollment) return false;
+    if (enrollment.status === "completed" || Boolean(enrollment.completed_at)) return true;
+    const progress = enrollment.progress || [];
+    const duration = sprint?.duration || progress.length;
+    if (duration > 0 && progress.length >= duration && progress.every((p) => p.completed)) {
+      return true;
+    }
+    return false;
+  }, [enrollment, sprint]);
+
+  const rerunPricing = useMemo(() => {
+    return getEffectiveSprintPricing(sprint, true);
+  }, [sprint]);
+
+  const isCoinSprint = useMemo(() => {
+    if (!sprint) return true;
+    if (sprint.pricingType === "credits") return true;
+    if (sprint.pricingType === "cash") return false;
+    if ((sprint.pointCost ?? 0) > 0 && !(sprint.price && sprint.price > 0)) return true;
+    return (sprint.pointCost ?? 0) > 0;
+  }, [sprint]);
+  const isCashSprint = !isCoinSprint;
+
+  const userBalance = (user as Participant)?.walletBalance ?? 0;
+  const rerunCost = rerunPricing.pointCost;
+  const rerunPrice = rerunPricing.price;
+
+  useEffect(() => {
+    if (isRerunModalOpen && user && isCoinSprint) {
+      if (userBalance >= rerunCost) {
+        setRerunPaymentMethod("coins");
+      } else {
+        setRerunPaymentMethod("pkg_100");
+      }
+    }
+  }, [isRerunModalOpen, user, isCoinSprint, userBalance, rerunCost]);
 
   const [sprintMode, setSprintMode] = useState<"scroll" | "guided">(() => {
     try {
@@ -1236,28 +1280,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           localStorage.removeItem(`draft_task_${enrollment.id}`);
         } catch (e) {}
 
-        const isPreviouslyCompleted = enrollment.status === "completed" || !!enrollment.completed_at;
-        const previousRuns = enrollment.pastRuns || [];
-        let newPastRuns = [...previousRuns];
-        let newRunNumber = enrollment.currentRun || enrollment.runNumber || (previousRuns.length + 1) || 1;
-
-        if (isPreviouslyCompleted) {
-          const completedRun = {
-            runNumber: newRunNumber,
-            started_at: enrollment.started_at,
-            completed_at: enrollment.completed_at || new Date().toISOString(),
-            status: "completed" as const,
-            progress: enrollment.progress || []
-          };
-          newPastRuns = [...newPastRuns, completedRun];
-          newRunNumber = newPastRuns.length + 1;
-        }
-
+        // Restarting an active sprint clears progress at no cost and keeps the current run
         await sprintService.updateEnrollment(enrollment.id, {
           status: "active",
-          currentRun: newRunNumber,
-          runNumber: newRunNumber,
-          pastRuns: newPastRuns,
           started_at: new Date().toISOString(),
           completed_at: null as any,
           progress: freshProgress,
@@ -1268,9 +1293,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             ? {
                 ...prev,
                 status: "active",
-                currentRun: newRunNumber,
-                runNumber: newRunNumber,
-                pastRuns: newPastRuns,
                 completed_at: undefined,
                 progress: freshProgress,
               }
@@ -1289,6 +1311,216 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       toast.error("Failed to restart sprint. Please try again.");
     } finally {
       setIsRestarting(false);
+    }
+  };
+
+  const handleConfirmRerun = async () => {
+    if (!user || !sprint || isProcessingRerun) return;
+
+    setIsProcessingRerun(true);
+    try {
+      const duration = sprint.duration || 7;
+      const freshProgress = Array.from({ length: duration }, (_, i) => ({
+        day: i + 1,
+        completed: false,
+        answers: [],
+        submission: "",
+      }));
+
+      if (isCashSprint) {
+        if (rerunPrice === 0) {
+          let nextRunNum = 2;
+          if (isPreview) {
+            nextRunNum = (enrollment?.currentRun || enrollment?.runNumber || 1) + 1;
+            setEnrollment({
+              id: "preview-enrollment",
+              sprint_id: sprint.id,
+              user_id: user?.id || "preview-user",
+              status: "active",
+              currentRun: nextRunNum,
+              runNumber: nextRunNum,
+              progress: freshProgress,
+            } as any);
+          } else if (enrollment) {
+            const previousRuns = enrollment.pastRuns || [];
+            const currentRunNum = enrollment.currentRun || enrollment.runNumber || (previousRuns.length + 1) || 1;
+            const completedRun = {
+              runNumber: currentRunNum,
+              started_at: enrollment.started_at,
+              completed_at: enrollment.completed_at || new Date().toISOString(),
+              status: "completed" as const,
+              progress: enrollment.progress || [],
+            };
+            const newPastRuns = [...previousRuns, completedRun];
+            nextRunNum = newPastRuns.length + 1;
+
+            await sprintService.updateEnrollment(enrollment.id, {
+              status: "active",
+              currentRun: nextRunNum,
+              runNumber: nextRunNum,
+              pastRuns: newPastRuns,
+              started_at: new Date().toISOString(),
+              completed_at: null as any,
+              progress: freshProgress,
+            });
+
+            setEnrollment((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: "active",
+                    currentRun: nextRunNum,
+                    runNumber: nextRunNum,
+                    pastRuns: newPastRuns,
+                    completed_at: undefined,
+                    progress: freshProgress,
+                  }
+                : null,
+            );
+          }
+
+          try {
+            if (enrollment?.id) localStorage.removeItem(`draft_task_${enrollment.id}`);
+          } catch (e) {}
+          setTaskInputs(["", "", ""]);
+          setActiveTaskIndex(0);
+          setViewingDay(1);
+          setIsRerunModalOpen(false);
+          toast.success(`Rerun unlocked! Starting Day 1.`);
+          triggerHaptic(hapticPatterns.success);
+          return;
+        } else {
+          const checkoutUrl = await paymentService.initializeFlutterwave({
+            userId: user.id,
+            email: user.email,
+            name: user.name,
+            amount: rerunPrice,
+            currency: sprint.currency || "NGN",
+            sprintId: sprint.id,
+            trackId: sprint.trackId,
+          });
+          window.location.href = checkoutUrl;
+          return;
+        }
+      }
+
+      // Coin-Based Rerun
+      if (rerunPaymentMethod === "coins") {
+        if (userBalance < rerunCost) {
+          toast.error("Insufficient Growth Coins. Please select a package or instant top-up.");
+          setIsProcessingRerun(false);
+          return;
+        }
+
+        // Deduct coins via processWalletTransaction
+        await userService.processWalletTransaction(user.id, {
+          amount: -rerunCost,
+          type: "purchase",
+          description: `Rerun ${sprint.title} (50% Rate)`,
+          auditId: sprint.id,
+        });
+
+        let nextRunNum = 2;
+        if (isPreview) {
+          nextRunNum = (enrollment?.currentRun || enrollment?.runNumber || 1) + 1;
+          setEnrollment({
+            id: "preview-enrollment",
+            sprint_id: sprint.id,
+            user_id: user?.id || "preview-user",
+            status: "active",
+            currentRun: nextRunNum,
+            runNumber: nextRunNum,
+            progress: freshProgress,
+          } as any);
+        } else if (enrollment) {
+          const previousRuns = enrollment.pastRuns || [];
+          const currentRunNum = enrollment.currentRun || enrollment.runNumber || (previousRuns.length + 1) || 1;
+          const completedRun = {
+            runNumber: currentRunNum,
+            started_at: enrollment.started_at,
+            completed_at: enrollment.completed_at || new Date().toISOString(),
+            status: "completed" as const,
+            progress: enrollment.progress || [],
+          };
+          const newPastRuns = [...previousRuns, completedRun];
+          nextRunNum = newPastRuns.length + 1;
+
+          await sprintService.updateEnrollment(enrollment.id, {
+            status: "active",
+            currentRun: nextRunNum,
+            runNumber: nextRunNum,
+            pastRuns: newPastRuns,
+            started_at: new Date().toISOString(),
+            completed_at: null as any,
+            progress: freshProgress,
+          });
+
+          setEnrollment((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: "active",
+                  currentRun: nextRunNum,
+                  runNumber: nextRunNum,
+                  pastRuns: newPastRuns,
+                  completed_at: undefined,
+                  progress: freshProgress,
+                }
+              : null,
+          );
+        }
+
+        try {
+          if (enrollment?.id) localStorage.removeItem(`draft_task_${enrollment.id}`);
+        } catch (e) {}
+        setTaskInputs(["", "", ""]);
+        setActiveTaskIndex(0);
+        setViewingDay(1);
+        setIsRerunModalOpen(false);
+        toast.success(`Rerun unlocked! Welcome to Run ${nextRunNum}.`);
+        triggerHaptic(hapticPatterns.success);
+      } else if (rerunPaymentMethod === "card") {
+        const coinsRem = Math.max(0, rerunCost - userBalance);
+        const topupPrice = coinsRem > 0 ? coinsRem * 20 : rerunPrice;
+
+        const checkoutUrl = await paymentService.initializeFlutterwave({
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+          amount: topupPrice,
+          currency: sprint.currency || "NGN",
+          sprintId: sprint.id,
+          trackId: sprint.trackId,
+        });
+
+        window.location.href = checkoutUrl;
+      } else if (rerunPaymentMethod.startsWith("pkg_")) {
+        const pkgPrices: Record<string, { price: number; coins: number }> = {
+          pkg_30: { price: 500, coins: 30 },
+          pkg_100: { price: 1300, coins: 100 },
+          pkg_300: { price: 3600, coins: 300 },
+        };
+        const selectedPkg = pkgPrices[rerunPaymentMethod] || { price: 1300, coins: 100 };
+
+        const checkoutUrl = await paymentService.initializeFlutterwave({
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+          amount: selectedPkg.price,
+          currency: "NGN",
+          coinPackageId: rerunPaymentMethod,
+          coins: selectedPkg.coins,
+          sprintId: sprint.id,
+          trackId: sprint.trackId,
+        });
+
+        window.location.href = checkoutUrl;
+      }
+    } catch (err) {
+      console.error("Failed to unlock rerun sprint:", err);
+      toast.error("Failed to unlock rerun sprint. Please try again.");
+    } finally {
+      setIsProcessingRerun(false);
     }
   };
 
@@ -3039,19 +3271,40 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           <span className="truncate">Share Sprint</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setIsKebabMenuOpen(false);
-            setIsRestartModalOpen(true);
-          }}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
-        >
-          <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
-            <RotateCcw className="w-4 h-4" />
-          </div>
-          <span className="truncate">Restart Sprint</span>
-        </button>
+        {isSprintCompleted ? (
+          <button
+            type="button"
+            onClick={() => {
+              setIsKebabMenuOpen(false);
+              setIsRerunModalOpen(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center shrink-0">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+              <span className="truncate">Rerun Sprint</span>
+            </div>
+            <span className="text-[9px] font-black text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+              50% Off
+            </span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setIsKebabMenuOpen(false);
+              setIsRestartModalOpen(true);
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+              <RotateCcw className="w-4 h-4" />
+            </div>
+            <span className="truncate">Restart Sprint</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -3206,11 +3459,248 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         onClose={() => !isRestarting && setIsRestartModalOpen(false)}
         onConfirm={handleRestartSprint}
         title="Are you sure you want to restart the sprint?"
-        message="This will clear your current progress and start afresh."
-        confirmText={isRestarting ? "Restarting..." : "Yes"}
-        cancelText="No"
+        message="This will clear your active progress at no cost and start all over again from Day 1."
+        confirmText={isRestarting ? "Restarting..." : "Yes, Restart"}
+        cancelText="Cancel"
         variant="danger"
       />
+
+      {/* Rerun Sprint Bottom Modal Bar */}
+      <AnimatePresence>
+        {isRerunModalOpen && sprint && (
+          <div className="fixed inset-0 z-[250] flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 text-left">
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="bg-white dark:bg-[#1c1c1e] rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 sm:p-7 max-w-md w-full text-gray-900 dark:text-gray-100 relative shadow-2xl max-h-[90vh] overflow-y-auto border border-transparent dark:border-zinc-800"
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => !isProcessingRerun && setIsRerunModalOpen(false)}
+                className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Header */}
+              <div className="text-left mb-4">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200/60 dark:border-amber-800/40 mb-2">
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider">
+                    Rerun Sprint • 50% Off
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-gray-950 dark:text-white tracking-tight leading-snug">
+                  {sprint.title}
+                </h3>
+                {(sprint.subtitle || sprint.description) && (
+                  <p className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                    {sprint.subtitle || sprint.description}
+                  </p>
+                )}
+              </div>
+
+              {isCashSprint ? (
+                /* Cash-Based Sprint Payment Layout */
+                <div className="space-y-4 text-left">
+                  {/* Cost Summary Card */}
+                  <div className="bg-gray-50/90 dark:bg-zinc-800/80 rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-zinc-700 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                          Sprint Program
+                        </div>
+                        <div className="text-sm font-bold text-gray-900 dark:text-white">
+                          {sprint.duration || 7} Days Guided Action
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                          Rerun Cost
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1.5">
+                            {rerunPricing.originalPrice > 0 && (
+                              <span className="text-xs text-gray-400 line-through">
+                                ₦{rerunPricing.originalPrice.toLocaleString()}
+                              </span>
+                            )}
+                            <span className="text-lg sm:text-xl font-black text-[#0E7850] dark:text-emerald-400">
+                              {rerunPrice === 0 ? 'FREE' : `₦${rerunPrice.toLocaleString()}`}
+                            </span>
+                          </div>
+                          <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5">
+                            50% Rerun Discount
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleConfirmRerun}
+                      disabled={isProcessingRerun}
+                      className={`w-full py-4.5 rounded-2xl shadow-xl transition-all text-sm sm:text-base font-black tracking-wider uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
+                        !isProcessingRerun
+                          ? 'bg-[#0E7850] hover:bg-[#085C3D] text-white active:scale-95 shadow-[#0E7850]/20'
+                          : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
+                      }`}
+                    >
+                      {isProcessingRerun ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Processing Payment...</span>
+                        </div>
+                      ) : rerunPrice === 0 ? (
+                        <span>Start Free Rerun</span>
+                      ) : (
+                        <span>Payment for Rerun • ₦{rerunPrice.toLocaleString()}</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Coin-Based Sprint Payment Layout */
+                <>
+                  {/* Wallet Balance Card */}
+                  <div className="bg-gray-50/90 dark:bg-zinc-800/80 rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-zinc-700 mb-4 text-left space-y-3.5">
+                    {/* Balance and Cost Row */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                          Your Balance
+                        </div>
+                        <div className="text-base sm:text-lg font-black text-gray-950 dark:text-white flex items-center gap-1.5">
+                          <span>🪙 {userBalance}</span>
+                          <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Coins</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
+                          Rerun Cost
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-center gap-1.5">
+                            {rerunPricing.originalPointCost > 0 && (
+                              <span className="text-xs text-gray-400 line-through">
+                                {rerunPricing.originalPointCost}
+                              </span>
+                            )}
+                            <span className="text-base sm:text-lg font-black text-[#0E7850] dark:text-emerald-400 flex items-center justify-end gap-1">
+                              <span>{rerunCost}</span>
+                              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase">Coins</span>
+                            </span>
+                          </div>
+                          <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5">
+                            50% Rerun Discount
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Option: Use Coins (Only shown when coins are enough) */}
+                    {userBalance >= rerunCost && (
+                      <div className="pt-3 border-t border-gray-200 dark:border-zinc-700">
+                        <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#0E7850] bg-emerald-50/40 dark:bg-emerald-950/20 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white">
+                              Use {rerunCost} coins of your balance to rerun
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-[#0E7850] bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
+                            Available
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Outside the card on plain ground: Coin Packages & Direct remaining coin pay */}
+                  {userBalance < rerunCost && (
+                    <div className="space-y-3.5 mb-4 text-left">
+                      {/* Horizontal Coin Packages on plain ground */}
+                      <BottomModalCoinCards
+                        userBalance={userBalance}
+                        sprintCost={rerunCost}
+                        sprintId={sprint.id}
+                        trackId={sprint.trackId}
+                        selectedPaymentMethod={rerunPaymentMethod}
+                        onSelectPaymentMethod={(method) => setRerunPaymentMethod(method)}
+                        isProcessing={isProcessingRerun}
+                      />
+
+                      {/* Pay for remaining coins directly */}
+                      <div
+                        onClick={() => !isProcessingRerun && setRerunPaymentMethod('card')}
+                        className={`flex items-center justify-between p-3.5 sm:p-4 rounded-xl border transition-all cursor-pointer ${
+                          rerunPaymentMethod === 'card'
+                            ? 'bg-emerald-50/50 dark:bg-emerald-950/30 border-[#0E7850] text-gray-900 dark:text-white shadow-xs ring-1 ring-[#0E7850]/30'
+                            : 'bg-white dark:bg-zinc-800/80 border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 text-gray-700 dark:text-gray-200'
+                        }`}
+                      >
+                        <span className="text-sm sm:text-base font-bold">
+                          Pay for remaining coins directly
+                        </span>
+                        {(() => {
+                          const coinsRem = Math.max(0, rerunCost - userBalance);
+                          const topupPrice = coinsRem > 0 ? coinsRem * 20 : rerunPrice;
+                          return (
+                            <span className="text-sm sm:text-base font-black text-[#0E7850] dark:text-emerald-400 shrink-0 ml-2">
+                              ₦{topupPrice.toLocaleString()}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Unlock Action Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleConfirmRerun}
+                      disabled={isProcessingRerun || (rerunPaymentMethod === 'coins' && userBalance < rerunCost)}
+                      className={`w-full py-4.5 rounded-2xl shadow-xl transition-all text-sm sm:text-base font-black tracking-wider uppercase border-none flex items-center justify-center gap-2 cursor-pointer ${
+                        !isProcessingRerun && !(rerunPaymentMethod === 'coins' && userBalance < rerunCost)
+                          ? 'bg-[#0E7850] hover:bg-[#085C3D] text-white active:scale-95 shadow-[#0E7850]/20'
+                          : 'bg-gray-200 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500 cursor-not-allowed shadow-none'
+                      }`}
+                    >
+                      {isProcessingRerun ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Unlocking Day 1...</span>
+                        </div>
+                      ) : userBalance >= rerunCost ? (
+                        <span>Start Day 1 Now • Use {rerunCost} Coins</span>
+                      ) : rerunPaymentMethod === 'card' ? (
+                        (() => {
+                          const coinsRem = Math.max(0, rerunCost - userBalance);
+                          const topupPrice = coinsRem > 0 ? coinsRem * 20 : rerunPrice;
+                          return <span>Instant Pay ₦{topupPrice.toLocaleString()} & Unlock</span>;
+                        })()
+                      ) : rerunPaymentMethod.startsWith('pkg_') ? (
+                        <span>Purchase Package & Unlock</span>
+                      ) : (
+                        <span>Select Payment Method</span>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <ParticipantDrawerMenu
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
