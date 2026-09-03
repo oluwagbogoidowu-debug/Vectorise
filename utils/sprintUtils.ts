@@ -704,3 +704,80 @@ export const getExploreFirstSprint = (
     const firstClickable = items.find(item => item.isClickable)?.sprint;
     return firstClickable || items[0]?.sprint || allPublishedSprints.find(s => !enrolledSprintIds.has(s.id)) || allPublishedSprints[0] || null;
 };
+
+/**
+ * Checks whether a given sprint constitutes a rerun for the current user.
+ * A sprint is considered a rerun if the user has already enrolled in it before,
+ * completed it, or if it is explicitly recommended as a repeat run.
+ */
+export const isSprintRerun = (
+    sprintId?: string | null,
+    user?: User | Participant | null,
+    userEnrollments?: any[] | null,
+    completedSprintId?: string | null,
+    isSameSprintLinked?: boolean | null
+): boolean => {
+    if (!sprintId || !user) return false;
+    if (isSameSprintLinked) return true;
+    if (completedSprintId && completedSprintId === sprintId) return true;
+    const p = user as Participant;
+    if (p.enrolledSprintIds?.includes(sprintId)) return true;
+    if (Array.isArray(userEnrollments) && userEnrollments.some(e => e.sprint_id === sprintId || e.id === sprintId || e.sprint?.id === sprintId)) {
+        return true;
+    }
+    return false;
+};
+
+export interface EffectiveSprintPricing {
+    price: number;
+    pointCost: number;
+    isRerun: boolean;
+    originalPrice: number;
+    originalPointCost: number;
+    discountLabel: string;
+}
+
+/**
+ * Computes effective pricing for a sprint.
+ * Rerun sprints cost half the actual price of the sprint (50% discount on both cash and coins).
+ */
+export const getEffectiveSprintPricing = (
+    sprint?: Sprint | null, 
+    isRerun: boolean = false
+): EffectiveSprintPricing => {
+    if (!sprint) {
+        return { 
+            price: 1000, 
+            pointCost: 10, 
+            isRerun: false, 
+            originalPrice: 1000, 
+            originalPointCost: 10,
+            discountLabel: ''
+        };
+    }
+    const rawPrice = sprint.price ?? 1000;
+    const rawPointCost = sprint.pointCost ?? 10;
+    
+    if (isRerun) {
+        const discountedPrice = rawPrice === 0 ? 0 : Math.round(rawPrice / 2);
+        const discountedPointCost = rawPointCost === 0 ? 0 : Math.max(1, Math.round(rawPointCost / 2));
+        return {
+            price: discountedPrice,
+            pointCost: discountedPointCost,
+            isRerun: true,
+            originalPrice: rawPrice,
+            originalPointCost: rawPointCost,
+            discountLabel: '50% Rerun Discount'
+        };
+    }
+    
+    return {
+        price: rawPrice,
+        pointCost: rawPointCost,
+        isRerun: false,
+        originalPrice: rawPrice,
+        originalPointCost: rawPointCost,
+        discountLabel: ''
+    };
+};
+

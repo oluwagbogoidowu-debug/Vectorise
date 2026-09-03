@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { MOCK_PARTICIPANT_SPRINTS } from '../services/mockData';
 import { userService, sanitizeData } from '../services/userService';
 import { assetService } from '../services/assetService';
-import { getSprintCoverImage } from '../utils/sprintUtils';
+import { getSprintCoverImage, getEffectiveSprintPricing } from '../utils/sprintUtils';
 
 interface SprintCardProps {
     sprint: Sprint;
@@ -19,6 +19,7 @@ interface SprintCardProps {
     level?: number; // Sprint linking level (e.g. 1 = direct, 2 = 2nd level)
     hideFooterDetails?: boolean; // Hide Guided By and Price/Coins section
     variant?: 'light' | 'dark' | 'glass';
+    isRerun?: boolean;
     onOpenOverview?: () => void;
     onOpenReviews?: () => void;
 }
@@ -33,6 +34,7 @@ const SprintCard: React.FC<SprintCardProps> = ({
     level,
     hideFooterDetails = false, 
     variant = 'light', 
+    isRerun,
     onOpenOverview,
     onOpenReviews
 }) => {
@@ -46,6 +48,14 @@ const SprintCard: React.FC<SprintCardProps> = ({
         const p = user as Participant;
         return p.enrolledSprintIds?.includes(sprint.id) || MOCK_PARTICIPANT_SPRINTS.some(ps => ps.user_id === user.id && ps.sprint_id === sprint.id);
     }, [user, sprint.id]);
+
+    const effectiveIsRerun = useMemo(() => {
+        return Boolean(isRerun || (isStatic && isEnrolled));
+    }, [isRerun, isStatic, isEnrolled]);
+
+    const pricing = useMemo(() => {
+        return getEffectiveSprintPricing(sprint, effectiveIsRerun);
+    }, [sprint, effectiveIsRerun]);
 
     const isQueued = useMemo(() => {
         if (!user || user.role !== UserRole.PARTICIPANT) return false;
@@ -243,9 +253,15 @@ const SprintCard: React.FC<SprintCardProps> = ({
                                         {isInactive ? (
                                             <><Lock className="w-3 h-3 text-amber-400" /> {inactiveLabel || "Locked"}</>
                                         ) : sprint.pricingType === 'credits' ? (
-                                            `🪙 ${sprint.pointCost ?? 10}`
+                                            <>
+                                                <span>🪙 {pricing.pointCost}</span>
+                                                {pricing.isRerun && <span className="ml-1 text-[7px] text-amber-300 font-bold bg-black/20 px-1 py-0.5 rounded">RERUN 50% OFF</span>}
+                                            </>
                                         ) : (
-                                            `₦${(sprint.price ?? 1000).toLocaleString()}`
+                                            <>
+                                                <span>₦{pricing.price.toLocaleString()}</span>
+                                                {pricing.isRerun && <span className="ml-1 text-[7px] text-amber-300 font-bold bg-black/20 px-1 py-0.5 rounded">RERUN 50% OFF</span>}
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -384,7 +400,7 @@ const SprintCard: React.FC<SprintCardProps> = ({
                             }`}>
                                 {isInactive ? (
                                     <><Lock className="w-3 h-3 text-gray-400 dark:text-zinc-500" /> <span>{inactiveLabel || (level ? `Level ${level} • Inactive` : "Inactive • Unlocks Next")}</span></>
-                                ) : isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {sprint.pointCost ?? 10}</>) : `₦${(sprint.price ?? 1000).toLocaleString()}`}
+                                ) : isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost}{pricing.isRerun ? " (50% Off)" : ""}</>) : `₦${pricing.price.toLocaleString()}${pricing.isRerun ? " (50% Off)" : ""}`}
                             </div>
                         </div>
                     )}

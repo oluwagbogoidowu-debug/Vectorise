@@ -1,7 +1,7 @@
 
 import { db } from './firebase';
 import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion, writeBatch } from 'firebase/firestore';
-import { ParticipantSprint, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track, InteractionUser } from '../types';
+import { ParticipantSprint, ParticipantSprintRun, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track, InteractionUser } from '../types';
 import { sanitizeData, safeJSONStringify, userService } from './userService';
 import { ensureSeedBlogsInFirestore } from './blogService';
 
@@ -1647,6 +1647,57 @@ export const sprintService = {
         
         if (existing.exists()) {
             const existingData = sanitizeData(existing.data()) as ParticipantSprint;
+
+            // If the user has already completed this sprint, start a new run (Run 2, Run 3, etc.)
+            if (existingData.status === 'completed') {
+                const activeQuery = query(
+                    collection(db, 'users', userId, 'enrollments'), 
+                    where("status", "==", "active")
+                );
+                const activeSnap = await getDocs(activeQuery);
+                const hasActive = !activeSnap.empty && activeSnap.docs.some(d => d.id !== enrollmentId);
+
+                const previousRuns = existingData.pastRuns || [];
+                const completedRun: ParticipantSprintRun = {
+                    runNumber: existingData.currentRun || existingData.runNumber || (previousRuns.length + 1) || 1,
+                    started_at: existingData.started_at,
+                    completed_at: existingData.completed_at || now,
+                    status: 'completed',
+                    progress: existingData.progress || []
+                };
+                const newPastRuns = [...previousRuns, completedRun];
+                const newRunNumber = newPastRuns.length + 1;
+                const effectiveDuration = duration && duration > 0 ? duration : (existingData.progress?.length || 1);
+                const freshProgress = Array.from({ length: effectiveDuration }, (_, i) => ({
+                    day: i + 1,
+                    completed: (i === 0 && hasInputs) ? true : false,
+                    completedAt: (i === 0 && hasInputs) ? now : undefined,
+                    answers: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs : (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
+                    submission: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs[0] || "" : (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
+                }));
+
+                const updatedData: Partial<ParticipantSprint> = {
+                    status: hasActive ? 'queued' : 'active',
+                    currentRun: newRunNumber,
+                    runNumber: newRunNumber,
+                    pastRuns: newPastRuns,
+                    started_at: now,
+                    completed_at: null,
+                    progress: freshProgress,
+                    last_activity_at: now
+                };
+
+                await updateDoc(enrollmentRef, sanitizeData(updatedData));
+                try {
+                    const userRef = doc(db, 'users', userId);
+                    await updateDoc(userRef, {
+                        enrolledSprintIds: arrayUnion(sprintId)
+                    });
+                } catch (e) {}
+
+                return { ...existingData, ...updatedData } as ParticipantSprint;
+            }
+
             if (hasInputs && existingData.progress && existingData.progress[0]) {
                 const updatedProgress = [...existingData.progress];
                 if (!updatedProgress[0].completed || commercial?.taskInputs) {

@@ -30,7 +30,7 @@ import { paymentService } from '../../services/paymentService';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
 import { shineService } from '../../services/shineService';
 import { localNotificationScheduler } from '../../services/localNotificationScheduler';
-import { getExploreFirstSprint } from '../../utils/sprintUtils';
+import { getExploreFirstSprint, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -1125,13 +1125,22 @@ const ParticipantDashboard: React.FC = () => {
 
   const isRecommendedCashSprint = !isRecommendedCoinSprint;
 
+  const isRecommendedRerun = useMemo(() => {
+    if (!recommendedNextSprint || !user) return false;
+    return isSprintRerun(recommendedNextSprint.id, user, allEnrollments);
+  }, [recommendedNextSprint, user, allEnrollments]);
+
+  const recommendedPricing = useMemo(() => {
+    return getEffectiveSprintPricing(recommendedNextSprint, isRecommendedRerun);
+  }, [recommendedNextSprint, isRecommendedRerun]);
+
   const handleStartSprint = async () => {
     if (!user || !recommendedNextSprint || !isCommitted) return;
     
     setIsProcessing(true);
     try {
         if (isRecommendedCashSprint) {
-            const cashPrice = recommendedNextSprint.price ?? 1000;
+            const cashPrice = recommendedPricing.price;
             if (cashPrice === 0) {
                 const enrollment = await sprintService.enrollUser(
                     user.id, 
@@ -1166,7 +1175,7 @@ const ParticipantDashboard: React.FC = () => {
 
         if (paymentMethod === 'coins') {
             const userBalance = (user as Participant).walletBalance || 0;
-            const neededCoins = recommendedNextSprint.pointCost || 10;
+            const neededCoins = recommendedPricing.pointCost;
             if (userBalance < neededCoins) {
                 toast.error(`Insufficient coins. Please select another payment method or purchase more coins.`);
                 setIsProcessing(false);
@@ -1177,7 +1186,7 @@ const ParticipantDashboard: React.FC = () => {
             await userService.processWalletTransaction(user.id, {
                 amount: -neededCoins,
                 type: 'purchase',
-                description: `Unlocked ${recommendedNextSprint.title} via Credits`,
+                description: `Unlocked ${recommendedNextSprint.title} via Credits${isRecommendedRerun ? ' (Rerun 50% Rate)' : ''}`,
                 auditId: recommendedNextSprint.id
             });
 
@@ -1201,10 +1210,10 @@ const ParticipantDashboard: React.FC = () => {
             navigate(`/participant/sprint/${enrollment.id}`);
         } else if (paymentMethod === 'card') {
             // Pay via Card (Flutterwave)
-            const neededCoins = recommendedNextSprint.pointCost || 10;
+            const neededCoins = recommendedPricing.pointCost;
             const userBal = (user as Participant)?.walletBalance ?? 0;
             const coinsRem = Math.max(0, neededCoins - userBal);
-            const topupPrice = coinsRem > 0 ? coinsRem * 20 : (recommendedNextSprint.price || 1000);
+            const topupPrice = coinsRem > 0 ? coinsRem * 20 : recommendedPricing.price;
 
             const payload = {
                 userId: user.id,
@@ -2275,9 +2284,16 @@ const ParticipantDashboard: React.FC = () => {
                                             <div className="h-[1px] bg-gray-200 w-full"></div>
                                             <div className="flex justify-between items-center">
                                                 <span className="text-xs font-bold text-gray-600">Total Cost</span>
-                                                <span className="text-base font-black text-[#0E7850]">
-                                                    {(recommendedNextSprint.price ?? 1000) === 0 ? 'FREE' : `₦${(recommendedNextSprint.price ?? 1000).toLocaleString()}`}
-                                                </span>
+                                                <div className="flex items-center gap-1.5">
+                                                    {isRecommendedRerun && recommendedPricing.originalPrice > 0 && (
+                                                        <span className="text-xs text-gray-400 line-through">
+                                                            ₦{recommendedPricing.originalPrice.toLocaleString()}
+                                                        </span>
+                                                    )}
+                                                    <span className="text-base font-black text-[#0E7850]">
+                                                        {recommendedPricing.price === 0 ? 'FREE' : `₦${recommendedPricing.price.toLocaleString()}`}
+                                                    </span>
+                                                </div>
                                             </div>
 
                                             {/* Commitment Radio Button */}
@@ -2313,19 +2329,24 @@ const ParticipantDashboard: React.FC = () => {
                                                     paymentMethod === 'coins' 
                                                     ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                                     : 'bg-white border-gray-150 text-gray-500'
-                                                } ${((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                                } ${((user as Participant)?.walletBalance ?? 0) < recommendedPricing.pointCost ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                                     <div className="flex items-center gap-2">
                                                         <input 
                                                             type="radio" 
                                                             name="dashboard_payment_method" 
                                                             checked={paymentMethod === 'coins'} 
-                                                            onChange={() => ((user as Participant)?.walletBalance ?? 0) >= (recommendedNextSprint.pointCost || 10) && setPaymentMethod('coins')}
-                                                            disabled={((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) || isProcessing}
+                                                            onChange={() => ((user as Participant)?.walletBalance ?? 0) >= recommendedPricing.pointCost && setPaymentMethod('coins')}
+                                                            disabled={((user as Participant)?.walletBalance ?? 0) < recommendedPricing.pointCost || isProcessing}
                                                             className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                                         />
-                                                        <span className="text-[11px] font-black uppercase text-gray-800">Use {recommendedNextSprint.pointCost || 10} Coins</span>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[11px] font-black uppercase text-gray-800">Use {recommendedPricing.pointCost} Coins</span>
+                                                            {isRecommendedRerun && (
+                                                                <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded uppercase">50% Off</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    {((user as Participant)?.walletBalance ?? 0) < (recommendedNextSprint.pointCost || 10) && (
+                                                    {((user as Participant)?.walletBalance ?? 0) < recommendedPricing.pointCost && (
                                                         <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
                                                     )}
                                                 </label>
@@ -2334,7 +2355,7 @@ const ParticipantDashboard: React.FC = () => {
                                             {/* Horizontal Coin Packages Cards inside the bottom modal bar */}
                                             <BottomModalCoinCards 
                                                 userBalance={(user as Participant)?.walletBalance ?? 0}
-                                                sprintCost={recommendedNextSprint.pointCost || 10}
+                                                sprintCost={recommendedPricing.pointCost}
                                                 sprintId={recommendedNextSprint.id}
                                                 trackId={recommendedNextSprint.trackId}
                                                 selectedPaymentMethod={paymentMethod}
@@ -2353,10 +2374,10 @@ const ParticipantDashboard: React.FC = () => {
                                             >
                                                 <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
                                                 {(() => {
-                                                    const neededCoins = recommendedNextSprint.pointCost || 10;
+                                                    const neededCoins = recommendedPricing.pointCost;
                                                     const userBal = (user as Participant)?.walletBalance ?? 0;
                                                     const coinsRem = Math.max(0, neededCoins - userBal);
-                                                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : (recommendedNextSprint.price || 1000);
+                                                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : recommendedPricing.price;
                                                     return (
                                                         <span className="text-[10px] font-medium text-gray-400 shrink-0 ml-2">
                                                             {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
@@ -2398,18 +2419,18 @@ const ParticipantDashboard: React.FC = () => {
                                         }`}
                                     >
                                         {isProcessing ? "Processing..." : isRecommendedCashSprint ? (
-                                            (recommendedNextSprint.price ?? 1000) === 0
+                                            recommendedPricing.price === 0
                                                 ? "Start Free Sprint"
-                                                : `Start Day 1 Now • Pay ₦${(recommendedNextSprint.price ?? 1000).toLocaleString()}`
+                                                : `Start Day 1 Now • Pay ₦${recommendedPricing.price.toLocaleString()}`
                                         ) : (
                                             paymentMethod === 'coins'
-                                            ? `Start Day 1 Now • Use ${recommendedNextSprint.pointCost || 10} Coins`
+                                            ? `Start Day 1 Now • Use ${recommendedPricing.pointCost} Coins`
                                             : paymentMethod === 'card'
                                             ? (() => {
-                                                const neededCoins = recommendedNextSprint.pointCost || 10;
+                                                const neededCoins = recommendedPricing.pointCost;
                                                 const userBal = (user as Participant)?.walletBalance ?? 0;
                                                 const coinsRem = Math.max(0, neededCoins - userBal);
-                                                const topupPrice = coinsRem > 0 ? coinsRem * 20 : (recommendedNextSprint.price || 1000);
+                                                const topupPrice = coinsRem > 0 ? coinsRem * 20 : recommendedPricing.price;
                                                 return `Start Day 1 Now • ₦${topupPrice.toLocaleString()}`;
                                             })()
                                             : paymentMethod === 'pkg_30'

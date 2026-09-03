@@ -17,7 +17,7 @@ import { assetService } from '../../services/assetService';
 import { Sprint, Coach, UserRole, Participant, LifecycleSlotAssignment } from '../../types';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
-import { getExploreFirstSprint } from '../../utils/sprintUtils';
+import { getExploreFirstSprint, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
 import { toast } from 'sonner';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 
@@ -358,9 +358,17 @@ export const NextSprintRecommendation: React.FC = () => {
         loadNextSprint();
     }, [loadNextSprint]);
 
+    const isRerun = useMemo(() => {
+        return isSprintRerun(sprint?.id, user, userEnrollments, completedSprintId, isSameSprintLinked);
+    }, [sprint?.id, user, userEnrollments, completedSprintId, isSameSprintLinked]);
+
+    const pricing = useMemo(() => {
+        return getEffectiveSprintPricing(sprint, isRerun);
+    }, [sprint, isRerun]);
+
     const userBalance = (user as Participant)?.walletBalance ?? 0;
-    const sprintCost = sprint?.pointCost || 10;
-    const sprintPrice = sprint?.price || 1000;
+    const sprintCost = pricing.pointCost;
+    const sprintPrice = pricing.price;
 
     const isCoinSprint = useMemo(() => {
         if (!sprint) return true;
@@ -375,7 +383,7 @@ export const NextSprintRecommendation: React.FC = () => {
     // Update payment method default based on user balance
     useEffect(() => {
         if (sprint && user && isCoinSprint) {
-            const cost = sprint.pointCost || 10;
+            const cost = sprintCost;
             const balance = (user as Participant)?.walletBalance ?? 0;
             if (balance >= cost) {
                 setPaymentMethod('coins');
@@ -383,7 +391,7 @@ export const NextSprintRecommendation: React.FC = () => {
                 setPaymentMethod('pkg_100');
             }
         }
-    }, [sprint, user, isCoinSprint]);
+    }, [sprint, user, isCoinSprint, sprintCost]);
 
     const handleConfirmCommitment = async () => {
         if (!user || !sprint || isProcessingPayment) return;
@@ -437,7 +445,7 @@ export const NextSprintRecommendation: React.FC = () => {
         }
 
         // Handle Coin-Based Sprint Payment
-        const cost = sprint.pointCost || 10;
+        const cost = sprintCost;
         const currentBalance = (user as Participant)?.walletBalance ?? 0;
 
         try {
@@ -452,7 +460,7 @@ export const NextSprintRecommendation: React.FC = () => {
                 await userService.processWalletTransaction(user.id, {
                     amount: -cost,
                     type: 'purchase',
-                    description: `Unlocked ${sprint.title} via Growth Coins`,
+                    description: `Unlocked ${sprint.title} via Growth Coins${isRerun ? ' (Rerun 50% Rate)' : ''}`,
                     auditId: sprint.id
                 });
 
@@ -474,7 +482,7 @@ export const NextSprintRecommendation: React.FC = () => {
                 navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
             } else if (paymentMethod === 'card') {
                 const coinsRem = Math.max(0, cost - currentBalance);
-                const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+                const topupPrice = coinsRem > 0 ? coinsRem * 20 : sprintPrice;
 
                 const checkoutUrl = await paymentService.initializeFlutterwave({
                     userId: user.id,
@@ -694,6 +702,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                 isStatic={true} 
                                 hideFooterDetails={false}
                                 variant="light"
+                                isRerun={isRerun}
                                 onOpenOverview={() => setShowOverviewModal(true)}
                             />
                             {isSameSprintLinked && (
@@ -726,6 +735,15 @@ export const NextSprintRecommendation: React.FC = () => {
                         </div>
                     )}
                 </div>
+
+                {/* Recommendation Note before Continue button */}
+                {isRerun && (
+                    <div className="w-full text-center px-4 py-1.5 animate-fade-in">
+                        <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 leading-relaxed">
+                            We recommend you take the sprint again for fresh perspective.
+                        </p>
+                    </div>
+                )}
 
                 {/* Continue CTA */}
                 {sprint && (
@@ -813,6 +831,15 @@ export const NextSprintRecommendation: React.FC = () => {
                                 <PagedSprintDescription text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
                             </div>
 
+                            {/* Recommendation Note before Continue button */}
+                            {isRerun && (
+                                <div className="w-full text-center px-4 mb-3 animate-fade-in">
+                                    <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 leading-relaxed">
+                                        We recommend you take the sprint again for fresh perspective.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Continue CTA */}
                             <button
                                 type="button"
@@ -894,8 +921,22 @@ export const NextSprintRecommendation: React.FC = () => {
                                                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                                     Sprint Cost
                                                 </div>
-                                                <div className="text-lg sm:text-xl font-black text-[#0E7850] dark:text-emerald-400">
-                                                    {sprintPrice === 0 ? 'FREE' : `₦${sprintPrice.toLocaleString()}`}
+                                                <div className="flex flex-col items-end">
+                                                    <div className="flex items-center gap-1.5">
+                                                        {pricing.isRerun && pricing.originalPrice > 0 && (
+                                                            <span className="text-xs text-gray-400 line-through">
+                                                                ₦{pricing.originalPrice.toLocaleString()}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-lg sm:text-xl font-black text-[#0E7850] dark:text-emerald-400">
+                                                            {sprintPrice === 0 ? 'FREE' : `₦${sprintPrice.toLocaleString()}`}
+                                                        </span>
+                                                    </div>
+                                                    {pricing.isRerun && (
+                                                        <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5">
+                                                            50% Rerun Discount
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -945,9 +986,23 @@ export const NextSprintRecommendation: React.FC = () => {
                                                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                                     Sprint Cost
                                                 </div>
-                                                <div className="text-base sm:text-lg font-black text-[#0E7850] dark:text-emerald-400 flex items-center justify-end gap-1.5">
-                                                    <span>{sprintCost}</span>
-                                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase">Coins</span>
+                                                <div className="flex flex-col items-end">
+                                                    <div className="flex items-center gap-1.5">
+                                                        {pricing.isRerun && pricing.originalPointCost > 0 && (
+                                                            <span className="text-xs text-gray-400 line-through">
+                                                                {pricing.originalPointCost}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-base sm:text-lg font-black text-[#0E7850] dark:text-emerald-400 flex items-center justify-end gap-1">
+                                                            <span>{sprintCost}</span>
+                                                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase">Coins</span>
+                                                        </span>
+                                                    </div>
+                                                    {pricing.isRerun && (
+                                                        <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5">
+                                                            50% Rerun Discount
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

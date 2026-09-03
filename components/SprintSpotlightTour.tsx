@@ -26,7 +26,6 @@ export interface SpotlightStep {
   accentText: string;
   body: string;
   detail?: React.ReactNode;
-  learnMoreText?: string;
   preferredPlacement?: 'top' | 'bottom' | 'auto';
 }
 
@@ -189,7 +188,6 @@ export const SPOTLIGHT_STEPS: SpotlightStep[] = [
         </p>
       </div>
     ),
-    learnMoreText: "Learn more: Open Coach Guide for a complete walkthrough of creating and preparing a Sprint.",
     preferredPlacement: 'bottom'
   }
 ];
@@ -372,13 +370,6 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
     onClose();
   };
 
-  const handleOpenGuideFromTour = () => {
-    handleDismiss();
-    if (onOpenCoachGuide) {
-      onOpenCoachGuide();
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[250] pointer-events-auto select-none overflow-hidden animate-fade-in">
       {/* SVG Spotlight Mask Cutout */}
@@ -490,19 +481,6 @@ export const SprintSpotlightTour: React.FC<SprintSpotlightTourProps> = ({
           {currentStep.detail && (
             <div className="p-3 rounded-xl bg-gray-50 border border-gray-150/80">
               {currentStep.detail}
-            </div>
-          )}
-
-          {/* Learn More link for Step 8 */}
-          {currentStep.learnMoreText && (
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={handleOpenGuideFromTour}
-                className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 underline decoration-emerald-500 underline-offset-2 transition-colors cursor-pointer text-left block"
-              >
-                {currentStep.learnMoreText}
-              </button>
             </div>
           )}
         </div>

@@ -187,6 +187,23 @@ export interface PaymentAttempt {
   timestamp: string;
 }
 
+export interface ParticipantSprintRun {
+  runNumber: number;
+  started_at: string;
+  completed_at?: string | null;
+  status: 'active' | 'completed';
+  progress: {
+    day: number;
+    completed: boolean;
+    completedAt?: string;
+    submission?: string;
+    submissionFileUrl?: string;
+    proofSelection?: string;
+    answers?: string[];
+    answersMap?: Record<string, string>;
+  }[];
+}
+
 export interface ParticipantSprint {
   id: string;
   sprint_id: string;
@@ -206,6 +223,9 @@ export interface ParticipantSprint {
   isCommissionTrigger?: boolean; 
   checkInReminderEnabled?: boolean;
   checkInHistory?: { day: number; timestamp: string }[];
+  currentRun?: number;
+  runNumber?: number;
+  pastRuns?: ParticipantSprintRun[];
   progress: {
     day: number;
     completed: boolean;

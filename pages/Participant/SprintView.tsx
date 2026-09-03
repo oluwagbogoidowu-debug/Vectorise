@@ -1236,8 +1236,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           localStorage.removeItem(`draft_task_${enrollment.id}`);
         } catch (e) {}
 
+        const isPreviouslyCompleted = enrollment.status === "completed" || !!enrollment.completed_at;
+        const previousRuns = enrollment.pastRuns || [];
+        let newPastRuns = [...previousRuns];
+        let newRunNumber = enrollment.currentRun || enrollment.runNumber || (previousRuns.length + 1) || 1;
+
+        if (isPreviouslyCompleted) {
+          const completedRun = {
+            runNumber: newRunNumber,
+            started_at: enrollment.started_at,
+            completed_at: enrollment.completed_at || new Date().toISOString(),
+            status: "completed" as const,
+            progress: enrollment.progress || []
+          };
+          newPastRuns = [...newPastRuns, completedRun];
+          newRunNumber = newPastRuns.length + 1;
+        }
+
         await sprintService.updateEnrollment(enrollment.id, {
           status: "active",
+          currentRun: newRunNumber,
+          runNumber: newRunNumber,
+          pastRuns: newPastRuns,
           started_at: new Date().toISOString(),
           completed_at: null as any,
           progress: freshProgress,
@@ -1248,6 +1268,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             ? {
                 ...prev,
                 status: "active",
+                currentRun: newRunNumber,
+                runNumber: newRunNumber,
+                pastRuns: newPastRuns,
                 completed_at: undefined,
                 progress: freshProgress,
               }

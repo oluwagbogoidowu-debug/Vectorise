@@ -10,6 +10,18 @@ import { userService, sanitizeData } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { getSprintCoverImage } from '../../utils/sprintUtils';
 
+interface EnrichedSprintItem {
+    id: string;
+    enrollment: ParticipantSprint;
+    sprint: Sprint;
+    runNumber: number;
+    totalRuns: number;
+    status: ParticipantSprint['status'];
+    completedAt?: string | null;
+    startedAt?: string;
+    progress: ParticipantSprint['progress'];
+}
+
 const MySprints: React.FC = () => {
     const { user, updateProfile } = useAuth();
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
@@ -50,17 +62,102 @@ const MySprints: React.FC = () => {
     }, [user?.id]);
 
     const categorized = useMemo(() => {
-        const enriched = enrollments.map(enrol => {
-            const sprint = allSprints.find(s => s.id === enrol.sprint_id);
-            return sprint ? { enrollment: enrol, sprint } : null;
-        }).filter((item): item is { enrollment: ParticipantSprint; sprint: Sprint } => item !== null);
+        // Group user enrollments by sprint_id
+        const sprintEnrollmentsMap = new Map<string, ParticipantSprint[]>();
+        enrollments.forEach(enrol => {
+            const list = sprintEnrollmentsMap.get(enrol.sprint_id) || [];
+            list.push(enrol);
+            sprintEnrollmentsMap.set(enrol.sprint_id, list);
+        });
 
-        const inProgress = enriched.filter(e => e.enrollment.status === 'active');
-        const archived = enriched.filter(e => e.enrollment.status === 'completed');
-        const queuedEnrollments = enriched.filter(e => e.enrollment.status === 'queued');
+        const inProgressList: EnrichedSprintItem[] = [];
+        const archivedList: EnrichedSprintItem[] = [];
+        const queuedList: { enrollment: ParticipantSprint; sprint: Sprint }[] = [];
+
+        sprintEnrollmentsMap.forEach((enrolList, sprintId) => {
+            const sprint = allSprints.find(s => s.id === sprintId);
+            if (!sprint) return;
+
+            // Collect all runs/takes for this sprint
+            const allRunsForSprint: {
+                id: string;
+                enrollment: ParticipantSprint;
+                sprint: Sprint;
+                runNumber: number;
+                status: ParticipantSprint['status'];
+                completedAt?: string | null;
+                startedAt?: string;
+                progress: ParticipantSprint['progress'];
+            }[] = [];
+
+            // Sort enrollment documents chronologically
+            const sortedEnrolList = [...enrolList].sort((a, b) => {
+                const timeA = new Date(a.started_at || 0).getTime();
+                const timeB = new Date(b.started_at || 0).getTime();
+                return timeA - timeB;
+            });
+
+            sortedEnrolList.forEach((enrol) => {
+                // Include historical past completed runs if present
+                if (enrol.pastRuns && enrol.pastRuns.length > 0) {
+                    enrol.pastRuns.forEach((pr) => {
+                        allRunsForSprint.push({
+                            id: `${enrol.id}_past_${pr.runNumber}`,
+                            enrollment: enrol,
+                            sprint,
+                            runNumber: pr.runNumber,
+                            status: 'completed',
+                            completedAt: pr.completed_at,
+                            startedAt: pr.started_at,
+                            progress: pr.progress || [],
+                        });
+                    });
+                }
+
+                // Current run on this enrollment document
+                const currentRunNum = enrol.currentRun || enrol.runNumber || (allRunsForSprint.length + 1);
+                allRunsForSprint.push({
+                    id: enrol.id,
+                    enrollment: enrol,
+                    sprint,
+                    runNumber: currentRunNum,
+                    status: enrol.status,
+                    completedAt: enrol.completed_at,
+                    startedAt: enrol.started_at,
+                    progress: enrol.progress || [],
+                });
+            });
+
+            // Determine total runs for this sprint across its journey
+            const totalRuns = Math.max(
+                ...allRunsForSprint.map(r => r.runNumber),
+                allRunsForSprint.length,
+                1
+            );
+
+            allRunsForSprint.forEach(runItem => {
+                const enrichedItem: EnrichedSprintItem = {
+                    ...runItem,
+                    totalRuns,
+                };
+
+                if (enrichedItem.status === 'active') {
+                    inProgressList.push(enrichedItem);
+                } else if (enrichedItem.status === 'completed') {
+                    archivedList.push(enrichedItem);
+                } else if (enrichedItem.status === 'queued') {
+                    queuedList.push({ enrollment: enrichedItem.enrollment, sprint: enrichedItem.sprint });
+                }
+            });
+        });
+
+        // Sort inProgress by startedAt (most recent first)
+        inProgressList.sort((a, b) => new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime());
+        // Sort archived by completedAt or startedAt (most recent first)
+        archivedList.sort((a, b) => new Date(b.completedAt || b.startedAt || 0).getTime() - new Date(a.completedAt || a.startedAt || 0).getTime());
 
         const p = user as Participant;
-        const activeIds = new Set(enriched.map(e => e.sprint.id));
+        const activeIds = new Set(inProgressList.map(e => e.sprint.id));
         
         const saved = (p.savedSprintIds || [])
             .filter(id => !activeIds.has(id))
@@ -72,12 +169,18 @@ const MySprints: React.FC = () => {
             .map(id => allSprints.find(s => s.id === id))
             .filter((s): s is Sprint => !!s);
 
-        return { inProgress, archived, queued: queuedEnrollments, waitlist, saved };
+        return { 
+            inProgress: inProgressList, 
+            archived: archivedList, 
+            queued: queuedList, 
+            waitlist, 
+            saved 
+        };
     }, [enrollments, allSprints, user]);
 
-    const calculateProgress = (enrollment: ParticipantSprint) => {
-        const completedDays = enrollment.progress.filter(p => p.completed).length;
-        const totalDays = enrollment.progress.length;
+    const calculateProgress = (progressArray: ParticipantSprint['progress'] = []) => {
+        const completedDays = progressArray.filter(p => p.completed).length;
+        const totalDays = progressArray.length;
         return totalDays > 0 ? (completedDays / totalDays) * 100 : 0;
     };
 
@@ -214,11 +317,12 @@ const MySprints: React.FC = () => {
                         <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 ml-1">In Progress</h2>
                         {inProgress.length > 0 ? (
                             <div className="grid grid-cols-1 gap-3">
-                                {inProgress.map(({ enrollment, sprint }) => {
-                                    const progress = calculateProgress(enrollment);
+                                {inProgress.map(({ id, enrollment, sprint, runNumber, totalRuns, progress: runProgress }) => {
+                                    const progress = calculateProgress(runProgress || enrollment.progress);
                                     const sprintCover = getSprintCoverImage(sprint);
+                                    const completedCount = (runProgress || enrollment.progress || []).filter(p => p.completed).length;
                                     return (
-                                        <Link key={enrollment.id} to={`/participant/sprint/${enrollment.id}`} className="block group">
+                                        <Link key={id} to={`/participant/sprint/${enrollment.id}`} className="block group">
                                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
                                                 <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
                                                     <img 
@@ -230,13 +334,20 @@ const MySprints: React.FC = () => {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex justify-between items-start mb-1">
-                                                        <p className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.category}</p>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <p className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.category}</p>
+                                                            {totalRuns >= 2 && (
+                                                                <span className="text-[7px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-widest border border-purple-100">
+                                                                    Run {runNumber}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <span className="text-[10px] font-bold text-gray-400">{progress.toFixed(0)}%</span>
                                                     </div>
                                                     <h3 className="text-sm font-black text-gray-900 truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
                                                     <ProgressBar value={progress} />
                                                     <div className="mt-3 flex items-center justify-between">
-                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {enrollment.progress.filter(p => p.completed).length + 1} / {sprint.duration}</p>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {completedCount + 1} / {sprint.duration}</p>
                                                         <button className="text-[8px] font-black text-primary uppercase tracking-widest group-hover:underline">Resume &rarr;</button>
                                                     </div>
                                                 </div>
@@ -371,10 +482,10 @@ const MySprints: React.FC = () => {
                                 <div className="h-px bg-gray-100 flex-1"></div>
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
-                                {(isArchivedExpanded ? archived : archived.slice(0, 2)).map(({ enrollment, sprint }) => {
+                                {(isArchivedExpanded ? archived : archived.slice(0, 2)).map(({ id, enrollment, sprint, runNumber, totalRuns }) => {
                                     const sprintCover = getSprintCoverImage(sprint);
                                     return (
-                                        <div key={enrollment.id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
+                                        <div key={id} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-4 group animate-fade-in">
                                             <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-50">
                                                 <img 
                                                     src={sprintCover} 
@@ -385,7 +496,16 @@ const MySprints: React.FC = () => {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h3 className="font-bold text-gray-700 text-[12px] truncate">{sprint.title}</h3>
-                                                <span className="text-[7px] font-black bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest border border-green-100">Mastered</span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    {totalRuns >= 2 && (
+                                                        <span className="text-[7px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-widest border border-purple-100">
+                                                            Run {runNumber}
+                                                        </span>
+                                                    )}
+                                                    <span className="text-[7px] font-black bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase tracking-widest border border-green-100">
+                                                        Completed
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <Link to={`/participant/sprint/${enrollment.id}`} className="p-2 text-gray-300 hover:text-primary transition-colors hover:bg-gray-50 rounded-lg" title="Review">
