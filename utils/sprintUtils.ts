@@ -706,9 +706,9 @@ export const getExploreFirstSprint = (
 };
 
 /**
- * Checks whether a given sprint constitutes a rerun for the current user.
- * A sprint is considered a rerun if the user has already enrolled in it before,
- * completed it, or if it is explicitly recommended as a repeat run.
+ * Checks whether a recommended sprint constitutes a rerun of the previous just-concluded sprint.
+ * Returns true ONLY if the recommended sprint is the exact same sprint as the one just completed.
+ * If the recommended sprint is different from the concluded sprint, it is NOT a rerun.
  */
 export const isSprintRerun = (
     sprintId?: string | null,
@@ -718,13 +718,30 @@ export const isSprintRerun = (
     isSameSprintLinked?: boolean | null
 ): boolean => {
     if (!sprintId || !user) return false;
+    
+    // Explicit same-sprint progression or loop link
     if (isSameSprintLinked) return true;
-    if (completedSprintId && completedSprintId === sprintId) return true;
-    const p = user as Participant;
-    if (p.enrolledSprintIds?.includes(sprintId)) return true;
-    if (Array.isArray(userEnrollments) && userEnrollments.some(e => e.sprint_id === sprintId || e.id === sprintId || e.sprint?.id === sprintId)) {
-        return true;
+    
+    // Exact same sprint as the one passed from the completion flow
+    if (completedSprintId) {
+        return completedSprintId === sprintId;
     }
+
+    // If completedSprintId wasn't passed directly in route state, check if the most recently completed enrollment is this exact sprint
+    if (Array.isArray(userEnrollments) && userEnrollments.length > 0) {
+        const completedEnrollments = userEnrollments
+            .filter(e => e.status === 'completed' || e.completed_at || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p: any) => p.completed)))
+            .sort((a, b) => {
+                const timeA = new Date(a.completed_at || a.last_activity_at || a.started_at || 0).getTime();
+                const timeB = new Date(b.completed_at || b.last_activity_at || b.started_at || 0).getTime();
+                return timeB - timeA;
+            });
+
+        if (completedEnrollments.length > 0 && completedEnrollments[0].sprint_id === sprintId) {
+            return true;
+        }
+    }
+
     return false;
 };
 

@@ -15,9 +15,9 @@ import SprintCard from '../../components/SprintCard';
 import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
-import { getSprintCoverImage, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
+import { getSprintCoverImage } from '../../utils/sprintUtils';
 
-import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X, Sparkles } from 'lucide-react';
+import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X } from 'lucide-react';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -273,14 +273,6 @@ const SprintLandingPage: React.FC = () => {
         setImageError(false);
     }, [sprint?.coverImageUrl]);
 
-    const isRerun = useMemo(() => {
-        return isSprintRerun(sprint?.id, user, userEnrollments);
-    }, [sprint?.id, user, userEnrollments]);
-
-    const pricing = useMemo(() => {
-        return getEffectiveSprintPricing(sprint, isRerun);
-    }, [sprint, isRerun]);
-
     const hasCompletedOrActiveSprint = useMemo(() => {
         if (!user || !userEnrollments || userEnrollments.length === 0) return false;
         return userEnrollments.some(e => 
@@ -320,14 +312,14 @@ const SprintLandingPage: React.FC = () => {
     useEffect(() => {
         if (showCommitmentSheet && sprint) {
             const userBalance = (user as Participant)?.walletBalance || 0;
-            const neededCoins = pricing.pointCost;
+            const neededCoins = sprint.pointCost || 10;
             if (userBalance >= neededCoins) {
                 setPaymentMethod('coins');
             } else {
                 setPaymentMethod('pkg_100');
             }
         }
-    }, [showCommitmentSheet, user, sprint, pricing.pointCost]);
+    }, [showCommitmentSheet, user, sprint]);
 
     const isCoinSprint = useMemo(() => {
         if (!sprint) return true;
@@ -396,10 +388,10 @@ const SprintLandingPage: React.FC = () => {
                 // Existing guest (not first time) -> pay via card (Naira)
                 const traceId = `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
                 
-                const neededCoins = pricing.pointCost;
+                const neededCoins = sprint.pointCost || 10;
                 const userBal = user ? ((user as Participant)?.walletBalance ?? 0) : 0;
                 const coinsRem = Math.max(0, neededCoins - userBal);
-                const topupPrice = coinsRem > 0 ? coinsRem * 20 : pricing.price;
+                const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
 
                 const payload = {
                     userId: traceId,
@@ -418,44 +410,8 @@ const SprintLandingPage: React.FC = () => {
                 if (!user) return;
 
                 if (isCashSprint) {
-                    const cashPrice = pricing.price;
+                    const cashPrice = sprint.price ?? 1000;
                     if (cashPrice === 0) {
-                        const existingEnrollment = userEnrollments.find(e => e.sprint_id === sprint.id);
-                        if (isRerun && existingEnrollment) {
-                            const duration = sprint.duration || 7;
-                            const freshProgress = Array.from({ length: duration }, (_, i) => ({
-                                day: i + 1,
-                                completed: false,
-                                answers: [],
-                                submission: "",
-                            }));
-                            const previousRuns = existingEnrollment.pastRuns || [];
-                            const currentRunNum = existingEnrollment.currentRun || existingEnrollment.runNumber || (previousRuns.length + 1) || 1;
-                            const completedRun = {
-                                runNumber: currentRunNum,
-                                started_at: existingEnrollment.started_at,
-                                completed_at: existingEnrollment.completed_at || new Date().toISOString(),
-                                status: "completed" as const,
-                                progress: existingEnrollment.progress || [],
-                            };
-                            const newPastRuns = [...previousRuns, completedRun];
-                            const nextRunNum = newPastRuns.length + 1;
-
-                            await sprintService.updateEnrollment(existingEnrollment.id, {
-                                status: "active",
-                                currentRun: nextRunNum,
-                                runNumber: nextRunNum,
-                                pastRuns: newPastRuns,
-                                started_at: new Date().toISOString(),
-                                completed_at: null as any,
-                                progress: freshProgress,
-                            });
-                            toast.success("Sprint rerun started successfully!");
-                            setShowCommitmentSheet(false);
-                            navigate(`/participant/sprint/${existingEnrollment.id}`);
-                            return;
-                        }
-
                         const enrollment = await sprintService.enrollUser(
                             user.id,
                             sprint.id,
@@ -490,7 +446,7 @@ const SprintLandingPage: React.FC = () => {
 
                 if (paymentMethod === 'coins') {
                     const userBalance = (user as Participant).walletBalance || 0;
-                    const neededCoins = pricing.pointCost;
+                    const neededCoins = sprint.pointCost || 10;
                     if (userBalance < neededCoins) {
                         toast.error(`Insufficient coins. Please select card payment or buy more coins.`);
                         setIsProcessingPayment(false);
@@ -501,46 +457,9 @@ const SprintLandingPage: React.FC = () => {
                     await userService.processWalletTransaction(user.id, {
                         amount: -neededCoins,
                         type: 'purchase',
-                        description: `Unlocked ${sprint.title} via Credits${isRerun ? ' (Rerun)' : ''}`,
+                        description: `Unlocked ${sprint.title} via Credits`,
                         auditId: sprint.id
                     });
-
-                    // Check if rerun of existing enrollment
-                    const existingEnrollment = userEnrollments.find(e => e.sprint_id === sprint.id);
-                    if (isRerun && existingEnrollment) {
-                        const duration = sprint.duration || 7;
-                        const freshProgress = Array.from({ length: duration }, (_, i) => ({
-                            day: i + 1,
-                            completed: false,
-                            answers: [],
-                            submission: "",
-                        }));
-                        const previousRuns = existingEnrollment.pastRuns || [];
-                        const currentRunNum = existingEnrollment.currentRun || existingEnrollment.runNumber || (previousRuns.length + 1) || 1;
-                        const completedRun = {
-                            runNumber: currentRunNum,
-                            started_at: existingEnrollment.started_at,
-                            completed_at: existingEnrollment.completed_at || new Date().toISOString(),
-                            status: "completed" as const,
-                            progress: existingEnrollment.progress || [],
-                        };
-                        const newPastRuns = [...previousRuns, completedRun];
-                        const nextRunNum = newPastRuns.length + 1;
-
-                        await sprintService.updateEnrollment(existingEnrollment.id, {
-                            status: "active",
-                            currentRun: nextRunNum,
-                            runNumber: nextRunNum,
-                            pastRuns: newPastRuns,
-                            started_at: new Date().toISOString(),
-                            completed_at: null as any,
-                            progress: freshProgress,
-                        });
-                        toast.success("Sprint rerun started successfully!");
-                        setShowCommitmentSheet(false);
-                        navigate(`/participant/sprint/${existingEnrollment.id}`);
-                        return;
-                    }
 
                     // Enroll user
                     const enrollment = await sprintService.enrollUser(
@@ -562,10 +481,10 @@ const SprintLandingPage: React.FC = () => {
                     navigate(`/participant/sprint/${enrollment.id}`);
                 } else if (paymentMethod === 'card') {
                     // Pay via Card (Naira)
-                    const neededCoins = pricing.pointCost;
+                    const neededCoins = sprint.pointCost || 10;
                     const userBal = (user as Participant)?.walletBalance ?? 0;
                     const coinsRem = Math.max(0, neededCoins - userBal);
-                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : pricing.price;
+                    const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
 
                     const payload = {
                         userId: user.id,
@@ -832,12 +751,6 @@ const SprintLandingPage: React.FC = () => {
                                     <span className="px-2 py-0.5 rounded-md bg-primary text-white text-[8px] font-black uppercase tracking-[0.2em] shadow-sm border border-primary/20">
                                         {sprint.sprintType || 'Evolution'}
                                     </span>
-                                    {isRerun && (
-                                        <span className="px-2 py-0.5 rounded-md bg-emerald-700 text-white text-[8px] font-black uppercase tracking-[0.2em] shadow-sm border border-emerald-500/30 flex items-center gap-1">
-                                            <Sparkles className="w-2.5 h-2.5" />
-                                            Rerun • 50% Off
-                                        </span>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -919,23 +832,6 @@ const SprintLandingPage: React.FC = () => {
                                             <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
                                         </Button>
                                     </div>
-                                ) : isRerun ? (
-                                    <div className="space-y-4 text-left">
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-wider mb-1">
-                                            <Sparkles className="w-3 h-3 text-emerald-600" />
-                                            Rerun • 50% Off
-                                        </div>
-                                        <p className="text-xs text-gray-700 font-semibold leading-relaxed">
-                                            We recommend you take the sprint again for fresh perspective.
-                                        </p>
-                                        <Button 
-                                            onClick={handleJoinClick} 
-                                            className="w-full py-4 rounded-xl shadow-md shadow-emerald-700/15 text-[10px] uppercase tracking-widest font-black bg-[#0E7850] hover:bg-[#085C3D] text-white border-none group/btn cursor-pointer"
-                                        >
-                                            Rerun Sprint (50% Off)
-                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
-                                        </Button>
-                                    </div>
                                 ) : enrollmentStatus === 'queued' ? (
                                     <div className="space-y-4">
                                         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-wider mb-2">
@@ -971,23 +867,19 @@ const SprintLandingPage: React.FC = () => {
             </div>
 
             {/* Fixed Bottom CTA Bar for Viewport */}
-            {(enrollmentStatus === 'none' || isRerun) && enrollmentStatus !== 'active' && !showCommitmentSheet && (
+            {enrollmentStatus === 'none' && !showCommitmentSheet && (
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
                     <div className="max-w-md mx-auto flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
-                                {isRerun ? "RERUN • 50% OFF" : "GET 1% BETTER DAILY"}
-                            </p>
+                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">GET 1% BETTER DAILY</p>
                         </div>
                         <Button 
                             onClick={handleJoinClick} 
                             disabled={isCheckingEmail}
-                            className={`py-3 px-5 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black group/btn border-0 shrink-0 text-white cursor-pointer ${
-                                isRerun ? 'bg-[#0E7850] hover:bg-[#085C3D]' : 'bg-primary hover:bg-primary-hover'
-                            }`}
+                            className="py-3 px-5 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-primary hover:bg-primary-hover text-white border-0 shrink-0 group/btn cursor-pointer"
                         >
-                            {isCheckingEmail ? "Opening Move 1..." : isRerun ? "Rerun (50% Off)" : "Begin Now"}
+                            {isCheckingEmail ? "Opening Move 1..." : "Begin Now"}
                             {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />}
                         </Button>
                     </div>
@@ -1041,24 +933,10 @@ const SprintLandingPage: React.FC = () => {
                                     </div>
                                     <div className="h-[1px] bg-gray-200 w-full"></div>
                                     <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-gray-600">Total Cost</span>
-                                            {isRerun && (
-                                                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                                    50% Off Rerun
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-right">
-                                            {isRerun && sprint.price && sprint.price > pricing.price && (
-                                                <span className="text-xs font-bold text-gray-400 line-through mr-2">
-                                                    ₦{sprint.price.toLocaleString()}
-                                                </span>
-                                            )}
-                                            <span className="text-base font-black text-[#0E7850]">
-                                                {pricing.price === 0 ? 'FREE' : `₦${pricing.price.toLocaleString()}`}
-                                            </span>
-                                        </div>
+                                        <span className="text-xs font-bold text-gray-600">Total Cost</span>
+                                        <span className="text-base font-black text-[#0E7850]">
+                                            {(sprint.price ?? 1000) === 0 ? 'FREE' : `₦${(sprint.price ?? 1000).toLocaleString()}`}
+                                        </span>
                                     </div>
 
                                     {/* Commitment Radio Button */}
@@ -1094,26 +972,21 @@ const SprintLandingPage: React.FC = () => {
                                             paymentMethod === 'coins' 
                                             ? 'bg-[#0E7850]/5 border-[#0E7850] text-[#0E7850]' 
                                             : 'bg-white border-gray-150 text-gray-500'
-                                        } ${((user as Participant)?.walletBalance ?? 0) < pricing.pointCost ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        } ${((user as Participant)?.walletBalance ?? 0) < (sprint.pointCost || 10) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                             <div className="flex items-center gap-2">
                                                 <input 
                                                     type="radio" 
                                                     name="landing_payment_method" 
                                                     checked={paymentMethod === 'coins'} 
-                                                    onChange={() => ((user as Participant)?.walletBalance ?? 0) >= pricing.pointCost && setPaymentMethod('coins')}
-                                                    disabled={((user as Participant)?.walletBalance ?? 0) < pricing.pointCost || isProcessingPayment}
+                                                    onChange={() => ((user as Participant)?.walletBalance ?? 0) >= (sprint.pointCost || 10) && setPaymentMethod('coins')}
+                                                    disabled={((user as Participant)?.walletBalance ?? 0) < (sprint.pointCost || 10) || isProcessingPayment}
                                                     className="text-[#0E7850] focus:ring-[#0E7850] h-3.5 w-3.5"
                                                 />
-                                                <span className="text-[11px] font-black uppercase text-gray-800 flex items-center gap-1.5">
-                                                    Use {pricing.pointCost} Coins
-                                                    {isRerun && (
-                                                        <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.2 rounded uppercase">
-                                                            50% Off Rerun
-                                                        </span>
-                                                    )}
+                                                <span className="text-[11px] font-black uppercase text-gray-800">
+                                                    Use {sprint.pointCost || 10} Coins
                                                 </span>
                                             </div>
-                                            {((user as Participant)?.walletBalance ?? 0) < pricing.pointCost && (
+                                            {((user as Participant)?.walletBalance ?? 0) < (sprint.pointCost || 10) && (
                                                 <span className="text-[8px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded uppercase">Insufficient</span>
                                             )}
                                         </label>
@@ -1122,7 +995,7 @@ const SprintLandingPage: React.FC = () => {
                                     {/* Horizontal Coin Packages Cards inside bottom modal bar */}
                                     <BottomModalCoinCards 
                                         userBalance={(user as Participant)?.walletBalance ?? 0}
-                                        sprintCost={pricing.pointCost}
+                                        sprintCost={sprint.pointCost || 10}
                                         sprintId={sprint.id}
                                         trackId={sprint.trackId}
                                         selectedPaymentMethod={paymentMethod}
@@ -1141,10 +1014,10 @@ const SprintLandingPage: React.FC = () => {
                                     >
                                         <span className="text-[10px] font-medium text-gray-400 leading-tight">Instant topup</span>
                                         {(() => {
-                                            const neededCoins = pricing.pointCost;
+                                            const neededCoins = sprint.pointCost || 10;
                                             const userBal = (user as Participant)?.walletBalance ?? 0;
                                             const coinsRem = Math.max(0, neededCoins - userBal);
-                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : pricing.price;
+                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
                                             return (
                                                 <span className="text-[10px] font-medium text-gray-400 shrink-0 ml-2">
                                                     {coinsRem > 0 ? `${coinsRem} Coin${coinsRem > 1 ? 's' : ''} (₦${topupPrice.toLocaleString()})` : `₦${topupPrice.toLocaleString()}`}
@@ -1180,7 +1053,7 @@ const SprintLandingPage: React.FC = () => {
                                 <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 text-left space-y-3">
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
-                                        <span className="text-xs font-black text-gray-900">₦{pricing.price || 1000}</span>
+                                        <span className="text-xs font-black text-gray-900">₦{(sprint.price || 1000).toLocaleString()}</span>
                                     </div>
 
                                     {/* Commitment Radio Button (For Guest) */}
@@ -1223,19 +1096,19 @@ const SprintLandingPage: React.FC = () => {
                                     : (
                                         isCashSprint && !commitmentContext?.isGuest
                                         ? (
-                                            pricing.price === 0
-                                                ? (isRerun ? "Start Free Rerun" : "Start Free Sprint")
-                                                : `Payment for Package • ₦${pricing.price.toLocaleString()}${isRerun ? ' (50% Off)' : ''}`
+                                            (sprint.price ?? 1000) === 0
+                                                ? "Start Free Sprint"
+                                                : `Payment for Package • ₦${(sprint.price ?? 1000).toLocaleString()}`
                                         )
                                         : paymentMethod === 'coins'
-                                        ? (isRerun ? `Start Rerun Now • Use ${pricing.pointCost} Coins (50% Off)` : `Start Day 1 Now • Use ${pricing.pointCost} Coins`)
+                                        ? `Start Day 1 Now • Use ${sprint.pointCost || 10} Coins`
                                         : paymentMethod === 'card'
                                         ? (() => {
-                                            const neededCoins = pricing.pointCost;
+                                            const neededCoins = sprint.pointCost || 10;
                                             const userBal = (user as Participant)?.walletBalance ?? 0;
                                             const coinsRem = Math.max(0, neededCoins - userBal);
-                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : pricing.price;
-                                            return `${isRerun ? 'Start Rerun Now' : 'Start Day 1 Now'} • ₦${topupPrice.toLocaleString()}`;
+                                            const topupPrice = coinsRem > 0 ? coinsRem * 20 : (sprint.price || 1000);
+                                            return `Start Day 1 Now • ₦${topupPrice.toLocaleString()}`;
                                         })()
                                         : paymentMethod === 'pkg_30'
                                         ? "Start Day 1 Now • Pay ₦500"

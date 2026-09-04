@@ -170,13 +170,15 @@ export const NextSprintRecommendation: React.FC = () => {
         setIsKebabMenuOpen(false);
     };
 
-    // Detect if the recommended sprint is a same-sprint link (repeat recommendation)
+    // Detect if the recommended sprint is a same-sprint link (exact same sprint rerun)
     const isSameSprintLinked = useMemo(() => {
         if (!sprint) return false;
-        if (completedSprintId && sprint.id === completedSprintId) return true;
+        if (completedSprintId) {
+            return sprint.id === completedSprintId;
+        }
         if (sprint.nextSprintId === sprint.id || sprint.linkedSprintId === sprint.id) return true;
         if (Array.isArray(sprintLinks) && sprintLinks.some(l => 
-            (l.sourceSprintId === (completedSprintId || sprint.id)) && l.targetSprintId === sprint.id
+            l.sourceSprintId === sprint.id && l.targetSprintId === sprint.id
         )) {
             return true;
         }

@@ -50,11 +50,8 @@ const SprintCard: React.FC<SprintCardProps> = ({
     }, [user, sprint.id]);
 
     const effectiveIsRerun = useMemo(() => {
-        if (typeof isRerun === 'boolean') return isRerun;
-        if (!user || user.role !== UserRole.PARTICIPANT) return false;
-        const p = user as Participant;
-        return Boolean(p.enrolledSprintIds?.includes(sprint.id));
-    }, [isRerun, user, sprint.id]);
+        return Boolean(isRerun);
+    }, [isRerun]);
 
     const pricing = useMemo(() => {
         return getEffectiveSprintPricing(sprint, effectiveIsRerun);
