@@ -46,12 +46,15 @@ const SprintCard: React.FC<SprintCardProps> = ({
     const isEnrolled = useMemo(() => {
         if (!user || user.role !== UserRole.PARTICIPANT) return false;
         const p = user as Participant;
-        return p.enrolledSprintIds?.includes(sprint.id) || MOCK_PARTICIPANT_SPRINTS.some(ps => ps.user_id === user.id && ps.sprint_id === sprint.id);
+        return Boolean(p.enrolledSprintIds?.includes(sprint.id));
     }, [user, sprint.id]);
 
     const effectiveIsRerun = useMemo(() => {
-        return Boolean(isRerun || (isStatic && isEnrolled));
-    }, [isRerun, isStatic, isEnrolled]);
+        if (typeof isRerun === 'boolean') return isRerun;
+        if (!user || user.role !== UserRole.PARTICIPANT) return false;
+        const p = user as Participant;
+        return Boolean(p.enrolledSprintIds?.includes(sprint.id));
+    }, [isRerun, user, sprint.id]);
 
     const pricing = useMemo(() => {
         return getEffectiveSprintPricing(sprint, effectiveIsRerun);
@@ -320,8 +323,15 @@ const SprintCard: React.FC<SprintCardProps> = ({
                         </div>
                     )}
 
+                    {/* Rerun Badge */}
+                    {!isInactive && effectiveIsRerun && (
+                        <div className="absolute top-3 left-3 bg-emerald-700 text-white border border-white/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lg z-10 animate-fade-in">
+                            <span>Rerun • 50% Off</span>
+                        </div>
+                    )}
+
                     {/* Archive Badge Preview */}
-                    {!isInactive && forceShowOutcomeTag && sprint.outcomeTag && (
+                    {!isInactive && !effectiveIsRerun && forceShowOutcomeTag && sprint.outcomeTag && (
                          <div className="absolute top-3 left-3 bg-primary text-white px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest italic shadow-lg z-10 animate-fade-in border border-white/20">
                             {sprint.outcomeTag}
                          </div>
@@ -360,7 +370,7 @@ const SprintCard: React.FC<SprintCardProps> = ({
                                 <div className="flex items-center gap-1.5">
                                     {onOpenReviews && (
                                         <button
-                                            type="button"
+                                             type="button"
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 e.stopPropagation();
@@ -392,6 +402,8 @@ const SprintCard: React.FC<SprintCardProps> = ({
                             <div className={`py-2 rounded-xl font-black text-[9px] uppercase tracking-[0.25em] text-center shadow-sm transition-all duration-500 flex justify-center items-center gap-1.5 ${
                                 isInactive
                                 ? 'bg-gray-100 dark:bg-zinc-800/90 text-gray-400 dark:text-zinc-500 border border-gray-200/60 dark:border-zinc-700/60 cursor-not-allowed'
+                                : effectiveIsRerun
+                                ? 'bg-emerald-700 hover:bg-emerald-800 text-white shadow-emerald-900/20'
                                 : isEnrolled 
                                 ? 'bg-green-50 text-green-700' 
                                 : isQueued 
@@ -400,7 +412,9 @@ const SprintCard: React.FC<SprintCardProps> = ({
                             }`}>
                                 {isInactive ? (
                                     <><Lock className="w-3 h-3 text-gray-400 dark:text-zinc-500" /> <span>{inactiveLabel || (level ? `Level ${level} • Inactive` : "Inactive • Unlocks Next")}</span></>
-                                ) : isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost}{pricing.isRerun ? " (50% Off)" : ""}</>) : `₦${pricing.price.toLocaleString()}${pricing.isRerun ? " (50% Off)" : ""}`}
+                                ) : effectiveIsRerun ? (
+                                    sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost} • Rerun (50% Off)</>) : (<>₦{pricing.price.toLocaleString()} • Rerun (50% Off)</>)
+                                ) : isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost}</>) : `₦${pricing.price.toLocaleString()}`}
                             </div>
                         </div>
                     )}

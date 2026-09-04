@@ -10,7 +10,7 @@ import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
 import { Sparkles, Lock, Loader2 } from 'lucide-react';
-import { filterAllowedSprintsForUser, getExploreSprintItems, ExploreSprintItem } from '../../utils/sprintUtils';
+import { filterAllowedSprintsForUser, getExploreSprintItems, ExploreSprintItem, isSprintRerun } from '../../utils/sprintUtils';
 
 /**
  * LOCKED STAGE CARD (Internal)
@@ -192,6 +192,7 @@ const DiscoverSprints: React.FC = () => {
                                         coach={coaches.find(c => c.id === item.sprint.coachId) || ({} as Coach)} 
                                         level={1}
                                         isInactive={false}
+                                        isRerun={isSprintRerun(item.sprint.id, user, userEnrollments)}
                                     />
                                 </React.Fragment>
                             ))}
