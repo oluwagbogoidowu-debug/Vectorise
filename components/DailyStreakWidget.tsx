@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Check, Lock } from 'lucide-react';
+import { Flame, Check, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface DailyStreakWidgetProps {
@@ -53,11 +53,6 @@ export const DailyStreakWidget: React.FC<DailyStreakWidgetProps> = ({
 
               return (
                 <div key={day} className="flex items-center gap-1 relative">
-                  {isDay3 && (
-                    <div className="text-gray-400 dark:text-zinc-500 flex items-center">
-                      <Lock className="w-3 h-3" />
-                    </div>
-                  )}
                   <div className="flex flex-col items-center gap-0.5 relative">
                     <div 
                       onClick={isDay1 && showMarkForDay1 && onMarkDay1 ? onMarkDay1 : undefined}
@@ -101,6 +96,11 @@ export const DailyStreakWidget: React.FC<DailyStreakWidgetProps> = ({
                       </AnimatePresence>
                     </div>
                   </div>
+                  {isDay3 && (
+                    <div className="text-yellow-500 flex items-center">
+                      <Coins className="w-3.5 h-3.5" />
+                    </div>
+                  )}
                 </div>
               );
             })}

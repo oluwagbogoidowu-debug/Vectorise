@@ -21,7 +21,6 @@ import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import { getExploreFirstSprint, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
 import { toast } from 'sonner';
-import { DailyStreakWidget } from "../../components/DailyStreakWidget";
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 
 export const NextSprintRecommendation: React.FC = () => {
@@ -1244,7 +1243,6 @@ export const NextSprintRecommendation: React.FC = () => {
                     navigate(route);
                 }}
             />
-            <DailyStreakWidget streak={(user as any)?.impactStats?.streak || 0} bottomPosition="bottom-32" />
             <style>{`
                 @keyframes kebabBlink {
                     0%, 100% { opacity: 1; transform: scale(1); }
