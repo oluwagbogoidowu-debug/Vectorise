@@ -14,11 +14,14 @@ import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { paymentService } from '../../services/paymentService';
 import { assetService } from '../../services/assetService';
+import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '../../services/milestoneConstants';
+import { shineService } from '../../services/shineService';
 import { Sprint, Coach, UserRole, Participant, LifecycleSlotAssignment } from '../../types';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import { getExploreFirstSprint, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
 import { toast } from 'sonner';
+import { DailyStreakWidget } from "../../components/DailyStreakWidget";
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 
 export const NextSprintRecommendation: React.FC = () => {
@@ -50,6 +53,38 @@ export const NextSprintRecommendation: React.FC = () => {
     );
     const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<any | null>(null);
     const [userEnrollments, setUserEnrollments] = useState<any[]>([]);
+    const [hasUnclaimedMilestone, setHasUnclaimedMilestone] = useState(false);
+    const [isBlinkingKebab, setIsBlinkingKebab] = useState(false);
+
+    useEffect(() => {
+        if (!user) return;
+        const checkMilestones = async () => {
+            try {
+                const enrollments = userEnrollments.length > 0 ? userEnrollments : await sprintService.getUserEnrollments(user.id);
+                const reflections = await shineService.getPostsByUserId(user.id).catch(() => []);
+                const referralsCount = (user as any)?.referralsCount || 0;
+                const stats = computeMilestoneStats(enrollments, reflections, referralsCount);
+                const claimed = (user as Participant).claimedMilestoneIds || [];
+                const unclaimed = MILESTONES.filter(m => {
+                    const val = calculateMilestoneStatValue(m.id, stats);
+                    return val >= m.targetValue && !claimed.includes(m.id);
+                });
+                setHasUnclaimedMilestone(unclaimed.length > 0);
+            } catch (e) {
+                console.error("Error checking milestones in NextSprint:", e);
+            }
+        };
+        checkMilestones();
+    }, [user, userEnrollments]);
+
+    const handleClosePaymentModal = () => {
+        if (isProcessingPayment) return;
+        setIsPaymentModalOpen(false);
+        setIsBlinkingKebab(true);
+        setTimeout(() => {
+            setIsBlinkingKebab(false);
+        }, 2400);
+    };
 
     // Subscribe to user enrollments to track active in-progress sprint
     useEffect(() => {
@@ -551,10 +586,13 @@ export const NextSprintRecommendation: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => setIsKebabMenuOpen((prev) => !prev)}
-                        className={`p-2.5 bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl shadow-sm text-gray-700 dark:text-gray-200 hover:text-gray-950 dark:hover:text-white active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                        className={`p-2.5 bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl shadow-sm text-gray-700 dark:text-gray-200 hover:text-gray-950 dark:hover:text-white active:scale-95 transition-all cursor-pointer flex items-center justify-center relative ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
                         title="Options"
                     >
                         <MoreVertical className="w-5 h-5" />
+                        {(hasUnclaimedMilestone || isBlinkingKebab) && (
+                            <span className={`absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 ${isBlinkingKebab ? 'animate-kebab-blink' : ''}`} />
+                        )}
                     </button>
 
                     <AnimatePresence>
@@ -574,11 +612,13 @@ export const NextSprintRecommendation: React.FC = () => {
                                     >
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <BookOpen className="w-4 h-4" />
-                                        </div>
+                                            
+        </div>
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Read Rise Blog</span>
                                             <span className="font-normal text-gray-500 dark:text-gray-400"> · Earn coins</span>
-                                        </div>
+                                            
+        </div>
                                     </button>
 
                                     <button
@@ -588,11 +628,13 @@ export const NextSprintRecommendation: React.FC = () => {
                                     >
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <UserPlus className="w-4 h-4" />
-                                        </div>
+                                            
+        </div>
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Refer a Friend</span>
                                             <span className="font-normal text-gray-500 dark:text-gray-400"> · Earn coins</span>
-                                        </div>
+                                            
+        </div>
                                     </button>
 
                                     <button
@@ -602,11 +644,13 @@ export const NextSprintRecommendation: React.FC = () => {
                                     >
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <Trophy className="w-4 h-4" />
-                                        </div>
+                                            
+        </div>
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Claim Milestones</span>
                                             <span className="font-normal text-gray-500 dark:text-gray-400"> • Earn coin</span>
-                                        </div>
+                                            
+        </div>
                                     </button>
 
                                     <button
@@ -619,11 +663,13 @@ export const NextSprintRecommendation: React.FC = () => {
                                     >
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                                        </div>
+                                            
+        </div>
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Switch Mode</span>
                                             <span className="font-normal text-gray-500 dark:text-gray-400"> • {isDarkMode ? 'Light' : 'Dark'}</span>
-                                        </div>
+                                            
+        </div>
                                     </button>
 
                                     <button
@@ -633,18 +679,23 @@ export const NextSprintRecommendation: React.FC = () => {
                                     >
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <Coins className="w-4 h-4" />
-                                        </div>
+                                            
+        </div>
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Buy Coins</span>
                                             <span className="font-normal text-gray-500 dark:text-gray-400"> • Progress faster</span>
-                                        </div>
+                                            
+        </div>
                                     </button>
-                                </div>
+                                    
+        </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
-                </div>
-                </div>
+                    
+        </div>
+                    
+        </div>
             </header>
 
             {/* Main Content */}
@@ -663,7 +714,8 @@ export const NextSprintRecommendation: React.FC = () => {
                             >
                                 <span className="text-[10px] opacity-90 tracking-widest font-bold">Request for Coach Mode</span>
                             </button>
-                        </div>
+                            
+        </div>
                     )}
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950 dark:text-white flex flex-wrap items-center justify-center gap-2">
                         <span>Your Next Sprint</span>
@@ -673,14 +725,16 @@ export const NextSprintRecommendation: React.FC = () => {
                             </span>
                         )}
                     </h1>
-                </div>
+                    
+        </div>
 
                 {/* Sprint Card with Price Badge visible */}
                 <div className="w-full text-left bg-transparent dark:bg-transparent">
                     {isLoading ? (
                         <div className="py-20 flex justify-center items-center bg-transparent dark:bg-transparent">
                             <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
-                        </div>
+                            
+        </div>
                     ) : sprint ? (
                         <div className="space-y-2 bg-transparent dark:bg-transparent">
                             <SprintCard 
@@ -692,25 +746,30 @@ export const NextSprintRecommendation: React.FC = () => {
                                 isRerun={isRerun}
                                 onOpenOverview={() => setShowOverviewModal(true)}
                             />
-                        </div>
+                            
+        </div>
                     ) : (
                         <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xl shadow-gray-100/40 dark:shadow-none flex flex-col items-center justify-center space-y-4">
                             <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                                 <Sparkles className="w-6 h-6 animate-pulse" />
-                            </div>
+                                
+        </div>
                             <div className="space-y-1">
                                 <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight italic">Your next sprint is in view.</h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">We are working on it. We will get back to you soon.</p>
-                            </div>
+                                
+        </div>
                             <button
                                 onClick={() => navigate('/explore')}
                                 className="px-6 py-2.5 bg-[#0E7850] hover:bg-[#085C3D] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
                             >
                                 Browse Sprints
                             </button>
-                        </div>
+                            
+        </div>
                     )}
-                </div>
+                    
+        </div>
 
                 {/* Recommendation Note before Continue button */}
                 {isRerun && (
@@ -718,7 +777,8 @@ export const NextSprintRecommendation: React.FC = () => {
                         <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 leading-relaxed">
                             We recommend you take the sprint again for fresh perspective.
                         </p>
-                    </div>
+                        
+        </div>
                 )}
 
                 {/* Continue CTA */}
@@ -743,9 +803,11 @@ export const NextSprintRecommendation: React.FC = () => {
                             {!activeOngoingEnrollment && <ArrowRight className="w-4 h-4" />}
                         </button>
 
-                    </div>
+                        
+        </div>
                 )}
-            </div>
+                
+        </div>
 
             {/* Footer */}
             <footer className="w-full text-center pb-12 z-10 flex flex-col items-center gap-2">
@@ -795,7 +857,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                         🔁 Repeat Sprint
                                     </span>
                                 )}
-                            </div>
+                                
+        </div>
 
                             {/* Sprint Title */}
                             <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-gray-950 dark:text-white mb-3">
@@ -805,7 +868,8 @@ export const NextSprintRecommendation: React.FC = () => {
                             {/* Description with Paged Slides / Formatted Text */}
                             <div className="mb-6">
                                 <PagedSprintDescription text={sprint.description || sprint.subtitle || "Unlock consistency and start your rise."} />
-                            </div>
+                                
+        </div>
 
                             {/* Recommendation Note before Continue button */}
                             {isRerun && (
@@ -813,7 +877,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                     <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 leading-relaxed">
                                         We recommend you take the sprint again for fresh perspective.
                                     </p>
-                                </div>
+                                    
+        </div>
                             )}
 
                             {/* Continue CTA */}
@@ -838,14 +903,18 @@ export const NextSprintRecommendation: React.FC = () => {
                                 {!activeOngoingEnrollment && <ArrowRight className="w-4 h-4" />}
                             </button>
                         </motion.div>
-                    </div>
+                        
+        </div>
                 )}
             </AnimatePresence>
 
             {/* Bottom Modal Bar for Payment */}
             <AnimatePresence>
                 {isPaymentModalOpen && sprint && (
-                    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+                    <div 
+                        onClick={(e) => { if (e.target === e.currentTarget) handleClosePaymentModal(); }}
+                        className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4"
+                    >
                         <motion.div
                             initial={{ y: "100%" }}
                             animate={{ y: 0 }}
@@ -855,7 +924,7 @@ export const NextSprintRecommendation: React.FC = () => {
                         >
                             {/* Close Button */}
                             <button
-                                onClick={() => !isProcessingPayment && setIsPaymentModalOpen(false)}
+                                onClick={handleClosePaymentModal}
                                 className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors cursor-pointer"
                             >
                                 <X className="w-5 h-5" />
@@ -868,7 +937,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                     <span className="text-xs font-black uppercase text-[#0E7850] dark:text-emerald-400 tracking-wider">
                                         Unlock Sprint
                                     </span>
-                                </div>
+                                    
+        </div>
                                 <h3 className="text-xl sm:text-2xl font-black text-gray-950 dark:text-white tracking-tight leading-snug">
                                     {sprint.title}
                                 </h3>
@@ -877,7 +947,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                         {sprint.subtitle || sprint.description}
                                     </p>
                                 )}
-                            </div>
+                                
+        </div>
 
                             {isCashSprint ? (
                                 /* Cash-Based Sprint Payment Layout */
@@ -888,15 +959,19 @@ export const NextSprintRecommendation: React.FC = () => {
                                             <div>
                                                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                                     Sprint Program
-                                                </div>
+                                                    
+        </div>
                                                 <div className="text-sm font-bold text-gray-900 dark:text-white">
                                                     {sprint.duration || 7} Days Guided Action
-                                                </div>
-                                            </div>
+                                                    
+        </div>
+                                                
+        </div>
                                             <div className="text-right">
                                                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                                     Sprint Cost
-                                                </div>
+                                                    
+        </div>
                                                 <div className="flex flex-col items-end">
                                                     <div className="flex items-center gap-1.5">
                                                         {pricing.isRerun && pricing.originalPrice > 0 && (
@@ -907,16 +982,21 @@ export const NextSprintRecommendation: React.FC = () => {
                                                         <span className="text-lg sm:text-xl font-black text-[#0E7850] dark:text-emerald-400">
                                                             {sprintPrice === 0 ? 'FREE' : `₦${sprintPrice.toLocaleString()}`}
                                                         </span>
-                                                    </div>
+                                                        
+        </div>
                                                     {pricing.isRerun && (
                                                         <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5">
                                                             50% Rerun Discount
                                                         </span>
                                                     )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                                    
+        </div>
+                                                
+        </div>
+                                            
+        </div>
+                                        
+        </div>
 
                                     {/* Pay & Unlock Action Button */}
                                     <div className="pt-2">
@@ -933,15 +1013,18 @@ export const NextSprintRecommendation: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                                     <span>Processing Payment...</span>
-                                                </div>
+                                                    
+        </div>
                                             ) : sprintPrice === 0 ? (
                                                 <span>Start Free Sprint</span>
                                             ) : (
                                                 <span>Payment for Package • ₦{sprintPrice.toLocaleString()}</span>
                                             )}
                                         </button>
-                                    </div>
-                                </div>
+                                        
+        </div>
+                                    
+        </div>
                             ) : (
                                 /* Coin-Based Sprint Payment Layout */
                                 <>
@@ -952,16 +1035,20 @@ export const NextSprintRecommendation: React.FC = () => {
                                             <div>
                                                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                                     Your Balance
-                                                </div>
+                                                    
+        </div>
                                                 <div className="text-base sm:text-lg font-black text-gray-950 dark:text-white flex items-center gap-1.5">
                                                     <span>🪙 {userBalance}</span>
                                                     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Coins</span>
-                                                </div>
-                                            </div>
+                                                    
+        </div>
+                                                
+        </div>
                                             <div className="text-right">
                                                 <div className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-0.5">
                                                     Sprint Cost
-                                                </div>
+                                                    
+        </div>
                                                 <div className="flex flex-col items-end">
                                                     <div className="flex items-center gap-1.5">
                                                         {pricing.isRerun && pricing.originalPointCost > 0 && (
@@ -973,15 +1060,19 @@ export const NextSprintRecommendation: React.FC = () => {
                                                             <span>{sprintCost}</span>
                                                             <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase">Coins</span>
                                                         </span>
-                                                    </div>
+                                                        
+        </div>
                                                     {pricing.isRerun && (
                                                         <span className="text-[8px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded uppercase tracking-wider mt-0.5">
                                                             50% Rerun Discount
                                                         </span>
                                                     )}
-                                                </div>
-                                            </div>
-                                        </div>
+                                                    
+        </div>
+                                                
+        </div>
+                                            
+        </div>
 
                                         {/* Option: Use Coins (Only shown when coins are enough) */}
                                         {userBalance >= sprintCost && (
@@ -990,18 +1081,23 @@ export const NextSprintRecommendation: React.FC = () => {
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-5 h-5 rounded-full border-2 border-[#0E7850] bg-[#0E7850] flex items-center justify-center text-white shrink-0">
                                                             <CheckCircle2 className="w-3.5 h-3.5" />
-                                                        </div>
+                                                            
+        </div>
                                                         <span className="text-sm sm:text-base font-black text-gray-900 dark:text-white">
                                                             Use {sprintCost} coins of your balance to continue
                                                         </span>
-                                                    </div>
+                                                        
+        </div>
                                                     <span className="text-xs font-black text-[#0E7850] bg-emerald-100 dark:bg-emerald-900/60 dark:text-emerald-300 px-2.5 py-1 rounded-md uppercase tracking-wider shrink-0">
                                                         Available
                                                     </span>
-                                                </div>
-                                            </div>
+                                                    
+        </div>
+                                                
+        </div>
                                         )}
-                                    </div>
+                                        
+        </div>
 
                                     {/* Outside the card on plain ground: Coin Packages & Direct remaining coin pay */}
                                     {userBalance < sprintCost && (
@@ -1038,8 +1134,10 @@ export const NextSprintRecommendation: React.FC = () => {
                                                         </span>
                                                     );
                                                 })()}
-                                            </div>
-                                        </div>
+                                                
+        </div>
+                                            
+        </div>
                                     )}
 
                                     {/* Unlock Action Button */}
@@ -1057,7 +1155,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                                     <span>Unlocking Day 1...</span>
-                                                </div>
+                                                    
+        </div>
                                             ) : userBalance >= sprintCost ? (
                                                 <span>Start Day 1 Now • Use {sprintCost} Coins</span>
                                             ) : paymentMethod === 'card' ? (
@@ -1072,11 +1171,13 @@ export const NextSprintRecommendation: React.FC = () => {
                                                 <span>Select Payment Method</span>
                                             )}
                                         </button>
-                                    </div>
+                                        
+        </div>
                                 </>
                             )}
                         </motion.div>
-                    </div>
+                        
+        </div>
                 )}
             </AnimatePresence>
 
@@ -1097,7 +1198,8 @@ export const NextSprintRecommendation: React.FC = () => {
                                     <div className="text-left">
                                         <h4 className="text-xs font-black text-gray-900 dark:text-gray-100">Light Mode</h4>
                                         <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Bright and clear</p>
-                                    </div>
+                                        
+        </div>
                                 </button>
                                 <button 
                                     onClick={toggleDarkMode}
@@ -1107,18 +1209,23 @@ export const NextSprintRecommendation: React.FC = () => {
                                     <div className="text-left">
                                         <h4 className="text-xs font-black text-gray-900 dark:text-gray-100">Dark Mode</h4>
                                         <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Easy on eyes</p>
-                                    </div>
+                                        
+        </div>
                                 </button>
-                            </div>
-                        </div>
+                                
+        </div>
+                            
+        </div>
                         <button 
                             onClick={() => setIsThemeModalOpen(false)}
                             className="w-full py-5 bg-gray-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-black uppercase tracking-[0.3em] text-[10px]"
                         >
                             Close
                         </button>
-                    </div>
-                </div>
+                        
+        </div>
+                    
+        </div>
             )}
 
             {/* Participant Drawer Menu */}
@@ -1137,8 +1244,17 @@ export const NextSprintRecommendation: React.FC = () => {
                     navigate(route);
                 }}
             />
+            <DailyStreakWidget streak={(user as any)?.impactStats?.streak || 0} bottomPosition="bottom-32" />
+            <style>{`
+                @keyframes kebabBlink {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.2; transform: scale(1.4); }
+                }
+                .animate-kebab-blink {
+                    animation: kebabBlink 0.8s ease-in-out 3;
+                }
+            `}</style>
         </div>
     );
 };
-
 export default NextSprintRecommendation;

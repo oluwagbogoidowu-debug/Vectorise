@@ -22,6 +22,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
+import { DailyStreakWidget } from "../../components/DailyStreakWidget";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
 import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
@@ -3935,7 +3936,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           </div>
         </div>
 
-        {renderAllModals()}
+        <DailyStreakWidget streak={(user as any)?.impactStats?.streak || 0} />
+      {renderAllModals()}
       </>
     );
   }
@@ -5750,6 +5752,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             `}</style>
       </div>
 
+      <DailyStreakWidget streak={(user as any)?.impactStats?.streak || 0} />
       {renderAllModals()}
     </>
   );
