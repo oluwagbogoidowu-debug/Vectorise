@@ -822,9 +822,8 @@ const CoachSprints: React.FC = () => {
     }
   };
 
-  const filteredSprints = useMemo(() => {
-    // Standard tab isolation
-    let tFiltered = sprints.filter(s => {
+  const tFiltered = useMemo(() => {
+    return sprints.filter(s => {
       // If it is a version of a sprint, do not show it as a separate sprint in the main list
       if (s.parentSprintId) return false;
 
@@ -833,7 +832,19 @@ const CoachSprints: React.FC = () => {
       }
       return s.contentType === activeTab;
     });
+  }, [sprints, activeTab]);
 
+  const counts = useMemo(() => {
+    return {
+      all: tFiltered.length,
+      published: tFiltered.filter(s => s.published).length,
+      pending: tFiltered.filter(s => s.approvalStatus === 'pending_approval').length,
+      rejected: tFiltered.filter(s => s.approvalStatus === 'rejected').length,
+      draft: tFiltered.filter(s => s.approvalStatus === 'draft').length,
+    };
+  }, [tFiltered]);
+
+  const filteredSprints = useMemo(() => {
     let filtered = tFiltered;
     if (filter === 'published') filtered = tFiltered.filter(s => s.published);
     else if (filter === 'pending') filtered = tFiltered.filter(s => s.approvalStatus === 'pending_approval');
@@ -845,7 +856,7 @@ const CoachSprints: React.FC = () => {
       const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
       return timeB - timeA;
     });
-  }, [sprints, activeTab, filter]);
+  }, [tFiltered, filter]);
 
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
@@ -1012,19 +1023,23 @@ const CoachSprints: React.FC = () => {
 
               {/* filter menu */}
               <div className="flex gap-3 mb-8 overflow-x-auto pb-2 no-scrollbar">
-                {['all', 'published', 'pending', 'rejected', 'draft'].map(f => (
-                    <button
-                        key={f}
-                        onClick={() => setFilter(f as any)}
-                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap border cursor-pointer ${
-                            filter === f 
-                            ? 'bg-primary text-white border-primary shadow-md' 
-                            : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
-                        }`}
-                    >
-                        {f === 'rejected' ? 'Amend Required' : f}
-                    </button>
-                ))}
+                {(['all', 'published', 'pending', 'rejected', 'draft'] as const).map(f => {
+                    const count = counts[f];
+                    const label = f === 'rejected' ? 'Amend Required' : f;
+                    return (
+                        <button
+                            key={f}
+                            onClick={() => setFilter(f)}
+                            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap border cursor-pointer ${
+                                filter === f 
+                                ? 'bg-primary text-white border-primary shadow-md' 
+                                : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'
+                            }`}
+                        >
+                            {label} ({count})
+                        </button>
+                    );
+                })}
               </div>
           </>
       )}

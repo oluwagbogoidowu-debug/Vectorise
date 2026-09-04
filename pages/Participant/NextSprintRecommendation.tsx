@@ -170,21 +170,6 @@ export const NextSprintRecommendation: React.FC = () => {
         setIsKebabMenuOpen(false);
     };
 
-    // Detect if the recommended sprint is a same-sprint link (exact same sprint rerun)
-    const isSameSprintLinked = useMemo(() => {
-        if (!sprint) return false;
-        if (completedSprintId) {
-            return sprint.id === completedSprintId;
-        }
-        if (sprint.nextSprintId === sprint.id || sprint.linkedSprintId === sprint.id) return true;
-        if (Array.isArray(sprintLinks) && sprintLinks.some(l => 
-            l.sourceSprintId === sprint.id && l.targetSprintId === sprint.id
-        )) {
-            return true;
-        }
-        return false;
-    }, [sprint, completedSprintId, sprintLinks]);
-
     // Close kebab menu when clicking outside
     useEffect(() => {
         if (!isKebabMenuOpen) return;
@@ -361,8 +346,8 @@ export const NextSprintRecommendation: React.FC = () => {
     }, [loadNextSprint]);
 
     const isRerun = useMemo(() => {
-        return isSprintRerun(sprint?.id, user, userEnrollments, completedSprintId, isSameSprintLinked);
-    }, [sprint?.id, user, userEnrollments, completedSprintId, isSameSprintLinked]);
+        return isSprintRerun(sprint?.id, user, userEnrollments, completedSprintId);
+    }, [sprint?.id, user, userEnrollments, completedSprintId]);
 
     const pricing = useMemo(() => {
         return getEffectiveSprintPricing(sprint, isRerun);
@@ -805,7 +790,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
                                     {sprint.duration || 7} Days
                                 </span>
-                                {isSameSprintLinked && (
+                                {isRerun && (
                                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200">
                                         🔁 Repeat Sprint
                                     </span>

@@ -714,13 +714,9 @@ export const isSprintRerun = (
     sprintId?: string | null,
     user?: User | Participant | null,
     userEnrollments?: any[] | null,
-    completedSprintId?: string | null,
-    isSameSprintLinked?: boolean | null
+    completedSprintId?: string | null
 ): boolean => {
     if (!sprintId || !user) return false;
-    
-    // Explicit same-sprint progression or loop link
-    if (isSameSprintLinked) return true;
     
     // Exact same sprint as the one passed from the completion flow
     if (completedSprintId) {
@@ -737,8 +733,9 @@ export const isSprintRerun = (
                 return timeB - timeA;
             });
 
-        if (completedEnrollments.length > 0 && completedEnrollments[0].sprint_id === sprintId) {
-            return true;
+        if (completedEnrollments.length > 0) {
+            const mostRecentConcludedSprintId = completedEnrollments[0].sprint_id || (completedEnrollments[0] as any).sprintId;
+            return Boolean(mostRecentConcludedSprintId && mostRecentConcludedSprintId === sprintId);
         }
     }
 
