@@ -199,30 +199,41 @@ const DaySuccessPage: React.FC = () => {
         });
 
         if (unclaimed.length === 0 && coinsUnlocked > 0) {
-          unclaimed.push({
-            id: unlockedMilestone ? String(unlockedMilestone) : 's2',
-            title: unlockedMilestone || 'You finished your first sprint.',
-            description: unlockedMilestone || 'You finished your first sprint.',
-            points: coinsUnlocked,
-            icon: '🏁',
-            targetValue: 1,
-            category: 'coreProgress'
-          });
+          const isFirstLeapFallback = completedDay === 1;
+          const fallbackId = unlockedMilestone ? String(unlockedMilestone) : (isFirstLeapFallback ? 'first_leap' : 's2');
+          
+          if (!claimed.includes(fallbackId)) {
+            unclaimed.push({
+              id: fallbackId,
+              title: unlockedMilestone || (isFirstLeapFallback ? 'First Leap' : 'First Sprint'),
+              description: unlockedMilestone || (isFirstLeapFallback ? 'Completed the first move of your first sprint.' : 'Completed your first sprint on Vectorise.'),
+              points: coinsUnlocked,
+              icon: isFirstLeapFallback ? '🚀' : '🏁',
+              targetValue: 1,
+              category: 'coreProgress'
+            });
+          }
         }
 
         setUnclaimedMilestones(unclaimed);
       } catch (err) {
         console.error("Error loading milestones:", err);
         if (coinsUnlocked > 0) {
-          setUnclaimedMilestones([{
-            id: 's2',
-            title: 'You finished your first sprint.',
-            description: 'You finished your first sprint.',
-            points: coinsUnlocked,
-            icon: '🏁',
-            targetValue: 1,
-            category: 'coreProgress'
-          }]);
+          const isFirstLeapFallback = completedDay === 1;
+          const claimed = (user as Participant).claimedMilestoneIds || [];
+          const fallbackId = isFirstLeapFallback ? 'first_leap' : 's2';
+          
+          if (!claimed.includes(fallbackId)) {
+            setUnclaimedMilestones([{
+              id: fallbackId,
+              title: isFirstLeapFallback ? 'First Leap' : 'First Sprint',
+              description: isFirstLeapFallback ? 'Completed the first move of your first sprint.' : 'Completed your first sprint on Vectorise.',
+              points: coinsUnlocked,
+              icon: isFirstLeapFallback ? '🚀' : '🏁',
+              targetValue: 1,
+              category: 'coreProgress'
+            }]);
+          }
         }
       }
     };
