@@ -62,9 +62,6 @@ const MilestoneCard: React.FC<{
                 <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start mb-1">
                         <h3 className="font-black text-gray-900 text-sm uppercase tracking-tight truncate" style={{fontStyle: 'normal'}}>{milestone.title}</h3>
-                        {milestone.isClaimed && (
-                            <span className="bg-gray-100 text-gray-400 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Collected</span>
-                        )}
                         {milestone.isUnlocked && !milestone.isClaimed && (
                             <span className={`bg-${colorClass} text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse`}>Ready</span>
                         )}
@@ -76,10 +73,10 @@ const MilestoneCard: React.FC<{
             <div className="relative z-10">
                 <div className="flex justify-between items-end mb-1.5">
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                        {milestone.isUnlocked ? 'Requirement Met' : `Progress: ${milestone.currentValue.toFixed(0)}/${milestone.targetValue}`}
+                        {milestone.isUnlocked ? '✓ Achieved' : `Progress: ${milestone.currentValue.toFixed(0)}/${milestone.targetValue}`}
                     </span>
                     <span className={`text-[9px] font-black uppercase tracking-widest ${milestone.isUnlocked && !milestone.isClaimed ? `text-${colorClass}` : 'text-gray-400'}`}>
-                        {milestone.isClaimed ? 'Awarded' : `+${milestone.points} Credits`}
+                        {milestone.isClaimed ? `${milestone.points} coins awarded` : `+${milestone.points} Coins`}
                     </span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
@@ -97,7 +94,7 @@ const MilestoneCard: React.FC<{
                     >
                         {isClaiming ? (
                             <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : 'Claim Credits'}
+                        ) : 'Claim Coins'}
                     </button>
                 )}
 
