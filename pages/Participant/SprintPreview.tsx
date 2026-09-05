@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
 import FormattedText from '../../components/FormattedText';
 import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
@@ -461,6 +462,10 @@ const SprintPreview: React.FC = () => {
             returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : undefined,
             redirectToDaySuccess: true
         };
+        const targetTrackId = sprint?.id || sprintId;
+        if (targetTrackId) {
+            sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
+        }
         navigate('/participant/day-success', { state: daySuccessState, replace: true });
     };
 
@@ -900,6 +905,9 @@ const SprintPreview: React.FC = () => {
                 if (processed) {
                     console.log("[SprintPreview] Successfully processed static sprint data:", processed.id);
                     setSprint(processed);
+                    if (sprintId) {
+                        sprintAnalyticsService.trackPreviewStart(sprintId, user?.id, { title: processed.title });
+                    }
                 }
                 setLoadingSprint(false);
             })

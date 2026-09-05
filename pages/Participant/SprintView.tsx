@@ -16,6 +16,7 @@ import { sprintService } from "../../services/sprintService";
 import { userService, safeJSONStringify } from "../../services/userService";
 import { analyticsService } from "../../services/analyticsService";
 import { analyticsTracker } from "../../services/analyticsTracker";
+import { sprintAnalyticsService } from "../../services/sprintAnalyticsService";
 import { chatService } from "../../services/chatService";
 import { pushNotificationService } from "../../services/pushNotificationService";
 import { doc, updateDoc } from "firebase/firestore";
@@ -2854,7 +2855,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
         triggerHaptic(hapticPatterns.success);
 
+        const currentSprintId = sprint?.id || previewSprintId;
+        if (viewingDay === 1 && currentSprintId) {
+          sprintAnalyticsService.trackMove1Success(currentSprintId, user?.id);
+        }
+
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
+          if (currentSprintId) {
+            sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
+          }
           setIsCompletionModalOpen(true);
         } else {
           navigate('/participant/day-success', { 
@@ -3011,7 +3020,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       // Provide haptic feedback for satisfying task completion
       triggerHaptic(hapticPatterns.success);
 
+      if (viewingDay === 1) {
+        sprintAnalyticsService.trackMove1Success(enrollment.sprint_id, user.id);
+      }
+
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
+        sprintAnalyticsService.trackSprintCompletion(enrollment.sprint_id, user.id);
         setIsCompletionModalOpen(true);
       } else {
         navigate('/participant/day-success', { 

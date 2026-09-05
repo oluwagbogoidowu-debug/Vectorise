@@ -23,6 +23,7 @@ import {
   Download
 } from 'lucide-react';
 import AdminAppInstalls from './AdminAppInstalls';
+import AdminSprintAnalytics from './AdminSprintAnalytics';
 import { toast } from 'sonner';
 import {
   ResponsiveContainer,
@@ -72,7 +73,7 @@ const AdminAnalytics: React.FC = () => {
   const [activityLogs, setActivityLogs] = useState<UserActivityLog[]>([]);
   const [userMap, setUserMap] = useState<{ [id: string]: { name: string; email?: string } }>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'core_table' | 'activity_logs' | 'app_installs'>('core_table');
+  const [activeTab, setActiveTab] = useState<'core_table' | 'activity_logs' | 'app_installs' | 'sprint_analytics'>('core_table');
   
   // Filters and searches
   const [searchQuery, setSearchQuery] = useState('');
@@ -555,6 +556,16 @@ const AdminAnalytics: React.FC = () => {
         {/* Toggle Grid Tabs */}
         <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 w-full sm:w-auto overflow-x-auto">
           <button 
+            onClick={() => setActiveTab('sprint_analytics')}
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+              activeTab === 'sprint_analytics' 
+                ? 'bg-primary text-white shadow-sm' 
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" /> Sprint Analytics
+          </button>
+          <button 
             onClick={() => setActiveTab('core_table')}
             className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
               activeTab === 'core_table' 
@@ -587,49 +598,58 @@ const AdminAnalytics: React.FC = () => {
         </div>
 
         {/* Search Input and Select Fields */}
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
-            <input 
-              type="text"
-              placeholder="Search user ID or sprint ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 text-xs rounded-xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary/25 transition-all"
-            />
-          </div>
+        {(activeTab === 'core_table' || activeTab === 'activity_logs') && (
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="absolute left-3.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
+              <input 
+                type="text"
+                placeholder="Search user ID or sprint ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 text-xs rounded-xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary/25 transition-all"
+              />
+            </div>
 
-          {activeTab === 'core_table' ? (
-            <div className="flex items-center gap-1.5">
-              <CustomSelect 
-                value={statusFilter}
-                onChange={(val) => setStatusFilter(val as any)}
-                options={[
-                  { value: 'all', label: 'All States' },
-                  { value: 'active', label: 'Active Sprints' },
-                  { value: 'inactive', label: 'Inactive' },
-                  { value: 'completed', label: 'Completed' }
-                ]}
-                className="w-40"
-              />
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <CustomSelect 
-                value={actionTypeFilter}
-                onChange={(val) => setActionTypeFilter(val as any)}
-                options={[
-                  { value: 'all', label: 'All Actions' },
-                  { value: 'task_submission', label: 'Task Submissions' },
-                  { value: 'check_in', label: 'Daily Checkins' }
-                ]}
-                className="w-40"
-              />
-            </div>
-          )}
-        </div>
+            {activeTab === 'core_table' ? (
+              <div className="flex items-center gap-1.5">
+                <CustomSelect 
+                  value={statusFilter}
+                  onChange={(val) => setStatusFilter(val as any)}
+                  options={[
+                    { value: 'all', label: 'All States' },
+                    { value: 'active', label: 'Active Sprints' },
+                    { value: 'inactive', label: 'Inactive' },
+                    { value: 'completed', label: 'Completed' }
+                  ]}
+                  className="w-40"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <CustomSelect 
+                  value={actionTypeFilter}
+                  onChange={(val) => setActionTypeFilter(val as any)}
+                  options={[
+                    { value: 'all', label: 'All Actions' },
+                    { value: 'task_submission', label: 'Task Submissions' },
+                    { value: 'check_in', label: 'Daily Checkins' }
+                  ]}
+                  className="w-40"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
       </section>
+
+      {/* RENDER SPRINT FUNNEL ANALYTICS */}
+      {activeTab === 'sprint_analytics' && (
+        <section className="animate-fade-in">
+          <AdminSprintAnalytics />
+        </section>
+      )}
 
       {/* CORE USER SPRINT TABLE */}
       {activeTab === 'core_table' && (

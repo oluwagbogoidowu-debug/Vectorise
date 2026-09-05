@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { sprintService } from '../../services/sprintService';
+import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
 import { shineService } from '../../services/shineService';
 import { userService } from '../../services/userService';
 import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '../../services/milestoneConstants';
@@ -81,6 +82,13 @@ const DaySuccessPage: React.FC = () => {
   };
 
   const [resolvedEnrollmentId, setResolvedEnrollmentId] = useState<string | null>(location.state?.enrollmentId || null);
+
+  useEffect(() => {
+    const sId = location.state?.sprintId || location.state?.sprint?.id;
+    if (completedDay === 1 && sId) {
+      sprintAnalyticsService.trackMove1Success(sId, user?.id);
+    }
+  }, [completedDay, location.state?.sprintId, location.state?.sprint?.id, user?.id]);
 
   useEffect(() => {
     if (!resolvedEnrollmentId && user) {

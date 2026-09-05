@@ -7,6 +7,7 @@ import { sprintService } from '../../services/sprintService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
 import { analyticsTracker } from '../../services/analyticsTracker';
+import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
 import FormattedText from '../../components/FormattedText';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
@@ -229,6 +230,11 @@ const SprintLandingPage: React.FC = () => {
                     title: data.title,
                     category: data.category
                 }, user?.id);
+
+                sprintAnalyticsService.trackDescriptionView(data.id, user?.id, {
+                    title: data.title,
+                    category: data.category
+                });
             } else {
                 if (!sprint) setFetchFailed(true);
             }
