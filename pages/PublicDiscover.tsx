@@ -75,9 +75,9 @@ const PublicDiscover: React.FC = () => {
                                 onError={(e) => { e.currentTarget.src = fallbackUrl }}
                               />
                           </div>
-                          <div className="flex-1 min-w-0 text-center sm:text-left">
-                              <div className="flex flex-wrap items-center gap-3 mb-1.5">
-                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors break-words whitespace-normal tracking-tight leading-snug">{track.title}</h3>
+                          <div className="flex-1 min-w-0 w-full text-center sm:text-left">
+                              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-1.5">
+                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors tracking-tight leading-snug line-clamp-2 break-words">{track.title}</h3>
                               </div>
                               <p className="text-xs text-gray-500 line-clamp-2 mt-1">{track.description}</p>
                               <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
@@ -111,9 +111,9 @@ const PublicDiscover: React.FC = () => {
                                 onError={(e) => { e.currentTarget.src = fallbackUrl }}
                               />
                           </div>
-                          <div className="flex-1 min-w-0 text-center sm:text-left">
-                              <div className="flex items-center gap-3 mb-1">
-                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors truncate tracking-tight">{sprint.title}</h3>
+                          <div className="flex-1 min-w-0 w-full text-center sm:text-left">
+                              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-1">
+                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors tracking-tight line-clamp-2 break-words">{sprint.title}</h3>
                               </div>
                               <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
                                   <span className="px-2 py-1 bg-gray-50 rounded-lg">{sprint.duration} Days</span>

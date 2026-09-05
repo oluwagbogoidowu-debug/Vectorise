@@ -148,9 +148,9 @@ const AdminTracks: React.FC = () => {
                                 </div>
                             </div>
                             
-                            <div className="flex-1 min-w-0 text-center md:text-left">
+                            <div className="flex-1 min-w-0 w-full text-center md:text-left">
                                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1.5">
-                                    <h3 className="font-black text-gray-900 text-lg break-words whitespace-normal tracking-tight italic leading-snug">{track.title}</h3>
+                                    <h3 className="font-black text-gray-900 text-lg line-clamp-2 break-words whitespace-normal tracking-tight italic leading-snug">{track.title}</h3>
                                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest flex-shrink-0 ${track.published ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}>
                                         {track.published ? 'Live' : 'Draft'}
                                     </span>

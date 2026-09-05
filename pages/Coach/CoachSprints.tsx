@@ -1564,11 +1564,11 @@ const CoachSprints: React.FC = () =>
                                 
                           </div>
                                 
-                          <div className="flex-1 min-w-0 text-center sm:text-left">
+                          <div className="flex-1 min-w-0 w-full text-center sm:text-left">
                                 
                               <div className="flex items-center gap-2 mb-1 justify-center sm:justify-start flex-wrap">
                                 
-                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors truncate tracking-tight">
+                                <h3 className="font-black text-gray-900 text-lg group-hover:text-primary transition-colors line-clamp-2 break-words tracking-tight">
                                 {sprint.title}</h3>
                                 <span className="hidden" title={`Version ${sprint.versionNumber || 1}`}>
                                 

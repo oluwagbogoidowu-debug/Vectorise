@@ -340,7 +340,7 @@ const SprintCard: React.FC<SprintCardProps> = ({
                 </div>
                 
                 <div className="p-4 flex flex-col flex-grow">
-                    <h3 className={`text-lg font-black text-gray-900 dark:text-white mb-2 transition-colors leading-tight tracking-tight ${!effectiveIsStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
+                    <h3 className={`text-lg font-black text-gray-900 dark:text-white mb-2 transition-colors leading-tight tracking-tight line-clamp-2 break-words ${!effectiveIsStatic ? 'group-hover:text-primary' : ''}`}>{sprint.title}</h3>
                     {sprint.subtitle && (
                         <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-400 mb-2 leading-snug">{sprint.subtitle}</p>
                     )}

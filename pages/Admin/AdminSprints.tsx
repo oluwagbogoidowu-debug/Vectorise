@@ -246,8 +246,8 @@ const AdminSprints: React.FC = () => {
         {filteredSprints.map(s => (
           <div key={s.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-6 hover:shadow-md transition-all">
             <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-50 border border-gray-100 shadow-sm"><img src={s.blogImage || s.coverImageUrl || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80'} className="w-full h-full object-cover" alt="" /></div>
-            <div className="flex-1 min-w-0 text-center sm:text-left">
-              <h3 className="font-black text-gray-900 text-lg truncate tracking-tight">{s.title}</h3>
+            <div className="flex-1 min-w-0 w-full text-center sm:text-left">
+              <h3 className="font-black text-gray-900 text-lg tracking-tight line-clamp-2 break-words">{s.title}</h3>
               <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
                 <span className="px-2 py-1 bg-gray-50 rounded-lg">{s.duration} Days</span>
                 <span className="px-2 py-1 bg-gray-50 rounded-lg">{s.category}</span>
