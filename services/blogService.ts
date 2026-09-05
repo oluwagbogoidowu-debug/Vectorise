@@ -293,7 +293,7 @@ export const blogService = {
     hasRewardToClaim: boolean;
   }> => {
     if (!userId) {
-      throw new Error('Please log in to claim your 10 coins reward.');
+      throw new Error('Please log in to claim your 20 coins reward.');
     }
 
     const fallbackUserKey = userId;
@@ -338,11 +338,11 @@ export const blogService = {
     localStorage.setItem(localReadsKey, String(totalReads));
     localStorage.setItem(localIdsKey, JSON.stringify(allIds));
 
-    // Award 10 coins to user wallet and increment claimed cycles
+    // Award 20 coins to user wallet and increment claimed cycles
     try {
       await userService.processWalletTransaction(userId, {
         type: 'credit',
-        amount: 10,
+        amount: 20,
         description: `RiseBlog Reading Milestone Claim (${newClaimed * 10} reads)`
       });
 
@@ -357,7 +357,7 @@ export const blogService = {
       try {
         const userRef = doc(db, 'users', userId);
         await updateDoc(userRef, {
-          walletBalance: increment(10),
+          walletBalance: increment(20),
           claimedBlogRewardCycles: newClaimed
         });
       } catch (e) {

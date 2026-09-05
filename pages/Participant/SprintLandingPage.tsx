@@ -782,9 +782,9 @@ const SprintLandingPage: React.FC = () => {
             </div>
 
             {/* TWO-COLUMN CONTENT LAYOUT */}
-            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-12">
+            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-12 pb-24">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
-                    <div className="lg:col-span-8">
+                    <div className={enrollmentStatus === 'none' ? "lg:col-span-12 max-w-3xl mx-auto w-full" : "lg:col-span-8"}>
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
                             {(displayDescription || hasDynamicContent) && (
@@ -813,56 +813,45 @@ const SprintLandingPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <aside className="lg:col-span-4">
-                        <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 relative lg:sticky lg:top-8 shadow-xs">
-                            {/* Card displaying Action Trigger line or Rerun recommendations */}
-                            <div className="relative z-10">
-                                {enrollmentStatus === 'active' ? (
-                                    <div className="space-y-4">
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase tracking-wider mb-2">
-                                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                            In Progress
+                    {enrollmentStatus !== 'none' && (
+                        <aside className="lg:col-span-4">
+                            <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 relative lg:sticky lg:top-8 shadow-xs">
+                                {/* Card displaying Action Trigger line or Rerun recommendations */}
+                                <div className="relative z-10">
+                                    {enrollmentStatus === 'active' ? (
+                                        <div className="space-y-4">
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase tracking-wider mb-2">
+                                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                                                In Progress
+                                            </div>
+                                            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Sprint Active</h3>
+                                            <Button 
+                                                onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} 
+                                                className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-emerald-600 hover:bg-emerald-700 border-none group/btn cursor-pointer"
+                                            >
+                                                Back to Sprint 
+                                                <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
+                                            </Button>
                                         </div>
-                                        <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-2">Sprint Active</h3>
-                                        <Button 
-                                            onClick={() => navigate(`/participant/sprint/${activeEnrollmentId}`)} 
-                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-emerald-600 hover:bg-emerald-700 border-none group/btn cursor-pointer"
-                                        >
-                                            Back to Sprint 
-                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
-                                        </Button>
-                                    </div>
-                                ) : enrollmentStatus === 'queued' ? (
-                                    <div className="space-y-4">
-                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-wider mb-2">
-                                            <Clock className="w-3 h-3" />
-                                            Enrolled
+                                    ) : enrollmentStatus === 'queued' ? (
+                                        <div className="space-y-4">
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[10px] font-black uppercase tracking-wider mb-2">
+                                                <Clock className="w-3 h-3" />
+                                                Enrolled
+                                            </div>
+                                            <Button 
+                                                onClick={() => navigate('/my-sprints')} 
+                                                className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-blue-600 hover:bg-blue-700 border-none group/btn cursor-pointer"
+                                            >
+                                                View in My Sprints 
+                                                <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
+                                            </Button>
                                         </div>
-                                        <Button 
-                                            onClick={() => navigate('/my-sprints')} 
-                                            className="w-full py-4 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-blue-600 hover:bg-blue-700 border-none group/btn cursor-pointer"
-                                        >
-                                            View in My Sprints 
-                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <p className="text-sm sm:text-base font-semibold text-gray-700 leading-relaxed text-center">
-                                            {sprint.actionTrigger || "Start by seeing how you actually spend your time."}
-                                        </p>
-                                        <Button 
-                                            onClick={handleJoinClick} 
-                                            className="w-full py-4 rounded-xl shadow-md text-[10px] uppercase tracking-widest font-black bg-primary hover:bg-primary-hover text-white border-none group/btn cursor-pointer"
-                                        >
-                                            Begin Now
-                                            <ArrowRight className="w-3.5 h-3.5 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
-                                        </Button>
-                                    </div>
-                                )}
+                                    ) : null}
+                                </div>
                             </div>
-                        </div>
-                    </aside>
+                        </aside>
+                    )}
                 </div>
             </div>
 

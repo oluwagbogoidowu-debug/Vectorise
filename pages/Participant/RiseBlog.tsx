@@ -554,12 +554,12 @@ export const RiseBlog: React.FC = () => {
           if (res.isFirstCompletion) {
             if (res.readStats.hasRewardToClaim) {
               toast.success('🎉 10 / 10 Reads Completed!', {
-                description: '10 coins unlocked! Click "Claim" in the top bar to credit your account.',
+                description: '20 coins unlocked! Click "Claim" in the top bar to credit your account.',
                 duration: 5000
               });
             } else {
               toast.success(`📖 Read Counted (${res.readStats.currentCycleReads} / 10)`, {
-                description: `${res.readStats.readsRemaining} more ${res.readStats.readsRemaining === 1 ? 'read' : 'reads'} to unlock 10 coins.`,
+                description: `${res.readStats.readsRemaining} more ${res.readStats.readsRemaining === 1 ? 'read' : 'reads'} to unlock 20 coins.`,
                 duration: 4000
               });
             }
@@ -573,11 +573,11 @@ export const RiseBlog: React.FC = () => {
     }
   }, [activePost, activePostStats, activeReadSeconds, hasReachedEnd, isPostCompleted, isRecordingCompletion, user?.id]);
 
-  // Handle claiming 10 coins reward
+  // Handle claiming 20 coins reward
   const handleClaimReward = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!user) {
-      toast.error('Please log in to claim your 10 coins reward! 🔐');
+      toast.error('Please log in to claim your 20 coins reward! 🔐');
       navigate('/login');
       return;
     }
@@ -592,7 +592,7 @@ export const RiseBlog: React.FC = () => {
         readsRemaining: res.readsRemaining,
         hasRewardToClaim: res.hasRewardToClaim
       });
-      toast.success('🎉 10 Coins Claimed!', {
+      toast.success('🎉 20 Coins Claimed!', {
         description: 'Your reading reward has been added to your balance.'
       });
     } catch (err: any) {
@@ -805,7 +805,7 @@ export const RiseBlog: React.FC = () => {
             {isPostCompleted && (
               <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-800 rounded-full text-xs font-bold border border-emerald-100 shadow-sm">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Counted towards your 10 coins goal ({readStats.currentCycleReads}/10)</span>
+                <span>Counted towards your 20 coins goal ({readStats.currentCycleReads}/10)</span>
               </div>
             )}
           </div>
@@ -912,7 +912,7 @@ export const RiseBlog: React.FC = () => {
               <>
                 <div className="text-right flex flex-col items-end">
                   <p className="font-bold text-sm text-gray-900 leading-tight">10 / 10 reads</p>
-                  <p className="font-thin text-xs text-gray-600 leading-tight mb-1.5">10 coins unlocked</p>
+                  <p className="font-thin text-xs text-gray-600 leading-tight mb-1.5">20 coins unlocked</p>
                   <div className="w-full h-1 bg-emerald-100 rounded-full overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full w-full" />
                   </div>
@@ -931,7 +931,7 @@ export const RiseBlog: React.FC = () => {
                   {readStats.currentCycleReads} / 10 reads
                 </p>
                 <p className="font-thin text-xs text-gray-600 leading-tight mb-1.5">
-                  {readStats.readsRemaining} more reads • 10 coins
+                  {readStats.readsRemaining} more reads • 20 coins
                 </p>
                 <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
                   <div 
