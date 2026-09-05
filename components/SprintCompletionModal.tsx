@@ -111,7 +111,9 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
         }
     };
 
-    const handleStartNextAction = async () => {
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+    const saveReviewIfAny = async () => {
         if (user && sprintId && (rating > 0 || outcome.trim())) {
             try {
                 const finalRating = rating > 0 ? rating : 5;
@@ -128,7 +130,21 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                 console.warn("Could not save review on sprint completion:", err);
             }
         }
-        onStartNext(rating > 0 ? rating : 5);
+    };
+
+    const handleStartNextAction = async () => {
+        setIsSubmittingReview(true);
+        try {
+            await saveReviewIfAny();
+        } finally {
+            setIsSubmittingReview(false);
+            onStartNext(rating > 0 ? rating : 5);
+        }
+    };
+
+    const handleClose = () => {
+        saveReviewIfAny().catch(() => {});
+        onClose();
     };
 
     if (!isOpen) return null;
@@ -150,7 +166,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                     </div>
 
                     <button 
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="w-9 h-9 bg-gray-50 border border-gray-100 hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-500 transition-colors cursor-pointer"
                         aria-label="Close"
                     >

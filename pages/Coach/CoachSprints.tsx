@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sprint, Coach } from '../../types';
+import { Sprint, Coach, Review } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles, Save, Share2, Trophy, Info } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles, Save, Share2, Trophy, Info, Star, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import CustomSelect from '../../components/CustomSelect';
 import CreateTypeModal from '../../components/CreateTypeModal';
@@ -1049,49 +1049,39 @@ const CoachSprints: React.FC = () =>
   }, [location.search]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>
-                                (null);
+  const [sprintToDelete, setSprintToDelete] = useState<Sprint | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [reviewSprint, setReviewSprint] = useState<Sprint | null>
-                                (null);
+  const [reviewSprint, setReviewSprint] = useState<Sprint | null>(null);
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
 
   // Edit states for blog and ignite
-  const [editingBlog, setEditingBlog] = useState<Sprint | null>
-                                (null);
-  const [editingIgnite, setEditingIgnite] = useState<Sprint | null>
-                                (null);
+  const [editingBlog, setEditingBlog] = useState<Sprint | null>(null);
+  const [editingIgnite, setEditingIgnite] = useState<Sprint | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Preview states
-  const [previewingBlog, setPreviewingBlog] = useState<Sprint | null>
-                                (null);
-  const [previewingIgnite, setPreviewingIgnite] = useState<Sprint | null>
-                                (null);
+  const [previewingBlog, setPreviewingBlog] = useState<Sprint | null>(null);
+  const [previewingIgnite, setPreviewingIgnite] = useState<Sprint | null>(null);
 
-  useEffect(() =>
-                                 {
+  useEffect(() => {
     if (!user) return;
     
     setIsLoading(true);
     
     // 1. Subscribe to coach's sprints in real-time
-    const unsubSprints = sprintService.subscribeToCoachSprints(user.id, (data) =>
-                                 {
+    const unsubSprints = sprintService.subscribeToCoachSprints(user.id, (data) => {
         setSprints(data);
         setIsLoading(false);
     });
 
     // 2. Load orchestration mapping
-    const loadOrchestration = async () =>
-                                 {
+    const loadOrchestration = async () => {
         try {
             const orchestration = await sprintService.getOrchestration();
             const liveIds = new Set(
                 Object.values(orchestration)
-                    .map(m =>
-                                 m.sprintId)
-                    .filter(id =>
-                                 !!id)
+                    .map(m => m.sprintId)
+                    .filter(id => !!id)
             );
             setOrchestratedIds(liveIds);
         } catch (err) {
@@ -1100,9 +1090,114 @@ const CoachSprints: React.FC = () =>
     };
     
     loadOrchestration();
-    return () =>
-                                 unsubSprints();
+    return () => unsubSprints();
   }, [user, location.key]);
+
+  // Real-time listener for reviews across all coach sprints
+  useEffect(() => {
+    if (!sprints.length) {
+      setAllReviews([]);
+      return;
+    }
+    const sprintIds = sprints.map(s => s.id).filter(Boolean);
+    const unsubReviews = sprintService.subscribeToReviewsForSprints(sprintIds, (data) => {
+      setAllReviews(data);
+    });
+    return () => unsubReviews();
+  }, [sprints]);
+
+  // Real-time listener for RiseBlog reader interactions (reads, views, likes)
+  const [blogInteractionsMap, setBlogInteractionsMap] = useState<Record<string, {
+    views: any[];
+    likes: any[];
+    reads: any[];
+    viewCount: number;
+    likeCount: number;
+    readCount: number;
+    latestTimestamp: number;
+  }>>({});
+  const [seenBlogTimestampMap, setSeenBlogTimestampMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const blogSprints = sprints.filter(s => s.contentType === 'blog' || s.subcategory === 'riseblog');
+    const blogIds = blogSprints.map(s => s.id).filter(Boolean);
+    if (!blogIds.length) {
+      setBlogInteractionsMap({});
+      return;
+    }
+    const unsub = sprintService.subscribeToMultipleExperienceInteractions(blogIds, (data) => {
+      setBlogInteractionsMap(data);
+    });
+    return () => unsub();
+  }, [sprints]);
+
+  // Helper to determine if a RiseBlog has an unread / new read or view
+  const hasNewBlogActivity = (sprintId: string) => {
+    const stats = blogInteractionsMap[sprintId];
+    if (!stats) return false;
+    const totalActivity = (stats.readCount || 0) + (stats.viewCount || 0);
+    if (totalActivity === 0) return false;
+
+    // Check if seen in current session state
+    const localSeenTime = seenBlogTimestampMap[sprintId];
+    if (localSeenTime && stats.latestTimestamp && stats.latestTimestamp <= localSeenTime) {
+      return false;
+    }
+
+    try {
+      const stored = localStorage.getItem(`vectorise_seen_blog_${sprintId}`);
+      if (!stored) {
+        return totalActivity > 0;
+      }
+      const parsed = JSON.parse(stored);
+      const storedTimestamp = Number(parsed.timestamp) || 0;
+      const storedReadCount = Number(parsed.readCount) || 0;
+      const storedViewCount = Number(parsed.viewCount) || 0;
+
+      if (stats.latestTimestamp && stats.latestTimestamp > storedTimestamp) return true;
+      if ((stats.readCount || 0) > storedReadCount || (stats.viewCount || 0) > storedViewCount) return true;
+    } catch (e) {
+      return totalActivity > 0;
+    }
+    return false;
+  };
+
+  // Handler to open reviews / engagement modal and clear new activity indicator
+  const handleOpenReviewsModal = (sprint: Sprint) => {
+    if (sprint.contentType === 'blog' || sprint.subcategory === 'riseblog') {
+      const stats = blogInteractionsMap[sprint.id];
+      const now = Date.now();
+      setSeenBlogTimestampMap(prev => ({ ...prev, [sprint.id]: now }));
+      try {
+        localStorage.setItem(`vectorise_seen_blog_${sprint.id}`, JSON.stringify({
+          timestamp: now,
+          readCount: stats?.readCount || 0,
+          viewCount: stats?.viewCount || 0,
+          likeCount: stats?.likeCount || 0,
+          seenAt: new Date().toISOString()
+        }));
+      } catch (e) {}
+    }
+    setReviewSprint(sprint);
+  };
+
+  // Real-time calculation of star average and review count per sprint
+  const reviewStatsBySprint = useMemo(() => {
+    const map: Record<string, { avg: number; count: number }> = {};
+    sprints.forEach(s => {
+      const matching = allReviews.filter(r => r.sprintId === s.id);
+      if (matching.length > 0) {
+        const sum = matching.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+        const avg = Number((sum / matching.length).toFixed(1));
+        map[s.id] = { avg, count: matching.length };
+      } else {
+        const fallbackAvg = typeof s.rating === 'number' ? s.rating : 5.0;
+        const fallbackCount = s.reviewsCount || s.totalRatings || 0;
+        map[s.id] = { avg: fallbackAvg, count: fallbackCount };
+      }
+    });
+    return map;
+  }, [sprints, allReviews]);
 
   const handleTogglePublish = async (sprint: Sprint) =>
                                  {
@@ -1452,11 +1547,12 @@ const CoachSprints: React.FC = () =>
                   const isOrchestrated = orchestratedIds.has(sprint.id);
                   const isApproved = sprint.approvalStatus === 'approved';
                   const showNotLiveBadge = isApproved && !isOrchestrated && (!sprint.contentType || sprint.contentType === 'sprint');
+                  const sprintStats = reviewStatsBySprint[sprint.id] || { avg: typeof sprint.rating === 'number' ? sprint.rating : 5.0, count: sprint.reviewsCount || sprint.totalRatings || 0 };
 
                   return (
                       <div key={sprint.id} className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center gap-6 group hover:shadow-md transition-all">
                                 
-                          <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-100">
+                          <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-100 relative">
                                 
                               <img 
                                 src={sprint.coverImageUrl || fallbackUrl} 
@@ -1495,7 +1591,7 @@ const CoachSprints: React.FC = () =>
                                 )}
                               </div>
                                 
-                              <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
+                              <div className="flex flex-wrap justify-center sm:justify-start items-center gap-2.5 text-[9px] font-black text-gray-400 mt-2 uppercase tracking-widest">
                                 
                                   <span className="px-2 py-1 bg-gray-50 rounded-lg">
                                 {sprint.contentType || 'Sprint'}</span>
@@ -1513,6 +1609,45 @@ const CoachSprints: React.FC = () =>
                                 
                                       {sprint.approvalStatus === 'rejected' ? 'Amend Required' : sprint.approvalStatus?.replace('_', ' ') || 'draft'}
                                   </span>
+
+                                  {/* Live Star Rating / Reads Pill */}
+                                  {sprint.contentType === 'blog' || sprint.subcategory === 'riseblog' ? (
+                                      <button
+                                          type="button"
+                                          onClick={() => handleOpenReviewsModal(sprint)}
+                                          className="relative flex items-center gap-2 px-2.5 py-1 bg-emerald-50/90 hover:bg-emerald-100 text-emerald-900 border border-emerald-200/80 rounded-lg text-[9px] font-black tracking-wider transition-all active:scale-95 cursor-pointer shadow-xs"
+                                          title={`View RiseBlog Activity: ${blogInteractionsMap[sprint.id]?.readCount || 0} Reads, ${blogInteractionsMap[sprint.id]?.viewCount || 0} Views, ${blogInteractionsMap[sprint.id]?.likeCount || 0} Likes`}
+                                      >
+                                          <div className="flex items-center gap-1 text-emerald-700">
+                                              <BookOpen className="w-3 h-3 text-emerald-600" />
+                                              <span>{blogInteractionsMap[sprint.id]?.readCount || 0} Reads</span>
+                                          </div>
+                                          <span className="text-emerald-300">•</span>
+                                          <div className="flex items-center gap-1 text-blue-700">
+                                              <Eye className="w-3 h-3 text-blue-500" />
+                                              <span>{blogInteractionsMap[sprint.id]?.viewCount || 0} Views</span>
+                                          </div>
+                                          <span className="text-emerald-300">•</span>
+                                          <div className="flex items-center gap-1 text-rose-700">
+                                              <Heart className="w-3 h-3 fill-rose-400 text-rose-500" />
+                                              <span>{blogInteractionsMap[sprint.id]?.likeCount || 0}</span>
+                                          </div>
+                                          {hasNewBlogActivity(sprint.id) && (
+                                              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
+                                          )}
+                                      </button>
+                                  ) : (
+                                      <button
+                                          type="button"
+                                          onClick={() => handleOpenReviewsModal(sprint)}
+                                          className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50/90 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-lg text-[9px] font-black tracking-wider transition-all active:scale-95 cursor-pointer shadow-xs"
+                                          title={`View ${sprintStats.count} Reviews for ${sprint.title}`}
+                                      >
+                                          <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                                          <span>{sprintStats.avg.toFixed(1)}</span>
+                                          <span className="text-amber-700/80 font-bold">({sprintStats.count})</span>
+                                      </button>
+                                  )}
                                 
                               </div>
                                 
@@ -1655,18 +1790,38 @@ const CoachSprints: React.FC = () =>
                                 </div>
                                 
                             )}
-                            <button 
-                                type="button"
-                                onClick={() =>
-                                 setReviewSprint(sprint)}
-                                className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-emerald-50/60 rounded-xl transition-all active:scale-90 cursor-pointer flex items-center justify-center"
-                                title="View Sprint Reviews"
-                                aria-label="View Reviews"
-                            >
-                                
-                                <Info className="h-4 w-4" />
-                                
-                            </button>
+                            {sprint.contentType === 'blog' || sprint.subcategory === 'riseblog' ? (
+                                <button 
+                                    type="button"
+                                    onClick={() => handleOpenReviewsModal(sprint)}
+                                    className="relative p-3 bg-emerald-50/80 border border-emerald-200/70 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-100 rounded-xl transition-all active:scale-90 cursor-pointer flex items-center justify-center gap-1.5"
+                                    title={`View RiseBlog Activity (${blogInteractionsMap[sprint.id]?.readCount || 0} Reads, ${blogInteractionsMap[sprint.id]?.viewCount || 0} Views, ${blogInteractionsMap[sprint.id]?.likeCount || 0} Likes)`}
+                                    aria-label="View RiseBlog Analytics"
+                                >
+                                    <BookOpen className="h-4 w-4 text-emerald-600 shrink-0" />
+                                    {((blogInteractionsMap[sprint.id]?.readCount || 0) + (blogInteractionsMap[sprint.id]?.viewCount || 0)) > 0 && (
+                                        <span className="text-[10px] font-black text-emerald-950">
+                                            {(blogInteractionsMap[sprint.id]?.readCount || 0) + (blogInteractionsMap[sprint.id]?.viewCount || 0)}
+                                        </span>
+                                    )}
+                                    {hasNewBlogActivity(sprint.id) && (
+                                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse shadow-xs" />
+                                    )}
+                                </button>
+                            ) : (
+                                <button 
+                                    type="button"
+                                    onClick={() => handleOpenReviewsModal(sprint)}
+                                    className="p-3 bg-amber-50/80 border border-amber-200/70 text-amber-700 hover:text-amber-900 hover:bg-amber-100 rounded-xl transition-all active:scale-90 cursor-pointer flex items-center justify-center gap-1.5"
+                                    title={`View Reviews (${sprintStats.count})`}
+                                    aria-label="View Reviews"
+                                >
+                                    <Star className="h-4 w-4 fill-amber-400 text-amber-500 shrink-0" />
+                                    {sprintStats.count > 0 && (
+                                        <span className="text-[10px] font-black text-amber-950">{sprintStats.count}</span>
+                                    )}
+                                </button>
+                            )}
                                 
                             <button 
                                 onClick={() =>

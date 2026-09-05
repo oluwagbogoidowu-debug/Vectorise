@@ -1369,28 +1369,99 @@ export const sprintService = {
 
     addReview: async (sprintId: string, review: Omit<Review, 'id' | 'sprintId'> & { id?: string }) => {
         try {
-            const reviewData = {
-                ...review,
+            if (!sprintId) throw new Error("sprintId is required for review");
+            const ratingNum = Math.min(5, Math.max(1, Number(review.rating) || 5));
+            const reviewId = review.id || `rev_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            
+            const reviewData: Review = {
+                id: reviewId,
                 sprintId,
-                rating: Number(review.rating) || 5,
-                comment: review.comment || '',
+                participantId: review.participantId || '',
                 userName: review.userName || 'Anonymous Participant',
                 userAvatar: review.userAvatar || '',
+                rating: ratingNum,
+                comment: (review.comment || '').trim(),
                 timestamp: review.timestamp || new Date().toISOString()
             };
-            // 1. Add to sprints/{sprintId}/reviews subcollection
-            const subCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
-            const docRef = await addDoc(subCol, sanitizeData(reviewData));
-            
-            // 2. Also save to root 'reviews' collection for global lookup
+
+            const sanitized = sanitizeData(reviewData);
+
+            // 1. Primary write to root 'reviews' collection for global real-time indexing & listening
             try {
                 const rootCol = collection(db, 'reviews');
-                await setDoc(doc(rootCol, docRef.id), sanitizeData({ ...reviewData, id: docRef.id }), { merge: true });
+                await setDoc(doc(rootCol, reviewId), sanitized, { merge: true });
             } catch (e) {
-                console.warn("[addReview] Error syncing to root reviews collection:", e);
+                console.warn("[addReview] Error saving to root reviews collection:", e);
             }
 
-            return docRef.id;
+            // 2. Write to hierarchical experiences subcollections across all categories (Sprint, RiseBlog, Ignite, Challenge)
+            for (const cat of EXPERIENCE_DOC_NAMES) {
+                try {
+                    const catSubCol = collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'reviews');
+                    await setDoc(doc(catSubCol, reviewId), sanitized, { merge: true });
+                } catch (e) {}
+            }
+
+            // 3. Write to flat subcollections for backward compatibility
+            try {
+                const flatSubCol = collection(db, EXPERIENCES_COLLECTION, sprintId, 'reviews');
+                await setDoc(doc(flatSubCol, reviewId), sanitized, { merge: true });
+            } catch (e) {}
+
+            try {
+                const legacySubCol = collection(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'reviews');
+                await setDoc(doc(legacySubCol, reviewId), sanitized, { merge: true });
+            } catch (e) {}
+
+            // 4. Update the Sprint documents with real-time calculated average rating and reviews count
+            try {
+                const allReviews = await sprintService.getReviewsForSprint(sprintId);
+                const hasExisting = allReviews.some(r => r.id === reviewId);
+                const combinedList = hasExisting ? allReviews : [reviewData, ...allReviews];
+                const count = combinedList.length;
+                const sum = combinedList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+                const avgRating = Number((sum / count).toFixed(1));
+
+                const statsUpdate = {
+                    rating: avgRating,
+                    averageRating: avgRating,
+                    reviewsCount: count,
+                    totalRatings: count,
+                    totalRatingSum: sum,
+                    updatedAt: new Date().toISOString()
+                };
+
+                for (const cat of EXPERIENCE_DOC_NAMES) {
+                    try {
+                        const sprintDocRef = doc(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId);
+                        const sSnap = await getDoc(sprintDocRef);
+                        if (sSnap.exists()) {
+                            await updateDoc(sprintDocRef, statsUpdate).catch(() => {});
+                        }
+                    } catch (e) {}
+                }
+
+                try {
+                    const flatDocRef = doc(db, EXPERIENCES_COLLECTION, sprintId);
+                    const fSnap = await getDoc(flatDocRef);
+                    if (fSnap.exists()) {
+                        await updateDoc(flatDocRef, statsUpdate).catch(() => {});
+                    }
+                } catch (e) {}
+            } catch (errStats) {
+                console.warn("[addReview] Non-fatal error updating sprint doc rating stats:", errStats);
+            }
+
+            // 5. Update local cache for instant offline responsiveness
+            try {
+                const cacheKey = `vectorise_reviews_${sprintId}`;
+                const existing = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+                const filtered = Array.isArray(existing) ? existing.filter((r: any) => r.id !== reviewId) : [];
+                filtered.unshift(reviewData);
+                localStorage.setItem(cacheKey, JSON.stringify(filtered));
+            } catch (e) {}
+
+            return reviewId;
         } catch (err) {
             console.error("[addReview] Error adding review:", err);
             throw err;
@@ -1399,30 +1470,68 @@ export const sprintService = {
 
     getReviewsForSprint: async (sprintId: string): Promise<Review[]> => {
         if (!sprintId) return [];
+        const reviewsMap = new Map<string, Review>();
         try {
-            // Try subcollection first
-            const subReviewsCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
-            const snap = await getDocs(subReviewsCol);
-            const list: Review[] = snap.docs.map(d => ({
-                ...sanitizeData(d.data()),
-                id: d.id,
-                sprintId
-            }) as Review);
+            // 1. Root reviews collection
+            try {
+                const rootCol = collection(db, 'reviews');
+                const q = query(rootCol, where("sprintId", "==", sprintId));
+                const rootSnap = await getDocs(q);
+                rootSnap.docs.forEach(d => {
+                    reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                });
+            } catch (e) {}
 
-            if (list.length > 0) return list;
+            // 2. Categorized subcollections
+            for (const cat of EXPERIENCE_DOC_NAMES) {
+                try {
+                    const subCol = collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'reviews');
+                    const snap = await getDocs(subCol);
+                    snap.docs.forEach(d => {
+                        reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    });
+                } catch (e) {}
+            }
 
-            // Fallback: root reviews collection
-            const rootCol = collection(db, 'reviews');
-            const q = query(rootCol, where("sprintId", "==", sprintId));
-            const rootSnap = await getDocs(q);
-            return rootSnap.docs.map(d => ({
-                ...sanitizeData(d.data()),
-                id: d.id,
-                sprintId
-            }) as Review);
+            // 3. Flat subcollection
+            try {
+                const flatCol = collection(db, EXPERIENCES_COLLECTION, sprintId, 'reviews');
+                const snap = await getDocs(flatCol);
+                snap.docs.forEach(d => {
+                    reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                });
+            } catch (e) {}
+
+            // 4. Legacy subcollection
+            try {
+                const legCol = collection(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'reviews');
+                const snap = await getDocs(legCol);
+                snap.docs.forEach(d => {
+                    reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                });
+            } catch (e) {}
+
+            // 5. Local cache fallback if empty
+            if (reviewsMap.size === 0) {
+                try {
+                    const cacheKey = `vectorise_reviews_${sprintId}`;
+                    const cached = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+                    if (Array.isArray(cached)) {
+                        cached.forEach((r: any) => {
+                            if (r && r.id) reviewsMap.set(r.id, r);
+                        });
+                    }
+                } catch (e) {}
+            }
+
+            return Array.from(reviewsMap.values()).sort((a, b) => {
+                const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                return tB - tA;
+            });
         } catch (err) {
             console.warn(`[getReviewsForSprint] Error fetching reviews for ${sprintId}:`, err);
-            return [];
+            return Array.from(reviewsMap.values());
         }
     },
 
@@ -1432,37 +1541,100 @@ export const sprintService = {
             return () => {};
         }
 
+        const reviewMap = new Map<string, Review>();
+        const unsubs: (() => void)[] = [];
+
+        // Load local cache first so review panel is immediately responsive
         try {
-            const subReviewsCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
-            return onSnapshot(subReviewsCol, (snapshot) => {
-                const reviews = snapshot.docs.map(doc => ({
-                    ...sanitizeData(doc.data()),
-                    id: doc.id,
-                    sprintId
-                }) as Review);
-                callback(reviews);
-            }, (err) => {
-                console.warn(`[subscribeToSprintReviews] Subcollection listener error for ${sprintId}:`, err);
-                try {
-                    const rootCol = collection(db, 'reviews');
-                    const q = query(rootCol, where("sprintId", "==", sprintId));
-                    return onSnapshot(q, (rootSnap) => {
-                        const reviews = rootSnap.docs.map(doc => ({
-                            ...sanitizeData(doc.data()),
-                            id: doc.id,
-                            sprintId
-                        }) as Review);
-                        callback(reviews);
-                    }, () => callback([]));
-                } catch (e) {
-                    callback([]);
-                }
+            const cacheKey = `vectorise_reviews_${sprintId}`;
+            const cached = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+            if (Array.isArray(cached) && cached.length > 0) {
+                cached.forEach((r: any) => {
+                    if (r && r.id) reviewMap.set(r.id, r);
+                });
+            }
+        } catch (e) {}
+
+        const emitAll = () => {
+            const list = Array.from(reviewMap.values()).sort((a, b) => {
+                const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                return tB - tA;
             });
+            callback(list);
+        };
+
+        // Emit initial local state
+        emitAll();
+
+        // 1. Real-time listener on root 'reviews' collection where sprintId == sprintId
+        try {
+            const rootCol = collection(db, 'reviews');
+            const q = query(rootCol, where("sprintId", "==", sprintId));
+            const unsubRoot = onSnapshot(q, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const data = { ...sanitizeData(change.doc.data()), id: change.doc.id, sprintId } as Review;
+                    if (change.type === 'removed') {
+                        reviewMap.delete(change.doc.id);
+                    } else {
+                        reviewMap.set(change.doc.id, data);
+                    }
+                });
+                snapshot.docs.forEach((d) => {
+                    reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                });
+                emitAll();
+            }, (err) => {
+                console.warn(`[subscribeToSprintReviews] Root reviews query error for ${sprintId}:`, err);
+            });
+            unsubs.push(unsubRoot);
         } catch (e) {
-            console.warn(`[subscribeToSprintReviews] Error setting listener for ${sprintId}:`, e);
-            callback([]);
-            return () => {};
+            console.warn(`[subscribeToSprintReviews] Error attaching root listener:`, e);
         }
+
+        // 2. Real-time listener on category subcollections: experiences/{Category}/items/{sprintId}/reviews
+        for (const cat of EXPERIENCE_DOC_NAMES) {
+            try {
+                const subCol = collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'reviews');
+                const unsubCat = onSnapshot(subCol, (snapshot) => {
+                    snapshot.docs.forEach((d) => {
+                        reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    });
+                    emitAll();
+                }, () => {});
+                unsubs.push(unsubCat);
+            } catch (e) {}
+        }
+
+        // 3. Real-time listener on flat subcollection: experiences/{sprintId}/reviews
+        try {
+            const flatCol = collection(db, EXPERIENCES_COLLECTION, sprintId, 'reviews');
+            const unsubFlat = onSnapshot(flatCol, (snapshot) => {
+                snapshot.docs.forEach((d) => {
+                    reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                });
+                emitAll();
+            }, () => {});
+            unsubs.push(unsubFlat);
+        } catch (e) {}
+
+        // 4. Real-time listener on legacy subcollection: sprints/{sprintId}/reviews
+        try {
+            const legCol = collection(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'reviews');
+            const unsubLeg = onSnapshot(legCol, (snapshot) => {
+                snapshot.docs.forEach((d) => {
+                    reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                });
+                emitAll();
+            }, () => {});
+            unsubs.push(unsubLeg);
+        } catch (e) {}
+
+        return () => {
+            unsubs.forEach((u) => {
+                try { u(); } catch (e) {}
+            });
+        };
     },
 
     subscribeToReviewsForSprints: (sprintIds: string[], callback: (reviews: Review[]) => void) => {
@@ -1479,69 +1651,76 @@ export const sprintService = {
 
         const targetSprintIdSet = new Set(validSprintIds);
         const unsubs: (() => void)[] = [];
-        const reviewsBySprint: Record<string, Review[]> = {};
+        const reviewsMap = new Map<string, Review>();
+
+        // Load local cached reviews for these sprints
+        validSprintIds.forEach(sId => {
+            try {
+                const cacheKey = `vectorise_reviews_${sId}`;
+                const cached = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+                if (Array.isArray(cached)) {
+                    cached.forEach((r: any) => {
+                        if (r && r.id) reviewsMap.set(r.id, r);
+                    });
+                }
+            } catch (e) {}
+        });
 
         const emitAll = () => {
-            const all = Object.values(reviewsBySprint).flat();
+            const all = Array.from(reviewsMap.values())
+                .filter(r => targetSprintIdSet.has(r.sprintId))
+                .sort((a, b) => {
+                    const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return tB - tA;
+                });
             callback(all);
         };
 
-        // 1. Subscribe to each sprint's subcollection directly: sprints/{sprintId}/reviews
-        // This does NOT require any collectionGroup index and works immediately out of the box
-        validSprintIds.slice(0, 10).forEach((sprintId) => {
+        // Emit initial cache state
+        emitAll();
+
+        // 1. Root collection query chunked in batches of 10 for "in" filter
+        for (let i = 0; i < validSprintIds.length; i += 10) {
+            const chunk = validSprintIds.slice(i, i + 10);
             try {
-                const subReviewsCol = collection(db, SPRINTS_COLLECTION, sprintId, 'reviews');
-                const unsub = onSnapshot(
-                    subReviewsCol,
-                    (snapshot) => {
-                        reviewsBySprint[sprintId] = snapshot.docs.map(doc => ({
-                            ...sanitizeData(doc.data()),
-                            id: doc.id,
-                            sprintId
-                        }) as Review);
-                        emitAll();
-                    },
-                    (err) => {
-                        console.warn(`[subscribeToReviewsForSprints] Subcollection reviews listener error for sprint ${sprintId}:`, err);
-                    }
-                );
+                const rootReviewsCol = collection(db, 'reviews');
+                const qRoot = query(rootReviewsCol, where("sprintId", "in", chunk));
+                const unsub = onSnapshot(qRoot, (snapshot) => {
+                    snapshot.docs.forEach((doc) => {
+                        const data = { ...sanitizeData(doc.data()), id: doc.id } as Review;
+                        reviewsMap.set(doc.id, data);
+                    });
+                    emitAll();
+                }, (err) => {
+                    console.warn('[subscribeToReviewsForSprints] Root reviews query error:', err);
+                });
                 unsubs.push(unsub);
             } catch (e) {
-                console.warn(`[subscribeToReviewsForSprints] Could not listen to reviews for ${sprintId}:`, e);
+                console.warn('[subscribeToReviewsForSprints] Error setting root query batch:', e);
+            }
+        }
+
+        // 2. Subcollection listeners for each sprint across categories
+        validSprintIds.forEach((sprintId) => {
+            for (const cat of EXPERIENCE_DOC_NAMES) {
+                try {
+                    const subCol = collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'reviews');
+                    const unsub = onSnapshot(subCol, (snapshot) => {
+                        snapshot.docs.forEach((doc) => {
+                            const data = { ...sanitizeData(doc.data()), id: doc.id, sprintId } as Review;
+                            reviewsMap.set(doc.id, data);
+                        });
+                        emitAll();
+                    }, () => {});
+                    unsubs.push(unsub);
+                } catch (e) {}
             }
         });
 
-        // 2. Also try root reviews collection fallback: collection(db, 'reviews')
-        try {
-            const rootReviewsCol = collection(db, 'reviews');
-            const qRoot = query(rootReviewsCol, where("sprintId", "in", validSprintIds.slice(0, 10)));
-            const rootUnsub = onSnapshot(
-                qRoot,
-                (snapshot) => {
-                    const rootReviews = snapshot.docs.map(doc => ({
-                        ...sanitizeData(doc.data()),
-                        id: doc.id
-                    }) as Review);
-                    if (rootReviews.length > 0) {
-                        reviewsBySprint['__root__'] = rootReviews;
-                        emitAll();
-                    }
-                },
-                (err) => {
-                    // Suppress if root collection index or query isn't configured
-                    console.warn('[subscribeToReviewsForSprints] Root reviews query error:', err);
-                }
-            );
-            unsubs.push(rootUnsub);
-        } catch (e) {
-            // Ignore root fallback error
-        }
-
         return () => {
             unsubs.forEach(u => {
-                try {
-                    u();
-                } catch (e) {}
+                try { u(); } catch (e) {}
             });
         };
     },
@@ -2387,6 +2566,27 @@ export const sprintService = {
         }
     },
 
+    // Record completed read of an article (RiseBlog / Insights)
+    recordExperienceRead: async (experienceId: string, user: { id: string; name?: string; email?: string; profileImageUrl?: string; role?: string }, durationSeconds?: number) => {
+        if (!experienceId || !user?.id) return;
+        try {
+            const readDocRef = doc(db, 'experience_interactions', experienceId, 'reads', user.id);
+            const readData: InteractionUser = {
+                userId: user.id,
+                userName: user.name || user.email?.split('@')[0] || 'Member',
+                userEmail: user.email || '',
+                userPhoto: user.profileImageUrl || '',
+                role: user.role || 'Seeker',
+                timestamp: new Date().toISOString(),
+                action: 'read',
+                durationSeconds: durationSeconds || 0
+            };
+            await setDoc(readDocRef, sanitizeData(readData), { merge: true });
+        } catch (e) {
+            console.warn('[recordExperienceRead] error:', e);
+        }
+    },
+
     // Toggle or record like of an experience with user identity
     toggleExperienceLike: async (experienceId: string, user: { id: string; name?: string; email?: string; profileImageUrl?: string; role?: string }, isLiked: boolean) => {
         if (!experienceId || !user?.id) return;
@@ -2411,16 +2611,18 @@ export const sprintService = {
         }
     },
 
-    // Get all tracked views and likes for an experience
-    getExperienceInteractions: async (experienceId: string): Promise<{ views: InteractionUser[]; likes: InteractionUser[]; viewCount: number; likeCount: number }> => {
-        if (!experienceId) return { views: [], likes: [], viewCount: 0, likeCount: 0 };
+    // Get all tracked views, reads, and likes for an experience
+    getExperienceInteractions: async (experienceId: string): Promise<{ views: InteractionUser[]; likes: InteractionUser[]; reads: InteractionUser[]; viewCount: number; likeCount: number; readCount: number }> => {
+        if (!experienceId) return { views: [], likes: [], reads: [], viewCount: 0, likeCount: 0, readCount: 0 };
         try {
             const viewsCol = collection(db, 'experience_interactions', experienceId, 'views');
             const likesCol = collection(db, 'experience_interactions', experienceId, 'likes');
+            const readsCol = collection(db, 'experience_interactions', experienceId, 'reads');
             
-            const [viewsSnap, likesSnap] = await Promise.all([
+            const [viewsSnap, likesSnap, readsSnap] = await Promise.all([
                 getDocs(viewsCol).catch(() => ({ docs: [] } as any)),
-                getDocs(likesCol).catch(() => ({ docs: [] } as any))
+                getDocs(likesCol).catch(() => ({ docs: [] } as any)),
+                getDocs(readsCol).catch(() => ({ docs: [] } as any))
             ]);
 
             const views: InteractionUser[] = [];
@@ -2433,35 +2635,46 @@ export const sprintService = {
                 likes.push({ id: d.id, ...sanitizeData(d.data()) } as any);
             });
 
+            const reads: InteractionUser[] = [];
+            readsSnap.docs.forEach((d: any) => {
+                reads.push({ id: d.id, ...sanitizeData(d.data()) } as any);
+            });
+
             // Sort most recent first
             views.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
             likes.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+            reads.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
             return {
                 views,
                 likes,
+                reads,
                 viewCount: views.length,
-                likeCount: likes.length
+                likeCount: likes.length,
+                readCount: reads.length
             };
         } catch (e) {
             console.error('[getExperienceInteractions] error:', e);
-            return { views: [], likes: [], viewCount: 0, likeCount: 0 };
+            return { views: [], likes: [], reads: [], viewCount: 0, likeCount: 0, readCount: 0 };
         }
     },
 
-    // Real-time subscription to experience interactions
-    subscribeToExperienceInteractions: (experienceId: string, callback: (data: { views: InteractionUser[]; likes: InteractionUser[]; viewCount: number; likeCount: number }) => void) => {
+    // Real-time subscription to experience interactions (views, likes, reads)
+    subscribeToExperienceInteractions: (experienceId: string, callback: (data: { views: InteractionUser[]; likes: InteractionUser[]; reads: InteractionUser[]; viewCount: number; likeCount: number; readCount: number }) => void) => {
         if (!experienceId) return () => {};
 
         let viewsList: InteractionUser[] = [];
         let likesList: InteractionUser[] = [];
+        let readsList: InteractionUser[] = [];
 
         const notify = () => {
             callback({
                 views: [...viewsList].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()),
                 likes: [...likesList].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()),
+                reads: [...readsList].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()),
                 viewCount: viewsList.length,
-                likeCount: likesList.length
+                likeCount: likesList.length,
+                readCount: readsList.length
             });
         };
 
@@ -2479,9 +2692,51 @@ export const sprintService = {
             console.warn('[subscribeToExperienceInteractions likes error]', err);
         });
 
+        const unsubReads = onSnapshot(collection(db, 'experience_interactions', experienceId, 'reads'), (snap) => {
+            readsList = snap.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) } as any));
+            notify();
+        }, (err) => {
+            console.warn('[subscribeToExperienceInteractions reads error]', err);
+        });
+
         return () => {
             unsubViews();
             unsubLikes();
+            unsubReads();
+        };
+    },
+
+    // Real-time subscription to multiple experience interactions (for coach dashboards & notification dots)
+    subscribeToMultipleExperienceInteractions: (experienceIds: string[], callback: (dataMap: Record<string, { views: InteractionUser[]; likes: InteractionUser[]; reads: InteractionUser[]; viewCount: number; likeCount: number; readCount: number; latestTimestamp: number }>) => void) => {
+        if (!experienceIds || !experienceIds.length) {
+            callback({});
+            return () => {};
+        }
+
+        const unsubs: (() => void)[] = [];
+        const stateMap: Record<string, { views: InteractionUser[]; likes: InteractionUser[]; reads: InteractionUser[]; viewCount: number; likeCount: number; readCount: number; latestTimestamp: number }> = {};
+
+        experienceIds.forEach(id => {
+            if (!id) return;
+            const unsub = sprintService.subscribeToExperienceInteractions(id, (stats) => {
+                const allTimestamps = [
+                    ...stats.views.map(v => new Date(v.timestamp || 0).getTime()),
+                    ...stats.reads.map(r => new Date(r.timestamp || 0).getTime()),
+                    ...stats.likes.map(l => new Date(l.timestamp || 0).getTime())
+                ];
+                const latestTimestamp = allTimestamps.length > 0 ? Math.max(...allTimestamps) : 0;
+
+                stateMap[id] = {
+                    ...stats,
+                    latestTimestamp
+                };
+                callback({ ...stateMap });
+            });
+            unsubs.push(unsub);
+        });
+
+        return () => {
+            unsubs.forEach(u => u());
         };
     }
 };

@@ -539,6 +539,9 @@ export const RiseBlog: React.FC = () => {
 
     if (timeRequirementMet && endRequirementMet) {
       setIsRecordingCompletion(true);
+      if (user?.id) {
+        sprintService.recordExperienceRead(activePost.id, user, activeReadSeconds).catch(() => {});
+      }
       blogService.recordCompletedInsightRead(user?.id, activePost.id, activePost.title).then((res) => {
         setIsPostCompleted(true);
         if (res.readStats) {

@@ -262,6 +262,11 @@ export interface BaseExperience {
   duration: number;
   published: boolean;
   approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'archived';
+  rating?: number;
+  averageRating?: number;
+  reviewsCount?: number;
+  totalRatings?: number;
+  totalRatingSum?: number;
   createdAt?: string;
   updatedAt?: string;
   deleted?: boolean;
@@ -322,7 +327,8 @@ export interface InteractionUser {
   userPhoto?: string;
   role?: string;
   timestamp: string;
-  action?: 'view' | 'like';
+  action?: 'view' | 'like' | 'read';
+  durationSeconds?: number;
 }
 
 export interface Sprint {
@@ -351,6 +357,11 @@ export interface Sprint {
   deleted?: boolean; 
   curriculumSource?: string; 
   approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'archived';
+  rating?: number;
+  averageRating?: number;
+  reviewsCount?: number;
+  totalRatings?: number;
+  totalRatingSum?: number;
   dailyContent: DailyContent[];
   updatedAt?: string;
   createdAt?: string;
@@ -389,8 +400,13 @@ export interface Sprint {
   };
   likes?: number;
   views?: number;
+  reads?: number;
+  viewsCount?: number;
+  likesCount?: number;
+  readsCount?: number;
   viewedBy?: InteractionUser[];
   likedBy?: InteractionUser[];
+  readBy?: InteractionUser[];
 }
 
 export interface TaskVideoConfig {
