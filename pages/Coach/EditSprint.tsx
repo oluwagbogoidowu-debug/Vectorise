@@ -4594,9 +4594,9 @@ const EditSprint: React.FC = () => {
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => {
-                                                                                    const input = prompt(`Enter signal tags for "${lbl}" (comma separated):`, sigs.join(', '));
+                                                                                    const input = window.prompt(`Enter signal tags for "${lbl}" (comma separated):`, sigs.join(', '));
                                                                                     if (input !== null) {
-                                                                                        const parsed = input.split(',').map(s => s.trim()).filter(Boolean);
+                                                                                        const parsed = input.split(',').map((s: string) => s.trim()).filter(Boolean);
                                                                                         handleTaskMultiTextSignalsChange(index, lblIndex, parsed);
                                                                                     }
                                                                                 }}
@@ -4608,9 +4608,9 @@ const EditSprint: React.FC = () => {
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => {
-                                                                                    const input = prompt(`Enter tags/options for "${lbl}" (comma separated):`, tgs.join(', '));
+                                                                                    const input = window.prompt(`Enter tags/options for "${lbl}" (comma separated):`, tgs.join(', '));
                                                                                     if (input !== null) {
-                                                                                        const parsed = input.split(',').map(s => s.trim()).filter(Boolean);
+                                                                                        const parsed = input.split(',').map((s: string) => s.trim()).filter(Boolean);
                                                                                         handleTaskMultiTextTagsChange(index, lblIndex, parsed);
                                                                                     }
                                                                                 }}
@@ -5365,6 +5365,95 @@ const EditSprint: React.FC = () => {
                                                         PROOFLY MARK
                                                     </span>
                                                 </button>
+                                            );
+                                        } else if ((!type || type === 'text') && currentContent.taskMultiTextLabels?.[i] && currentContent.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim()).length > 0) {
+                                            const validLabels = currentContent.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim());
+                                            let currentAnswers: Record<string, string> = {};
+                                            const val = previewInputs[i] || '';
+                                            if (val) {
+                                                try {
+                                                    if (val.startsWith('{')) {
+                                                        currentAnswers = JSON.parse(val);
+                                                    } else {
+                                                        currentAnswers = { [validLabels[0] || 'default']: val };
+                                                    }
+                                                } catch (e) {
+                                                    currentAnswers = {};
+                                                }
+                                            }
+                                            return (
+                                                <div className="space-y-3 text-left animate-fade-in">
+                                                    {validLabels.map((lbl: string, lblIndex: number) => {
+                                                        const labelVal = currentAnswers[lbl] || '';
+                                                        const sigs = (currentContent.taskMultiTextSignals?.[i]?.[lblIndex] || []).filter(Boolean);
+                                                        const tgs = (currentContent.taskMultiTextTags?.[i]?.[lblIndex] || []).filter(Boolean);
+                                                        return (
+                                                            <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                                                                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                                                        📝 {lbl}
+                                                                    </span>
+                                                                    {sigs.length > 0 && (
+                                                                        <div className="flex flex-wrap items-center gap-1">
+                                                                            {sigs.map((sig: string, sIdx: number) => (
+                                                                                <span key={sIdx} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-black bg-purple-50 text-purple-700 rounded border border-purple-200 uppercase tracking-wider">
+                                                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                                                    {sig}
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                {tgs.length > 0 && (
+                                                                    <div className="flex flex-wrap gap-1 pt-0.5">
+                                                                        {tgs.map((tagItem: string, tIdx: number) => {
+                                                                            const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim() === tagItem.trim();
+                                                                            return (
+                                                                                <button
+                                                                                    key={tIdx}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        let newLabelVal = '';
+                                                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                                                                                        if (existingParts.some((p: string) => p.toLowerCase() === tagItem.trim().toLowerCase())) {
+                                                                                            newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== tagItem.trim().toLowerCase()).join(', ');
+                                                                                        } else {
+                                                                                            newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${tagItem.trim()}` : tagItem.trim();
+                                                                                        }
+                                                                                        const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                                                        setPreviewInputs(prev => ({
+                                                                                            ...prev,
+                                                                                            [i]: JSON.stringify(newAnswers)
+                                                                                        }));
+                                                                                    }}
+                                                                                    className={`px-2 py-0.5 text-[11px] rounded-md font-semibold border transition-all cursor-pointer ${
+                                                                                        isSelected
+                                                                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                                                                            : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                                                                                    }`}
+                                                                                >
+                                                                                    🏷️ {tagItem}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                                <textarea
+                                                                    value={labelVal}
+                                                                    onChange={e => {
+                                                                        const newAnswers = { ...currentAnswers, [lbl]: e.target.value };
+                                                                        setPreviewInputs(prev => ({
+                                                                            ...prev,
+                                                                            [i]: JSON.stringify(newAnswers)
+                                                                        }));
+                                                                    }}
+                                                                    className="w-full px-3 py-2 bg-white border border-gray-200 focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none rounded-xl text-xs font-semibold text-gray-800 placeholder-gray-400 min-h-[60px]"
+                                                                    placeholder={`Your response for ${lbl}...`}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
                                             );
                                         } else {
                                             const val = previewInputs[i] || '';

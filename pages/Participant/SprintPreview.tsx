@@ -1896,13 +1896,60 @@ const SprintPreview: React.FC = () => {
                                                              }
                                                          }
                                                          const labelVal = currentAnswers[lbl] || "";
+                                                         const sigs = (day1Content?.taskMultiTextSignals?.[i]?.[lblIndex] || []).filter((s: any) => s && String(s).trim().length > 0);
+                                                         const tgs = (day1Content?.taskMultiTextTags?.[i]?.[lblIndex] || []).filter((t: any) => t && String(t).trim().length > 0);
                                                          return (
                                                              <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
-                                                                 <div className="flex items-center">
+                                                                 <div className="flex flex-wrap items-center justify-between gap-1.5">
                                                                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
                                                                          📝 {lbl}
                                                                      </span>
+                                                                     {sigs.length > 0 && (
+                                                                         <div className="flex flex-wrap items-center gap-1">
+                                                                             {sigs.map((sig: string, sIdx: number) => (
+                                                                                 <span key={sIdx} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-black bg-purple-50 text-purple-700 rounded border border-purple-200 uppercase tracking-wider shadow-xs">
+                                                                                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                                                                     {sig}
+                                                                                 </span>
+                                                                             ))}
+                                                                         </div>
+                                                                     )}
                                                                  </div>
+
+                                                                 {tgs.length > 0 && (
+                                                                     <div className="flex flex-wrap gap-1 pt-0.5">
+                                                                         {tgs.map((tagItem: string, tIdx: number) => {
+                                                                             const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim().toLowerCase() === tagItem.trim().toLowerCase();
+                                                                             return (
+                                                                                 <button
+                                                                                     key={tIdx}
+                                                                                     type="button"
+                                                                                     onClick={() => {
+                                                                                         let newLabelVal = '';
+                                                                                         const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                                                                                         if (existingParts.some((p: string) => p.toLowerCase() === tagItem.trim().toLowerCase())) {
+                                                                                             newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== tagItem.trim().toLowerCase()).join(', ');
+                                                                                         } else {
+                                                                                             newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${tagItem.trim()}` : tagItem.trim();
+                                                                                         }
+                                                                                         const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                                                         const newInputs = [...taskInputs];
+                                                                                         newInputs[i] = JSON.stringify(newAnswers);
+                                                                                         setTaskInputs(newInputs);
+                                                                                     }}
+                                                                                     className={`px-2 py-0.5 text-[11px] rounded-lg font-semibold border transition-all cursor-pointer ${
+                                                                                         isSelected
+                                                                                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                                                                                             : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                                                                                     }`}
+                                                                                 >
+                                                                                     🏷️ {tagItem}
+                                                                                 </button>
+                                                                             );
+                                                                         })}
+                                                                     </div>
+                                                                 )}
+
                                                                  <AutoGrowingTextarea
                                                                      value={labelVal}
                                                                      onChange={(val) => {

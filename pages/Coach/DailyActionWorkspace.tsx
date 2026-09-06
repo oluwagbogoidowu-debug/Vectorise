@@ -137,6 +137,8 @@ export default function DailyActionWorkspace({
     const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect) ? (content as any).taskPollMultiSelect : [];
     const safePollArrange = Array.isArray((content as any).taskPollArrange) ? (content as any).taskPollArrange : [];
     const safeMultiTextLabels = Array.isArray((content as any).taskMultiTextLabels) ? (content as any).taskMultiTextLabels : [];
+    const safeMultiTextSignals = Array.isArray((content as any).taskMultiTextSignals) ? (content as any).taskMultiTextSignals : [];
+    const safeMultiTextTags = Array.isArray((content as any).taskMultiTextTags) ? (content as any).taskMultiTextTags : [];
 
     return {
         ...content,
@@ -147,7 +149,9 @@ export default function DailyActionWorkspace({
         taskFootnotes: safeFootnotes,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
-        taskMultiTextLabels: safeMultiTextLabels
+        taskMultiTextLabels: safeMultiTextLabels,
+        taskMultiTextSignals: safeMultiTextSignals,
+        taskMultiTextTags: safeMultiTextTags
     } as any;
   };
 
@@ -291,6 +295,8 @@ export default function DailyActionWorkspace({
       dayContent.taskVideos = reorderArr(dayContent.taskVideos);
       dayContent.taskPollOptionLinks = reorderArr(dayContent.taskPollOptionLinks);
       dayContent.taskMultiTextLabels = reorderArr(dayContent.taskMultiTextLabels);
+      dayContent.taskMultiTextSignals = reorderArr(dayContent.taskMultiTextSignals);
+      dayContent.taskMultiTextTags = reorderArr(dayContent.taskMultiTextTags);
       dayContent.taskPollOptions = reorderArr(dayContent.taskPollOptions as any);
       if ((dayContent as any).taskTags) {
         (dayContent as any).taskTags = reorderArr((dayContent as any).taskTags);
@@ -471,6 +477,28 @@ export default function DailyActionWorkspace({
     while (labels.length <= index) labels.push([]);
     labels[index] = value as any;
     updateFieldForDay(dayNum, 'taskMultiTextLabels', labels);
+  };
+
+  const handleTaskMultiTextSignalsChange = (dayNum: number, index: number, lblIndex: number, signals: string[]) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    let allSignals = Array.isArray(dayContent.taskMultiTextSignals) ? [...dayContent.taskMultiTextSignals] : [];
+    while (allSignals.length <= index) allSignals.push([]);
+    let stepSignals = Array.isArray(allSignals[index]) ? [...allSignals[index]] : [];
+    while (stepSignals.length <= lblIndex) stepSignals.push([]);
+    stepSignals[lblIndex] = signals;
+    allSignals[index] = stepSignals;
+    updateFieldForDay(dayNum, 'taskMultiTextSignals', allSignals);
+  };
+
+  const handleTaskMultiTextTagsChange = (dayNum: number, index: number, lblIndex: number, tags: string[]) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    let allTags = Array.isArray(dayContent.taskMultiTextTags) ? [...dayContent.taskMultiTextTags] : [];
+    while (allTags.length <= index) allTags.push([]);
+    let stepTags = Array.isArray(allTags[index]) ? [...allTags[index]] : [];
+    while (stepTags.length <= lblIndex) stepTags.push([]);
+    stepTags[lblIndex] = tags;
+    allTags[index] = stepTags;
+    updateFieldForDay(dayNum, 'taskMultiTextTags', allTags);
   };
 
   const handleTogglePollMultiSelect = (dayNum: number, index: number) => {
@@ -2225,34 +2253,70 @@ export default function DailyActionWorkspace({
                       <div className="mt-2 pl-2 border-l-2 border-purple-200/50 space-y-2 animate-fade-in text-[11px]">
                         <p className="font-semibold text-purple-600">Labels for Multi-Text Fields:</p>
                         <div className="space-y-1.5">
-                          {dayContent.taskMultiTextLabels[activeIdx].map((lbl, lblIndex) => (
-                            <div key={lblIndex} className="flex gap-1.5 items-center">
-                              <span className="text-gray-450 text-[10px] font-bold w-4 shrink-0">{lblIndex + 1}</span>
-                              <input 
-                                type="text"
-                                value={lbl}
-                                onChange={(e) => {
-                                  setSelectedDay(dayNum);
-                                  const updatedLabels = [...(dayContent.taskMultiTextLabels?.[activeIdx] || [])];
-                                  updatedLabels[lblIndex] = e.target.value;
-                                  handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels);
-                                }}
-                                className="flex-1 px-2.5 py-1 bg-white border border-gray-205 rounded-lg text-xs font-semibold outline-none transition-all focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
-                                placeholder="Field label..."
-                              />
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDay(dayNum);
-                                  const updatedLabels = (dayContent.taskMultiTextLabels?.[activeIdx] || []).filter((_, lIdx) => lIdx !== lblIndex);
-                                  handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels.length === 0 ? null as any : updatedLabels);
-                                }}
-                                className="text-gray-400 hover:text-red-500 shrink-0"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
-                          ))}
+                          {dayContent.taskMultiTextLabels[activeIdx].map((lbl, lblIndex) => {
+                            const sigs = (dayContent.taskMultiTextSignals?.[activeIdx]?.[lblIndex] || []).filter(Boolean);
+                            const tgs = (dayContent.taskMultiTextTags?.[activeIdx]?.[lblIndex] || []).filter(Boolean);
+                            return (
+                              <div key={lblIndex} className="flex gap-1.5 items-center">
+                                <span className="text-gray-450 text-[10px] font-bold w-4 shrink-0">{lblIndex + 1}</span>
+                                <input 
+                                  type="text"
+                                  value={lbl}
+                                  onChange={(e) => {
+                                    setSelectedDay(dayNum);
+                                    const updatedLabels = [...(dayContent.taskMultiTextLabels?.[activeIdx] || [])];
+                                    updatedLabels[lblIndex] = e.target.value;
+                                    handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels);
+                                  }}
+                                  className="flex-1 px-2.5 py-1 bg-white border border-gray-205 rounded-lg text-xs font-semibold outline-none transition-all focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
+                                  placeholder="Field label..."
+                                />
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDay(dayNum);
+                                      const input = (window as any).prompt(`Enter signal tags for "${lbl}" (comma separated):`, sigs.join(', '));
+                                      if (input !== null) {
+                                        const parsed = input.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                        handleTaskMultiTextSignalsChange(dayNum, activeIdx, lblIndex, parsed);
+                                      }
+                                    }}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${sigs.length > 0 ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 hover:bg-purple-100 text-gray-600'}`}
+                                    title={`Configure Signal Tags (S): ${sigs.length > 0 ? sigs.join(', ') : 'None'}`}
+                                  >
+                                    S{sigs.length > 0 ? ` (${sigs.length})` : ''}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDay(dayNum);
+                                      const input = (window as any).prompt(`Enter tag options for "${lbl}" (comma separated):`, tgs.join(', '));
+                                      if (input !== null) {
+                                        const parsed = input.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                        handleTaskMultiTextTagsChange(dayNum, activeIdx, lblIndex, parsed);
+                                      }
+                                    }}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${tgs.length > 0 ? 'bg-indigo-600 text-white shadow-xs' : 'bg-gray-100 hover:bg-indigo-100 text-gray-600'}`}
+                                    title={`Configure Tags/Options (T): ${tgs.length > 0 ? tgs.join(', ') : 'None'}`}
+                                  >
+                                    T{tgs.length > 0 ? ` (${tgs.length})` : ''}
+                                  </button>
+                                </div>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    const updatedLabels = (dayContent.taskMultiTextLabels?.[activeIdx] || []).filter((_, lIdx) => lIdx !== lblIndex);
+                                    handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels.length === 0 ? null as any : updatedLabels);
+                                  }}
+                                  className="text-gray-400 hover:text-red-500 shrink-0"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
                           <button 
                             type="button"
                             onClick={() => {

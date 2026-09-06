@@ -4579,13 +4579,60 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           }
                                         }
                                         const labelVal = currentAnswers[lbl] || "";
+                                        const sigs = (dayContent.taskMultiTextSignals?.[i]?.[lblIndex] || []).filter((s: any) => s && String(s).trim().length > 0);
+                                        const tgs = (dayContent.taskMultiTextTags?.[i]?.[lblIndex] || []).filter((t: any) => t && String(t).trim().length > 0);
                                         return (
                                           <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
-                                            <div className="flex items-center">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
                                               <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
                                                 📝 {lbl}
                                               </span>
+                                              {sigs.length > 0 && (
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                  {sigs.map((sig: string, sIdx: number) => (
+                                                    <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] sm:text-[10px] font-black bg-purple-50 text-purple-700 rounded-md border border-purple-200 uppercase tracking-wider shadow-xs">
+                                                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                                      {sig}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              )}
                                             </div>
+
+                                            {tgs.length > 0 && (
+                                              <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                                {tgs.map((tagItem: string, tIdx: number) => {
+                                                  const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim().toLowerCase() === tagItem.trim().toLowerCase();
+                                                  return (
+                                                    <button
+                                                      key={tIdx}
+                                                      type="button"
+                                                      onClick={() => {
+                                                        let newLabelVal = '';
+                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                                                        if (existingParts.some((p: string) => p.toLowerCase() === tagItem.trim().toLowerCase())) {
+                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== tagItem.trim().toLowerCase()).join(', ');
+                                                        } else {
+                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${tagItem.trim()}` : tagItem.trim();
+                                                        }
+                                                        const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                        const newInputs = [...taskInputs];
+                                                        newInputs[i] = JSON.stringify(newAnswers);
+                                                        setTaskInputs(newInputs);
+                                                      }}
+                                                      className={`px-2.5 py-1 text-xs rounded-xl font-bold border transition-all cursor-pointer ${
+                                                        isSelected
+                                                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                                          : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                                                      }`}
+                                                    >
+                                                      🏷️ {tagItem}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+
                                             <AutoGrowingTextarea
                                               value={labelVal}
                                               onChange={(val) => {
@@ -5328,7 +5375,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </div>
                           ) : getStepInputType(dayContent, 0, taskInputs, sprint?.dailyContent, enrollment?.progress) === "none" ? null : isMultiTextStep(0) ? (
                             <div className="space-y-4 animate-fade-in text-left">
-                              {(dayContent?.taskMultiTextLabels?.[0] || []).map((lbl, lblIndex) => {
+                              {(dayContent?.taskMultiTextLabels?.[0] || []).filter((l: any) => l && String(l).trim().length > 0).map((lbl, lblIndex) => {
                                 let currentAnswers: Record<string, string> = {};
                                 if (taskInputs[0]) {
                                   try {
@@ -5342,13 +5389,61 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   }
                                 }
                                 const labelVal = currentAnswers[lbl] || "";
+                                const sigs = (dayContent?.taskMultiTextSignals?.[0]?.[lblIndex] || []).filter((s: any) => s && String(s).trim().length > 0);
+                                const tgs = (dayContent?.taskMultiTextTags?.[0]?.[lblIndex] || []).filter((t: any) => t && String(t).trim().length > 0);
+
                                 return (
                                   <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
-                                    <div className="flex items-center">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
                                       <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
                                         📝 {lbl}
                                       </span>
+                                      {sigs.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {sigs.map((sig: string, sIdx: number) => (
+                                            <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] sm:text-[10px] font-black bg-purple-50 text-purple-700 rounded-md border border-purple-200 uppercase tracking-wider shadow-xs">
+                                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                              {sig}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
+
+                                    {tgs.length > 0 && (
+                                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                                        {tgs.map((tagItem: string, tIdx: number) => {
+                                          const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim().toLowerCase() === tagItem.trim().toLowerCase();
+                                          return (
+                                            <button
+                                              key={tIdx}
+                                              type="button"
+                                              onClick={() => {
+                                                let newLabelVal = '';
+                                                const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                                                if (existingParts.some((p: string) => p.toLowerCase() === tagItem.trim().toLowerCase())) {
+                                                  newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== tagItem.trim().toLowerCase()).join(', ');
+                                                } else {
+                                                  newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${tagItem.trim()}` : tagItem.trim();
+                                                }
+                                                const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                const newInputs = [...taskInputs];
+                                                newInputs[0] = JSON.stringify(newAnswers);
+                                                setTaskInputs(newInputs);
+                                              }}
+                                              className={`px-2.5 py-1 text-xs rounded-xl font-bold border transition-all cursor-pointer ${
+                                                isSelected
+                                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                                  : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                                              }`}
+                                            >
+                                              🏷️ {tagItem}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+
                                     <AutoGrowingTextarea
                                       value={labelVal}
                                       onChange={(val) => {
