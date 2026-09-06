@@ -417,6 +417,9 @@ const EditSprint: React.FC = () => {
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
   const [isSpotlightTourOpen, setIsSpotlightTourOpen] = useState(false);
   const [isCoachGuideOpen, setIsCoachGuideOpen] = useState(false);
+  const [activeEditSprintSignalEditor, setActiveEditSprintSignalEditor] = useState<{ stepIdx: number; lblIndex: number } | null>(null);
+  const [editSprintSignalDraft, setEditSprintSignalDraft] = useState('');
+  const [activeEditSprintLinkSelector, setActiveEditSprintLinkSelector] = useState<{ stepIdx: number; lblIndex: number } | null>(null);
   const kebabMenuRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -1316,6 +1319,93 @@ const EditSprint: React.FC = () => {
         return { ...prev, dailyContent: updatedDailyContent };
     });
     setSaveStatus('idle');
+  };
+
+  const handleTaskMultiTextLinksChange = (stepIndex: number, lblIndex: number, link: string | null) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        const dc = existingContentIndex >= 0 ? { ...updatedDailyContent[existingContentIndex] } : { day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''] };
+        
+        let allLinks = Array.isArray(dc.taskMultiTextLinks) ? [...dc.taskMultiTextLinks] : [];
+        while (allLinks.length <= stepIndex) allLinks.push([]);
+        let stepLinks = Array.isArray(allLinks[stepIndex]) ? [...allLinks[stepIndex]] : [];
+        while (stepLinks.length <= lblIndex) stepLinks.push(null);
+        stepLinks[lblIndex] = link;
+        allLinks[stepIndex] = stepLinks;
+        dc.taskMultiTextLinks = allLinks;
+
+        if (existingContentIndex >= 0) {
+            updatedDailyContent[existingContentIndex] = dc;
+        } else {
+            updatedDailyContent.push(dc);
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const formatMultiTextLinkName = (linkId: string | null | undefined): string => {
+    if (!linkId) return '';
+    if (linkId.startsWith('step')) {
+      if (linkId.includes(':poll')) {
+        const parts = linkId.split(':');
+        const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+        const pollNum = parts[1].replace('poll ', '');
+        return `Step ${stepIdx + 1} (Option ${pollNum})`;
+      }
+      const stepIdx = parseInt(linkId.replace('step', ''), 10);
+      return `Step ${stepIdx + 1}`;
+    }
+    if (linkId.startsWith('prev-')) {
+      const parts = linkId.split('-');
+      return `Move ${parts[1]} - Step ${parseInt(parts[2], 10) + 1}`;
+    }
+    return String(linkId);
+  };
+
+  const getAvailableMultiTextLinkOptions = (stepIdx: number) => {
+    const options: { id: string; label: string }[] = [];
+    
+    // 1. Preceding steps on today's move
+    (currentContent.taskPrompts || []).forEach((_, sIdx) => {
+      if (sIdx >= stepIdx) return;
+      const type = currentContent.taskInputTypes?.[sIdx] || 'text';
+      if (type === 'tags') {
+        options.push({ id: `step${sIdx}`, label: `Step ${sIdx + 1} (Tags)` });
+      } else if (type === 'poll') {
+        options.push({ id: `step${sIdx}`, label: `Step ${sIdx + 1} (Poll Choice)` });
+        const pollOpts = getAllStepPollOptions(currentContent, sIdx).filter(Boolean);
+        pollOpts.forEach((opt, oIdx) => {
+          options.push({ id: `step${sIdx}:poll ${oIdx + 1}`, label: `Step ${sIdx + 1}: Option ${oIdx + 1} ("${opt}")` });
+        });
+      } else {
+        options.push({ id: `step${sIdx}`, label: `Step ${sIdx + 1}` });
+      }
+    });
+
+    // 2. Preceding days
+    if (selectedDay > 1 && Array.isArray(sprint?.dailyContent)) {
+      for (let d = 1; d < selectedDay; d++) {
+        const prevDC = sprint.dailyContent.find(c => c.day === d);
+        if (prevDC && Array.isArray(prevDC.taskPrompts)) {
+          prevDC.taskPrompts.forEach((_, sIdx) => {
+            const type = prevDC.taskInputTypes?.[sIdx] || 'text';
+            const encodedVal = `prev-${d}-${sIdx}`;
+            if (type === 'tags') {
+              options.push({ id: encodedVal, label: `Move ${d} - Step ${sIdx + 1} (Tags)` });
+            } else if (type === 'poll') {
+              options.push({ id: encodedVal, label: `Move ${d} - Step ${sIdx + 1} (Poll Choice)` });
+            } else {
+              options.push({ id: encodedVal, label: `Move ${d} - Step ${sIdx + 1}` });
+            }
+          });
+        }
+      }
+    }
+
+    return options;
   };
 
   const handleToggleTaskTagNoteActive = (index: number, active: boolean) => {
@@ -4566,86 +4656,230 @@ const EditSprint: React.FC = () => {
                                                     <div className="bg-primary/5 rounded-xl p-3 border border-primary/10 mb-2">
                                                         <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
                                                             <Layers size={14} />
-                                                            <span>Configure labels for the Multi-Text fields that participants can fill contextually.</span>
+                                                            <span>Multi-Text Fields & Label Links: Connect labels directly to tags or polls (L), or type custom text.</span>
                                                         </p>
                                                     </div>
                                                     <div className="space-y-2">
-                                                        {currentContent.taskMultiTextLabels[index].map((lbl, lblIndex) => (
-                                                            <div key={lblIndex} className="flex gap-2 items-center group/lbl">
-                                                                <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-[10px] font-bold shrink-0">
-                                                                    {lblIndex + 1}
-                                                                </div>
-                                                                <input 
-                                                                    type="text"
-                                                                    value={lbl}
-                                                                    onChange={(e) => {
-                                                                        const updatedLabels = [...(currentContent.taskMultiTextLabels?.[index] || [])];
-                                                                        updatedLabels[lblIndex] = e.target.value;
-                                                                        handleTaskMultiTextLabelsChange(index, updatedLabels);
-                                                                    }}
-                                                                    className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                                    placeholder={`Label for Field ${lblIndex + 1}...`}
-                                                                />
-                                                                {(() => {
-                                                                    const sigs = currentContent.taskMultiTextSignals?.[index]?.[lblIndex] || [];
-                                                                    const tgs = currentContent.taskMultiTextTags?.[index]?.[lblIndex] || [];
-                                                                    return (
+                                                        {currentContent.taskMultiTextLabels[index].map((lbl, lblIndex) => {
+                                                            const sigs = currentContent.taskMultiTextSignals?.[index]?.[lblIndex] || [];
+                                                            const linkedTarget = currentContent.taskMultiTextLinks?.[index]?.[lblIndex];
+                                                            const isSignalEditorOpen = activeEditSprintSignalEditor?.stepIdx === index && activeEditSprintSignalEditor?.lblIndex === lblIndex;
+                                                            const isLinkSelectorOpen = activeEditSprintLinkSelector?.stepIdx === index && activeEditSprintLinkSelector?.lblIndex === lblIndex;
+                                                            const linkOptions = getAvailableMultiTextLinkOptions(index);
+
+                                                            return (
+                                                                <div key={lblIndex} className="bg-white border border-gray-200 rounded-xl p-2.5 space-y-2 shadow-xs">
+                                                                    <div className="flex gap-2 items-center group/lbl">
+                                                                        <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100 text-gray-400 text-[10px] font-bold shrink-0">
+                                                                            {lblIndex + 1}
+                                                                        </div>
+                                                                        {linkedTarget ? (
+                                                                            <div className="flex-1 flex items-center justify-between px-3 py-1.5 bg-emerald-50/80 border border-emerald-200 rounded-lg text-xs font-bold text-emerald-800">
+                                                                                <span className="truncate">🔗 Linked to: {formatMultiTextLinkName(linkedTarget)}</span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleTaskMultiTextLinksChange(index, lblIndex, null)}
+                                                                                    className="text-[10px] text-emerald-600 hover:text-red-500 font-black ml-2 px-1 hover:bg-red-50 rounded transition-all cursor-pointer"
+                                                                                    title="Disconnect Link"
+                                                                                >
+                                                                                    ✕ Unlink
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <input 
+                                                                                type="text"
+                                                                                value={lbl}
+                                                                                onChange={(e) => {
+                                                                                    const updatedLabels = [...(currentContent.taskMultiTextLabels?.[index] || [])];
+                                                                                    updatedLabels[lblIndex] = e.target.value;
+                                                                                    handleTaskMultiTextLabelsChange(index, updatedLabels);
+                                                                                }}
+                                                                                className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                                                                                placeholder={`Label for Field ${lblIndex + 1} (or click L to connect)...`}
+                                                                            />
+                                                                        )}
+
                                                                         <div className="flex items-center gap-1 shrink-0">
+                                                                            {/* S: Signal configuration */}
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => {
-                                                                                    const input = window.prompt(`Enter signal tags for "${lbl}" (comma separated):`, sigs.join(', '));
-                                                                                    if (input !== null) {
-                                                                                        const parsed = input.split(',').map((s: string) => s.trim()).filter(Boolean);
-                                                                                        handleTaskMultiTextSignalsChange(index, lblIndex, parsed);
+                                                                                    if (isSignalEditorOpen) {
+                                                                                        setActiveEditSprintSignalEditor(null);
+                                                                                    } else {
+                                                                                        setActiveEditSprintSignalEditor({ stepIdx: index, lblIndex });
+                                                                                        setEditSprintSignalDraft('');
                                                                                     }
                                                                                 }}
-                                                                                className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-all ${sigs.length > 0 ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 hover:bg-primary/10 text-gray-600'}`}
+                                                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${sigs.length > 0 ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 hover:bg-primary/10 text-gray-600'} ${isSignalEditorOpen ? 'ring-2 ring-primary/40' : ''}`}
                                                                                 title="Configure Signal Tags (S)"
                                                                             >
                                                                                 S {sigs.length > 0 ? `(${sigs.length})` : ''}
                                                                             </button>
+
+                                                                            {/* L: Label Link configuration */}
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => {
-                                                                                    const input = window.prompt(`Enter tags/options for "${lbl}" (comma separated):`, tgs.join(', '));
-                                                                                    if (input !== null) {
-                                                                                        const parsed = input.split(',').map((s: string) => s.trim()).filter(Boolean);
-                                                                                        handleTaskMultiTextTagsChange(index, lblIndex, parsed);
+                                                                                    if (isLinkSelectorOpen) {
+                                                                                        setActiveEditSprintLinkSelector(null);
+                                                                                    } else {
+                                                                                        setActiveEditSprintLinkSelector({ stepIdx: index, lblIndex });
                                                                                     }
                                                                                 }}
-                                                                                className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-all ${tgs.length > 0 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 hover:bg-indigo-50 text-gray-600'}`}
-                                                                                title="Configure Tags/Options (T)"
+                                                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${linkedTarget ? 'bg-emerald-600 text-white shadow-sm' : 'bg-gray-100 hover:bg-emerald-50 text-gray-600'} ${isLinkSelectorOpen ? 'ring-2 ring-emerald-400' : ''}`}
+                                                                                title="Connect Label (L) to Tag or Poll inputs"
                                                                             >
-                                                                                T {tgs.length > 0 ? `(${tgs.length})` : ''}
+                                                                                L {linkedTarget ? '✓' : ''}
                                                                             </button>
                                                                         </div>
-                                                                    );
-                                                                })()}
-                                                                <button 
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const updatedLabels = (currentContent.taskMultiTextLabels?.[index] || []).filter((_, lIdx) => lIdx !== lblIndex);
-                                                                        handleTaskMultiTextLabelsChange(index, updatedLabels.length === 0 ? null as any : updatedLabels);
-                                                                    }}
-                                                                    className="p-1 px-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-all"
-                                                                    title="Remove label field"
-                                                                >
-                                                                    <Trash2 size={13} strokeWidth={2} />
-                                                                </button>
-                                                            </div>
-                                                        ))}
+
+                                                                        <button 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const updatedLabels = (currentContent.taskMultiTextLabels?.[index] || []).filter((_, lIdx) => lIdx !== lblIndex);
+                                                                                handleTaskMultiTextLabelsChange(index, updatedLabels.length === 0 ? null as any : updatedLabels);
+                                                                                if (isSignalEditorOpen) setActiveEditSprintSignalEditor(null);
+                                                                                if (isLinkSelectorOpen) setActiveEditSprintLinkSelector(null);
+                                                                            }}
+                                                                            className="p-1 px-1.5 text-gray-400 hover:text-red-500 rounded-lg transition-all cursor-pointer"
+                                                                            title="Remove field"
+                                                                        >
+                                                                            <Trash2 size={13} strokeWidth={2} />
+                                                                        </button>
+                                                                    </div>
+
+                                                                    {/* L Link Target Selector Popover */}
+                                                                    {isLinkSelectorOpen && (
+                                                                        <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3 animate-fade-in space-y-2 text-xs">
+                                                                            <div className="flex items-center justify-between text-emerald-800 font-bold">
+                                                                                <span>Connect Label to Tag or Poll:</span>
+                                                                                <button 
+                                                                                    type="button" 
+                                                                                    onClick={() => setActiveEditSprintLinkSelector(null)}
+                                                                                    className="text-emerald-700 hover:text-emerald-900 font-black cursor-pointer"
+                                                                                >
+                                                                                    ✕
+                                                                                </button>
+                                                                            </div>
+                                                                            {linkOptions.length === 0 ? (
+                                                                                <p className="text-gray-500 italic">No preceding tag or poll steps available to link yet.</p>
+                                                                            ) : (
+                                                                                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                                                                                    {linkOptions.map((opt) => {
+                                                                                        const isSelected = linkedTarget === opt.id;
+                                                                                        return (
+                                                                                            <button
+                                                                                                key={opt.id}
+                                                                                                type="button"
+                                                                                                onClick={() => {
+                                                                                                    handleTaskMultiTextLinksChange(index, lblIndex, opt.id);
+                                                                                                    setActiveEditSprintLinkSelector(null);
+                                                                                                }}
+                                                                                                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all text-left cursor-pointer ${isSelected ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-200'}`}
+                                                                                            >
+                                                                                                {opt.label}
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* S Signal Options Inline Editor with + button */}
+                                                                    {isSignalEditorOpen && (
+                                                                        <div className="bg-purple-50/80 border border-purple-200 rounded-xl p-3 animate-fade-in space-y-2 text-xs">
+                                                                            <div className="flex items-center justify-between text-purple-900 font-bold">
+                                                                                <span>Signal Tags for this Field:</span>
+                                                                                <button 
+                                                                                    type="button" 
+                                                                                    onClick={() => setActiveEditSprintSignalEditor(null)}
+                                                                                    className="text-purple-600 hover:text-purple-900 font-black cursor-pointer"
+                                                                                >
+                                                                                    ✕
+                                                                                </button>
+                                                                            </div>
+
+                                                                            {/* Existing signal chips */}
+                                                                            {sigs.length > 0 ? (
+                                                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                                                    {sigs.map((sig, sIdx) => (
+                                                                                        <span 
+                                                                                            key={sIdx}
+                                                                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-100 text-purple-800 rounded-lg font-bold text-xs border border-purple-200"
+                                                                                        >
+                                                                                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                                                            {sig}
+                                                                                            <button
+                                                                                                type="button"
+                                                                                                onClick={() => {
+                                                                                                    const updatedSigs = sigs.filter((_, idx) => idx !== sIdx);
+                                                                                                    handleTaskMultiTextSignalsChange(index, lblIndex, updatedSigs);
+                                                                                                }}
+                                                                                                className="hover:text-red-500 ml-1 cursor-pointer"
+                                                                                                title="Remove signal"
+                                                                                            >
+                                                                                                ✕
+                                                                                            </button>
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <p className="text-gray-500 italic text-xs">No signals added yet. Add signals below to display as small tags.</p>
+                                                                            )}
+
+                                                                            {/* Add signal input with + button */}
+                                                                            <div className="flex gap-2 items-center pt-1">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={editSprintSignalDraft}
+                                                                                    onChange={(e) => setEditSprintSignalDraft(e.target.value)}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            e.preventDefault();
+                                                                                            if (editSprintSignalDraft.trim()) {
+                                                                                                const newSigs = editSprintSignalDraft.split(',').map(s => s.trim()).filter(Boolean);
+                                                                                                handleTaskMultiTextSignalsChange(index, lblIndex, [...sigs, ...newSigs]);
+                                                                                                setEditSprintSignalDraft('');
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                    placeholder="Add signal option..."
+                                                                                    className="flex-1 px-3 py-1.5 bg-white border border-purple-200 rounded-lg text-xs font-medium outline-none focus:ring-2 focus:ring-purple-300"
+                                                                                />
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        if (editSprintSignalDraft.trim()) {
+                                                                                            const newSigs = editSprintSignalDraft.split(',').map(s => s.trim()).filter(Boolean);
+                                                                                            handleTaskMultiTextSignalsChange(index, lblIndex, [...sigs, ...newSigs]);
+                                                                                            setEditSprintSignalDraft('');
+                                                                                        }
+                                                                                    }}
+                                                                                    className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-xs transition-all cursor-pointer"
+                                                                                    title="Add Signal"
+                                                                                >
+                                                                                    <Plus size={12} strokeWidth={3} />
+                                                                                    <span>Add</span>
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
                                                                 const updatedLabels = [...(currentContent.taskMultiTextLabels?.[index] || [])];
-                                                                updatedLabels.push(`Label ${updatedLabels.length + 1}`);
+                                                                updatedLabels.push(`Field ${updatedLabels.length + 1}`);
                                                                 handleTaskMultiTextLabelsChange(index, updatedLabels);
                                                             }}
                                                             className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-primary bg-primary/5 hover:bg-primary/10 border border-primary/10 hover:border-primary/20 rounded-lg transition-all cursor-pointer mt-1"
                                                         >
                                                             <Plus size={12} strokeWidth={2} />
-                                                            <span>Add Field Label</span>
+                                                            <span>Add Field</span>
                                                         </button>
                                                     </div>
                                                 </div>

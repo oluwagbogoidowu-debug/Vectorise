@@ -1284,6 +1284,52 @@ const SprintPreview: React.FC = () => {
         return isText && labels.length > 0;
     };
 
+    const resolveLinkedMultiTextLabel = (linkId: string | null | undefined, fallbackLabel: string): string => {
+        if (!linkId) return fallbackLabel;
+        if (linkId.startsWith('step')) {
+            if (linkId.includes(':poll')) {
+                const parts = linkId.split(':');
+                const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+                const optNum = parseInt(parts[1].replace('poll ', ''), 10);
+                const options = getAllStepPollOptions(day1Content, stepIdx, taskInputs, sprint?.dailyContent);
+                const chosenOpt = options[optNum - 1];
+                if (chosenOpt) return chosenOpt;
+                return `Option ${optNum}`;
+            }
+            const stepIdx = parseInt(linkId.replace('step', ''), 10);
+            const val = taskInputs[stepIdx];
+            if (val) {
+                if (val.startsWith('{')) {
+                    try {
+                        const parsed = JSON.parse(val);
+                        const vals = Object.values(parsed).filter(Boolean);
+                        if (vals.length > 0) return String(vals[0]);
+                    } catch (e) {}
+                }
+                if (val.startsWith('[')) {
+                    try {
+                        const parsed = JSON.parse(val);
+                        if (Array.isArray(parsed) && parsed.length > 0) return parsed.join(', ');
+                    } catch (e) {}
+                }
+                return val;
+            }
+            return fallbackLabel || `Step ${stepIdx + 1}`;
+        }
+        if (linkId.startsWith('prev-')) {
+            const parts = linkId.split('-');
+            const prevDay = parseInt(parts[1], 10);
+            const prevStepIdx = parseInt(parts[2], 10);
+            const prevDC = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(c => c.day === prevDay) : null;
+            if (prevDC) {
+                const opt = prevDC.taskPrompts?.[prevStepIdx];
+                if (opt) return opt;
+            }
+            return `Move ${prevDay} Step ${prevStepIdx + 1}`;
+        }
+        return fallbackLabel;
+    };
+
     const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
         if (!day1Content) return "";
 
@@ -1882,73 +1928,71 @@ const SprintPreview: React.FC = () => {
                                                  </div>
                                              ) : isMultiTextStep(i) ? (
                                                  <div className="space-y-4 animate-fade-in text-left mb-4">
-                                                     {(day1Content?.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0).map((lbl, lblIndex) => {
+                                                     {(day1Content?.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0).map((rawLbl, lblIndex) => {
+                                                         const linkedTarget = day1Content?.taskMultiTextLinks?.[i]?.[lblIndex];
+                                                         const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
+
                                                          let currentAnswers: Record<string, string> = {};
                                                          if (taskInputs[i]) {
                                                              try {
                                                                  if (taskInputs[i].startsWith("{")) {
                                                                      currentAnswers = JSON.parse(taskInputs[i]);
                                                                  } else {
-                                                                     currentAnswers = { [(day1Content?.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0)[0] || "default"]: taskInputs[i] };
+                                                                     currentAnswers = { [lbl || "default"]: taskInputs[i] };
                                                                  }
                                                              } catch (e) {
                                                                  currentAnswers = {};
                                                              }
                                                          }
-                                                         const labelVal = currentAnswers[lbl] || "";
+                                                         const labelVal = currentAnswers[lbl] || currentAnswers[rawLbl] || "";
                                                          const sigs = (day1Content?.taskMultiTextSignals?.[i]?.[lblIndex] || []).filter((s: any) => s && String(s).trim().length > 0);
                                                          const tgs = (day1Content?.taskMultiTextTags?.[i]?.[lblIndex] || []).filter((t: any) => t && String(t).trim().length > 0);
+                                                         const effectiveOptions = [...sigs, ...tgs];
+
                                                          return (
-                                                             <div key={lblIndex} className="space-y-1.5 pl-3 border-l-2 border-primary/20">
-                                                                 <div className="flex flex-wrap items-center justify-between gap-1.5">
-                                                                     <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
-                                                                         📝 {lbl}
-                                                                     </span>
-                                                                     {sigs.length > 0 && (
-                                                                         <div className="flex flex-wrap items-center gap-1">
-                                                                             {sigs.map((sig: string, sIdx: number) => (
-                                                                                 <span key={sIdx} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-black bg-purple-50 text-purple-700 rounded border border-purple-200 uppercase tracking-wider shadow-xs">
-                                                                                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                                                                     {sig}
-                                                                                 </span>
-                                                                             ))}
+                                                             <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
+                                                                 <div className="flex flex-col gap-1.5">
+                                                                     <div className="flex items-center gap-1.5">
+                                                                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
+                                                                             {linkedTarget ? '🔗' : '📝'} {lbl}
+                                                                         </span>
+                                                                     </div>
+                                                                     {/* Signal tags displayed horizontally below the label */}
+                                                                     {effectiveOptions.length > 0 && (
+                                                                         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                                                             {effectiveOptions.map((sig: string, sIdx: number) => {
+                                                                                 const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(sig.trim().toLowerCase()) || labelVal.trim().toLowerCase() === sig.trim().toLowerCase();
+                                                                                 return (
+                                                                                     <button
+                                                                                         key={sIdx}
+                                                                                         type="button"
+                                                                                         onClick={() => {
+                                                                                             let newLabelVal = '';
+                                                                                             const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                                                                                             if (existingParts.some((p: string) => p.toLowerCase() === sig.trim().toLowerCase())) {
+                                                                                                 newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== sig.trim().toLowerCase()).join(', ');
+                                                                                             } else {
+                                                                                                 newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${sig.trim()}` : sig.trim();
+                                                                                             }
+                                                                                             const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                                                             const newInputs = [...taskInputs];
+                                                                                             newInputs[i] = JSON.stringify(newAnswers);
+                                                                                             setTaskInputs(newInputs);
+                                                                                         }}
+                                                                                         className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                                                                                             isSelected 
+                                                                                                 ? 'bg-purple-600 text-white border-purple-600 shadow-xs' 
+                                                                                                 : 'bg-purple-50/80 text-purple-700 border-purple-200 hover:bg-purple-100'
+                                                                                         }`}
+                                                                                     >
+                                                                                         <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
+                                                                                         {sig}
+                                                                                     </button>
+                                                                                 );
+                                                                             })}
                                                                          </div>
                                                                      )}
                                                                  </div>
-
-                                                                 {tgs.length > 0 && (
-                                                                     <div className="flex flex-wrap gap-1 pt-0.5">
-                                                                         {tgs.map((tagItem: string, tIdx: number) => {
-                                                                             const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim().toLowerCase() === tagItem.trim().toLowerCase();
-                                                                             return (
-                                                                                 <button
-                                                                                     key={tIdx}
-                                                                                     type="button"
-                                                                                     onClick={() => {
-                                                                                         let newLabelVal = '';
-                                                                                         const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-                                                                                         if (existingParts.some((p: string) => p.toLowerCase() === tagItem.trim().toLowerCase())) {
-                                                                                             newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== tagItem.trim().toLowerCase()).join(', ');
-                                                                                         } else {
-                                                                                             newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${tagItem.trim()}` : tagItem.trim();
-                                                                                         }
-                                                                                         const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
-                                                                                         const newInputs = [...taskInputs];
-                                                                                         newInputs[i] = JSON.stringify(newAnswers);
-                                                                                         setTaskInputs(newInputs);
-                                                                                     }}
-                                                                                     className={`px-2 py-0.5 text-[11px] rounded-lg font-semibold border transition-all cursor-pointer ${
-                                                                                         isSelected
-                                                                                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                                                                                             : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-                                                                                     }`}
-                                                                                 >
-                                                                                     🏷️ {tagItem}
-                                                                                 </button>
-                                                                             );
-                                                                         })}
-                                                                     </div>
-                                                                 )}
 
                                                                  <AutoGrowingTextarea
                                                                      value={labelVal}

@@ -426,6 +426,7 @@ export interface DailyContent {
   taskMultiTextLabels?: string[][];
   taskMultiTextSignals?: string[][][];
   taskMultiTextTags?: string[][][];
+  taskMultiTextLinks?: (string | null | undefined)[][];
   taskPollOptions?: string[];
   taskPollOptionLinks?: (string | null | undefined)[];
   taskLinkedToNext?: boolean[];
