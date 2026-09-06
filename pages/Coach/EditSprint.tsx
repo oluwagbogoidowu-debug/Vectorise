@@ -930,6 +930,18 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskMultiTextLabels
       : [];
 
+    const safeMultiTextSignals = Array.isArray((content as any).taskMultiTextSignals)
+      ? (content as any).taskMultiTextSignals
+      : [];
+
+    const safeMultiTextTags = Array.isArray((content as any).taskMultiTextTags)
+      ? (content as any).taskMultiTextTags
+      : [];
+
+    const safeMultiTextLinks = Array.isArray((content as any).taskMultiTextLinks)
+      ? (content as any).taskMultiTextLinks
+      : [];
+
     const safeInputTypes = Array.isArray((content as any).taskInputTypes)
       ? (content as any).taskInputTypes
       : paddedPrompts.map(() => 'text');
@@ -971,7 +983,10 @@ const EditSprint: React.FC = () => {
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
         taskSpread: safeSpread,
-        taskMultiTextLabels: safeMultiTextLabels
+        taskMultiTextLabels: safeMultiTextLabels,
+        taskMultiTextSignals: safeMultiTextSignals,
+        taskMultiTextTags: safeMultiTextTags,
+        taskMultiTextLinks: safeMultiTextLinks
     };
   }, [sprint, selectedDay]);
 
@@ -1927,6 +1942,18 @@ const EditSprint: React.FC = () => {
         let currentMultiTextLabels = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
             : [];
+
+        let currentMultiTextSignals = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextSignals || [])]
+            : [];
+
+        let currentMultiTextTags = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextTags || [])]
+            : [];
+
+        let currentMultiTextLinks = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLinks || [])]
+            : [];
             
         let currentSpread = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
@@ -1944,6 +1971,9 @@ const EditSprint: React.FC = () => {
         currentFootnotes.push(null as any);
         currentVideos.push(null as any);
         currentMultiTextLabels.push(null as any);
+        currentMultiTextSignals.push([]);
+        currentMultiTextTags.push([]);
+        currentMultiTextLinks.push([]);
         currentSpread.push(false);
         currentPollLinks.push(null as any);
         
@@ -1958,6 +1988,9 @@ const EditSprint: React.FC = () => {
               taskFootnotes: currentFootnotes,
               taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
+              taskMultiTextSignals: currentMultiTextSignals,
+              taskMultiTextTags: currentMultiTextTags,
+              taskMultiTextLinks: currentMultiTextLinks,
               taskSpread: currentSpread,
               taskPollOptionLinks: currentPollLinks
           };
@@ -1974,6 +2007,9 @@ const EditSprint: React.FC = () => {
             taskFootnotes: currentFootnotes,
             taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
+            taskMultiTextSignals: currentMultiTextSignals,
+            taskMultiTextTags: currentMultiTextTags,
+            taskMultiTextLinks: currentMultiTextLinks,
             taskSpread: currentSpread,
             taskPollOptionLinks: currentPollLinks
           });
@@ -2031,6 +2067,18 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLabels || [])]
             : [];
 
+        let currentMultiTextSignals = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextSignals || [])]
+            : [];
+
+        let currentMultiTextTags = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextTags || [])]
+            : [];
+
+        let currentMultiTextLinks = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskMultiTextLinks || [])]
+            : [];
+
         let currentSpread = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
             : [];
@@ -2054,6 +2102,9 @@ const EditSprint: React.FC = () => {
         while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
         while (currentVideos.length < maxNeeded) currentVideos.push(null as any);
         while (currentMultiTextLabels.length < maxNeeded) currentMultiTextLabels.push(null as any);
+        while (currentMultiTextSignals.length < maxNeeded) currentMultiTextSignals.push([]);
+        while (currentMultiTextTags.length < maxNeeded) currentMultiTextTags.push([]);
+        while (currentMultiTextLinks.length < maxNeeded) currentMultiTextLinks.push([]);
         while (currentSpread.length < maxNeeded) currentSpread.push(false);
         while (currentPollLinks.length < maxNeeded) currentPollLinks.push(null as any);
 
@@ -2079,6 +2130,9 @@ const EditSprint: React.FC = () => {
         currentFootnotes.splice(index, deleteCount);
         currentVideos.splice(index, deleteCount);
         currentMultiTextLabels.splice(index, deleteCount);
+        currentMultiTextSignals.splice(index, deleteCount);
+        currentMultiTextTags.splice(index, deleteCount);
+        currentMultiTextLinks.splice(index, deleteCount);
         currentSpread.splice(index, deleteCount);
         currentPollLinks.splice(index, deleteCount);
         
@@ -2099,6 +2153,9 @@ const EditSprint: React.FC = () => {
             currentFootnotes.push(null as any);
             currentVideos.push(null as any);
             currentMultiTextLabels.push(null as any);
+            currentMultiTextSignals.push([]);
+            currentMultiTextTags.push([]);
+            currentMultiTextLinks.push([]);
             currentSpread.push(false);
             currentLinkedSources.push([]);
             currentPollLinks.push(null as any);
@@ -2121,6 +2178,9 @@ const EditSprint: React.FC = () => {
               taskFootnotes: currentFootnotes,
               taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
+              taskMultiTextSignals: currentMultiTextSignals,
+              taskMultiTextTags: currentMultiTextTags,
+              taskMultiTextLinks: currentMultiTextLinks,
               taskSpread: currentSpread,
               taskLinkedSources: currentLinkedSources,
               taskPollOptionLinks: currentPollLinks
@@ -2140,6 +2200,9 @@ const EditSprint: React.FC = () => {
             taskFootnotes: currentFootnotes,
             taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
+            taskMultiTextSignals: currentMultiTextSignals,
+            taskMultiTextTags: currentMultiTextTags,
+            taskMultiTextLinks: currentMultiTextLinks,
             taskSpread: currentSpread,
             taskLinkedSources: currentLinkedSources,
             taskPollOptionLinks: currentPollLinks
@@ -5600,7 +5663,7 @@ const EditSprint: React.FC = () => {
                                                     </span>
                                                 </button>
                                             );
-                                        } else if ((!type || type === 'text') && currentContent.taskMultiTextLabels?.[i] && currentContent.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim()).length > 0) {
+                                        } else if ((!type || type === 'text') && Array.isArray(currentContent.taskMultiTextLabels?.[i]) && currentContent.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim()).length > 0) {
                                             const validLabels = currentContent.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim());
                                             let currentAnswers: Record<string, string> = {};
                                             const val = previewInputs[i] || '';
@@ -5617,8 +5680,10 @@ const EditSprint: React.FC = () => {
                                             }
                                             return (
                                                 <div className="space-y-3 text-left animate-fade-in">
-                                                    {validLabels.map((lbl: string, lblIndex: number) => {
-                                                        const labelVal = currentAnswers[lbl] || '';
+                                                    {validLabels.map((rawLbl: string, lblIndex: number) => {
+                                                        const linkedTarget = currentContent.taskMultiTextLinks?.[i]?.[lblIndex];
+                                                        const lbl = linkedTarget ? formatMultiTextLinkName(linkedTarget) : rawLbl;
+                                                        const labelVal = currentAnswers[lbl] || currentAnswers[rawLbl] || '';
                                                         const sigs = (currentContent.taskMultiTextSignals?.[i]?.[lblIndex] || []).filter(Boolean);
                                                         const tgs = (currentContent.taskMultiTextTags?.[i]?.[lblIndex] || []).filter(Boolean);
                                                         return (
@@ -5627,21 +5692,50 @@ const EditSprint: React.FC = () => {
                                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary">
                                                                         📝 {lbl}
                                                                     </span>
-                                                                    {sigs.length > 0 && (
-                                                                        <div className="flex flex-wrap items-center gap-1">
-                                                                            {sigs.map((sig: string, sIdx: number) => (
-                                                                                <span key={sIdx} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-black bg-purple-50 text-purple-700 rounded border border-purple-200 uppercase tracking-wider">
-                                                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                                                                    {sig}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
                                                                 </div>
+
+                                                                {/* S: Signal Tags (Interactive) */}
+                                                                {sigs.length > 0 && (
+                                                                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                                                        {sigs.map((sig: string, sIdx: number) => {
+                                                                            const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(sig.trim().toLowerCase()) || labelVal.trim().toLowerCase() === sig.trim().toLowerCase();
+                                                                            return (
+                                                                                <button
+                                                                                    key={sIdx}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        let newLabelVal = '';
+                                                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                                                                                        if (existingParts.some((p: string) => p.toLowerCase() === sig.trim().toLowerCase())) {
+                                                                                            newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== sig.trim().toLowerCase()).join(', ');
+                                                                                        } else {
+                                                                                            newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${sig.trim()}` : sig.trim();
+                                                                                        }
+                                                                                        const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                                                        setPreviewInputs(prev => ({
+                                                                                            ...prev,
+                                                                                            [i]: JSON.stringify(newAnswers)
+                                                                                        }));
+                                                                                    }}
+                                                                                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9.5px] font-black rounded-md border uppercase tracking-wider transition-all cursor-pointer ${
+                                                                                        isSelected
+                                                                                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                                                                                            : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:border-purple-300'
+                                                                                    }`}
+                                                                                >
+                                                                                    <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
+                                                                                    {sig}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* T: Tags (Interactive) */}
                                                                 {tgs.length > 0 && (
                                                                     <div className="flex flex-wrap gap-1 pt-0.5">
                                                                         {tgs.map((tagItem: string, tIdx: number) => {
-                                                                            const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim() === tagItem.trim();
+                                                                            const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim().toLowerCase() === tagItem.trim().toLowerCase();
                                                                             return (
                                                                                 <button
                                                                                     key={tIdx}

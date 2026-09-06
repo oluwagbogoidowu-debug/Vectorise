@@ -2202,6 +2202,52 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return isText && labels.length > 0;
   };
 
+  const resolveLinkedMultiTextLabel = (linkId: string | null | undefined, fallbackLabel: string): string => {
+    if (!linkId) return fallbackLabel;
+    if (linkId.startsWith('step')) {
+      if (linkId.includes(':poll')) {
+        const parts = linkId.split(':');
+        const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+        const optNum = parseInt(parts[1].replace('poll ', ''), 10);
+        const options = getAllStepPollOptions(dayContent, stepIdx, taskInputs, sprint?.dailyContent);
+        const chosenOpt = options[optNum - 1];
+        if (chosenOpt) return chosenOpt;
+        return `Option ${optNum}`;
+      }
+      const stepIdx = parseInt(linkId.replace('step', ''), 10);
+      const val = taskInputs[stepIdx];
+      if (val) {
+        if (val.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(val);
+            const vals = Object.values(parsed).filter(Boolean);
+            if (vals.length > 0) return String(vals[0]);
+          } catch (e) {}
+        }
+        if (val.startsWith('[')) {
+          try {
+            const parsed = JSON.parse(val);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed.join(', ');
+          } catch (e) {}
+        }
+        return val;
+      }
+      return fallbackLabel || `Step ${stepIdx + 1}`;
+    }
+    if (linkId.startsWith('prev-')) {
+      const parts = linkId.split('-');
+      const prevDay = parseInt(parts[1], 10);
+      const prevStepIdx = parseInt(parts[2], 10);
+      const prevDC = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(c => c.day === prevDay) : null;
+      if (prevDC) {
+        const opt = prevDC.taskPrompts?.[prevStepIdx];
+        if (opt) return opt;
+      }
+      return `Move ${prevDay} Step ${prevStepIdx + 1}`;
+    }
+    return fallbackLabel;
+  };
+
   const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
     if (!dayContent) return "";
 
@@ -4565,7 +4611,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     </div>
                                   ) : isMultiTextStep(i) ? (
                                     <div className="space-y-4 animate-fade-in text-left">
-                                      {(dayContent.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0).map((lbl, lblIndex) => {
+                                      {(dayContent.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0).map((rawLbl, lblIndex) => {
+                                        const linkedTarget = dayContent.taskMultiTextLinks?.[i]?.[lblIndex];
+                                        const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
                                         let currentAnswers: Record<string, string> = {};
                                         if (taskInputs[i]) {
                                           try {
@@ -4578,7 +4626,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             currentAnswers = {};
                                           }
                                         }
-                                        const labelVal = currentAnswers[lbl] || "";
+                                        const labelVal = currentAnswers[lbl] || currentAnswers[rawLbl] || "";
                                         const sigs = (dayContent.taskMultiTextSignals?.[i]?.[lblIndex] || []).filter((s: any) => s && String(s).trim().length > 0);
                                         const tgs = (dayContent.taskMultiTextTags?.[i]?.[lblIndex] || []).filter((t: any) => t && String(t).trim().length > 0);
                                         return (
@@ -4587,17 +4635,43 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                               <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
                                                 📝 {lbl}
                                               </span>
-                                              {sigs.length > 0 && (
-                                                <div className="flex flex-wrap items-center gap-1.5">
-                                                  {sigs.map((sig: string, sIdx: number) => (
-                                                    <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] sm:text-[10px] font-black bg-purple-50 text-purple-700 rounded-md border border-purple-200 uppercase tracking-wider shadow-xs">
-                                                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                                      {sig}
-                                                    </span>
-                                                  ))}
-                                                </div>
-                                              )}
                                             </div>
+
+                                            {/* S: Signal Tags (Interactive) */}
+                                            {sigs.length > 0 && (
+                                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                                {sigs.map((sig: string, sIdx: number) => {
+                                                  const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(sig.trim().toLowerCase()) || labelVal.trim().toLowerCase() === sig.trim().toLowerCase();
+                                                  return (
+                                                    <button
+                                                      key={sIdx}
+                                                      type="button"
+                                                      onClick={() => {
+                                                        let newLabelVal = '';
+                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                                                        if (existingParts.some((p: string) => p.toLowerCase() === sig.trim().toLowerCase())) {
+                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== sig.trim().toLowerCase()).join(', ');
+                                                        } else {
+                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${sig.trim()}` : sig.trim();
+                                                        }
+                                                        const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                        const newInputs = [...taskInputs];
+                                                        newInputs[i] = JSON.stringify(newAnswers);
+                                                        setTaskInputs(newInputs);
+                                                      }}
+                                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] sm:text-[10.5px] font-black rounded-lg border uppercase tracking-wider transition-all cursor-pointer shadow-xs ${
+                                                        isSelected
+                                                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                                                          : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:border-purple-300'
+                                                      }`}
+                                                    >
+                                                      <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
+                                                      {sig}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
 
                                             {tgs.length > 0 && (
                                               <div className="flex flex-wrap gap-1.5 pt-0.5">
