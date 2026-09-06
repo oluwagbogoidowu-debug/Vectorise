@@ -59,6 +59,7 @@ import { generateDayPDF } from '../../utils/pdfGenerator';
 import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
+const customPrompt = (window as any).prompt;
 
 /**
  * Visual Diff Tool
@@ -1261,6 +1262,56 @@ const EditSprint: React.FC = () => {
             taskPrompts: ['', '', ''],
             taskMultiTextLabels: currentLabels,
           });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskMultiTextSignalsChange = (stepIndex: number, lblIndex: number, signals: string[]) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        const dc = existingContentIndex >= 0 ? { ...updatedDailyContent[existingContentIndex] } : { day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''] };
+        
+        let allSignals = Array.isArray(dc.taskMultiTextSignals) ? [...dc.taskMultiTextSignals] : [];
+        while (allSignals.length <= stepIndex) allSignals.push([]);
+        let stepSignals = Array.isArray(allSignals[stepIndex]) ? [...allSignals[stepIndex]] : [];
+        while (stepSignals.length <= lblIndex) stepSignals.push([]);
+        stepSignals[lblIndex] = signals;
+        allSignals[stepIndex] = stepSignals;
+        dc.taskMultiTextSignals = allSignals;
+
+        if (existingContentIndex >= 0) {
+            updatedDailyContent[existingContentIndex] = dc;
+        } else {
+            updatedDailyContent.push(dc);
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskMultiTextTagsChange = (stepIndex: number, lblIndex: number, tags: string[]) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        const dc = existingContentIndex >= 0 ? { ...updatedDailyContent[existingContentIndex] } : { day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''] };
+        
+        let allTags = Array.isArray(dc.taskMultiTextTags) ? [...dc.taskMultiTextTags] : [];
+        while (allTags.length <= stepIndex) allTags.push([]);
+        let stepTags = Array.isArray(allTags[stepIndex]) ? [...allTags[stepIndex]] : [];
+        while (stepTags.length <= lblIndex) stepTags.push([]);
+        stepTags[lblIndex] = tags;
+        allTags[stepIndex] = stepTags;
+        dc.taskMultiTextTags = allTags;
+
+        if (existingContentIndex >= 0) {
+            updatedDailyContent[existingContentIndex] = dc;
+        } else {
+            updatedDailyContent.push(dc);
         }
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -4535,6 +4586,42 @@ const EditSprint: React.FC = () => {
                                                                     className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
                                                                     placeholder={`Label for Field ${lblIndex + 1}...`}
                                                                 />
+                                                                {(() => {
+                                                                    const sigs = currentContent.taskMultiTextSignals?.[index]?.[lblIndex] || [];
+                                                                    const tgs = currentContent.taskMultiTextTags?.[index]?.[lblIndex] || [];
+                                                                    return (
+                                                                        <div className="flex items-center gap-1 shrink-0">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const input = prompt(`Enter signal tags for "${lbl}" (comma separated):`, sigs.join(', '));
+                                                                                    if (input !== null) {
+                                                                                        const parsed = input.split(',').map(s => s.trim()).filter(Boolean);
+                                                                                        handleTaskMultiTextSignalsChange(index, lblIndex, parsed);
+                                                                                    }
+                                                                                }}
+                                                                                className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-all ${sigs.length > 0 ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 hover:bg-primary/10 text-gray-600'}`}
+                                                                                title="Configure Signal Tags (S)"
+                                                                            >
+                                                                                S {sigs.length > 0 ? `(${sigs.length})` : ''}
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const input = prompt(`Enter tags/options for "${lbl}" (comma separated):`, tgs.join(', '));
+                                                                                    if (input !== null) {
+                                                                                        const parsed = input.split(',').map(s => s.trim()).filter(Boolean);
+                                                                                        handleTaskMultiTextTagsChange(index, lblIndex, parsed);
+                                                                                    }
+                                                                                }}
+                                                                                className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-all ${tgs.length > 0 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 hover:bg-indigo-50 text-gray-600'}`}
+                                                                                title="Configure Tags/Options (T)"
+                                                                            >
+                                                                                T {tgs.length > 0 ? `(${tgs.length})` : ''}
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                                 <button 
                                                                     type="button"
                                                                     onClick={() => {
