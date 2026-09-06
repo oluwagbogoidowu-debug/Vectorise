@@ -370,6 +370,39 @@ export const serializeSprint = (sprint: any): any => {
                     return '[]';
                 });
             }
+            if (Array.isArray(dayClone.taskMultiTextSignals)) {
+                dayClone.taskMultiTextSignals = dayClone.taskMultiTextSignals.map((item: any) => {
+                    if (Array.isArray(item) || (typeof item === 'object' && item !== null)) {
+                        return safeJSONStringify(item);
+                    }
+                    if (typeof item === 'string') {
+                        return item;
+                    }
+                    return '[]';
+                });
+            }
+            if (Array.isArray(dayClone.taskMultiTextTags)) {
+                dayClone.taskMultiTextTags = dayClone.taskMultiTextTags.map((item: any) => {
+                    if (Array.isArray(item) || (typeof item === 'object' && item !== null)) {
+                        return safeJSONStringify(item);
+                    }
+                    if (typeof item === 'string') {
+                        return item;
+                    }
+                    return '[]';
+                });
+            }
+            if (Array.isArray(dayClone.taskMultiTextLinks)) {
+                dayClone.taskMultiTextLinks = dayClone.taskMultiTextLinks.map((item: any) => {
+                    if (Array.isArray(item)) {
+                        return safeJSONStringify(item);
+                    }
+                    if (typeof item === 'string') {
+                        return item;
+                    }
+                    return '[]';
+                });
+            }
             return dayClone;
         });
     }
@@ -407,6 +440,54 @@ export const deserializeSprint = (sprint: any): any => {
             }
             if (Array.isArray(dayClone.taskMultiTextLabels)) {
                 dayClone.taskMultiTextLabels = dayClone.taskMultiTextLabels.map((item: any) => {
+                    if (typeof item === 'string') {
+                        try {
+                            const parsed = JSON.parse(item);
+                            return Array.isArray(parsed) ? parsed : [];
+                        } catch (e) {
+                            return [];
+                        }
+                    }
+                    if (Array.isArray(item)) {
+                        return item;
+                    }
+                    return [];
+                });
+            }
+            if (Array.isArray(dayClone.taskMultiTextSignals)) {
+                dayClone.taskMultiTextSignals = dayClone.taskMultiTextSignals.map((item: any) => {
+                    if (typeof item === 'string') {
+                        try {
+                            const parsed = JSON.parse(item);
+                            return Array.isArray(parsed) ? parsed : [];
+                        } catch (e) {
+                            return [];
+                        }
+                    }
+                    if (Array.isArray(item)) {
+                        return item;
+                    }
+                    return [];
+                });
+            }
+            if (Array.isArray(dayClone.taskMultiTextTags)) {
+                dayClone.taskMultiTextTags = dayClone.taskMultiTextTags.map((item: any) => {
+                    if (typeof item === 'string') {
+                        try {
+                            const parsed = JSON.parse(item);
+                            return Array.isArray(parsed) ? parsed : [];
+                        } catch (e) {
+                            return [];
+                        }
+                    }
+                    if (Array.isArray(item)) {
+                        return item;
+                    }
+                    return [];
+                });
+            }
+            if (Array.isArray(dayClone.taskMultiTextLinks)) {
+                dayClone.taskMultiTextLinks = dayClone.taskMultiTextLinks.map((item: any) => {
                     if (typeof item === 'string') {
                         try {
                             const parsed = JSON.parse(item);

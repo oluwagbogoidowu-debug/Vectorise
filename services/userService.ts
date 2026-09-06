@@ -104,6 +104,14 @@ export const sanitizeData = (val: any, seen = new WeakSet(), maxDepth = 10): any
     // 5. Handle Arrays
     if (Array.isArray(val)) {
         const result = val.map(item => {
+            if (Array.isArray(item)) {
+                // Firestore rejects nested arrays. Convert nested array to JSON string to prevent WriteBatch failure.
+                try {
+                    return JSON.stringify(item);
+                } catch (e) {
+                    return '[]';
+                }
+            }
             const res = sanitizeData(item, seen, maxDepth - 1);
             return res === undefined ? null : res;
         });
