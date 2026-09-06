@@ -2192,60 +2192,80 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return false;
   };
 
-  const isMultiTextStep = (stepIndex: number): boolean => {
-    if (!dayContent) return false;
+  const getMultiTextFieldCount = (stepIndex: number): number => {
+    if (!dayContent) return 0;
     const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
     const isText = type === "text" || type === "" || type === "undefined";
-    const labels = Array.isArray(dayContent.taskMultiTextLabels?.[stepIndex])
-      ? dayContent.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim().length > 0)
-      : [];
-    return isText && labels.length > 0;
+    if (!isText) return 0;
+    const lCount = Array.isArray(dayContent.taskMultiTextLabels?.[stepIndex]) ? dayContent.taskMultiTextLabels[stepIndex].length : 0;
+    const linkCount = Array.isArray(dayContent.taskMultiTextLinks?.[stepIndex]) ? dayContent.taskMultiTextLinks[stepIndex].length : 0;
+    const sigCount = Array.isArray(dayContent.taskMultiTextSignals?.[stepIndex]) ? dayContent.taskMultiTextSignals[stepIndex].length : 0;
+    const tagCount = Array.isArray(dayContent.taskMultiTextTags?.[stepIndex]) ? dayContent.taskMultiTextTags[stepIndex].length : 0;
+    return Math.max(lCount, linkCount, sigCount, tagCount);
+  };
+
+  const isMultiTextStep = (stepIndex: number): boolean => {
+    return getMultiTextFieldCount(stepIndex) > 0;
   };
 
   const resolveLinkedMultiTextLabel = (linkId: string | null | undefined, fallbackLabel: string): string => {
-    if (!linkId) return fallbackLabel;
-    if (linkId.startsWith('step')) {
-      if (linkId.includes(':poll')) {
-        const parts = linkId.split(':');
-        const stepIdx = parseInt(parts[0].replace('step', ''), 10);
-        const optNum = parseInt(parts[1].replace('poll ', ''), 10);
-        const options = getAllStepPollOptions(dayContent, stepIdx, taskInputs, sprint?.dailyContent);
-        const chosenOpt = options[optNum - 1];
-        if (chosenOpt) return chosenOpt;
-        return `Option ${optNum}`;
-      }
-      const stepIdx = parseInt(linkId.replace('step', ''), 10);
-      const val = taskInputs[stepIdx];
-      if (val) {
-        if (val.startsWith('{')) {
-          try {
-            const parsed = JSON.parse(val);
-            const vals = Object.values(parsed).filter(Boolean);
-            if (vals.length > 0) return String(vals[0]);
-          } catch (e) {}
+    if (!linkId) return fallbackLabel || "Field";
+    try {
+      if (typeof linkId === 'string' && linkId.startsWith('step')) {
+        if (linkId.includes(':poll')) {
+          const parts = linkId.split(':');
+          const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+          const optNum = parseInt(parts[1].replace('poll ', ''), 10);
+          const options = getAllStepPollOptions(dayContent, stepIdx, taskInputs, sprint?.dailyContent);
+          const chosenOpt = options[optNum - 1];
+          if (chosenOpt) return chosenOpt;
+          return `Option ${optNum}`;
         }
-        if (val.startsWith('[')) {
-          try {
-            const parsed = JSON.parse(val);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed.join(', ');
-          } catch (e) {}
+        if (linkId.includes(':tag')) {
+          const parts = linkId.split(':');
+          const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+          const tagNum = parseInt(parts[1].replace('tag ', ''), 10);
+          const tagOpts = (dayContent as any)?.taskTags?.[stepIdx] || (dayContent as any)?.taskInputCustomTags?.[stepIdx] || [];
+          if (Array.isArray(tagOpts) && tagOpts[tagNum - 1]) return tagOpts[tagNum - 1];
+          return `Tag ${tagNum}`;
         }
-        return val;
+        const stepIdx = parseInt(linkId.replace('step', ''), 10);
+        if (!isNaN(stepIdx) && Array.isArray(taskInputs)) {
+          const val = taskInputs[stepIdx];
+          if (val && typeof val === 'string') {
+            if (val.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(val);
+                const vals = Object.values(parsed).filter(Boolean);
+                if (vals.length > 0) return String(vals[0]);
+              } catch (e) {}
+            }
+            if (val.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed.join(', ');
+              } catch (e) {}
+            }
+            return val;
+          }
+        }
+        return fallbackLabel || `Step ${stepIdx + 1}`;
       }
-      return fallbackLabel || `Step ${stepIdx + 1}`;
-    }
-    if (linkId.startsWith('prev-')) {
-      const parts = linkId.split('-');
-      const prevDay = parseInt(parts[1], 10);
-      const prevStepIdx = parseInt(parts[2], 10);
-      const prevDC = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(c => c.day === prevDay) : null;
-      if (prevDC) {
-        const opt = prevDC.taskPrompts?.[prevStepIdx];
-        if (opt) return opt;
+      if (typeof linkId === 'string' && linkId.startsWith('prev-')) {
+        const parts = linkId.split('-');
+        const prevDay = parseInt(parts[1], 10);
+        const prevStepIdx = parseInt(parts[2], 10);
+        const prevDC = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(c => c && Number(c.day) === prevDay) : null;
+        if (prevDC) {
+          const opt = prevDC.taskPrompts?.[prevStepIdx];
+          if (opt) return opt;
+        }
+        return `Move ${prevDay} Step ${prevStepIdx + 1}`;
       }
-      return `Move ${prevDay} Step ${prevStepIdx + 1}`;
+    } catch (e) {
+      console.warn('Error resolving linked multi-text label:', e);
     }
-    return fallbackLabel;
+    return fallbackLabel || "Field";
   };
 
   const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
@@ -3201,12 +3221,19 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }
       
       if (isMultiTextStep(i)) {
-        const labels = dayContent.taskMultiTextLabels?.[i] || [];
-        if (labels.length > 0) {
+        const fieldCount = getMultiTextFieldCount(i);
+        if (fieldCount > 0) {
           try {
             if (!val.startsWith("{")) return false;
             const parsed = JSON.parse(val);
-            return labels.every(lbl => parsed[lbl] && parsed[lbl].trim().length > 0);
+            for (let lblIndex = 0; lblIndex < fieldCount; lblIndex++) {
+              const rawLbl = dayContent.taskMultiTextLabels?.[i]?.[lblIndex] || `Field ${lblIndex + 1}`;
+              const linkedTarget = dayContent.taskMultiTextLinks?.[i]?.[lblIndex];
+              const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
+              const answer = parsed[lbl] || parsed[rawLbl] || (typeof Object.values(parsed)[lblIndex] === 'string' ? Object.values(parsed)[lblIndex] : '');
+              if (!answer || String(answer).trim().length === 0) return false;
+            }
+            return true;
           } catch (e) {
             return false;
           }
@@ -4611,29 +4638,34 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     </div>
                                   ) : isMultiTextStep(i) ? (
                                     <div className="space-y-4 animate-fade-in text-left">
-                                      {(dayContent.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0).map((rawLbl, lblIndex) => {
+                                      {Array.from({ length: getMultiTextFieldCount(i) }).map((_, lblIndex) => {
+                                        const rawLbl = dayContent.taskMultiTextLabels?.[i]?.[lblIndex] || `Field ${lblIndex + 1}`;
                                         const linkedTarget = dayContent.taskMultiTextLinks?.[i]?.[lblIndex];
                                         const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
                                         let currentAnswers: Record<string, string> = {};
-                                        if (taskInputs[i]) {
+                                        if (taskInputs && taskInputs[i]) {
                                           try {
-                                            if (taskInputs[i].startsWith("{")) {
+                                            if (typeof taskInputs[i] === 'string' && taskInputs[i].startsWith("{")) {
                                               currentAnswers = JSON.parse(taskInputs[i]);
-                                            } else {
-                                              currentAnswers = { [(dayContent.taskMultiTextLabels?.[i] || []).filter((l: any) => l && String(l).trim().length > 0)[0] || "default"]: taskInputs[i] };
+                                            } else if (typeof taskInputs[i] === 'string') {
+                                              currentAnswers = { [lbl || "Field 1"]: taskInputs[i] };
                                             }
                                           } catch (e) {
                                             currentAnswers = {};
                                           }
                                         }
-                                        const labelVal = currentAnswers[lbl] || currentAnswers[rawLbl] || "";
-                                        const sigs = (dayContent.taskMultiTextSignals?.[i]?.[lblIndex] || []).filter((s: any) => s && String(s).trim().length > 0);
-                                        const tgs = (dayContent.taskMultiTextTags?.[i]?.[lblIndex] || []).filter((t: any) => t && String(t).trim().length > 0);
+                                        const labelVal = String(currentAnswers[lbl] || currentAnswers[rawLbl] || (typeof Object.values(currentAnswers)[lblIndex] === 'string' ? Object.values(currentAnswers)[lblIndex] : "") || "");
+                                        const sigs = Array.isArray(dayContent.taskMultiTextSignals?.[i]?.[lblIndex])
+                                          ? dayContent.taskMultiTextSignals[i][lblIndex].filter((s: any) => s && String(s).trim().length > 0).map(String)
+                                          : [];
+                                        const tgs = Array.isArray(dayContent.taskMultiTextTags?.[i]?.[lblIndex])
+                                          ? dayContent.taskMultiTextTags[i][lblIndex].filter((t: any) => t && String(t).trim().length > 0).map(String)
+                                          : [];
                                         return (
                                           <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                               <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
-                                                📝 {lbl}
+                                                {linkedTarget ? '🔗' : '📝'} {lbl}
                                               </span>
                                             </div>
 
@@ -4641,21 +4673,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             {sigs.length > 0 && (
                                               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                                                 {sigs.map((sig: string, sIdx: number) => {
-                                                  const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(sig.trim().toLowerCase()) || labelVal.trim().toLowerCase() === sig.trim().toLowerCase();
+                                                  const cleanSig = String(sig).trim();
+                                                  const isSelected = labelVal ? (
+                                                    labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanSig.toLowerCase()) ||
+                                                    labelVal.trim().toLowerCase() === cleanSig.toLowerCase()
+                                                  ) : false;
                                                   return (
                                                     <button
                                                       key={sIdx}
                                                       type="button"
                                                       onClick={() => {
                                                         let newLabelVal = '';
-                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-                                                        if (existingParts.some((p: string) => p.toLowerCase() === sig.trim().toLowerCase())) {
-                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== sig.trim().toLowerCase()).join(', ');
+                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
+                                                        if (existingParts.some((p: string) => p.toLowerCase() === cleanSig.toLowerCase())) {
+                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanSig.toLowerCase()).join(', ');
                                                         } else {
-                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${sig.trim()}` : sig.trim();
+                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanSig}` : cleanSig;
                                                         }
                                                         const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
-                                                        const newInputs = [...taskInputs];
+                                                        const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                         newInputs[i] = JSON.stringify(newAnswers);
                                                         setTaskInputs(newInputs);
                                                       }}
@@ -4666,7 +4702,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                       }`}
                                                     >
                                                       <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
-                                                      {sig}
+                                                      {cleanSig}
                                                     </button>
                                                   );
                                                 })}
@@ -4676,21 +4712,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             {tgs.length > 0 && (
                                               <div className="flex flex-wrap gap-1.5 pt-0.5">
                                                 {tgs.map((tagItem: string, tIdx: number) => {
-                                                  const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim().toLowerCase() === tagItem.trim().toLowerCase();
+                                                  const cleanTag = String(tagItem).trim();
+                                                  const isSelected = labelVal ? (
+                                                    labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanTag.toLowerCase()) ||
+                                                    labelVal.trim().toLowerCase() === cleanTag.toLowerCase()
+                                                  ) : false;
                                                   return (
                                                     <button
                                                       key={tIdx}
                                                       type="button"
                                                       onClick={() => {
                                                         let newLabelVal = '';
-                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-                                                        if (existingParts.some((p: string) => p.toLowerCase() === tagItem.trim().toLowerCase())) {
-                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== tagItem.trim().toLowerCase()).join(', ');
+                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
+                                                        if (existingParts.some((p: string) => p.toLowerCase() === cleanTag.toLowerCase())) {
+                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanTag.toLowerCase()).join(', ');
                                                         } else {
-                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${tagItem.trim()}` : tagItem.trim();
+                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanTag}` : cleanTag;
                                                         }
                                                         const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
-                                                        const newInputs = [...taskInputs];
+                                                        const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                         newInputs[i] = JSON.stringify(newAnswers);
                                                         setTaskInputs(newInputs);
                                                       }}
@@ -4700,7 +4740,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                           : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
                                                       }`}
                                                     >
-                                                      🏷️ {tagItem}
+                                                      🏷️ {cleanTag}
                                                     </button>
                                                   );
                                                 })}
@@ -4711,7 +4751,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                               value={labelVal}
                                               onChange={(val) => {
                                                 const newAnswers = { ...currentAnswers, [lbl]: val };
-                                                const newInputs = [...taskInputs];
+                                                const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                 newInputs[i] = JSON.stringify(newAnswers);
                                                 setTaskInputs(newInputs);
                                               }}
@@ -5449,59 +5489,100 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </div>
                           ) : getStepInputType(dayContent, 0, taskInputs, sprint?.dailyContent, enrollment?.progress) === "none" ? null : isMultiTextStep(0) ? (
                             <div className="space-y-4 animate-fade-in text-left">
-                              {(dayContent?.taskMultiTextLabels?.[0] || []).filter((l: any) => l && String(l).trim().length > 0).map((lbl, lblIndex) => {
+                              {Array.from({ length: getMultiTextFieldCount(0) }).map((_, lblIndex) => {
+                                const rawLbl = dayContent?.taskMultiTextLabels?.[0]?.[lblIndex] || `Field ${lblIndex + 1}`;
+                                const linkedTarget = dayContent?.taskMultiTextLinks?.[0]?.[lblIndex];
+                                const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
                                 let currentAnswers: Record<string, string> = {};
-                                if (taskInputs[0]) {
+                                if (taskInputs && taskInputs[0]) {
                                   try {
-                                    if (taskInputs[0].startsWith("{")) {
+                                    if (typeof taskInputs[0] === 'string' && taskInputs[0].startsWith("{")) {
                                       currentAnswers = JSON.parse(taskInputs[0]);
-                                    } else {
-                                      currentAnswers = { [(dayContent?.taskMultiTextLabels?.[0] || [])[0] || "default"]: taskInputs[0] };
+                                    } else if (typeof taskInputs[0] === 'string') {
+                                      currentAnswers = { [lbl || "Field 1"]: taskInputs[0] };
                                     }
                                   } catch (e) {
                                     currentAnswers = {};
                                   }
                                 }
-                                const labelVal = currentAnswers[lbl] || "";
-                                const sigs = (dayContent?.taskMultiTextSignals?.[0]?.[lblIndex] || []).filter((s: any) => s && String(s).trim().length > 0);
-                                const tgs = (dayContent?.taskMultiTextTags?.[0]?.[lblIndex] || []).filter((t: any) => t && String(t).trim().length > 0);
+                                const labelVal = String(currentAnswers[lbl] || currentAnswers[rawLbl] || (typeof Object.values(currentAnswers)[lblIndex] === 'string' ? Object.values(currentAnswers)[lblIndex] : "") || "");
+                                const sigs = Array.isArray(dayContent?.taskMultiTextSignals?.[0]?.[lblIndex])
+                                  ? dayContent.taskMultiTextSignals[0][lblIndex].filter((s: any) => s && String(s).trim().length > 0).map(String)
+                                  : [];
+                                const tgs = Array.isArray(dayContent?.taskMultiTextTags?.[0]?.[lblIndex])
+                                  ? dayContent.taskMultiTextTags[0][lblIndex].filter((t: any) => t && String(t).trim().length > 0).map(String)
+                                  : [];
 
                                 return (
                                   <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                       <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
-                                        📝 {lbl}
+                                        {linkedTarget ? '🔗' : '📝'} {lbl}
                                       </span>
-                                      {sigs.length > 0 && (
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                          {sigs.map((sig: string, sIdx: number) => (
-                                            <span key={sIdx} className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] sm:text-[10px] font-black bg-purple-50 text-purple-700 rounded-md border border-purple-200 uppercase tracking-wider shadow-xs">
-                                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                              {sig}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
                                     </div>
+
+                                    {/* S: Signal Tags (Interactive) */}
+                                    {sigs.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                        {sigs.map((sig: string, sIdx: number) => {
+                                          const cleanSig = String(sig).trim();
+                                          const isSelected = labelVal ? (
+                                            labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanSig.toLowerCase()) ||
+                                            labelVal.trim().toLowerCase() === cleanSig.toLowerCase()
+                                          ) : false;
+                                          return (
+                                            <button
+                                              key={sIdx}
+                                              type="button"
+                                              onClick={() => {
+                                                let newLabelVal = '';
+                                                const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
+                                                if (existingParts.some((p: string) => p.toLowerCase() === cleanSig.toLowerCase())) {
+                                                  newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanSig.toLowerCase()).join(', ');
+                                                } else {
+                                                  newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanSig}` : cleanSig;
+                                                }
+                                                const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
+                                                newInputs[0] = JSON.stringify(newAnswers);
+                                                setTaskInputs(newInputs);
+                                              }}
+                                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] sm:text-[10.5px] font-black rounded-lg border uppercase tracking-wider transition-all cursor-pointer shadow-xs ${
+                                                isSelected
+                                                  ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                                                  : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:border-purple-300'
+                                              }`}
+                                            >
+                                              <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
+                                              {cleanSig}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
 
                                     {tgs.length > 0 && (
                                       <div className="flex flex-wrap gap-1.5 pt-0.5">
                                         {tgs.map((tagItem: string, tIdx: number) => {
-                                          const isSelected = labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(tagItem.trim().toLowerCase()) || labelVal.trim().toLowerCase() === tagItem.trim().toLowerCase();
+                                          const cleanTag = String(tagItem).trim();
+                                          const isSelected = labelVal ? (
+                                            labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanTag.toLowerCase()) ||
+                                            labelVal.trim().toLowerCase() === cleanTag.toLowerCase()
+                                          ) : false;
                                           return (
                                             <button
                                               key={tIdx}
                                               type="button"
                                               onClick={() => {
                                                 let newLabelVal = '';
-                                                const existingParts = labelVal ? labelVal.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-                                                if (existingParts.some((p: string) => p.toLowerCase() === tagItem.trim().toLowerCase())) {
-                                                  newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== tagItem.trim().toLowerCase()).join(', ');
+                                                const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
+                                                if (existingParts.some((p: string) => p.toLowerCase() === cleanTag.toLowerCase())) {
+                                                  newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanTag.toLowerCase()).join(', ');
                                                 } else {
-                                                  newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${tagItem.trim()}` : tagItem.trim();
+                                                  newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanTag}` : cleanTag;
                                                 }
                                                 const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
-                                                const newInputs = [...taskInputs];
+                                                const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                 newInputs[0] = JSON.stringify(newAnswers);
                                                 setTaskInputs(newInputs);
                                               }}
@@ -5511,7 +5592,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                   : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
                                               }`}
                                             >
-                                              🏷️ {tagItem}
+                                              🏷️ {cleanTag}
                                             </button>
                                           );
                                         })}
@@ -5522,7 +5603,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       value={labelVal}
                                       onChange={(val) => {
                                         const newAnswers = { ...currentAnswers, [lbl]: val };
-                                        const newInputs = [...taskInputs];
+                                        const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                         newInputs[0] = JSON.stringify(newAnswers);
                                         setTaskInputs(newInputs);
                                       }}

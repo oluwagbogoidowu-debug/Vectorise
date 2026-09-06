@@ -2122,26 +2122,46 @@ export function getStepMultiTextLabels(
   allDaysInputs?: any[] | Record<number, any>
 ): string[] {
   if (!dayContent) return [];
-  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
   const rawLabels = dayContent.taskMultiTextLabels?.[stepIdx];
-  let valStr = '';
-  if (typeof rawLabels === 'string') {
-    valStr = getStepVersionValue(rawLabels, verIdx, '');
-  } else if (Array.isArray(rawLabels)) {
+  if (!rawLabels) return [];
+  
+  // If rawLabels is directly an array
+  if (Array.isArray(rawLabels)) {
+    if (rawLabels.length > 0 && typeof rawLabels[0] === 'string' && !rawLabels[0].startsWith('[')) {
+      return rawLabels.filter((l: any) => l !== undefined && l !== null).map(String);
+    }
+    const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
     if (rawLabels[verIdx] !== undefined) {
       const item = rawLabels[verIdx];
-      if (Array.isArray(item)) return item;
-      if (typeof item === 'string') valStr = item;
-    } else if (rawLabels.length > 0) {
-      if (Array.isArray(rawLabels[0])) return rawLabels[0];
-      if (typeof rawLabels[0] === 'string') valStr = rawLabels[0];
+      if (Array.isArray(item)) return item.map(String);
+      if (typeof item === 'string') {
+        try {
+          const parsed = JSON.parse(item);
+          if (Array.isArray(parsed)) return parsed.map(String);
+        } catch (e) {}
+        return [item];
+      }
     }
-  }
-  if (valStr) {
-    try {
-      const parsed = JSON.parse(valStr);
-      if (Array.isArray(parsed)) return parsed;
-    } catch (e) {}
+    if (rawLabels.length > 0) {
+      if (Array.isArray(rawLabels[0])) return rawLabels[0].map(String);
+      if (typeof rawLabels[0] === 'string') {
+        try {
+          const parsed = JSON.parse(rawLabels[0]);
+          if (Array.isArray(parsed)) return parsed.map(String);
+        } catch (e) {}
+        return [rawLabels[0]];
+      }
+    }
+  } else if (typeof rawLabels === 'string') {
+    const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+    const valStr = getStepVersionValue(rawLabels, verIdx, '');
+    if (valStr) {
+      try {
+        const parsed = JSON.parse(valStr);
+        if (Array.isArray(parsed)) return parsed.map(String);
+      } catch (e) {}
+      return [valStr];
+    }
   }
   return [];
 }
