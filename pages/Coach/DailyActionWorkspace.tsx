@@ -4,6 +4,7 @@ import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookO
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
 import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
+import { normalizeMultiTextDailyContent } from '../../services/sprintService';
 
 const extractYouTubeId = (url: string): string | null => {
   if (!url) return null;
@@ -122,9 +123,10 @@ export default function DailyActionWorkspace({
 
   const getDailyContentForDay = (dayNum: number): DailyContent => {
     if (!sprint) return { day: dayNum, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: [] };
-    const content = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === dayNum) : undefined) || {
+    const rawContent = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === dayNum) : undefined) || {
       day: dayNum, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
     };
+    const content = normalizeMultiTextDailyContent(rawContent);
     
     const safePrompts = Array.isArray((content as any).taskPrompts) && (content as any).taskPrompts.length > 0
       ? (content as any).taskPrompts
@@ -221,32 +223,41 @@ export default function DailyActionWorkspace({
       const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
       if (existingContentIndex < 0) return prev;
       let updatedDailyContent = [...prev.dailyContent];
-      const dayContent = updatedDailyContent[existingContentIndex];
+      const dayContent = normalizeMultiTextDailyContent(updatedDailyContent[existingContentIndex]);
 
       const currentPrompts = Array.isArray(dayContent.taskPrompts) ? [...dayContent.taskPrompts] : [];
       if (currentPrompts.length <= 1) return prev; // Keep at least 1 step
 
-      const currentTypes = Array.isArray(dayContent.taskInputTypes) ? [...dayContent.taskInputTypes] : [];
-      const currentHints = Array.isArray(dayContent.taskHints) ? [...dayContent.taskHints] : [];
-      const currentNotes = Array.isArray(dayContent.taskNotes) ? [...dayContent.taskNotes] : [];
-      const currentFootnotes = Array.isArray(dayContent.taskFootnotes) ? [...dayContent.taskFootnotes] : [];
-      const currentPollLinks = Array.isArray(dayContent.taskPollOptionLinks) ? [...dayContent.taskPollOptionLinks] : [];
+      const spliceArr = (arr: any[] | undefined) => {
+        if (!Array.isArray(arr)) return arr;
+        const copy = [...arr];
+        if (copy.length > index) copy.splice(index, 1);
+        return copy;
+      };
 
       currentPrompts.splice(index, 1);
-      if (currentTypes.length > index) currentTypes.splice(index, 1);
-      if (currentHints.length > index) currentHints.splice(index, 1);
-      if (currentNotes.length > index) currentNotes.splice(index, 1);
-      if (currentFootnotes.length > index) currentFootnotes.splice(index, 1);
-      if (currentPollLinks.length > index) currentPollLinks.splice(index, 1);
 
       updatedDailyContent[existingContentIndex] = {
         ...dayContent,
         taskPrompts: currentPrompts,
-        taskInputTypes: currentTypes,
-        taskHints: currentHints,
-        taskNotes: currentNotes,
-        taskFootnotes: currentFootnotes,
-        taskPollOptionLinks: currentPollLinks
+        taskInputTypes: spliceArr(dayContent.taskInputTypes),
+        taskHints: spliceArr(dayContent.taskHints),
+        taskNotes: spliceArr(dayContent.taskNotes),
+        taskTagNotes: spliceArr(dayContent.taskTagNotes),
+        taskTagNoteActive: spliceArr(dayContent.taskTagNoteActive),
+        taskFootnotes: spliceArr(dayContent.taskFootnotes),
+        taskVideos: spliceArr(dayContent.taskVideos),
+        taskPollOptionLinks: spliceArr(dayContent.taskPollOptionLinks),
+        taskMultiTextLabels: spliceArr(dayContent.taskMultiTextLabels),
+        taskMultiTextSignals: spliceArr(dayContent.taskMultiTextSignals),
+        taskMultiTextTags: spliceArr(dayContent.taskMultiTextTags),
+        taskMultiTextLinks: spliceArr(dayContent.taskMultiTextLinks),
+        taskPollOptions: spliceArr(dayContent.taskPollOptions as any),
+        taskPollMultiSelect: spliceArr(dayContent.taskPollMultiSelect),
+        taskPollArrange: spliceArr(dayContent.taskPollArrange),
+        taskSpread: spliceArr(dayContent.taskSpread),
+        taskLinkedToNext: spliceArr(dayContent.taskLinkedToNext),
+        taskLinkedSources: spliceArr(dayContent.taskLinkedSources),
       };
 
       return { ...prev, dailyContent: updatedDailyContent };
@@ -2330,106 +2341,125 @@ export default function DailyActionWorkspace({
                     )}
 
                     {/* Multi Text label configuration */}
-                    {(!activeInputType || activeInputType === 'text') && dayContent.taskMultiTextLabels?.[activeIdx] && dayContent.taskMultiTextLabels[activeIdx].length > 0 && (
-                      <div className="mt-2 pl-2 border-l-2 border-purple-200/50 space-y-2 animate-fade-in text-[11px]">
-                        <div className="flex items-center justify-between">
-                          <p className="font-semibold text-purple-600">Multi-Text Fields & Label Links:</p>
-                        </div>
-                        <div className="space-y-2">
-                          {dayContent.taskMultiTextLabels[activeIdx].map((lbl, lblIndex) => {
-                            const sigs = (dayContent.taskMultiTextSignals?.[activeIdx]?.[lblIndex] || []).filter(Boolean);
-                            const linkedTarget = dayContent.taskMultiTextLinks?.[activeIdx]?.[lblIndex];
-                            const isSignalEditorOpen = activeSignalEditor?.dayNum === dayNum && activeSignalEditor?.stepIdx === activeIdx && activeSignalEditor?.lblIndex === lblIndex;
-                            const isLinkSelectorOpen = activeLabelLinkSelector?.dayNum === dayNum && activeLabelLinkSelector?.stepIdx === activeIdx && activeLabelLinkSelector?.lblIndex === lblIndex;
-                            const linkOptions = getAvailableMultiTextLinkOptions(dayNum, activeIdx);
+                    {(!activeInputType || activeInputType === 'text') && (() => {
+                      const stepLabels = Array.isArray(dayContent.taskMultiTextLabels?.[activeIdx])
+                        ? dayContent.taskMultiTextLabels[activeIdx]
+                        : (typeof dayContent.taskMultiTextLabels?.[activeIdx] === 'string'
+                            ? (() => { try { const p = JSON.parse(dayContent.taskMultiTextLabels[activeIdx]); return Array.isArray(p) ? p : []; } catch { return []; } })()
+                            : []);
+                      if (stepLabels.length === 0) return null;
 
-                            return (
-                              <div key={lblIndex} className="bg-white/80 border border-gray-200 rounded-lg p-2 space-y-1.5 shadow-xs">
-                                <div className="flex gap-1.5 items-center">
-                                  <span className="text-gray-450 text-[10px] font-bold w-4 shrink-0">{lblIndex + 1}</span>
-                                  
-                                  {linkedTarget ? (
-                                    <div className="flex-1 flex items-center justify-between px-2.5 py-1 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs font-bold text-emerald-800">
-                                      <span className="truncate">🔗 Linked to: {formatMultiTextLinkName(linkedTarget)}</span>
+                      return (
+                        <div className="mt-2 pl-2 border-l-2 border-purple-200/50 space-y-2 animate-fade-in text-[11px]">
+                          <div className="flex items-center justify-between">
+                            <p className="font-semibold text-purple-600">Multi-Text Fields & Label Links:</p>
+                          </div>
+                          <div className="space-y-2">
+                            {stepLabels.map((lbl, lblIndex) => {
+                              const rawSigs = (dayContent.taskMultiTextSignals as any)?.[activeIdx]?.[lblIndex];
+                              let sigs: string[] = [];
+                              if (Array.isArray(rawSigs)) {
+                                sigs = rawSigs.filter((s: any) => s && String(s).trim().length > 0).map(String);
+                              } else if (typeof rawSigs === 'string') {
+                                try {
+                                  const p = JSON.parse(rawSigs);
+                                  sigs = Array.isArray(p) ? p.filter((s: any) => s && String(s).trim().length > 0).map(String) : (String(rawSigs).trim() ? [String(rawSigs).trim()] : []);
+                                } catch {
+                                  sigs = String(rawSigs).trim() ? [String(rawSigs).trim()] : [];
+                                }
+                              }
+                              const linkedTarget = dayContent.taskMultiTextLinks?.[activeIdx]?.[lblIndex];
+                              const isSignalEditorOpen = activeSignalEditor?.dayNum === dayNum && activeSignalEditor?.stepIdx === activeIdx && activeSignalEditor?.lblIndex === lblIndex;
+                              const isLinkSelectorOpen = activeLabelLinkSelector?.dayNum === dayNum && activeLabelLinkSelector?.stepIdx === activeIdx && activeLabelLinkSelector?.lblIndex === lblIndex;
+                              const linkOptions = getAvailableMultiTextLinkOptions(dayNum, activeIdx);
+
+                              return (
+                                <div key={lblIndex} className="bg-white/80 border border-gray-200 rounded-lg p-2 space-y-1.5 shadow-xs">
+                                  <div className="flex gap-1.5 items-center">
+                                    <span className="text-gray-450 text-[10px] font-bold w-4 shrink-0">{lblIndex + 1}</span>
+                                    
+                                    {linkedTarget ? (
+                                      <div className="flex-1 flex items-center justify-between px-2.5 py-1 bg-emerald-50/70 border border-emerald-200 rounded-lg text-xs font-bold text-emerald-800">
+                                        <span className="truncate">🔗 Linked to: {formatMultiTextLinkName(linkedTarget)}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedDay(dayNum);
+                                            handleTaskMultiTextLinksChange(dayNum, activeIdx, lblIndex, null);
+                                          }}
+                                          className="text-[10px] text-emerald-600 hover:text-red-500 font-black ml-2 px-1 hover:bg-red-50 rounded transition-all cursor-pointer"
+                                          title="Disconnect Link"
+                                        >
+                                          ✕ Unlink
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <input 
+                                        type="text"
+                                        value={lbl}
+                                        onChange={(e) => {
+                                          setSelectedDay(dayNum);
+                                          const updatedLabels = [...stepLabels];
+                                          updatedLabels[lblIndex] = e.target.value;
+                                          handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels);
+                                        }}
+                                        className="flex-1 px-2.5 py-1 bg-white border border-gray-205 rounded-lg text-xs font-semibold outline-none transition-all focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
+                                        placeholder="Field label (or click L to connect)..."
+                                      />
+                                    )}
+
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {/* S: Signal configuration */}
                                       <button
                                         type="button"
                                         onClick={() => {
                                           setSelectedDay(dayNum);
-                                          handleTaskMultiTextLinksChange(dayNum, activeIdx, lblIndex, null);
+                                          if (isSignalEditorOpen) {
+                                            setActiveSignalEditor(null);
+                                          } else {
+                                            setActiveSignalEditor({ dayNum, stepIdx: activeIdx, lblIndex });
+                                            setSignalInputDraft('');
+                                          }
                                         }}
-                                        className="text-[10px] text-emerald-600 hover:text-red-500 font-black ml-2 px-1 hover:bg-red-50 rounded transition-all cursor-pointer"
-                                        title="Disconnect Link"
+                                        className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${sigs.length > 0 ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 hover:bg-purple-100 text-gray-600'} ${isSignalEditorOpen ? 'ring-2 ring-purple-400' : ''}`}
+                                        title="Configure Signal Tags (S)"
                                       >
-                                        ✕ Unlink
+                                        S{sigs.length > 0 ? ` (${sigs.length})` : ''}
+                                      </button>
+
+                                      {/* L: Label Link configuration */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          if (isLinkSelectorOpen) {
+                                            setActiveLabelLinkSelector(null);
+                                          } else {
+                                            setActiveLabelLinkSelector({ dayNum, stepIdx: activeIdx, lblIndex });
+                                          }
+                                        }}
+                                        className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${linkedTarget ? 'bg-emerald-600 text-white shadow-xs' : 'bg-gray-100 hover:bg-emerald-100 text-gray-600'} ${isLinkSelectorOpen ? 'ring-2 ring-emerald-400' : ''}`}
+                                        title="Connect Label (L) to Tag or Poll inputs"
+                                      >
+                                        L{linkedTarget ? ' ✓' : ''}
                                       </button>
                                     </div>
-                                  ) : (
-                                    <input 
-                                      type="text"
-                                      value={lbl}
-                                      onChange={(e) => {
-                                        setSelectedDay(dayNum);
-                                        const updatedLabels = [...(dayContent.taskMultiTextLabels?.[activeIdx] || [])];
-                                        updatedLabels[lblIndex] = e.target.value;
-                                        handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels);
-                                      }}
-                                      className="flex-1 px-2.5 py-1 bg-white border border-gray-205 rounded-lg text-xs font-semibold outline-none transition-all focus:ring-2 focus:ring-purple-100 focus:border-purple-300"
-                                      placeholder="Field label (or click L to connect)..."
-                                    />
-                                  )}
 
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    {/* S: Signal configuration */}
-                                    <button
+                                    <button 
                                       type="button"
                                       onClick={() => {
                                         setSelectedDay(dayNum);
-                                        if (isSignalEditorOpen) {
-                                          setActiveSignalEditor(null);
-                                        } else {
-                                          setActiveSignalEditor({ dayNum, stepIdx: activeIdx, lblIndex });
-                                          setSignalInputDraft('');
-                                        }
+                                        const updatedLabels = stepLabels.filter((_, lIdx) => lIdx !== lblIndex);
+                                        handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels.length === 0 ? null as any : updatedLabels);
+                                        if (isSignalEditorOpen) setActiveSignalEditor(null);
+                                        if (isLinkSelectorOpen) setActiveLabelLinkSelector(null);
                                       }}
-                                      className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${sigs.length > 0 ? 'bg-purple-600 text-white shadow-xs' : 'bg-gray-100 hover:bg-purple-100 text-gray-600'} ${isSignalEditorOpen ? 'ring-2 ring-purple-400' : ''}`}
-                                      title="Configure Signal Tags (S)"
+                                      className="text-gray-400 hover:text-red-500 shrink-0 p-0.5"
+                                      title="Delete Field"
                                     >
-                                      S{sigs.length > 0 ? ` (${sigs.length})` : ''}
-                                    </button>
-
-                                    {/* L: Label Link configuration */}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedDay(dayNum);
-                                        if (isLinkSelectorOpen) {
-                                          setActiveLabelLinkSelector(null);
-                                        } else {
-                                          setActiveLabelLinkSelector({ dayNum, stepIdx: activeIdx, lblIndex });
-                                        }
-                                      }}
-                                      className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${linkedTarget ? 'bg-emerald-600 text-white shadow-xs' : 'bg-gray-100 hover:bg-emerald-100 text-gray-600'} ${isLinkSelectorOpen ? 'ring-2 ring-emerald-400' : ''}`}
-                                      title="Connect Label (L) to Tag or Poll inputs"
-                                    >
-                                      L{linkedTarget ? ' ✓' : ''}
+                                      <Trash2 size={12} />
                                     </button>
                                   </div>
-
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      const updatedLabels = (dayContent.taskMultiTextLabels?.[activeIdx] || []).filter((_, lIdx) => lIdx !== lblIndex);
-                                      handleTaskMultiTextLabelsChange(dayNum, activeIdx, updatedLabels.length === 0 ? null as any : updatedLabels);
-                                      if (isSignalEditorOpen) setActiveSignalEditor(null);
-                                      if (isLinkSelectorOpen) setActiveLabelLinkSelector(null);
-                                    }}
-                                    className="text-gray-400 hover:text-red-500 shrink-0 p-0.5"
-                                    title="Delete Field"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
 
                                 {/* L Link Target Selector Popover */}
                                 {isLinkSelectorOpen && (
@@ -2570,7 +2600,8 @@ export default function DailyActionWorkspace({
                           </button>
                         </div>
                       </div>
-                    )}
+                    );
+                    })()}
 
                     {/* Poll option configuration */}
                     {activeInputType === 'poll' && (

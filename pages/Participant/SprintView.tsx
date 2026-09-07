@@ -12,7 +12,7 @@ import {
   UserRole,
 } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
-import { sprintService } from "../../services/sprintService";
+import { sprintService, normalizeMultiTextDailyContent } from "../../services/sprintService";
 import { userService, safeJSONStringify } from "../../services/userService";
 import { analyticsService } from "../../services/analyticsService";
 import { analyticsTracker } from "../../services/analyticsTracker";
@@ -1776,7 +1776,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
   const getTotalVisibleStepsCount = (): number => {
     if (!dayContent || !dayContent.taskPrompts) return 1;
-    return dayContent.taskPrompts.filter((_, idx) => isStepVisible(idx)).length;
+    return dayContent.taskPrompts.filter((_: string, idx: number) => isStepVisible(idx)).length;
   };
 
   const getFirstVisibleStepIndex = (): number => {
@@ -1927,9 +1927,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     triggerHaptic(hapticPatterns.light);
   }, [activeTaskIndex, soundEnabled]);
 
-  const dayContent = Array.isArray(sprint?.dailyContent)
-    ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
-    : undefined;
+  const dayContent = useMemo(() => {
+    const raw = Array.isArray(sprint?.dailyContent)
+      ? sprint?.dailyContent.find((dc) => dc.day === viewingDay)
+      : undefined;
+    return raw ? normalizeMultiTextDailyContent(raw) : undefined;
+  }, [sprint?.dailyContent, viewingDay]);
 
   useEffect(() => {
     if (dayContent?.taskPrompts && dayContent.taskPrompts.length > 0) {
@@ -2342,12 +2345,31 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     for (let idx = 0; idx < maxCount; idx++) {
       const rawLbl = rawLabels[idx] || `Field ${idx + 1}`;
       const linkedTarget = links[idx];
-      const sigs = Array.isArray(signalsList[idx])
-        ? signalsList[idx].filter((s: any) => s && String(s).trim().length > 0).map(String)
-        : [];
-      const tgs = Array.isArray(tagsList[idx])
-        ? tagsList[idx].filter((t: any) => t && String(t).trim().length > 0).map(String)
-        : [];
+      const rawSigs = signalsList[idx];
+      let sigs: string[] = [];
+      if (Array.isArray(rawSigs)) {
+        sigs = rawSigs.filter((s: any) => s && String(s).trim().length > 0).map(String);
+      } else if (typeof rawSigs === 'string' && rawSigs.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(rawSigs);
+          sigs = Array.isArray(parsed) ? parsed.filter((s: any) => s && String(s).trim().length > 0).map(String) : [rawSigs.trim()];
+        } catch {
+          sigs = rawSigs.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
+
+      const rawTgs = tagsList[idx];
+      let tgs: string[] = [];
+      if (Array.isArray(rawTgs)) {
+        tgs = rawTgs.filter((t: any) => t && String(t).trim().length > 0).map(String);
+      } else if (typeof rawTgs === 'string' && rawTgs.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(rawTgs);
+          tgs = Array.isArray(parsed) ? parsed.filter((t: any) => t && String(t).trim().length > 0).map(String) : [rawTgs.trim()];
+        } catch {
+          tgs = rawTgs.split(',').map(t => t.trim()).filter(Boolean);
+        }
+      }
 
       if (linkedTarget) {
         const linkedItems = getLinkedItemsForTarget(linkedTarget);
@@ -3385,10 +3407,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (!dayContent) return false;
 
     const activePrompts =
-      dayContent.taskPrompts?.filter((p) => p && p.trim()) || [];
+      dayContent.taskPrompts?.filter((p: string) => p && p.trim()) || [];
     if (activePrompts.length === 0) return true;
 
-    return activePrompts.every((_, i) => {
+    return activePrompts.every((_: string, i: number) => {
       if (!isStepVisible(i)) return true;
 
       const type = getStepInputType(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
@@ -4375,7 +4397,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           {dayContent?.taskPrompts &&
                           dayContent.taskPrompts.length > 1 ? (
                             <AnimatePresence mode="wait">
-                              {dayContent.taskPrompts.map((prompt, i) => {
+                              {dayContent.taskPrompts.map((prompt: string, i: number) => {
                                 if (i !== activeTaskIndex) return null;
                                 const stepVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
@@ -5293,7 +5315,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   {dayContent?.taskPrompts &&
                                     dayContent.taskPrompts.length > 1 && (
                                       <div className="flex justify-center items-center gap-2 mt-2 w-full">
-                                        {dayContent.taskPrompts.map((_, idx) => {
+                                        {dayContent.taskPrompts.map((_: string, idx: number) => {
                                           if (!isStepVisible(idx)) return null;
                                           return (
                                             <button

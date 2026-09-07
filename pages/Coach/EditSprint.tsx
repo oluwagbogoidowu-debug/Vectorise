@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Sprint, DailyContent, SprintDifficulty, UserRole, Coach, DynamicSection } from '../../types';
-import { sprintService } from '../../services/sprintService';
+import { sprintService, normalizeMultiTextDailyContent } from '../../services/sprintService';
 import { sanitizeData, safeClone } from '../../services/userService';
 import Button from '../../components/Button';
 import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtils';
@@ -881,9 +881,10 @@ const EditSprint: React.FC = () => {
     if (!sprint) return {
       day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
     };
-    const content = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
+    const rawContent = (Array.isArray(sprint.dailyContent) ? sprint.dailyContent.find(c => c.day === selectedDay) : undefined) || {
       day: selectedDay, lessonText: '', taskPrompt: '', taskPrompts: ['', '', ''], taskHints: []
     };
+    const content = normalizeMultiTextDailyContent(rawContent);
     
     // Return a safe copy with initialized taskPrompts if needed
     const safePrompts = Array.isArray((content as any).taskPrompts) && (content as any).taskPrompts.length > 0

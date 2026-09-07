@@ -413,6 +413,172 @@ export const serializeSprint = (sprint: any): any => {
 };
 
 /**
+ * Deeply normalizes multi-text 2D/3D array structures on a daily content item.
+ * Ensures taskMultiTextLabels is string[][], taskMultiTextSignals is string[][][],
+ * taskMultiTextTags is string[][][], and taskMultiTextLinks is (string | null)[][].
+ */
+export const normalizeMultiTextDailyContent = (day: any): any => {
+    if (!day || typeof day !== 'object') return day;
+    const dayClone = { ...day };
+
+    // 1. taskMultiTextLabels: string[][]
+    if (dayClone.taskMultiTextLabels) {
+        let labelsRaw = dayClone.taskMultiTextLabels;
+        if (typeof labelsRaw === 'string') {
+            try {
+                const parsed = JSON.parse(labelsRaw);
+                labelsRaw = Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                labelsRaw = [];
+            }
+        }
+        if (Array.isArray(labelsRaw)) {
+            dayClone.taskMultiTextLabels = labelsRaw.map((stepItem: any) => {
+                let stepParsed = stepItem;
+                if (typeof stepItem === 'string') {
+                    try {
+                        const parsed = JSON.parse(stepItem);
+                        stepParsed = Array.isArray(parsed) ? parsed : (stepItem.trim() ? [stepItem.trim()] : []);
+                    } catch (e) {
+                        stepParsed = stepItem.trim() ? [stepItem.trim()] : [];
+                    }
+                }
+                if (Array.isArray(stepParsed)) {
+                    return stepParsed.map((l: any) => (l === null || l === undefined) ? '' : String(l));
+                }
+                return [];
+            });
+        } else {
+            dayClone.taskMultiTextLabels = [];
+        }
+    }
+
+    // 2. taskMultiTextSignals: string[][][] (Step -> LabelIndex -> Signals[])
+    if (dayClone.taskMultiTextSignals) {
+        let signalsRaw = dayClone.taskMultiTextSignals;
+        if (typeof signalsRaw === 'string') {
+            try {
+                const parsed = JSON.parse(signalsRaw);
+                signalsRaw = Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                signalsRaw = [];
+            }
+        }
+        if (Array.isArray(signalsRaw)) {
+            dayClone.taskMultiTextSignals = signalsRaw.map((stepItem: any) => {
+                let stepParsed = stepItem;
+                if (typeof stepItem === 'string') {
+                    try {
+                        stepParsed = JSON.parse(stepItem);
+                    } catch (e) {
+                        stepParsed = [];
+                    }
+                }
+                if (Array.isArray(stepParsed)) {
+                    return stepParsed.map((lblSignals: any) => {
+                        let lblParsed = lblSignals;
+                        if (typeof lblSignals === 'string') {
+                            try {
+                                const parsed = JSON.parse(lblSignals);
+                                lblParsed = Array.isArray(parsed) ? parsed : (lblSignals.trim() ? [lblSignals.trim()] : []);
+                            } catch (e) {
+                                lblParsed = lblSignals.trim() ? [lblSignals.trim()] : [];
+                            }
+                        }
+                        if (Array.isArray(lblParsed)) {
+                            return lblParsed.filter(Boolean).map(String);
+                        }
+                        return [];
+                    });
+                }
+                return [];
+            });
+        } else {
+            dayClone.taskMultiTextSignals = [];
+        }
+    }
+
+    // 3. taskMultiTextTags: string[][][] (Step -> LabelIndex -> Tags[])
+    if (dayClone.taskMultiTextTags) {
+        let tagsRaw = dayClone.taskMultiTextTags;
+        if (typeof tagsRaw === 'string') {
+            try {
+                const parsed = JSON.parse(tagsRaw);
+                tagsRaw = Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                tagsRaw = [];
+            }
+        }
+        if (Array.isArray(tagsRaw)) {
+            dayClone.taskMultiTextTags = tagsRaw.map((stepItem: any) => {
+                let stepParsed = stepItem;
+                if (typeof stepItem === 'string') {
+                    try {
+                        stepParsed = JSON.parse(stepItem);
+                    } catch (e) {
+                        stepParsed = [];
+                    }
+                }
+                if (Array.isArray(stepParsed)) {
+                    return stepParsed.map((lblTags: any) => {
+                        let lblParsed = lblTags;
+                        if (typeof lblTags === 'string') {
+                            try {
+                                const parsed = JSON.parse(lblTags);
+                                lblParsed = Array.isArray(parsed) ? parsed : (lblTags.trim() ? [lblTags.trim()] : []);
+                            } catch (e) {
+                                lblParsed = lblTags.trim() ? [lblTags.trim()] : [];
+                            }
+                        }
+                        if (Array.isArray(lblParsed)) {
+                            return lblParsed.filter(Boolean).map(String);
+                        }
+                        return [];
+                    });
+                }
+                return [];
+            });
+        } else {
+            dayClone.taskMultiTextTags = [];
+        }
+    }
+
+    // 4. taskMultiTextLinks: (string | null)[][] (Step -> LabelIndex -> linkId)
+    if (dayClone.taskMultiTextLinks) {
+        let linksRaw = dayClone.taskMultiTextLinks;
+        if (typeof linksRaw === 'string') {
+            try {
+                const parsed = JSON.parse(linksRaw);
+                linksRaw = Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                linksRaw = [];
+            }
+        }
+        if (Array.isArray(linksRaw)) {
+            dayClone.taskMultiTextLinks = linksRaw.map((stepItem: any) => {
+                let stepParsed = stepItem;
+                if (typeof stepItem === 'string') {
+                    try {
+                        const parsed = JSON.parse(stepItem);
+                        stepParsed = Array.isArray(parsed) ? parsed : [stepItem];
+                    } catch (e) {
+                        stepParsed = [stepItem];
+                    }
+                }
+                if (Array.isArray(stepParsed)) {
+                    return stepParsed.map((link: any) => (link === null || link === undefined || link === '') ? null : String(link));
+                }
+                return [];
+            });
+        } else {
+            dayClone.taskMultiTextLinks = [];
+        }
+    }
+
+    return dayClone;
+};
+
+/**
  * Converts flat serialized values back into nested arrays (like taskLinkedSources: number[][]) for application usage.
  */
 export const deserializeSprint = (sprint: any): any => {
@@ -421,7 +587,7 @@ export const deserializeSprint = (sprint: any): any => {
     if (Array.isArray(cloned.dailyContent)) {
         cloned.dailyContent = cloned.dailyContent.map((day: any) => {
             if (!day) return day;
-            const dayClone = { ...day };
+            let dayClone = { ...day };
             if (Array.isArray(dayClone.taskLinkedSources)) {
                 dayClone.taskLinkedSources = dayClone.taskLinkedSources.map((item: any) => {
                     if (typeof item === 'string') {
@@ -438,70 +604,7 @@ export const deserializeSprint = (sprint: any): any => {
                     return [];
                 });
             }
-            if (Array.isArray(dayClone.taskMultiTextLabels)) {
-                dayClone.taskMultiTextLabels = dayClone.taskMultiTextLabels.map((item: any) => {
-                    if (typeof item === 'string') {
-                        try {
-                            const parsed = JSON.parse(item);
-                            return Array.isArray(parsed) ? parsed : [];
-                        } catch (e) {
-                            return [];
-                        }
-                    }
-                    if (Array.isArray(item)) {
-                        return item;
-                    }
-                    return [];
-                });
-            }
-            if (Array.isArray(dayClone.taskMultiTextSignals)) {
-                dayClone.taskMultiTextSignals = dayClone.taskMultiTextSignals.map((item: any) => {
-                    if (typeof item === 'string') {
-                        try {
-                            const parsed = JSON.parse(item);
-                            return Array.isArray(parsed) ? parsed : [];
-                        } catch (e) {
-                            return [];
-                        }
-                    }
-                    if (Array.isArray(item)) {
-                        return item;
-                    }
-                    return [];
-                });
-            }
-            if (Array.isArray(dayClone.taskMultiTextTags)) {
-                dayClone.taskMultiTextTags = dayClone.taskMultiTextTags.map((item: any) => {
-                    if (typeof item === 'string') {
-                        try {
-                            const parsed = JSON.parse(item);
-                            return Array.isArray(parsed) ? parsed : [];
-                        } catch (e) {
-                            return [];
-                        }
-                    }
-                    if (Array.isArray(item)) {
-                        return item;
-                    }
-                    return [];
-                });
-            }
-            if (Array.isArray(dayClone.taskMultiTextLinks)) {
-                dayClone.taskMultiTextLinks = dayClone.taskMultiTextLinks.map((item: any) => {
-                    if (typeof item === 'string') {
-                        try {
-                            const parsed = JSON.parse(item);
-                            return Array.isArray(parsed) ? parsed : [];
-                        } catch (e) {
-                            return [];
-                        }
-                    }
-                    if (Array.isArray(item)) {
-                        return item;
-                    }
-                    return [];
-                });
-            }
+            dayClone = normalizeMultiTextDailyContent(dayClone);
             return dayClone;
         });
     }
