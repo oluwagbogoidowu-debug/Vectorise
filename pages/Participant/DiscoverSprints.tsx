@@ -58,19 +58,6 @@ const DiscoverSprints: React.FC = () => {
     const isLoading = !isSprintsLoaded || !isOtherDataLoaded || !isEnrollmentsLoaded;
 
     useEffect(() => {
-        if (user && !userService.isIdentitySet(user as Participant)) {
-            navigate('/participant-dashboard');
-            toast.error("Explore Locked", {
-                description: "Set your identity in your profile to unlock the Explore page.",
-                action: {
-                    label: "Set Identity",
-                    onClick: () => navigate('/profile/settings/identity')
-                }
-            });
-        }
-    }, [user, navigate]);
-
-    useEffect(() => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
             const nonIgnite = data.filter(s => s.contentType !== 'ignite');
