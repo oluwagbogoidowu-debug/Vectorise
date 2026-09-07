@@ -2192,20 +2192,214 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return false;
   };
 
-  const getMultiTextFieldCount = (stepIndex: number): number => {
-    if (!dayContent) return 0;
+  const getLinkedItemsForTarget = (linkId: string | null | undefined): string[] => {
+    if (!linkId || typeof linkId !== 'string') return [];
+    try {
+      if (linkId.startsWith('step')) {
+        if (linkId.includes(':poll')) {
+          const parts = linkId.split(':');
+          const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+          const optNum = parseInt(parts[1].replace('poll ', ''), 10);
+          const options = getAllStepPollOptions(dayContent, stepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          const chosenOpt = options[optNum - 1];
+          return chosenOpt ? [chosenOpt] : [`Option ${optNum}`];
+        }
+        if (linkId.includes(':tag')) {
+          const parts = linkId.split(':');
+          const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+          const tagNum = parseInt(parts[1].replace('tag ', ''), 10);
+          const tagOpts = (dayContent as any)?.taskTags?.[stepIdx] || (dayContent as any)?.taskInputCustomTags?.[stepIdx] || [];
+          if (Array.isArray(tagOpts) && tagOpts[tagNum - 1]) return [tagOpts[tagNum - 1]];
+          return [`Tag ${tagNum}`];
+        }
+        const stepIdx = parseInt(linkId.replace('step', ''), 10);
+        if (!isNaN(stepIdx)) {
+          const val = (taskInputs && taskInputs[stepIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent?.day || 1))?.answers?.[stepIdx];
+          if (val) {
+            if (typeof val === 'string') {
+              const trimmed = val.trim();
+              if (trimmed.startsWith('[')) {
+                try {
+                  const parsed = JSON.parse(trimmed);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    return parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                  }
+                } catch (e) {}
+              }
+              if (trimmed.startsWith('{')) {
+                try {
+                  const parsed = JSON.parse(trimmed);
+                  if (parsed && typeof parsed === 'object') {
+                    const choices: string[] = [];
+                    if (Array.isArray(parsed.choices)) choices.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+                    if (Array.isArray(parsed.selectedChoices)) choices.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+                    if (typeof parsed.choice === 'string' && parsed.choice) choices.push(parsed.choice.trim());
+                    if (choices.length > 0) return Array.from(new Set(choices));
+                    const vals = Object.values(parsed).map((v: any) => String(v).trim()).filter(Boolean);
+                    if (vals.length > 0) return vals;
+                  }
+                } catch (e) {}
+              }
+              if (trimmed.includes(',')) {
+                const parts = trimmed.split(',').map((s: string) => s.trim()).filter(Boolean);
+                if (parts.length > 0) return parts;
+              }
+              if (trimmed.length > 0) return [trimmed];
+            } else if (Array.isArray(val)) {
+              return (val as any[]).map((s: any) => String(s).trim()).filter(Boolean);
+            }
+          }
+          const configuredOpts = getAllStepPollOptions(dayContent, stepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          if (configuredOpts.length > 0) {
+            return configuredOpts;
+          }
+          return [`Step ${stepIdx + 1}`];
+        }
+      }
+      if (linkId.startsWith('prev-')) {
+        const parts = linkId.split('-');
+        const prevDay = parseInt(parts[1], 10);
+        const prevStepIdx = parseInt(parts[2], 10);
+        const targetProgress = enrollment?.progress?.find((p: any) => Number(p.day) === prevDay);
+        const val = targetProgress?.answers?.[prevStepIdx];
+        if (val) {
+          if (typeof val === 'string') {
+            const trimmed = val.trim();
+            if (trimmed.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed.map((s: any) => String(s).trim()).filter(Boolean);
+              } catch (e) {}
+            }
+            if (trimmed.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (parsed && typeof parsed === 'object') {
+                  const choices: string[] = [];
+                  if (Array.isArray(parsed.choices)) choices.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+                  if (Array.isArray(parsed.selectedChoices)) choices.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+                  if (typeof parsed.choice === 'string' && parsed.choice) choices.push(parsed.choice.trim());
+                  if (choices.length > 0) return Array.from(new Set(choices));
+                }
+              } catch (e) {}
+            }
+            if (trimmed.includes(',')) {
+              return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+            }
+            return [trimmed];
+          } else if (Array.isArray(val)) {
+            return (val as any[]).map((s: any) => String(s).trim()).filter(Boolean);
+          }
+        }
+        const prevDC = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(c => c && Number(c.day) === prevDay) : null;
+        if (prevDC) {
+          const configuredOpts = getAllStepPollOptions(prevDC, prevStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          if (configuredOpts.length > 0) return configuredOpts;
+          const opt = prevDC.taskPrompts?.[prevStepIdx];
+          if (opt) return [opt];
+        }
+        return [`Move ${prevDay} Step ${prevStepIdx + 1}`];
+      }
+    } catch (e) {
+      console.warn('Error extracting linked items:', e);
+    }
+    return [];
+  };
+
+  const getResolvedMultiTextFields = (stepIndex: number): Array<{
+    id: string;
+    label: string;
+    rawLabel: string;
+    isLinked: boolean;
+    linkId?: string | null;
+    signals: string[];
+    tags: string[];
+    sourceIndex: number;
+  }> => {
+    if (!dayContent) return [];
     const type = String(dayContent.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
     const isText = type === "text" || type === "" || type === "undefined";
-    if (!isText) return 0;
-    const lCount = Array.isArray(dayContent.taskMultiTextLabels?.[stepIndex]) ? dayContent.taskMultiTextLabels[stepIndex].length : 0;
-    const linkCount = Array.isArray(dayContent.taskMultiTextLinks?.[stepIndex]) ? dayContent.taskMultiTextLinks[stepIndex].length : 0;
-    const sigCount = Array.isArray(dayContent.taskMultiTextSignals?.[stepIndex]) ? dayContent.taskMultiTextSignals[stepIndex].length : 0;
-    const tagCount = Array.isArray(dayContent.taskMultiTextTags?.[stepIndex]) ? dayContent.taskMultiTextTags[stepIndex].length : 0;
-    return Math.max(lCount, linkCount, sigCount, tagCount);
+    if (!isText) return [];
+
+    const rawLabels = dayContent.taskMultiTextLabels?.[stepIndex] || [];
+    const links = dayContent.taskMultiTextLinks?.[stepIndex] || [];
+    const signalsList = dayContent.taskMultiTextSignals?.[stepIndex] || [];
+    const tagsList = dayContent.taskMultiTextTags?.[stepIndex] || [];
+    const maxCount = Math.max(rawLabels.length, links.length, signalsList.length, tagsList.length);
+    if (maxCount === 0) return [];
+
+    const fields: Array<{
+      id: string;
+      label: string;
+      rawLabel: string;
+      isLinked: boolean;
+      linkId?: string | null;
+      signals: string[];
+      tags: string[];
+      sourceIndex: number;
+    }> = [];
+
+    for (let idx = 0; idx < maxCount; idx++) {
+      const rawLbl = rawLabels[idx] || `Field ${idx + 1}`;
+      const linkedTarget = links[idx];
+      const sigs = Array.isArray(signalsList[idx])
+        ? signalsList[idx].filter((s: any) => s && String(s).trim().length > 0).map(String)
+        : [];
+      const tgs = Array.isArray(tagsList[idx])
+        ? tagsList[idx].filter((t: any) => t && String(t).trim().length > 0).map(String)
+        : [];
+
+      if (linkedTarget) {
+        const linkedItems = getLinkedItemsForTarget(linkedTarget);
+        if (linkedItems.length > 0) {
+          linkedItems.forEach((itemLabel, itemIdx) => {
+            fields.push({
+              id: `${idx}_${itemIdx}_${itemLabel}`,
+              label: itemLabel,
+              rawLabel: rawLbl,
+              isLinked: true,
+              linkId: linkedTarget,
+              signals: sigs,
+              tags: tgs,
+              sourceIndex: idx,
+            });
+          });
+        } else {
+          const resolvedSingleLabel = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
+          fields.push({
+            id: `${idx}_0_${resolvedSingleLabel}`,
+            label: resolvedSingleLabel,
+            rawLabel: rawLbl,
+            isLinked: true,
+            linkId: linkedTarget,
+            signals: sigs,
+            tags: tgs,
+            sourceIndex: idx,
+          });
+        }
+      } else {
+        fields.push({
+          id: `${idx}_${rawLbl}`,
+          label: rawLbl,
+          rawLabel: rawLbl,
+          isLinked: false,
+          linkId: null,
+          signals: sigs,
+          tags: tgs,
+          sourceIndex: idx,
+        });
+      }
+    }
+
+    return fields;
+  };
+
+  const getMultiTextFieldCount = (stepIndex: number): number => {
+    return getResolvedMultiTextFields(stepIndex).length;
   };
 
   const isMultiTextStep = (stepIndex: number): boolean => {
-    return getMultiTextFieldCount(stepIndex) > 0;
+    return getResolvedMultiTextFields(stepIndex).length > 0;
   };
 
   const resolveLinkedMultiTextLabel = (linkId: string | null | undefined, fallbackLabel: string): string => {
@@ -3221,16 +3415,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }
       
       if (isMultiTextStep(i)) {
-        const fieldCount = getMultiTextFieldCount(i);
-        if (fieldCount > 0) {
+        const fields = getResolvedMultiTextFields(i);
+        if (fields.length > 0) {
           try {
             if (!val.startsWith("{")) return false;
             const parsed = JSON.parse(val);
-            for (let lblIndex = 0; lblIndex < fieldCount; lblIndex++) {
-              const rawLbl = dayContent.taskMultiTextLabels?.[i]?.[lblIndex] || `Field ${lblIndex + 1}`;
-              const linkedTarget = dayContent.taskMultiTextLinks?.[i]?.[lblIndex];
-              const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
-              const answer = parsed[lbl] || parsed[rawLbl] || (typeof Object.values(parsed)[lblIndex] === 'string' ? Object.values(parsed)[lblIndex] : '');
+            for (const field of fields) {
+              const answer = parsed[field.label] || parsed[field.rawLabel] || parsed[field.id];
               if (!answer || String(answer).trim().length === 0) return false;
             }
             return true;
@@ -4638,127 +4829,121 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     </div>
                                   ) : isMultiTextStep(i) ? (
                                     <div className="space-y-4 animate-fade-in text-left">
-                                      {Array.from({ length: getMultiTextFieldCount(i) }).map((_, lblIndex) => {
-                                        const rawLbl = dayContent.taskMultiTextLabels?.[i]?.[lblIndex] || `Field ${lblIndex + 1}`;
-                                        const linkedTarget = dayContent.taskMultiTextLinks?.[i]?.[lblIndex];
-                                        const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
+                                      {getResolvedMultiTextFields(i).map((field) => {
                                         let currentAnswers: Record<string, string> = {};
                                         if (taskInputs && taskInputs[i]) {
                                           try {
                                             if (typeof taskInputs[i] === 'string' && taskInputs[i].startsWith("{")) {
                                               currentAnswers = JSON.parse(taskInputs[i]);
-                                            } else if (typeof taskInputs[i] === 'string') {
-                                              currentAnswers = { [lbl || "Field 1"]: taskInputs[i] };
+                                            } else if (typeof taskInputs[i] === 'string' && taskInputs[i].trim().length > 0) {
+                                              currentAnswers = { [field.label]: taskInputs[i] };
                                             }
                                           } catch (e) {
                                             currentAnswers = {};
                                           }
                                         }
-                                        const labelVal = String(currentAnswers[lbl] || currentAnswers[rawLbl] || (typeof Object.values(currentAnswers)[lblIndex] === 'string' ? Object.values(currentAnswers)[lblIndex] : "") || "");
-                                        const sigs = Array.isArray(dayContent.taskMultiTextSignals?.[i]?.[lblIndex])
-                                          ? dayContent.taskMultiTextSignals[i][lblIndex].filter((s: any) => s && String(s).trim().length > 0).map(String)
-                                          : [];
-                                        const tgs = Array.isArray(dayContent.taskMultiTextTags?.[i]?.[lblIndex])
-                                          ? dayContent.taskMultiTextTags[i][lblIndex].filter((t: any) => t && String(t).trim().length > 0).map(String)
-                                          : [];
+                                        const labelVal = String(currentAnswers[field.label] || currentAnswers[field.rawLabel] || currentAnswers[field.id] || "");
+                                        const hasSignals = field.signals && field.signals.length > 0;
+                                        const hasTags = !hasSignals && field.tags && field.tags.length > 0;
+
                                         return (
-                                          <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
+                                          <div key={field.id} className="space-y-2.5 pl-3.5 border-l-2 border-primary/20 bg-primary/[0.02] py-2 pr-2 rounded-r-2xl">
                                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                              <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
-                                                {linkedTarget ? '🔗' : '📝'} {lbl}
+                                              <span className={`inline-flex items-center gap-1.5 ${isFullBleed ? 'px-3.5 py-1.5 text-sm sm:text-base font-black' : 'px-3 py-1 text-xs sm:text-sm font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-xl`}>
+                                                {field.isLinked ? '🔗' : '📝'} {field.label}
                                               </span>
                                             </div>
 
-                                            {/* S: Signal Tags (Interactive) */}
-                                            {sigs.length > 0 && (
-                                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                                {sigs.map((sig: string, sIdx: number) => {
+                                            {/* S: Signal Tags - Selectable horizontal input (replaces text input) */}
+                                            {hasSignals ? (
+                                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                {field.signals.map((sig: string, sIdx: number) => {
                                                   const cleanSig = String(sig).trim();
                                                   const isSelected = labelVal ? (
-                                                    labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanSig.toLowerCase()) ||
-                                                    labelVal.trim().toLowerCase() === cleanSig.toLowerCase()
+                                                    labelVal.trim().toLowerCase() === cleanSig.toLowerCase() ||
+                                                    labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(cleanSig.toLowerCase())
                                                   ) : false;
+
                                                   return (
                                                     <button
                                                       key={sIdx}
                                                       type="button"
                                                       onClick={() => {
-                                                        let newLabelVal = '';
-                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
-                                                        if (existingParts.some((p: string) => p.toLowerCase() === cleanSig.toLowerCase())) {
-                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanSig.toLowerCase()).join(', ');
-                                                        } else {
-                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanSig}` : cleanSig;
-                                                        }
-                                                        const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                        const newLabelVal = isSelected ? '' : cleanSig;
+                                                        const newAnswers = { ...currentAnswers, [field.label]: newLabelVal };
                                                         const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                         newInputs[i] = JSON.stringify(newAnswers);
                                                         setTaskInputs(newInputs);
+                                                        triggerHaptic(hapticPatterns.light);
                                                       }}
-                                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] sm:text-[10.5px] font-black rounded-lg border uppercase tracking-wider transition-all cursor-pointer shadow-xs ${
+                                                      className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm sm:text-base font-bold transition-all cursor-pointer border ${
                                                         isSelected
-                                                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                                                          : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:border-purple-300'
+                                                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm ring-2 ring-purple-600/30'
+                                                          : 'bg-purple-50/80 hover:bg-purple-100 text-purple-800 border-purple-200/80 hover:border-purple-300'
                                                       }`}
                                                     >
-                                                      <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
-                                                      {cleanSig}
+                                                      <span className={`w-2 h-2 rounded-full transition-all ${isSelected ? 'bg-white' : 'bg-purple-500'}`} />
+                                                      <span>{cleanSig}</span>
+                                                      {isSelected && (
+                                                        <svg className="w-4 h-4 ml-0.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                      )}
                                                     </button>
                                                   );
                                                 })}
                                               </div>
-                                            )}
-
-                                            {tgs.length > 0 && (
-                                              <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                                {tgs.map((tagItem: string, tIdx: number) => {
+                                            ) : hasTags ? (
+                                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                {field.tags.map((tagItem: string, tIdx: number) => {
                                                   const cleanTag = String(tagItem).trim();
                                                   const isSelected = labelVal ? (
-                                                    labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanTag.toLowerCase()) ||
-                                                    labelVal.trim().toLowerCase() === cleanTag.toLowerCase()
+                                                    labelVal.trim().toLowerCase() === cleanTag.toLowerCase() ||
+                                                    labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(cleanTag.toLowerCase())
                                                   ) : false;
+
                                                   return (
                                                     <button
                                                       key={tIdx}
                                                       type="button"
                                                       onClick={() => {
-                                                        let newLabelVal = '';
-                                                        const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
-                                                        if (existingParts.some((p: string) => p.toLowerCase() === cleanTag.toLowerCase())) {
-                                                          newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanTag.toLowerCase()).join(', ');
-                                                        } else {
-                                                          newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanTag}` : cleanTag;
-                                                        }
-                                                        const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                        const newLabelVal = isSelected ? '' : cleanTag;
+                                                        const newAnswers = { ...currentAnswers, [field.label]: newLabelVal };
                                                         const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                         newInputs[i] = JSON.stringify(newAnswers);
                                                         setTaskInputs(newInputs);
+                                                        triggerHaptic(hapticPatterns.light);
                                                       }}
-                                                      className={`px-2.5 py-1 text-xs rounded-xl font-bold border transition-all cursor-pointer ${
+                                                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm sm:text-base font-bold transition-all cursor-pointer border ${
                                                         isSelected
-                                                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                                          : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                                                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-600/30'
+                                                          : 'bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border-indigo-200 hover:border-indigo-300'
                                                       }`}
                                                     >
-                                                      🏷️ {cleanTag}
+                                                      🏷️ <span>{cleanTag}</span>
+                                                      {isSelected && (
+                                                        <svg className="w-4 h-4 ml-0.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                      )}
                                                     </button>
                                                   );
                                                 })}
                                               </div>
+                                            ) : (
+                                              <AutoGrowingTextarea
+                                                value={labelVal}
+                                                onChange={(val) => {
+                                                  const newAnswers = { ...currentAnswers, [field.label]: val };
+                                                  const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
+                                                  newInputs[i] = JSON.stringify(newAnswers);
+                                                  setTaskInputs(newInputs);
+                                                }}
+                                                placeholder={`Your answer for ${field.label}...`}
+                                                isFullBleed={isFullBleed}
+                                                className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-base rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
+                                              />
                                             )}
-
-                                            <AutoGrowingTextarea
-                                              value={labelVal}
-                                              onChange={(val) => {
-                                                const newAnswers = { ...currentAnswers, [lbl]: val };
-                                                const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
-                                                newInputs[i] = JSON.stringify(newAnswers);
-                                                setTaskInputs(newInputs);
-                                              }}
-                                              placeholder={`Your answer for ${lbl}...`}
-                                              isFullBleed={isFullBleed}
-                                              className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-base rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
-                                            />
                                           </div>
                                         );
                                       })}
@@ -5489,128 +5674,121 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </div>
                           ) : getStepInputType(dayContent, 0, taskInputs, sprint?.dailyContent, enrollment?.progress) === "none" ? null : isMultiTextStep(0) ? (
                             <div className="space-y-4 animate-fade-in text-left">
-                              {Array.from({ length: getMultiTextFieldCount(0) }).map((_, lblIndex) => {
-                                const rawLbl = dayContent?.taskMultiTextLabels?.[0]?.[lblIndex] || `Field ${lblIndex + 1}`;
-                                const linkedTarget = dayContent?.taskMultiTextLinks?.[0]?.[lblIndex];
-                                const lbl = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
+                              {getResolvedMultiTextFields(0).map((field) => {
                                 let currentAnswers: Record<string, string> = {};
                                 if (taskInputs && taskInputs[0]) {
                                   try {
                                     if (typeof taskInputs[0] === 'string' && taskInputs[0].startsWith("{")) {
                                       currentAnswers = JSON.parse(taskInputs[0]);
-                                    } else if (typeof taskInputs[0] === 'string') {
-                                      currentAnswers = { [lbl || "Field 1"]: taskInputs[0] };
+                                    } else if (typeof taskInputs[0] === 'string' && taskInputs[0].trim().length > 0) {
+                                      currentAnswers = { [field.label]: taskInputs[0] };
                                     }
                                   } catch (e) {
                                     currentAnswers = {};
                                   }
                                 }
-                                const labelVal = String(currentAnswers[lbl] || currentAnswers[rawLbl] || (typeof Object.values(currentAnswers)[lblIndex] === 'string' ? Object.values(currentAnswers)[lblIndex] : "") || "");
-                                const sigs = Array.isArray(dayContent?.taskMultiTextSignals?.[0]?.[lblIndex])
-                                  ? dayContent.taskMultiTextSignals[0][lblIndex].filter((s: any) => s && String(s).trim().length > 0).map(String)
-                                  : [];
-                                const tgs = Array.isArray(dayContent?.taskMultiTextTags?.[0]?.[lblIndex])
-                                  ? dayContent.taskMultiTextTags[0][lblIndex].filter((t: any) => t && String(t).trim().length > 0).map(String)
-                                  : [];
+                                const labelVal = String(currentAnswers[field.label] || currentAnswers[field.rawLabel] || currentAnswers[field.id] || "");
+                                const hasSignals = field.signals && field.signals.length > 0;
+                                const hasTags = !hasSignals && field.tags && field.tags.length > 0;
 
                                 return (
-                                  <div key={lblIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
+                                  <div key={field.id} className="space-y-2.5 pl-3.5 border-l-2 border-primary/20 bg-primary/[0.02] py-2 pr-2 rounded-r-2xl">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
-                                        {linkedTarget ? '🔗' : '📝'} {lbl}
+                                      <span className={`inline-flex items-center gap-1.5 ${isFullBleed ? 'px-3.5 py-1.5 text-sm sm:text-base font-black' : 'px-3 py-1 text-xs sm:text-sm font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-xl`}>
+                                        {field.isLinked ? '🔗' : '📝'} {field.label}
                                       </span>
                                     </div>
 
-                                    {/* S: Signal Tags (Interactive) */}
-                                    {sigs.length > 0 && (
-                                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                        {sigs.map((sig: string, sIdx: number) => {
+                                    {/* S: Signal Tags - Selectable horizontal input (replaces text input) */}
+                                    {hasSignals ? (
+                                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                                        {field.signals.map((sig: string, sIdx: number) => {
                                           const cleanSig = String(sig).trim();
                                           const isSelected = labelVal ? (
-                                            labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanSig.toLowerCase()) ||
-                                            labelVal.trim().toLowerCase() === cleanSig.toLowerCase()
+                                            labelVal.trim().toLowerCase() === cleanSig.toLowerCase() ||
+                                            labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(cleanSig.toLowerCase())
                                           ) : false;
+
                                           return (
                                             <button
                                               key={sIdx}
                                               type="button"
                                               onClick={() => {
-                                                let newLabelVal = '';
-                                                const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
-                                                if (existingParts.some((p: string) => p.toLowerCase() === cleanSig.toLowerCase())) {
-                                                  newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanSig.toLowerCase()).join(', ');
-                                                } else {
-                                                  newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanSig}` : cleanSig;
-                                                }
-                                                const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                const newLabelVal = isSelected ? '' : cleanSig;
+                                                const newAnswers = { ...currentAnswers, [field.label]: newLabelVal };
                                                 const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                 newInputs[0] = JSON.stringify(newAnswers);
                                                 setTaskInputs(newInputs);
+                                                triggerHaptic(hapticPatterns.light);
                                               }}
-                                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[9.5px] sm:text-[10.5px] font-black rounded-lg border uppercase tracking-wider transition-all cursor-pointer shadow-xs ${
+                                              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm sm:text-base font-bold transition-all cursor-pointer border ${
                                                 isSelected
-                                                  ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                                                  : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 hover:border-purple-300'
+                                                  ? 'bg-purple-600 text-white border-purple-600 shadow-sm ring-2 ring-purple-600/30'
+                                                  : 'bg-purple-50/80 hover:bg-purple-100 text-purple-800 border-purple-200/80 hover:border-purple-300'
                                               }`}
                                             >
-                                              <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-purple-500 animate-pulse'}`} />
-                                              {cleanSig}
+                                              <span className={`w-2 h-2 rounded-full transition-all ${isSelected ? 'bg-white' : 'bg-purple-500'}`} />
+                                              <span>{cleanSig}</span>
+                                              {isSelected && (
+                                                <svg className="w-4 h-4 ml-0.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                              )}
                                             </button>
                                           );
                                         })}
                                       </div>
-                                    )}
-
-                                    {tgs.length > 0 && (
-                                      <div className="flex flex-wrap gap-1.5 pt-0.5">
-                                        {tgs.map((tagItem: string, tIdx: number) => {
+                                    ) : hasTags ? (
+                                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                                        {field.tags.map((tagItem: string, tIdx: number) => {
                                           const cleanTag = String(tagItem).trim();
                                           const isSelected = labelVal ? (
-                                            labelVal.split(',').map((s: string) => String(s).trim().toLowerCase()).includes(cleanTag.toLowerCase()) ||
-                                            labelVal.trim().toLowerCase() === cleanTag.toLowerCase()
+                                            labelVal.trim().toLowerCase() === cleanTag.toLowerCase() ||
+                                            labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(cleanTag.toLowerCase())
                                           ) : false;
+
                                           return (
                                             <button
                                               key={tIdx}
                                               type="button"
                                               onClick={() => {
-                                                let newLabelVal = '';
-                                                const existingParts = labelVal ? labelVal.split(',').map((s: string) => String(s).trim()).filter(Boolean) : [];
-                                                if (existingParts.some((p: string) => p.toLowerCase() === cleanTag.toLowerCase())) {
-                                                  newLabelVal = existingParts.filter((p: string) => p.toLowerCase() !== cleanTag.toLowerCase()).join(', ');
-                                                } else {
-                                                  newLabelVal = existingParts.length > 0 ? `${existingParts.join(', ')}, ${cleanTag}` : cleanTag;
-                                                }
-                                                const newAnswers = { ...currentAnswers, [lbl]: newLabelVal };
+                                                const newLabelVal = isSelected ? '' : cleanTag;
+                                                const newAnswers = { ...currentAnswers, [field.label]: newLabelVal };
                                                 const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
                                                 newInputs[0] = JSON.stringify(newAnswers);
                                                 setTaskInputs(newInputs);
+                                                triggerHaptic(hapticPatterns.light);
                                               }}
-                                              className={`px-2.5 py-1 text-xs rounded-xl font-bold border transition-all cursor-pointer ${
+                                              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm sm:text-base font-bold transition-all cursor-pointer border ${
                                                 isSelected
-                                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                                  : 'bg-indigo-50/70 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300'
+                                                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-600/30'
+                                                  : 'bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border-indigo-200 hover:border-indigo-300'
                                               }`}
                                             >
-                                              🏷️ {cleanTag}
+                                              🏷️ <span>{cleanTag}</span>
+                                              {isSelected && (
+                                                <svg className="w-4 h-4 ml-0.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                              )}
                                             </button>
                                           );
                                         })}
                                       </div>
+                                    ) : (
+                                      <AutoGrowingTextarea
+                                        value={labelVal}
+                                        onChange={(val) => {
+                                          const newAnswers = { ...currentAnswers, [field.label]: val };
+                                          const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
+                                          newInputs[0] = JSON.stringify(newAnswers);
+                                          setTaskInputs(newInputs);
+                                        }}
+                                        placeholder={`Your answer for ${field.label}...`}
+                                        isFullBleed={isFullBleed}
+                                        className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-base rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
+                                      />
                                     )}
-
-                                    <AutoGrowingTextarea
-                                      value={labelVal}
-                                      onChange={(val) => {
-                                        const newAnswers = { ...currentAnswers, [lbl]: val };
-                                        const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
-                                        newInputs[0] = JSON.stringify(newAnswers);
-                                        setTaskInputs(newInputs);
-                                      }}
-                                      placeholder={`Your answer for ${lbl}...`}
-                                      isFullBleed={isFullBleed}
-                                      className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-base rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
-                                    />
                                   </div>
                                 );
                               })}
