@@ -139,14 +139,14 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
   }
 
   return (
-    <div className={`markdown-content leading-[1.6] text-gray-800 max-w-[60ch] ${className}`}>
+    <div className={`markdown-content text-base leading-[1.6] text-gray-800 max-w-[60ch] ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           em: ({ node, ...props }) => <em className="italic text-gray-900" {...props} />,
           strong: ({ node, ...props }) => <strong className="font-black text-gray-900" {...props} />,
-          ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-4" {...props} />,
-          ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-4" {...props} />,
+          ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-4 text-base" {...props} />,
+          ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-4 text-base" {...props} />,
           li: ({ node, ...props }) => {
             const { bulletChar, cleaned: modifiedChildren } = extractBulletPrefix(props.children);
 
@@ -154,35 +154,35 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
             if (bulletChar !== null) {
               if (bulletChar === '↠' || bulletChar === '→' || bulletChar === '=>' || bulletChar === '->') {
                 bulletElement = (
-                  <span className="text-[#0E7850] font-black text-sm select-none flex-shrink-0 mt-0.5 animate-pulse">
+                  <span className="text-[#0E7850] font-black text-base select-none flex-shrink-0 mt-0.5 animate-pulse">
                     {bulletChar}
                   </span>
                 );
               } else if (bulletChar === '•' || bulletChar === '*' || bulletChar === '-' || bulletChar === '') {
                 bulletElement = (
-                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0E7850] flex-shrink-0" />
+                  <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#0E7850] flex-shrink-0" />
                 );
               } else {
                 bulletElement = (
-                  <span className="text-[#0E7850] font-black text-xs select-none flex-shrink-0 mt-0.5">
+                  <span className="text-[#0E7850] font-black text-sm select-none flex-shrink-0 mt-0.5">
                     {bulletChar}
                   </span>
                 );
               }
             } else {
               bulletElement = (
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0E7850] flex-shrink-0" />
+                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[#0E7850] flex-shrink-0" />
               );
             }
 
             return (
-              <li className="flex items-start gap-2.5 my-2.5 text-gray-700 leading-relaxed font-normal" {...props}>
+              <li className="flex items-start gap-2.5 my-2.5 text-gray-700 leading-relaxed font-normal text-base" {...props}>
                 {bulletElement}
-                <span className="flex-1">{modifiedChildren}</span>
+                <span className="flex-1 text-base">{modifiedChildren}</span>
               </li>
             );
           },
-          p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6] whitespace-pre-line" {...props} />,
+          p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6] whitespace-pre-line text-base text-gray-800" {...props} />,
           hr: ({ node, ...props }) => (
             <hr className="my-8 border-t border-gray-200 w-full" {...props} />
           ),
@@ -191,7 +191,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
           h3: ({ node, ...props }) => <h3 className="text-xl font-black text-gray-900 mb-3 mt-5 tracking-tight" {...props} />,
           a: ({ node, ...props }) => <a className="text-primary font-bold hover:underline decoration-2 underline-offset-4" {...props} />,
           blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-4 border-primary/20 pl-6 py-2 my-6 italic text-gray-600 bg-gray-50/50 rounded-r-xl" {...props} />
+            <blockquote className="border-l-4 border-primary/20 pl-6 py-3 my-6 italic text-gray-700 text-base bg-gray-50/50 rounded-r-xl" {...props} />
           ),
         }}
       >
