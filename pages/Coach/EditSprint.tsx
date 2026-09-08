@@ -7293,6 +7293,13 @@ const EditSprint: React.FC = () => {
       <CoachDaySuccessPreviewModal
         isOpen={showDaySuccessPreview}
         onClose={() => setShowDaySuccessPreview(false)}
+        onNextDay={() => {
+          setShowDaySuccessPreview(false);
+          if (selectedDay < (sprint?.duration || 7)) {
+            setSelectedDay(selectedDay + 1);
+            setPreviewTaskIndex(0);
+          }
+        }}
         day={selectedDay}
         dayContent={currentContent}
         sprintName={sprint?.title}
@@ -7518,6 +7525,7 @@ export default EditSprint;
 interface CoachDaySuccessPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onNextDay?: () => void;
   day: number;
   dayContent: any;
   sprintName?: string;
@@ -7525,7 +7533,7 @@ interface CoachDaySuccessPreviewModalProps {
   totalDuration?: number;
 }
 
-const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = ({ isOpen, onClose, day, dayContent, sprintName, allDaysContent, totalDuration }) => {
+const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = ({ isOpen, onClose, onNextDay, day, dayContent, sprintName, allDaysContent, totalDuration }) => {
   useEffect(() => {
     if (isOpen) {
       try {
@@ -7631,10 +7639,16 @@ const CoachDaySuccessPreviewModal: React.FC<CoachDaySuccessPreviewModalProps> = 
         {/* Action Button */}
         <button
           type="button"
-          onClick={onClose}
-          className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#0E7850]/90 transition-all shadow-lg shadow-[#0E7850]/20 active:scale-95 cursor-pointer"
+          onClick={() => {
+            if (!isLastDay && onNextDay) {
+              onNextDay();
+            } else {
+              onClose();
+            }
+          }}
+          className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#0E7850]/90 transition-all shadow-lg shadow-[#0E7850]/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
         >
-          Close Preview
+          <span>{!isLastDay ? `Continue to Move ${day + 1} →` : 'Close Preview'}</span>
         </button>
 
         <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-4">
