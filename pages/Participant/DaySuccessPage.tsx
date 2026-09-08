@@ -58,7 +58,7 @@ const DaySuccessPage: React.FC = () => {
       if (returnToPreviewUrl) {
         navigate(returnToPreviewUrl, { replace: true, state: { resetPreview: true } });
       } else if (sprintId) {
-        navigate(`/coach/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
+        navigate(`/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
       } else {
         navigate(-1);
       }
@@ -180,7 +180,7 @@ const DaySuccessPage: React.FC = () => {
     const nextDay = completedDay + 1;
 
     if (isPreview) {
-      const targetUrl = returnToPreviewUrl || `/coach/sprint/preview/${sprintId}`;
+      const targetUrl = returnToPreviewUrl || (sprintId ? `/sprint/preview/${sprintId}` : `/coach/sprint/preview/${sprintId}`);
       navigate(targetUrl, {
         replace: true,
         state: {

@@ -261,6 +261,14 @@ const SprintPreview: React.FC = () => {
     const [previewDay, setPreviewDay] = useState(() => {
         return Number(location.state?.targetDay || 1);
     });
+
+    useEffect(() => {
+        if (location.state?.targetDay) {
+            setPreviewDay(Number(location.state.targetDay));
+            setActiveTaskIndex(0);
+            setTaskInputs([]);
+        }
+    }, [location.state?.targetDay]);
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
     const [showSignupModal, setShowSignupModal] = useState(false);
@@ -312,10 +320,11 @@ const SprintPreview: React.FC = () => {
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
 
-    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route)
+    // Auto-redirect already logged-in users so they never see the preview again (unless in preview routes)
     useEffect(() => {
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        if (isCoachPreview || sprint?.previewMode === 'flow') return;
+        const isPublicPreview = location.pathname.startsWith('/sprint/preview');
+        if (isCoachPreview || isPublicPreview || sprint?.previewMode === 'flow') return;
         if (isNavigatingToSuccessRef.current || isSubmittingAuth) return;
         
         if (!loading && user) {
@@ -457,11 +466,11 @@ const SprintPreview: React.FC = () => {
             day: previewDay, 
             coinsUnlocked: 0, 
             bridgeNote: day1Content?.bridgeNote,
-            sprintId: sprint?.id,
+            sprintId: sprint?.id || sprintId,
             sprint: sprint,
             enrollmentId: enrollmentId,
-            isPreview: isCoachPreview || sprint?.previewMode === "flow",
-            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : (sprint?.previewMode === "flow" ? `/sprint/preview/${sprint?.id}` : undefined),
+            isPreview: true,
+            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id || sprintId}` : `/sprint/preview/${sprint?.id || sprintId}`,
             redirectToDaySuccess: true
         };
         const targetTrackId = sprint?.id || sprintId;

@@ -199,11 +199,13 @@ export const AppRoutes: React.FC = () => {
            <Route path="/impact/rewards" element={<GrowthRewards />} />
            <Route path="/impact/badges" element={<Badges />} />
            <Route path="/buy-coins" element={<BuyCoins />} />
-           <Route path="/participant/day-success" element={<DaySuccessPage />} />
            <Route path="/participant/next-sprint" element={<NextSprintRecommendation />} />
            <Route path="/participant/next-sprint/:sprintId" element={<NextSprintRecommendation />} />
            <Route path="/participant/recommendation" element={<NextSprintRecommendation />} />
         </Route>
+
+        {/* Public & Preview Day Success */}
+        <Route path="/participant/day-success" element={<DaySuccessPage />} />
 
         {/* Public RiseBlog routes */}
         <Route element={<ParticipantLayout />}>
