@@ -265,6 +265,7 @@ const SprintPreview: React.FC = () => {
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
     const [showSignupModal, setShowSignupModal] = useState(false);
     const [showLockModal, setShowLockModal] = useState(false);
+    const [isSavingProgress, setIsSavingProgress] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
     const [showBottomCancelConfirm, setShowBottomCancelConfirm] = useState(false);
@@ -407,6 +408,7 @@ const SprintPreview: React.FC = () => {
     }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint]);
 
     const handleCompletePreviewDay = async () => {
+        setIsSavingProgress(true);
         if (soundEnabled) {
             try {
                 const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
@@ -416,6 +418,9 @@ const SprintPreview: React.FC = () => {
             }
         }
         triggerHaptic(hapticPatterns.success);
+
+        // Wait for 1.5 seconds to show the loader beautifully
+        await new Promise((resolve) => setTimeout(resolve, 1500));
 
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
         
@@ -468,6 +473,7 @@ const SprintPreview: React.FC = () => {
         if (targetTrackId) {
             sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
         }
+        setIsSavingProgress(false);
         navigate('/participant/day-success', { state: daySuccessState, replace: true });
     };
 
@@ -1594,18 +1600,8 @@ const SprintPreview: React.FC = () => {
                                                         if (isValid) {
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1 || sprint?.previewMode === 'flow') {
-                                                                handleCompletePreviewDay();
                                                             } else {
-                                                                const pendingObj = {
-                                                                    sprintId: sprint.id,
-                                                                    pricingType: sprint.pricingType || 'cash',
-                                                                    firstActionInput: taskInputs[0],
-                                                                    taskInputs: taskInputs,
-                                                                    prefilledEmail: prefilledEmail || ''
-                                                                };
-                                                                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-                                                                setShowLockModal(true);
+                                                                handleCompletePreviewDay();
                                                             }
                                                         }
                                                     }}
@@ -2094,18 +2090,8 @@ const SprintPreview: React.FC = () => {
                                                             if (!stepCompleted) return;
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1 || sprint?.previewMode === 'flow') {
-                                                                handleCompletePreviewDay();
                                                             } else {
-                                                                const pendingObj = {
-                                                                    sprintId: sprint.id,
-                                                                    pricingType: sprint.pricingType || 'cash',
-                                                                    firstActionInput: taskInputs[0],
-                                                                    taskInputs: taskInputs,
-                                                                    prefilledEmail: prefilledEmail || ''
-                                                                };
-                                                                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-                                                                setShowLockModal(true);
+                                                                handleCompletePreviewDay();
                                                             }
                                                         }}
                                                         disabled={!stepCompleted}
@@ -2551,6 +2537,23 @@ const SprintPreview: React.FC = () => {
                 }}
                 onCancel={() => setConfirmMarkStepIndex(null)}
             />
+
+            {/* Premium, polished full-screen loading overlay */}
+            {isSavingProgress && (
+                <div className="fixed inset-0 z-[99999] bg-[#FDFDFD] flex flex-col items-center justify-center text-center p-6 font-sans">
+                    {/* Ambient organic glowing backdrop */}
+                    <div className="relative mb-8">
+                        <div className="w-16 h-16 bg-[#0E7850]/15 rounded-full blur-xl animate-pulse absolute inset-0 scale-150" />
+                        <div className="w-12 h-12 border-4 border-gray-100 border-t-[#0E7850] rounded-full animate-spin relative z-10" />
+                    </div>
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2">
+                        Saving Progress...
+                    </h3>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest max-w-xs leading-relaxed">
+                        Completing and securing your daily habit progress
+                    </p>
+                </div>
+            )}
         </div>
     );
 };
