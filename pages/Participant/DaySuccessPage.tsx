@@ -1,85 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
 import { sprintService } from '../../services/sprintService';
 import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
-import { shineService } from '../../services/shineService';
-import { userService } from '../../services/userService';
-import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '../../services/milestoneConstants';
-import { toast } from 'sonner';
-import { Participant } from '../../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Coins, Clock, ArrowRight, Sparkles, Bell, Check, X } from 'lucide-react';
+import { ArrowRight, Sparkles, Bell, Check } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
 
 const DaySuccessPage: React.FC = () => {
-  const { user, updateProfile } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/EmXW0yjwdVf9RGgdvyMXdJ?s=cl&p=a&mlu=4';
-
-  // Popup modal state for returning from WhatsApp link
-  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-
   // Retrieve parameters from state or use sensible fallbacks
   const completedDay = location.state?.day || 1;
-  const passedCoins = location.state?.coinsUnlocked;
-  const unlockedMilestone = location.state?.unlockedMilestone || location.state?.milestoneUnlocked;
-
-  // Only show unlocked bonus / reward icon card if a milestone or coins are explicitly unlocked (> 0)
-  // Day 1 unlocks the "First Step" milestone (+10 coins) by default if not set to 0. Day 2+ defaults to 0.
-  const coinsUnlocked = passedCoins !== undefined 
-    ? Number(passedCoins) 
-    : (completedDay === 1 ? 10 : 0);
-
-  const isMilestoneUnlocked = Boolean(unlockedMilestone) || (coinsUnlocked > 0 && (completedDay === 1 || Boolean(passedCoins && passedCoins > 0)));
   const initialBridgeNote = location.state?.bridgeNote;
-
-  // Listen for window focus / visibility returning after clicking WhatsApp link
-  useEffect(() => {
-    const checkReturnFromWhatsApp = () => {
-      const clicked = sessionStorage.getItem('vectorise_wa_clicked') === 'true';
-      if (clicked) {
-        setShowWhatsAppModal(true);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkReturnFromWhatsApp();
-      }
-    };
-
-    const handleWindowFocus = () => {
-      checkReturnFromWhatsApp();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleWindowFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleWindowFocus);
-    };
-  }, []);
-
-  const handleWhatsAppClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (user && updateProfile) {
-      updateProfile({
-        whatsappLinkClicked: true,
-        whatsappLinkClickedAt: new Date().toISOString()
-      }).catch(err => console.error("Failed to record whatsapp link click:", err));
-    }
-
-    sessionStorage.setItem('vectorise_wa_clicked', 'true');
-    window.open(WHATSAPP_GROUP_URL, '_blank', 'noopener,noreferrer');
-  };
 
   const [resolvedEnrollmentId, setResolvedEnrollmentId] = useState<string | null>(location.state?.enrollmentId || null);
 
@@ -136,36 +73,6 @@ const DaySuccessPage: React.FC = () => {
     }
   };
 
-  const handleCloseModal = () => {
-    setShowWhatsAppModal(false);
-    sessionStorage.removeItem('vectorise_wa_clicked');
-    handleExit();
-  };
-
-  const handleConfirmJoined = async () => {
-    if (user && updateProfile) {
-      try {
-        await updateProfile({
-          whatsappJoinedConfirmed: true,
-          whatsappJoinedConfirmedAt: new Date().toISOString(),
-          whatsappLinkClicked: true,
-          whatsappLinkClickedAt: (user as any)?.whatsappLinkClickedAt || new Date().toISOString()
-        });
-      } catch (err) {
-        console.error("Failed to record whatsapp joined confirmation:", err);
-      }
-    }
-    sessionStorage.removeItem('vectorise_wa_clicked');
-    setShowWhatsAppModal(false);
-    triggerHaptic(hapticPatterns.success);
-    handleExit();
-  };
-
-  const handleTryAgain = () => {
-    window.open(WHATSAPP_GROUP_URL, '_blank', 'noopener,noreferrer');
-    setShowWhatsAppModal(false);
-  };
-
   const [liveBridgeNote, setLiveBridgeNote] = useState<string | null>(initialBridgeNote || null);
 
   // Subscribe to real-time updates for the sprint's bridge note for the completed day
@@ -187,87 +94,6 @@ const DaySuccessPage: React.FC = () => {
     };
   }, [location.state?.sprintId, completedDay, user]);
 
-  const [unclaimedMilestones, setUnclaimedMilestones] = useState<any[]>([]);
-  const [isClaimingIndex, setIsClaimingIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    const loadMilestones = async () => {
-      try {
-        const enrollments = await sprintService.getUserEnrollments(user.id);
-        const reflections = await shineService.getPostsByUserId(user.id).catch(() => []);
-        const referralsCount = (user as any)?.referralsCount || 0;
-
-        const stats = computeMilestoneStats(enrollments, reflections, referralsCount);
-        const claimed = (user as Participant).claimedMilestoneIds || [];
-
-        const unclaimed = MILESTONES.filter(m => {
-          const val = calculateMilestoneStatValue(m.id, stats);
-          return val >= m.targetValue && !claimed.includes(m.id);
-        });
-
-        if (unclaimed.length === 0 && coinsUnlocked > 0) {
-          const isFirstLeapFallback = completedDay === 1;
-          const fallbackId = unlockedMilestone ? String(unlockedMilestone) : (isFirstLeapFallback ? 'first_leap' : 's2');
-          
-          if (!claimed.includes(fallbackId)) {
-            unclaimed.push({
-              id: fallbackId,
-              title: unlockedMilestone || (isFirstLeapFallback ? 'First Leap' : 'First Sprint'),
-              description: unlockedMilestone || (isFirstLeapFallback ? 'Completed the first move of your first sprint.' : 'Completed your first sprint on Vectorise.'),
-              points: coinsUnlocked,
-              icon: isFirstLeapFallback ? '🚀' : '🏁',
-              targetValue: 1,
-              category: 'coreProgress'
-            });
-          }
-        }
-
-        setUnclaimedMilestones(unclaimed);
-      } catch (err) {
-        console.error("Error loading milestones:", err);
-        if (coinsUnlocked > 0) {
-          const isFirstLeapFallback = completedDay === 1;
-          const claimed = (user as Participant).claimedMilestoneIds || [];
-          const fallbackId = isFirstLeapFallback ? 'first_leap' : 's2';
-          
-          if (!claimed.includes(fallbackId)) {
-            setUnclaimedMilestones([{
-              id: fallbackId,
-              title: isFirstLeapFallback ? 'First Leap' : 'First Sprint',
-              description: isFirstLeapFallback ? 'Completed the first move of your first sprint.' : 'Completed your first sprint on Vectorise.',
-              points: coinsUnlocked,
-              icon: isFirstLeapFallback ? '🚀' : '🏁',
-              targetValue: 1,
-              category: 'coreProgress'
-            }]);
-          }
-        }
-      }
-    };
-    loadMilestones();
-  }, [user, coinsUnlocked, unlockedMilestone]);
-
-  const handleClaimMilestone = async (milestone: any, index: number) => {
-    if (!user || isClaimingIndex !== null) return;
-    setIsClaimingIndex(index);
-    triggerHaptic(hapticPatterns.medium);
-    try {
-      await userService.claimMilestone(user.id, milestone.id, milestone.points);
-      toast.success(`Claimed! +${milestone.points} Growth Coins added to your wallet.`);
-      setUnclaimedMilestones(prev => prev.filter((_, idx) => idx !== index));
-    } catch (err) {
-      console.error("Failed to claim milestone:", err);
-      toast.error("Failed to claim milestone. Please try again.");
-    } finally {
-      setIsClaimingIndex(null);
-    }
-  };
-
-  const unclaimedText = unclaimedMilestones.length > 0 
-    ? ` Unlocked Reward: ${unclaimedMilestones[0].description || unclaimedMilestones[0].title} (+${unclaimedMilestones[0].points} Growth Coins).` 
-    : '';
-
   const sprintDuration = location.state?.sprint?.duration || 7;
   const isSprintLastDay = completedDay >= sprintDuration;
 
@@ -287,9 +113,6 @@ const DaySuccessPage: React.FC = () => {
   const displayBridgeNote = formattedBridgeNote
     ? formattedBridgeNote
     : (isSprintLastDay ? '' : '');
-
-  // Real-time local midnight countdown timer
-  const [countdown, setCountdown] = useState('00:00:00');
 
   // Push notification subscription states
   const [isSubscribed, setIsSubscribed] = useState<boolean>(true); // default true to prevent flicker
@@ -464,72 +287,7 @@ const DaySuccessPage: React.FC = () => {
               </AnimatePresence>
             </div>
           )}
-
-          {/* Simple WhatsApp Support Group CTA on Day 1 */}
-          {completedDay === 1 && !user?.whatsappJoinedConfirmed && (
-            <div className="mt-5 pt-4 border-t border-gray-200/80 w-full text-left flex items-center justify-between gap-3 sm:gap-4">
-              <p className="text-sm sm:text-base text-gray-800 font-semibold leading-snug flex-1">
-                Join the WhatsApp support group to get reminders and stay on track.
-              </p>
-              <a
-                href="https://chat.whatsapp.com/EmXW0yjwdVf9RGgdvyMXdJ?s=cl&p=a&mlu=4"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={handleWhatsAppClick}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#0E7850] hover:bg-[#0b6342] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
-              >
-                <span>Join Now</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          )}
         </motion.div>
-
-        {/* Unlocked Reward Card (Full Width) */}
-        <div className="w-full mb-6">
-          <AnimatePresence mode="popLayout">
-            {unclaimedMilestones.length > 0 && (
-              <motion.div
-                key={unclaimedMilestones[0].id}
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8, x: 50 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="w-full bg-[#FFFBEB] border border-amber-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 relative overflow-hidden"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 text-lg">
-                    {unclaimedMilestones[0].icon || '🏆'}
-                  </div>
-                  <div className="text-left min-w-0">
-                    <p className="text-[10px] sm:text-xs font-black text-amber-800 uppercase tracking-widest leading-none">
-                      Milestone Unlocked
-                    </p>
-                    <p className="text-xs sm:text-sm font-black text-amber-950 tracking-tight mt-1 truncate">
-                      {unclaimedMilestones[0].description || unclaimedMilestones[0].title}
-                    </p>
-                    <p className="text-[10px] sm:text-xs font-bold text-amber-700 tracking-tight mt-0.5">
-                      Reward: +{unclaimedMilestones[0].points} Growth Coins
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleClaimMilestone(unclaimedMilestones[0], 0)}
-                  disabled={isClaimingIndex === 0}
-                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {isClaimingIndex === 0 ? (
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <span>Claim</span>
-                  )}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
       </main>
 
@@ -546,70 +304,6 @@ const DaySuccessPage: React.FC = () => {
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>
-
-      {/* WhatsApp Joined Confirmation Modal */}
-      <AnimatePresence>
-        {showWhatsAppModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={handleCloseModal}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs"
-            />
-
-            {/* Modal Box */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 10 }}
-              className="relative z-[101] w-full max-w-sm bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 text-center overflow-hidden"
-            >
-              {/* Close Button top right */}
-              <button
-                onClick={handleCloseModal}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              {/* Icon */}
-              <div className="w-12 h-12 bg-emerald-50 rounded-2xl mx-auto mb-4 flex items-center justify-center text-[#0E7850] shadow-xs">
-                <Sparkles className="w-6 h-6" />
-              </div>
-
-              {/* Title */}
-              <h3 className="text-lg font-black text-gray-900 tracking-tight leading-snug mb-2">
-                Joined the WhatsApp group?
-              </h3>
-
-              <p className="text-xs text-gray-500 font-medium mb-6">
-                Confirming helps us make sure you receive daily reminders and stay on track.
-              </p>
-
-              {/* Actions */}
-              <div className="space-y-2.5">
-                <button
-                  onClick={handleConfirmJoined}
-                  className="w-full py-3.5 bg-[#0E7850] hover:bg-[#0b6342] text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
-                >
-                  Yes, I’ve joined
-                </button>
-
-                <button
-                  onClick={handleTryAgain}
-                  className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-black text-xs uppercase tracking-wider transition-all active:scale-95 cursor-pointer"
-                >
-                  Try Again
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

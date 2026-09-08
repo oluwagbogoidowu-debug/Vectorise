@@ -258,6 +258,9 @@ const SprintPreview: React.FC = () => {
         }
         return null;
     });
+    const [previewDay, setPreviewDay] = useState(() => {
+        return Number(location.state?.targetDay || 1);
+    });
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
     const [showSignupModal, setShowSignupModal] = useState(false);
@@ -271,8 +274,8 @@ const SprintPreview: React.FC = () => {
     const prevTaskIndexRef = useRef(0);
 
     const day1Content = useMemo(() => {
-        return Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
-    }, [sprint?.dailyContent]);
+        return Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === previewDay) : undefined;
+    }, [sprint?.dailyContent, previewDay]);
 
     useEffect(() => {
         if (activeTaskIndex > prevTaskIndexRef.current) {
@@ -414,7 +417,6 @@ const SprintPreview: React.FC = () => {
         }
         triggerHaptic(hapticPatterns.success);
 
-        const d1Content = Array.isArray(sprint?.dailyContent) ? sprint?.dailyContent.find(dc => dc.day === 1) : undefined;
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
         
         let enrollmentId = "";
@@ -452,9 +454,9 @@ const SprintPreview: React.FC = () => {
         }
 
         const daySuccessState = { 
-            day: 1, 
-            coinsUnlocked: 10, 
-            bridgeNote: d1Content?.bridgeNote,
+            day: previewDay, 
+            coinsUnlocked: 0, 
+            bridgeNote: day1Content?.bridgeNote,
             sprintId: sprint?.id,
             sprint: sprint,
             enrollmentId: enrollmentId,
@@ -1427,10 +1429,10 @@ const SprintPreview: React.FC = () => {
                         <div
                             key={day}
                             className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
-                                day === 1 ? 'bg-[#0E7850] text-white shadow-xl' : 'bg-[#F3F4F6] text-gray-400'
+                                day === previewDay ? 'bg-[#0E7850] text-white shadow-xl' : 'bg-[#F3F4F6] text-gray-400'
                             }`}
                         >
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${day === 1 ? 'text-white/60' : 'text-gray-300'}`}>Move</span>
+                            <span className={`text-[8px] font-black uppercase tracking-widest ${day === previewDay ? 'text-white/60' : 'text-gray-300'}`}>Move</span>
                             <span className="text-3xl font-black leading-none">{day}</span>
                         </div>
                     ))}
@@ -1451,7 +1453,7 @@ const SprintPreview: React.FC = () => {
                             if (activePrompts.length === 0) {
                                 return (
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden text-center text-gray-400 font-medium text-xs">
-                                        No action steps defined yet for Move 1.
+                                        No action steps defined yet for Move {previewDay}.
                                     </div>
                                 );
                             }
@@ -1592,7 +1594,7 @@ const SprintPreview: React.FC = () => {
                                                         if (isValid) {
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview')) {
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1) {
                                                                 handleCompletePreviewDay();
                                                             } else {
                                                                 const pendingObj = {
@@ -2092,7 +2094,7 @@ const SprintPreview: React.FC = () => {
                                                             if (!stepCompleted) return;
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview')) {
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1) {
                                                                 handleCompletePreviewDay();
                                                             } else {
                                                                 const pendingObj = {
@@ -2179,7 +2181,7 @@ const SprintPreview: React.FC = () => {
                                     </svg>
                                 </div>
                                 <h3 className="text-lg md:text-xl font-black text-gray-900 tracking-tight mb-3">
-                                    You’ve completed Move 1 of your sprint.
+                                    You’ve completed Move {previewDay} of your sprint.
                                 </h3>
                                 <p className="text-gray-500 font-semibold text-sm leading-relaxed mb-8">
                                     Create an account to save your progress.
