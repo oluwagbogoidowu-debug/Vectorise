@@ -1594,18 +1594,8 @@ const SprintPreview: React.FC = () => {
                                                         if (isValid) {
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1 || sprint?.previewMode === 'flow') {
-                                                                handleCompletePreviewDay();
                                                             } else {
-                                                                const pendingObj = {
-                                                                    sprintId: sprint.id,
-                                                                    pricingType: sprint.pricingType || 'cash',
-                                                                    firstActionInput: taskInputs[0],
-                                                                    taskInputs: taskInputs,
-                                                                    prefilledEmail: prefilledEmail || ''
-                                                                };
-                                                                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-                                                                setShowLockModal(true);
+                                                                handleCompletePreviewDay();
                                                             }
                                                         }
                                                     }}
