@@ -8,7 +8,6 @@ import { ArrowRight, Sparkles, Bell, Check, Award, Tag, Mail } from 'lucide-reac
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
-import { UserRole } from '../../types';
 
 const DaySuccessPage: React.FC = () => {
   const { user } = useAuth();
@@ -56,13 +55,10 @@ const DaySuccessPage: React.FC = () => {
           sessionStorage.removeItem(`vectorise_preview_enrollment_${sprintId}`);
         } catch (e) {}
       }
-      const isCoachRole = user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
-      const isCoachPreview = returnToPreviewUrl?.startsWith('/coach/sprint/preview') || (isCoachRole && location.pathname.startsWith('/coach/'));
-      const fallbackPreviewUrl = isCoachPreview ? `/coach/sprint/preview/${sprintId}` : `/sprint/preview/${sprintId}`;
       if (returnToPreviewUrl) {
         navigate(returnToPreviewUrl, { replace: true, state: { resetPreview: true } });
       } else if (sprintId) {
-        navigate(fallbackPreviewUrl, { replace: true, state: { resetPreview: true } });
+        navigate(`/coach/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
       } else {
         navigate(-1);
       }
@@ -184,10 +180,7 @@ const DaySuccessPage: React.FC = () => {
     const nextDay = completedDay + 1;
 
     if (isPreview) {
-      const isCoachRole = user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
-      const isCoachPreview = returnToPreviewUrl?.startsWith('/coach/sprint/preview') || (isCoachRole && location.pathname.startsWith('/coach/'));
-      const fallbackPreviewUrl = isCoachPreview ? `/coach/sprint/preview/${sprintId}` : `/sprint/preview/${sprintId}`;
-      const targetUrl = returnToPreviewUrl || fallbackPreviewUrl;
+      const targetUrl = returnToPreviewUrl || `/coach/sprint/preview/${sprintId}`;
       navigate(targetUrl, {
         replace: true,
         state: {
@@ -247,20 +240,6 @@ const DaySuccessPage: React.FC = () => {
 
   const [emailInput, setEmailInput] = useState(user?.email || '');
   const [emailError, setEmailError] = useState('');
-
-  // Automatically save guest email in Firestore when entered to make it the primary identifier
-  useEffect(() => {
-    if (!user && emailInput && emailInput.includes('@') && emailInput.length > 5) {
-      const guestUserId = localStorage.getItem('vectorise_guest_user_id');
-      const sId = location.state?.sprintId || location.state?.sprint?.id;
-      if (guestUserId && sId) {
-        localStorage.setItem('guest_email', emailInput);
-        sprintService.updateGuestEmail(guestUserId, emailInput, sId).catch(err => {
-          console.warn("[DaySuccessPage] Failed to save guest email:", err);
-        });
-      }
-    }
-  }, [emailInput, user, location.state]);
 
   const getCtaUrlWithEmail = (baseUrl: string, email: string) => {
     if (!baseUrl) return '';

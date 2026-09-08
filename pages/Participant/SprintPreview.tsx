@@ -8,14 +8,20 @@ import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
-import { db, auth } from '../../services/firebase';
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
-import { userService, safeJSONStringify, sanitizeData } from '../../services/userService';
+import { auth, db } from '../../services/firebase';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  updateProfile as updateFbProfile, 
+  GoogleAuthProvider, 
+  signInWithPopup 
+} from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
+import { userService, safeJSONStringify } from '../../services/userService';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Sparkles, Check, ArrowRight, Lock, Eye, EyeOff, ShieldCheck, Mail, KeyRound, User as UserIcon } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
@@ -253,21 +259,15 @@ const SprintPreview: React.FC = () => {
         return null;
     });
     const [previewDay, setPreviewDay] = useState(() => {
-        return Number(location.state?.targetDay || new URLSearchParams(window.location.search).get('day') || 1);
+        return Number(location.state?.targetDay || 1);
     });
-
-    useEffect(() => {
-        const target = location.state?.targetDay || new URLSearchParams(location.search).get('day');
-        if (target) {
-            setPreviewDay(Number(target));
-            setActiveTaskIndex(0);
-        }
-    }, [location.state?.targetDay, location.search]);
-
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>([]);
+    const [showSignupModal, setShowSignupModal] = useState(false);
+    const [showLockModal, setShowLockModal] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
+    const [showBottomCancelConfirm, setShowBottomCancelConfirm] = useState(false);
     const [isSprintOverviewOpen, setIsSprintOverviewOpen] = useState(false);
     const [soundEnabled] = useState(() => getSoundSettings());
     const [loadingSprint, setLoadingSprint] = useState<boolean>(!location.state?.sprint);
@@ -294,158 +294,119 @@ const SprintPreview: React.FC = () => {
     }, [activeTaskIndex, soundEnabled]);
     
     const isNavigatingToSuccessRef = useRef(false);
+
+    // Bottom modal bar states
     const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
+    const [bottomModalStep, setBottomModalStep] = useState(1); // 1 = locked completion, 2 = signup/login
+    const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
+    const [authFirstName, setAuthFirstName] = useState('');
+    const [authLastName, setAuthLastName] = useState('');
+    const [authPhone, setAuthPhone] = useState('');
+    const [authEmail, setAuthEmail] = useState('');
+    const [authPassword, setAuthPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [authError, setAuthError] = useState('');
+    const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
+    const [createdEnrollmentId, setCreatedEnrollmentId] = useState<string | null>(null);
+    
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
 
-    const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
-
-    // Helper to get effective task inputs from state or localStorage
-    const getEffectiveTaskInputs = () => {
-        let inputs = [...taskInputs];
-        const raw = localStorage.getItem('pending_first_action');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                const dayMove = parsed?.moves?.[previewDay];
-                if (dayMove?.taskInputs && Array.isArray(dayMove.taskInputs) && dayMove.taskInputs.length > 0) {
-                    const maxLen = Math.max(inputs.length, dayMove.taskInputs.length);
-                    const merged: string[] = [];
-                    for (let i = 0; i < maxLen; i++) {
-                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (dayMove.taskInputs[i] || "");
-                    }
-                    inputs = merged;
-                } else if (previewDay === 1 && parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
-                    const maxLen = Math.max(inputs.length, parsed.taskInputs.length);
-                    const merged: string[] = [];
-                    for (let i = 0; i < maxLen; i++) {
-                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputs[i] || "");
-                    }
-                    inputs = merged;
-                } else if (previewDay === 2 && parsed?.taskInputsDay2 && Array.isArray(parsed.taskInputsDay2) && parsed.taskInputsDay2.length > 0) {
-                    const maxLen = Math.max(inputs.length, parsed.taskInputsDay2.length);
-                    const merged: string[] = [];
-                    for (let i = 0; i < maxLen; i++) {
-                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputsDay2[i] || "");
-                    }
-                    inputs = merged;
-                } else if (previewDay === 1 && parsed?.firstActionInput && (!inputs[0] || String(inputs[0]).trim().length === 0)) {
-                    inputs[0] = parsed.firstActionInput;
-                }
-            } catch(e) {}
-        }
-        return inputs;
-    };
-
-    // Restore pending sprint preview state from localStorage on load/mount or previewDay change
+    // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route)
     useEffect(() => {
-        if (!sprintId) return;
-        const pendingRaw = localStorage.getItem('pending_first_action');
-        if (pendingRaw) {
-            try {
-                const parsed = JSON.parse(pendingRaw);
-                if (parsed && (parsed.sprintId === sprintId || !parsed.sprintId)) {
-                    const dayMove = parsed.moves?.[previewDay];
-                    if (dayMove && Array.isArray(dayMove.taskInputs) && dayMove.taskInputs.length > 0) {
-                        setTaskInputs(dayMove.taskInputs);
-                        if (typeof dayMove.activeTaskIndex === 'number' && dayMove.activeTaskIndex >= 0) {
-                            setActiveTaskIndex(dayMove.activeTaskIndex);
+        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
+        if (isCoachPreview || sprint?.previewMode === 'flow') return;
+        if (isNavigatingToSuccessRef.current || isSubmittingAuth) return;
+        
+        if (!loading && user) {
+            // Check if there are task inputs or pending action from preview
+            const effectiveInputs = getEffectiveTaskInputs();
+            const hasInputs = effectiveInputs.some(v => v && String(v).trim().length > 0);
+            const pendingRaw = localStorage.getItem('pending_first_action');
+            
+            if (hasInputs || pendingRaw) {
+                isNavigatingToSuccessRef.current = true;
+                const firstInput = effectiveInputs[0] || "";
+                const targetSprint = sprint;
+                const targetSprintId = sprint?.id || sprintId;
+                
+                if (targetSprintId) {
+                    sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
+                        firstActionInput: firstInput,
+                        taskInputs: effectiveInputs
+                    } as any).then(async (enrollment) => {
+                        if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                            const updatedProgress = [...enrollment.progress];
+                            updatedProgress[0] = {
+                                ...updatedProgress[0],
+                                completed: true,
+                                completedAt: new Date().toISOString(),
+                                answers: effectiveInputs,
+                                submission: firstInput
+                            };
+                            const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                            await updateDoc(enrollmentRef, { 
+                                progress: updatedProgress,
+                                last_activity_at: new Date().toISOString()
+                            });
                         }
-                    } else if (previewDay === 1 && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
-                        setTaskInputs(parsed.taskInputs);
-                        if (typeof parsed.activeTaskIndex === 'number' && parsed.activeTaskIndex >= 0) {
-                            setActiveTaskIndex(parsed.activeTaskIndex);
-                        }
-                    } else if (previewDay === 2 && Array.isArray(parsed.taskInputsDay2) && parsed.taskInputsDay2.length > 0) {
-                        setTaskInputs(parsed.taskInputsDay2);
+                        await userService.addUserEnrollment(user.id, targetSprintId);
+                        localStorage.removeItem('pending_first_action');
+                        localStorage.removeItem('vectorise_last_sprint');
+                        setShowLockModal(false);
+                        const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+                        navigate('/participant/day-success', { 
+                            state: { 
+                                day: 1, 
+                                coinsUnlocked: 10, 
+                                bridgeNote: d1Content?.bridgeNote,
+                                sprintId: targetSprintId,
+                                sprint: targetSprint,
+                                enrollmentId: enrollment?.id,
+                                taskInputs: effectiveInputs,
+                                redirectToDaySuccess: true
+                            }, 
+                            replace: true 
+                        });
+                    }).catch(err => {
+                        console.error("Auto enrollment & day 1 completion on login failed:", err);
+                        localStorage.removeItem('pending_first_action');
+                        setShowLockModal(false);
+                        navigate('/participant/day-success', { 
+                            state: { 
+                                day: 1, 
+                                coinsUnlocked: 10, 
+                                sprintId: targetSprintId,
+                                sprint: targetSprint,
+                                taskInputs: effectiveInputs,
+                                redirectToDaySuccess: true
+                            }, 
+                            replace: true 
+                        });
+                    });
+                    return;
+                }
+            }
+
+            // User is logged in with no pending inputs: check their enrollments
+            sprintService.getUserEnrollments(user.id)
+                .then(enrollments => {
+                    if (isNavigatingToSuccessRef.current) return;
+                    const enrolled = enrollments.find(e => e.sprint_id === sprintId);
+                    if (enrolled) {
+                        navigate(`/participant/sprint/${enrolled.id}`, { replace: true });
                     } else {
-                        setTaskInputs([]);
-                        setActiveTaskIndex(0);
+                        navigate('/explore', { replace: true });
                     }
-                }
-            } catch (e) {
-                console.error("Error restoring pending sprint preview:", e);
-            }
+                })
+                .catch(() => {
+                    if (isNavigatingToSuccessRef.current) return;
+                    navigate('/explore', { replace: true });
+                });
         }
-    }, [sprintId, previewDay]);
+    }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint]);
 
-    // Helper to save day inputs locally to localStorage
-    const saveDayInputsLocally = (dayToSave: number, inputsToSave: string[], activeIdx: number = 0) => {
-        if (!sprint) return;
-        const existingRaw = localStorage.getItem('pending_first_action');
-        let pendingObj: any = {};
-        if (existingRaw) {
-            try {
-                pendingObj = JSON.parse(existingRaw) || {};
-            } catch (e) {}
-        }
-
-        pendingObj.sprintId = sprint.id || sprintId;
-        pendingObj.pricingType = sprint.pricingType || 'cash';
-        pendingObj.moves = pendingObj.moves || {};
-        pendingObj.moves[dayToSave] = {
-            taskInputs: inputsToSave,
-            firstActionInput: inputsToSave[0] || "",
-            activeTaskIndex: activeIdx,
-            completed: Boolean(pendingObj.moves?.[dayToSave]?.completed),
-            completedAt: pendingObj.moves?.[dayToSave]?.completedAt || null
-        };
-
-        if (dayToSave === 1) {
-            pendingObj.taskInputs = inputsToSave;
-            pendingObj.firstActionInput = inputsToSave[0] || "";
-            pendingObj.activeTaskIndex = activeIdx;
-        } else if (dayToSave === 2) {
-            pendingObj.taskInputsDay2 = inputsToSave;
-        }
-
-        pendingObj.prefilledEmail = prefilledEmail || localStorage.getItem('guest_email') || '';
-        pendingObj.updatedAt = new Date().toISOString();
-        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-    };
-
-    // Continuously store sprint preview inputs locally so page reloads and move switches maintain state
-    useEffect(() => {
-        if (!sprint) return;
-        const hasSomeInput = taskInputs.some(val => val && String(val).trim().length > 0);
-        if (!hasSomeInput) return;
-        saveDayInputsLocally(previewDay, taskInputs, activeTaskIndex);
-    }, [sprint, taskInputs, activeTaskIndex, prefilledEmail, previewDay]);
-
-    // Track completed days stored locally
-    const storedCompletedDays = useMemo(() => {
-        try {
-            const raw = localStorage.getItem('pending_first_action');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed?.moves) {
-                    return Object.keys(parsed.moves)
-                        .filter(day => parsed.moves[day]?.completed)
-                        .map(Number);
-                }
-                if (parsed?.completedDays && Array.isArray(parsed.completedDays)) {
-                    return parsed.completedDays;
-                }
-            }
-        } catch (e) {}
-        return [];
-    }, [previewDay, taskInputs]);
-
-    const isDayUnlocked = (day: number) => {
-        if (day === 1) return true;
-        if (storedCompletedDays.includes(day)) return true;
-        if (day <= previewDay) return true;
-        const maxCompleted = storedCompletedDays.length > 0 ? Math.max(...storedCompletedDays) : 0;
-        if (day <= maxCompleted + 1) return true;
-        return false;
-    };
-
-    // Move Completion Handler: Local-only saving for Flow and Coach preview without login restrictions
     const handleCompletePreviewDay = async () => {
-        if (!sprint || isNavigatingToSuccessRef.current) return;
-        isNavigatingToSuccessRef.current = true;
-        setTimeout(() => { isNavigatingToSuccessRef.current = false; }, 2000);
-
         if (soundEnabled) {
             try {
                 const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
@@ -457,73 +418,445 @@ const SprintPreview: React.FC = () => {
         triggerHaptic(hapticPatterns.success);
 
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        const effectiveInputs = getEffectiveTaskInputs();
-        const firstInput = effectiveInputs[0] || "";
-
-        // Update local storage representation and mark move completed
-        const existingRaw = localStorage.getItem('pending_first_action');
-        let pendingObj: any = {};
-        if (existingRaw) {
+        
+        let enrollmentId = "";
+        if (user && sprint && !isCoachPreview) {
+            isNavigatingToSuccessRef.current = true;
             try {
-                pendingObj = JSON.parse(existingRaw) || {};
-            } catch (e) {}
-        }
-
-        pendingObj.sprintId = sprint?.id || sprintId;
-        pendingObj.pricingType = sprint?.pricingType || 'cash';
-        pendingObj.moves = pendingObj.moves || {};
-        pendingObj.moves[previewDay] = {
-            taskInputs: effectiveInputs,
-            firstActionInput: firstInput,
-            completed: true,
-            completedAt: new Date().toISOString()
-        };
-
-        if (previewDay === 1) {
-            pendingObj.taskInputs = effectiveInputs;
-            pendingObj.firstActionInput = firstInput;
-        } else if (previewDay === 2) {
-            pendingObj.taskInputsDay2 = effectiveInputs;
-        }
-
-        const completedDays = new Set(pendingObj.completedDays || []);
-        completedDays.add(previewDay);
-        pendingObj.completedDays = Array.from(completedDays);
-        pendingObj.lastActiveDay = previewDay;
-
-        pendingObj.prefilledEmail = prefilledEmail || localStorage.getItem('guest_email') || '';
-        pendingObj.updatedAt = new Date().toISOString();
-        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-
-        // Track analytics
-        const targetTrackId = sprint?.id || sprintId;
-        if (targetTrackId) {
-            if (previewDay === 1) {
-                sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
-            }
-            if (sprint?.duration && previewDay >= sprint.duration) {
-                sprintAnalyticsService.trackSprintCompletion(targetTrackId, user?.id);
+                const effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration, {
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
+                } as any);
+                if (enrollment) {
+                    enrollmentId = enrollment.id;
+                    const updatedProgress = [...(enrollment.progress || [])];
+                    if (updatedProgress[0]) {
+                        updatedProgress[0] = {
+                            ...updatedProgress[0],
+                            completed: true,
+                            completedAt: new Date().toISOString(),
+                            answers: effectiveInputs,
+                            submission: firstInput
+                        };
+                        const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                        await updateDoc(enrollmentRef, { 
+                            progress: updatedProgress,
+                            last_activity_at: new Date().toISOString()
+                        });
+                    }
+                }
+                localStorage.removeItem('pending_first_action');
+            } catch (e) {
+                console.error("Error saving preview progress for logged-in user:", e);
             }
         }
 
-        const returnToPreviewUrl = isCoachPreview 
-            ? `/coach/sprint/preview/${sprint?.id || sprintId}` 
-            : `/sprint/preview/${sprint?.id || sprintId}`;
-
-        // Replicate Coach preview: Seamlessly navigate to DaySuccessPage without restrictions or login walls
         const daySuccessState = { 
             day: previewDay, 
-            coinsUnlocked: previewDay * 10, 
+            coinsUnlocked: 0, 
             bridgeNote: day1Content?.bridgeNote,
-            completionNote: day1Content?.completionNote,
-            sprintId: sprint?.id || sprintId,
+            sprintId: sprint?.id,
             sprint: sprint,
-            isPreview: true,
-            returnToPreviewUrl: returnToPreviewUrl,
-            taskInputs: effectiveInputs,
+            enrollmentId: enrollmentId,
+            isPreview: isCoachPreview || sprint?.previewMode === "flow",
+            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : (sprint?.previewMode === "flow" ? `/sprint/preview/${sprint?.id}` : undefined),
             redirectToDaySuccess: true
         };
+        const targetTrackId = sprint?.id || sprintId;
+        if (targetTrackId) {
+            sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
+        }
         navigate('/participant/day-success', { state: daySuccessState, replace: true });
+    };
+
+    const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
+
+    useEffect(() => {
+        if (prefilledEmail) {
+            setAuthEmail(prefilledEmail);
+        }
+    }, [prefilledEmail]);
+
+    // Restore pending sprint preview state from localStorage on load/mount
+    useEffect(() => {
+        if (!sprintId) return;
+        const pendingRaw = localStorage.getItem('pending_first_action');
+        if (pendingRaw) {
+            try {
+                const parsed = JSON.parse(pendingRaw);
+                if (parsed && parsed.sprintId === sprintId) {
+                    if (Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                        setTaskInputs(parsed.taskInputs);
+                    }
+                    if (typeof parsed.activeTaskIndex === 'number' && parsed.activeTaskIndex >= 0) {
+                        setActiveTaskIndex(parsed.activeTaskIndex);
+                    }
+                }
+            } catch (e) {
+                console.error("Error restoring pending sprint preview:", e);
+            }
+        }
+    }, [sprintId]);
+
+    // Continuously store sprint preview inputs locally before login so page reloads maintain state
+    useEffect(() => {
+        if (!sprint || user) return;
+        const hasSomeInput = taskInputs.some(val => val && String(val).trim().length > 0);
+        if (!hasSomeInput) return;
+
+        const pendingObj = {
+            sprintId: sprint.id,
+            pricingType: sprint.pricingType || 'cash',
+            firstActionInput: taskInputs[0] || "",
+            taskInputs: taskInputs,
+            activeTaskIndex: activeTaskIndex,
+            prefilledEmail: prefilledEmail || '',
+            updatedAt: new Date().toISOString()
+        };
+        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+    }, [sprint, taskInputs, activeTaskIndex, user, prefilledEmail]);
+
+    useEffect(() => {
+        if (!showLockModal) {
+            setBottomModalStep(1);
+            setAuthError('');
+            setAuthPassword('');
+        }
+    }, [showLockModal]);
+
+    // Helper to get effective task inputs from state or localStorage
+    const getEffectiveTaskInputs = () => {
+        let inputs = [...taskInputs];
+        const raw = localStorage.getItem('pending_first_action');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                    const maxLen = Math.max(inputs.length, parsed.taskInputs.length);
+                    const merged: string[] = [];
+                    for (let i = 0; i < maxLen; i++) {
+                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputs[i] || "");
+                    }
+                    inputs = merged;
+                } else if (parsed?.firstActionInput && (!inputs[0] || String(inputs[0]).trim().length === 0)) {
+                    inputs[0] = parsed.firstActionInput;
+                }
+            } catch(e) {}
+        }
+        return inputs;
+    };
+
+    const handleGoogleSignIn = async () => {
+        const provider = new GoogleAuthProvider();
+        setIsSubmittingAuth(true);
+        setAuthError('');
+        isNavigatingToSuccessRef.current = true;
+        try {
+            const res = await signInWithPopup(auth, provider);
+            const firebaseUser = res.user;
+            toast.success("Connected with Google successfully!");
+
+            let targetSprint = sprint;
+            const targetSprintId = sprint?.id || sprintId;
+            if (!targetSprint && targetSprintId) {
+                targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            const existingDoc = await userService.getUserDocument(firebaseUser.uid);
+            const storedRef = localStorage.getItem('vectorise_ref') || undefined;
+            if (!existingDoc) {
+                const isCoachRegistration = !!(targetSprint?.audience && targetSprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
+                const nameParts = (firebaseUser.displayName || 'Rise Seeker').split(' ');
+                const newUser: Partial<any> = {
+                    id: firebaseUser.uid,
+                    name: firebaseUser.displayName || 'Rise Seeker',
+                    email: firebaseUser.email || '',
+                    role: UserRole.PARTICIPANT,
+                    profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${nameParts[0]}+${nameParts[1] || ''}&background=0E7850&color=fff`,
+                    persona: isCoachRegistration ? 'Coach' : 'Seeker',
+                    onboardingAnswers: {},
+                    enrolledSprintIds: targetSprint?.id ? [targetSprint.id] : [],
+                    isPartner: false,
+                    partnerData: null,
+                    walletBalance: 0,
+                    referrerId: storedRef || null,
+                    referralFirstTouch: storedRef || null,
+                    defaultLoginMode: undefined,
+                    bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow.",
+                    isCoachRequestMode: isCoachRegistration ? true : undefined
+                };
+                await userService.createUserDocument(firebaseUser.uid, newUser);
+            }
+
+            if (targetSprint) {
+                const effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                // Auto enroll and complete Day 1 in database
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
+                } as any);
+
+                await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
+
+                if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                    const updatedProgress = [...enrollment.progress];
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        answers: effectiveInputs,
+                        submission: firstInput
+                    };
+                    const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
+                    await updateDoc(enrollmentRef, { 
+                        progress: updatedProgress,
+                        last_activity_at: new Date().toISOString()
+                    });
+                }
+                if (enrollment && enrollment.id) {
+                    console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                    localStorage.removeItem('pending_first_action');
+                    localStorage.removeItem('vectorise_last_sprint');
+                }
+                const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
+                setShowLockModal(false);
+                navigate('/participant/day-success', { 
+                    state: { 
+                        day: 1, 
+                        coinsUnlocked: 10, 
+                        bridgeNote: d1Content?.bridgeNote,
+                        sprintId: targetSprint.id,
+                        sprint: targetSprint,
+                        enrollmentId: enrollment?.id,
+                        taskInputs: effectiveInputs,
+                        redirectToDaySuccess: true
+                    },
+                    replace: true
+                });
+            } else {
+                setShowLockModal(false);
+                navigate('/dashboard', { replace: true });
+            }
+        } catch (error: any) {
+            isNavigatingToSuccessRef.current = false;
+            console.error("Google Sign-In Failure:", error);
+            if (error.code === 'auth/unauthorized-domain') {
+                setAuthError("Google Sign-In is not enabled for this domain. Please use Email & Password instead.");
+            } else if (error.code === 'auth/too-many-requests') {
+                setAuthError("Too many attempts. Please wait a few minutes before trying again.");
+            } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                setAuthError("Google authentication failed. Please try again.");
+            }
+        } finally {
+            setIsSubmittingAuth(false);
+        }
+    };
+
+    const handleSignUpSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!authFirstName || !authLastName || !authPhone || !authEmail || !authPassword) {
+            setAuthError("All fields are required.");
+            return;
+        }
+        setAuthError('');
+        setIsSubmittingAuth(true);
+        isNavigatingToSuccessRef.current = true;
+
+        try {
+            resetVerificationDeferral();
+            const userCredential = await createUserWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
+            const firebaseUser = userCredential.user;
+
+            await updateFbProfile(firebaseUser, { displayName: `${authFirstName} ${authLastName}` });
+
+            let targetSprint = sprint;
+            const targetSprintId = sprint?.id || sprintId;
+            if (!targetSprint && targetSprintId) {
+                targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            const storedRef = localStorage.getItem('vectorise_ref') || undefined;
+            const isCoachRegistration = !!(targetSprint?.audience && targetSprint.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
+            const newUser: Partial<any> = {
+                id: firebaseUser.uid,
+                name: `${authFirstName} ${authLastName}`,
+                email: authEmail.trim().toLowerCase(),
+                phone: authPhone.trim(),
+                phoneNumber: authPhone.trim(),
+                role: UserRole.PARTICIPANT,
+                profileImageUrl: `https://ui-avatars.com/api/?name=${authFirstName}+${authLastName}&background=0E7850&color=fff`,
+                persona: isCoachRegistration ? 'Coach' : 'Seeker',
+                onboardingAnswers: {},
+                enrolledSprintIds: targetSprintId ? [targetSprintId] : [],
+                isPartner: false,
+                partnerData: null,
+                walletBalance: 0,
+                referrerId: storedRef || null,
+                referralFirstTouch: storedRef || null,
+                defaultLoginMode: undefined,
+                coachApplicationSubmitted: isCoachRegistration ? false : undefined,
+                coachApplicationApproved: isCoachRegistration ? false : undefined,
+                hasCoachProfile: isCoachRegistration ? false : undefined,
+                approved: isCoachRegistration ? false : undefined,
+                bio: isCoachRegistration ? "Specialized Coach." : "Ready to grow.",
+                niche: isCoachRegistration ? "Executive Coaching" : undefined,
+                isCoachRequestMode: isCoachRegistration ? true : undefined,
+            };
+            await userService.createUserDocument(firebaseUser.uid, newUser);
+
+            let enrollmentId = "";
+            const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
+            let day1BridgeNote = d1Content?.bridgeNote;
+            let effectiveInputs: string[] = [];
+            if (targetSprint) {
+                effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                // Auto enroll and complete Day 1 in database
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
+                } as any);
+
+                await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
+
+                if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                    const updatedProgress = [...enrollment.progress];
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        answers: effectiveInputs,
+                        submission: firstInput
+                    };
+                    const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
+                    await updateDoc(enrollmentRef, { 
+                        progress: updatedProgress,
+                        last_activity_at: new Date().toISOString()
+                    });
+                }
+                enrollmentId = enrollment?.id || "";
+                setCreatedEnrollmentId(enrollmentId);
+                if (enrollment && enrollment.id) {
+                    console.log("[SprintPreview:EmailSignUp] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                    localStorage.removeItem('pending_first_action');
+                    localStorage.removeItem('vectorise_last_sprint');
+                }
+            }
+
+            const daySuccessState = {
+                redirectToDaySuccess: true,
+                day: 1,
+                coinsUnlocked: 10,
+                bridgeNote: day1BridgeNote,
+                enrollmentId,
+                sprintId: targetSprint?.id || targetSprintId,
+                sprint: targetSprint,
+                taskInputs: effectiveInputs
+            };
+
+            toast.success("Account created successfully!");
+            setShowLockModal(false);
+            navigate('/participant/day-success', { state: daySuccessState, replace: true });
+        } catch (error: any) {
+            isNavigatingToSuccessRef.current = false;
+            console.error("Signup error:", error);
+            if (error.code === 'auth/email-already-in-use') setAuthError("Email already in use. Try logging in instead.");
+            else if (error.code === 'auth/weak-password') setAuthError("Password must be at least 6 characters.");
+            else if (error.code === 'auth/too-many-requests') setAuthError("Too many attempts. Please wait a few minutes before trying again.");
+            else setAuthError("Account creation failed. Please try again.");
+        } finally {
+            setIsSubmittingAuth(false);
+        }
+    };
+
+    const handleLoginSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!authEmail || !authPassword) {
+            setAuthError("Email and Password are required.");
+            return;
+        }
+        setAuthError('');
+        setIsSubmittingAuth(true);
+        isNavigatingToSuccessRef.current = true;
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
+            const firebaseUser = userCredential.user;
+            toast.success("Logged in successfully!");
+
+            let targetSprint = sprint;
+            const targetSprintId = sprint?.id || sprintId;
+            if (!targetSprint && targetSprintId) {
+                targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            if (targetSprint) {
+                const effectiveInputs = getEffectiveTaskInputs();
+                const firstInput = effectiveInputs[0] || "";
+                // Auto enroll and complete Day 1 in database
+                const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
+                    firstActionInput: firstInput,
+                    taskInputs: effectiveInputs
+                } as any);
+
+                await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
+
+                if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                    const updatedProgress = [...enrollment.progress];
+                    updatedProgress[0] = {
+                        ...updatedProgress[0],
+                        completed: true,
+                        completedAt: new Date().toISOString(),
+                        answers: effectiveInputs,
+                        submission: firstInput
+                    };
+                    const enrollmentRef = doc(db, "users", firebaseUser.uid, "enrollments", enrollment.id);
+                    await updateDoc(enrollmentRef, { 
+                        progress: updatedProgress,
+                        last_activity_at: new Date().toISOString()
+                    });
+                }
+                setCreatedEnrollmentId(enrollment.id);
+                if (enrollment && enrollment.id) {
+                    console.log("[SprintPreview:EmailLogin] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
+                    localStorage.removeItem('pending_first_action');
+                    localStorage.removeItem('vectorise_last_sprint');
+                }
+
+                const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
+                setShowLockModal(false);
+                const daySuccessState = { 
+                    day: 1, 
+                    coinsUnlocked: 10, 
+                    bridgeNote: d1Content?.bridgeNote || day1Content?.bridgeNote,
+                    enrollmentId: enrollment.id,
+                    sprintId: targetSprint.id,
+                    sprint: targetSprint,
+                    taskInputs: effectiveInputs,
+                    redirectToDaySuccess: true
+                };
+
+                navigate('/participant/day-success', { state: daySuccessState, replace: true });
+            } else {
+                setShowLockModal(false);
+                navigate('/dashboard', { replace: true });
+            }
+        } catch (error: any) {
+            isNavigatingToSuccessRef.current = false;
+            console.error("Login error:", error);
+            if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                setAuthError("Incorrect email or password.");
+            } else if (error.code === 'auth/too-many-requests') {
+                setAuthError("Too many attempts. Please wait a few minutes before trying again.");
+            } else {
+                setAuthError("Login failed. Please check your credentials.");
+            }
+        } finally {
+            setIsSubmittingAuth(false);
+        }
     };
 
     useEffect(() => {
@@ -1090,54 +1423,19 @@ const SprintPreview: React.FC = () => {
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Day Selector */}
-                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
-                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
-                        const unlocked = isDayUnlocked(day);
-                        const isSelected = day === previewDay;
-                        const isCompleted = storedCompletedDays.includes(day) || day < previewDay;
-
-                        return (
-                            <button
-                                key={day}
-                                type="button"
-                                onClick={() => {
-                                    if (unlocked) {
-                                        setPreviewDay(day);
-                                    }
-                                }}
-                                disabled={!unlocked}
-                                className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
-                                    isSelected 
-                                        ? 'bg-[#0E7850] text-white shadow-xl scale-105' 
-                                        : isCompleted
-                                            ? 'bg-white text-gray-800 border-2 border-emerald-500/30 shadow-sm hover:border-emerald-500 cursor-pointer'
-                                            : unlocked
-                                                ? 'bg-white text-gray-800 border border-gray-200 shadow-sm hover:border-primary/50 cursor-pointer'
-                                                : 'bg-gray-100 text-gray-300 border border-gray-200 cursor-not-allowed opacity-60'
-                                }`}
-                            >
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${isSelected ? 'text-white/60' : isCompleted ? 'text-emerald-600' : unlocked ? 'text-gray-400' : 'text-gray-300'}`}>
-                                    {isCompleted ? 'Done' : 'Move'}
-                                </span>
-                                <span className="text-3xl font-black leading-none">{day}</span>
-                                {!unlocked && (
-                                    <div className="absolute top-2 right-2 text-gray-300">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                        </svg>
-                                    </div>
-                                )}
-                                {isCompleted && !isSelected && (
-                                    <div className="absolute top-2 right-2 text-emerald-600">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </div>
-                                )}
-                            </button>
-                        );
-                    })}
+                {/* Day Selector (Disabled/Preview) */}
+                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1 opacity-50">
+                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
+                        <div
+                            key={day}
+                            className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
+                                day === previewDay ? 'bg-[#0E7850] text-white shadow-xl' : 'bg-[#F3F4F6] text-gray-400'
+                            }`}
+                        >
+                            <span className={`text-[8px] font-black uppercase tracking-widest ${day === previewDay ? 'text-white/60' : 'text-gray-300'}`}>Move</span>
+                            <span className="text-3xl font-black leading-none">{day}</span>
+                        </div>
+                    ))}
                 </div>
 
                 <div className="space-y-2 text-left animate-slide-up">
@@ -1296,8 +1594,18 @@ const SprintPreview: React.FC = () => {
                                                         if (isValid) {
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else {
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1 || sprint?.previewMode === 'flow') {
                                                                 handleCompletePreviewDay();
+                                                            } else {
+                                                                const pendingObj = {
+                                                                    sprintId: sprint.id,
+                                                                    pricingType: sprint.pricingType || 'cash',
+                                                                    firstActionInput: taskInputs[0],
+                                                                    taskInputs: taskInputs,
+                                                                    prefilledEmail: prefilledEmail || ''
+                                                                };
+                                                                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+                                                                setShowLockModal(true);
                                                             }
                                                         }
                                                     }}
@@ -1786,8 +2094,18 @@ const SprintPreview: React.FC = () => {
                                                             if (!stepCompleted) return;
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else {
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1 || sprint?.previewMode === 'flow') {
                                                                 handleCompletePreviewDay();
+                                                            } else {
+                                                                const pendingObj = {
+                                                                    sprintId: sprint.id,
+                                                                    pricingType: sprint.pricingType || 'cash',
+                                                                    firstActionInput: taskInputs[0],
+                                                                    taskInputs: taskInputs,
+                                                                    prefilledEmail: prefilledEmail || ''
+                                                                };
+                                                                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+                                                                setShowLockModal(true);
                                                             }
                                                         }}
                                                         disabled={!stepCompleted}
@@ -1841,6 +2159,306 @@ const SprintPreview: React.FC = () => {
                 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
             `}</style>
             
+            {showLockModal && sprint && createPortal(
+                <>
+                    {/* Backdrop Overlay */}
+                    <div 
+                        onClick={() => setShowLockModal(false)}
+                        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" 
+                    />
+                    
+                    {/* Bottom Modal Sheet Container */}
+                    <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] px-6 pt-8 pb-10 max-w-md mx-auto animate-slide-up border-t border-gray-100 max-h-[92vh] overflow-y-auto no-scrollbar">
+                        
+                        {/* Drag Pull Indicator line */}
+                        <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6 shrink-0" />
+
+                        {bottomModalStep === 1 && (
+                            <div className="text-center animate-fade-in">
+                                <div className="w-16 h-16 bg-[#0E7850]/10 rounded-full flex items-center justify-center mx-auto mb-6 text-[#0E7850]">
+                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-lg md:text-xl font-black text-gray-900 tracking-tight mb-3">
+                                    You’ve completed Move {previewDay} of your sprint.
+                                </h3>
+                                <p className="text-gray-500 font-semibold text-sm leading-relaxed mb-8">
+                                    Create an account to save your progress.
+                                </p>
+                                
+                                <div className="space-y-4">
+                                    <button 
+                                        onClick={() => {
+                                            setBottomModalStep(2);
+                                            setAuthMode('signup');
+                                        }}
+                                        className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-[#0b5d3e] transition-colors shadow-lg active:scale-95 cursor-pointer"
+                                    >
+                                        Sign up to continue
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            setBottomModalStep(2);
+                                            setAuthMode('login');
+                                        }}
+                                        className="text-[11px] font-extrabold text-[#0E7850] hover:text-[#0b5d3e] hover:underline transition-colors block mx-auto py-1 cursor-pointer"
+                                    >
+                                        Already have an account Login to proceed
+                                    </button>
+                                    <button 
+                                        onClick={() => setShowLockModal(false)}
+                                        className="w-full py-2 text-gray-400 rounded-2xl font-bold uppercase tracking-widest text-[9px] hover:text-gray-500 transition-colors cursor-pointer"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {bottomModalStep === 2 && (
+                            <div className="animate-fade-in text-center">
+                                <form onSubmit={authMode === 'signup' ? handleSignUpSubmit : handleLoginSubmit} className="space-y-4 text-left">
+                                    {authMode === 'signup' && (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">First Name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        required 
+                                                        value={authFirstName} 
+                                                        onChange={(e) => setAuthFirstName(e.target.value)} 
+                                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
+                                                        placeholder="First Name" 
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Last Name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        required 
+                                                        value={authLastName} 
+                                                        onChange={(e) => setAuthLastName(e.target.value)} 
+                                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
+                                                        placeholder="Last Name" 
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                                                    Mobile Number (preferably WhatsApp)
+                                                </label>
+                                                <input 
+                                                    type="tel" 
+                                                    required 
+                                                    value={authPhone} 
+                                                    onChange={(e) => setAuthPhone(e.target.value)} 
+                                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 transition-all text-gray-900" 
+                                                    placeholder="Mobile Number (preferably WhatsApp)" 
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+                                    
+                                    <div className="space-y-1">
+                                        <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                                        <input 
+                                            type="email" 
+                                            required 
+                                            value={authEmail} 
+                                            onChange={(e) => setAuthEmail(e.target.value)} 
+                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all text-gray-900" 
+                                            placeholder="Email Address" 
+                                        />
+                                    </div>
+                                    
+                                    <div className="space-y-1">
+                                        <label className="block text-[8px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                                            {authMode === 'signup' ? 'Set Password' : 'Password'}
+                                        </label>
+                                        <div className="relative">
+                                            <input 
+                                                type={showPassword ? "text" : "password"} 
+                                                required 
+                                                value={authPassword} 
+                                                onChange={(e) => setAuthPassword(e.target.value)} 
+                                                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none font-bold text-sm focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all text-gray-900 pr-10" 
+                                                placeholder="Password" 
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                                                title={showPassword ? "Hide password" : "Reveal password"}
+                                            >
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {authError && (
+                                        <p className="text-[10px] text-red-600 font-black uppercase text-center mt-2 tracking-wide">
+                                            {authError}
+                                        </p>
+                                    )}
+
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmittingAuth}
+                                        className="w-full py-4 bg-primary hover:bg-[#0b5d3e] text-white rounded-2xl shadow-lg text-[10px] font-black uppercase tracking-[0.2em] mt-2 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        {isSubmittingAuth ? (
+                                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                        ) : (
+                                            <>
+                                                {authMode === 'signup' ? 'Create Account' : 'Log In'} &rarr;
+                                            </>
+                                        )}
+                                    </button>
+                                </form>
+
+                                <div className="relative flex py-3 items-center">
+                                    <div className="flex-grow border-t border-gray-100"></div>
+                                    <span className="flex-shrink mx-3 text-[8px] font-black text-gray-300 uppercase tracking-widest block">or continue with</span>
+                                    <div className="flex-grow border-t border-gray-100"></div>
+                                </div>
+
+                                <button 
+                                    type="button" 
+                                    onClick={handleGoogleSignIn}
+                                    disabled={isSubmittingAuth}
+                                    className="w-full flex items-center justify-center gap-2.5 py-3 border border-gray-200 rounded-full hover:bg-gray-50 transition-all font-black text-[9px] uppercase tracking-[0.15em] text-gray-700 active:scale-95 disabled:opacity-50 cursor-pointer"
+                                >
+                                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none">
+                                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22.81-.6z"/>
+                                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 6.16l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                    </svg>
+                                    Google
+                                </button>
+
+                                <div className="mt-6 flex flex-col items-center gap-3">
+                                    {authMode === 'signup' ? (
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            Already have an account?{" "}
+                                            <button 
+                                                onClick={() => { setAuthMode('login'); setAuthError(''); }} 
+                                                className="text-primary hover:underline font-extrabold cursor-pointer"
+                                            >
+                                                Log in
+                                            </button>
+                                        </p>
+                                    ) : (
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                            Don't have an account?{" "}
+                                            <button 
+                                                onClick={() => { setAuthMode('signup'); setAuthError(''); }} 
+                                                className="text-primary hover:underline font-extrabold cursor-pointer"
+                                            >
+                                                Sign up
+                                            </button>
+                                        </p>
+                                    )}
+                                    
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setBottomModalStep(1);
+                                            setAuthError('');
+                                        }}
+                                        className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors cursor-pointer"
+                                    >
+                                        Back
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+                </>,
+                document.body
+            )}
+
+            {showSignupModal && createPortal(
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
+                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Unlock Full Sprint</h3>
+                        <p className="text-gray-500 font-medium mb-8 text-sm">Sign up to save your progress and continue with the next daily action steps.</p>
+                        
+                        <div className="space-y-3">
+                            <button 
+                                onClick={() => navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId, sprintId: sprintId, sprint: sprint } })}
+                                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95"
+                            >
+                                Sign Up to Continue
+                            </button>
+                            <button 
+                                onClick={() => setShowSignupModal(false)}
+                                className="w-full py-4 text-gray-500 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {showBottomCancelConfirm && createPortal(
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 sm:p-10 max-w-sm w-full text-center relative overflow-hidden border border-gray-100">
+                        <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Are you sure?</h3>
+                        <p className="text-gray-500 font-medium mb-8 text-sm leading-relaxed">
+                            Canceling email verification may limit what you can do. Are you sure you want to continue?
+                        </p>
+                        
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={() => {
+                                    deferVerification();
+                                    setShowLockModal(false);
+                                    setShowBottomCancelConfirm(false);
+                                    const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === 1) : undefined;
+                                    navigate('/participant/day-success', {
+                                        state: {
+                                            day: 1,
+                                            coinsUnlocked: 10,
+                                            bridgeNote: d1Content?.bridgeNote,
+                                            sprintId: sprint?.id,
+                                            enrollmentId: createdEnrollmentId
+                                        },
+                                        replace: true
+                                    });
+                                }}
+                                className="flex-1 py-3 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95 cursor-pointer"
+                            >
+                                Yes
+                            </button>
+                            <button 
+                                onClick={() => setShowBottomCancelConfirm(false)}
+                                className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-colors cursor-pointer"
+                            >
+                                No
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
             {/* Sprint Description Sheet */}
             {createPortal(
                 <AnimatePresence>

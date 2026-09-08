@@ -6,7 +6,7 @@ import { auth, db } from '../../services/firebase';
 import { signInWithEmailAndPassword, sendEmailVerification, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../../services/sprintService';
-import { userService, sanitizeData } from '../../services/userService';
+import { userService } from '../../services/userService';
 import { UserRole } from '../../types';
 import { toast } from 'sonner';
 
@@ -157,10 +157,10 @@ const LoginPage: React.FC = () => {
                                       submission: firstInput
                                   };
                                   const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
-                                  await updateDoc(enrollmentRef, sanitizeData({ 
-                                      progress: sanitizeData(updatedProgress),
+                                  await updateDoc(enrollmentRef, { 
+                                      progress: updatedProgress,
                                       last_activity_at: new Date().toISOString()
-                                  }));
+                                  });
                               }
                           } else if (effectiveInputs.length > 0) {
                               if (existing.progress && existing.progress[0]) {
@@ -173,10 +173,10 @@ const LoginPage: React.FC = () => {
                                       submission: firstInput
                                   };
                                   const enrollmentRef = doc(db, "users", user.id, "enrollments", existing.id);
-                                  await updateDoc(enrollmentRef, sanitizeData({ 
-                                      progress: sanitizeData(updatedProgress),
+                                  await updateDoc(enrollmentRef, { 
+                                      progress: updatedProgress,
                                       last_activity_at: new Date().toISOString()
-                                  }));
+                                  });
                               }
                           }
 

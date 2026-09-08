@@ -195,7 +195,7 @@ export interface ParticipantSprintRun {
   progress: {
     day: number;
     completed: boolean;
-    completedAt?: string | null;
+    completedAt?: string;
     submission?: string;
     submissionFileUrl?: string;
     proofSelection?: string;
@@ -214,8 +214,6 @@ export interface ParticipantSprint {
   currency: string;
   payment_source: PaymentSource;
   status: 'active' | 'completed' | 'paused' | 'queued';
-  email?: string;
-  isGuest?: boolean;
   completed_at?: string | null;
   last_activity_at?: string;
   referral_source?: string | null;
@@ -231,7 +229,7 @@ export interface ParticipantSprint {
   progress: {
     day: number;
     completed: boolean;
-    completedAt?: string | null;
+    completedAt?: string;
     submission?: string;
     submissionFileUrl?: string;
     proofSelection?: string;
@@ -465,8 +463,6 @@ export interface User {
   email: string;
   role: UserRole;
   profileImageUrl: string;
-  referrerId?: string | null;
-  referralFirstTouch?: string | null;
   roleDefinitionId?: string;
   emailVerifiedConfirmed?: boolean;
   emailVerifiedOverride?: boolean;

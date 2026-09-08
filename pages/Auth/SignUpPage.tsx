@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth, db } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, updateDoc, collection, query, where, getDocs, getDoc, setDoc, increment } from 'firebase/firestore';
-import { userService, safeJSONStringify, sanitizeData } from '../../services/userService';
+import { doc, updateDoc, collection, query, where, getDocs, getDoc, setDoc } from 'firebase/firestore';
+import { userService, safeJSONStringify } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { UserRole, Participant } from '../../types';
 import Button from '../../components/Button';
@@ -71,66 +71,26 @@ const SignUpPage: React.FC = () => {
       const sprint = await sprintService.getSprintById(sprintId);
       if (!sprint) return null;
 
-      const move1 = customAnswers?.moves?.[1];
-      const move2 = customAnswers?.moves?.[2];
-
-      const move1Inputs = move1?.taskInputs || customAnswers?.taskInputs || (customAnswers?.firstActionInput ? [customAnswers.firstActionInput] : []);
-      const move1First = move1?.firstActionInput || move1Inputs[0] || customAnswers?.firstActionInput || "";
-
-      const move2Inputs = move2?.taskInputs || customAnswers?.taskInputsDay2 || [];
-      const move2First = move2?.firstActionInput || move2Inputs[0] || "";
-
-      const hasMove2 = Boolean(move2?.completed || move2Inputs.length > 0);
-
-      const enrollment = await sprintService.enrollUser(uid, sprintId, sprint.duration || 7, {
-        firstActionInput: move1First,
-        taskInputs: move1Inputs
+      const firstInput = customAnswers?.firstActionInput || customAnswers?.taskInputs?.[0];
+      const enrollment = await sprintService.enrollUser(uid, sprintId, sprint.duration, {
+        firstActionInput: firstInput,
+        taskInputs: customAnswers?.taskInputs || (firstInput ? [firstInput] : undefined)
       } as any);
 
-      if (enrollment && enrollment.id) {
-        const effectiveDuration = Math.max(sprint.duration || 7, 7);
-        const updatedProgress = Array.from({ length: effectiveDuration }, (_, i) => {
-          const existingDay = enrollment.progress?.[i];
-          if (i === 0) {
-            return {
-              day: 1,
-              completed: true,
-              completedAt: move1?.completedAt || new Date().toISOString(),
-              answers: move1Inputs,
-              submission: move1First
-            };
-          } else if (i === 1 && hasMove2) {
-            return {
-              day: 2,
-              completed: true,
-              completedAt: move2?.completedAt || new Date().toISOString(),
-              answers: move2Inputs,
-              submission: move2First
-            };
-          } else {
-            return existingDay || {
-              day: i + 1,
-              completed: false,
-              completedAt: null,
-              answers: [],
-              submission: ""
-            };
-          }
-        });
-
+      if (enrollment && enrollment.progress && enrollment.progress[0]) {
+        const updatedProgress = [...enrollment.progress];
+        updatedProgress[0] = {
+          ...updatedProgress[0],
+          completed: true,
+          completedAt: new Date().toISOString(),
+          answers: customAnswers?.taskInputs || (firstInput ? [firstInput] : []),
+          submission: firstInput || ""
+        };
         const enrollmentRef = doc(db, "users", uid, "enrollments", enrollment.id);
-        await updateDoc(enrollmentRef, sanitizeData({ 
-          progress: sanitizeData(updatedProgress),
+        await updateDoc(enrollmentRef, { 
+          progress: updatedProgress,
           last_activity_at: new Date().toISOString()
-        }));
-
-        if (hasMove2) {
-          try {
-            await updateDoc(doc(db, "users", uid), {
-              walletBalance: increment(20)
-            });
-          } catch(e) {}
-        }
+        });
       }
 
       await userService.addUserEnrollment(uid, sprintId);
@@ -139,20 +99,18 @@ const SignUpPage: React.FC = () => {
         console.log("[SignUpPage] Confirmed enrollment created/updated:", enrollment.id, "Removing pending_first_action");
         localStorage.removeItem('pending_first_action');
         localStorage.removeItem('vectorise_last_sprint');
+      } else {
+        console.warn("[SignUpPage] Enrollment returned no valid ID, keeping pending_first_action in localStorage");
       }
 
-      const targetDay = hasMove2 ? 2 : 1;
-      const dContent = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === targetDay) : undefined;
+      const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
       const daySuccessState = {
         redirectToDaySuccess: true,
-        day: targetDay,
-        coinsUnlocked: hasMove2 ? 20 : 10,
-        bridgeNote: dContent?.bridgeNote,
+        day: 1,
+        coinsUnlocked: 10,
+        bridgeNote: d1Content?.bridgeNote,
         sprintId: sprintId,
-        sprint: sprint,
-        enrollmentId: enrollment?.id,
-        taskInputs: hasMove2 ? move2Inputs : move1Inputs,
-        isPreview: false
+        enrollmentId: enrollment?.id
       };
 
       sessionStorage.setItem('post_verify_redirect', safeJSONStringify({
@@ -232,13 +190,6 @@ const SignUpPage: React.FC = () => {
           referralFirstTouch: storedRef || null
         };
         await userService.createUserDocument(firebaseUser.uid, newUser);
-        
-        // Migrate any guest data matching local guestUserId or email
-        await sprintService.migrateGuestEnrollment(
-          firebaseUser.uid,
-          firebaseUser.email || newUser.email || '',
-          localStorage.getItem('vectorise_guest_user_id')
-        );
       }
 
       const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
@@ -397,13 +348,6 @@ const SignUpPage: React.FC = () => {
       };
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
-
-      // Migrate any guest data matching local guestUserId or email
-      await sprintService.migrateGuestEnrollment(
-        firebaseUser.uid,
-        firebaseUser.email || newUser.email || '',
-        localStorage.getItem('vectorise_guest_user_id')
-      );
 
       // 4. Create real-time Referral record
       if (resolvedReferrerId) {
