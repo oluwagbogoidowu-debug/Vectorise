@@ -318,6 +318,7 @@ const SprintPreview: React.FC = () => {
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
         if (isCoachPreview || sprint?.previewMode === 'flow') return;
         if (isNavigatingToSuccessRef.current || isSubmittingAuth) return;
+        if (previewDay > 1) return; // Prevent redirecting when previewing Day 2/Move 2 or beyond
         
         if (!loading && user) {
             // Check if there are task inputs or pending action from preview
@@ -486,8 +487,8 @@ const SprintPreview: React.FC = () => {
             sprintId: sprint?.id,
             sprint: sprint,
             enrollmentId: enrollmentId,
-            isPreview: isCoachPreview || sprint?.previewMode === "flow",
-            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : (sprint?.previewMode === "flow" ? `/sprint/preview/${sprint?.id}` : undefined),
+            isPreview: true,
+            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : `/sprint/preview/${sprint?.id}`,
             redirectToDaySuccess: true
         };
         const targetTrackId = sprint?.id || sprintId;
