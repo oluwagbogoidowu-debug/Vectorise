@@ -214,6 +214,8 @@ export interface ParticipantSprint {
   currency: string;
   payment_source: PaymentSource;
   status: 'active' | 'completed' | 'paused' | 'queued';
+  email?: string;
+  isGuest?: boolean;
   completed_at?: string | null;
   last_activity_at?: string;
   referral_source?: string | null;

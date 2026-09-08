@@ -209,6 +209,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               };
               
               await userService.createUserDocument(firebaseUser.uid, newUserProfile);
+              
+              // Dynamically import sprintService to prevent circular dependencies
+              import('../services/sprintService').then(({ sprintService }) => {
+                sprintService.migrateGuestEnrollment(
+                  firebaseUser.uid,
+                  firebaseUser.email || newUserProfile.email || '',
+                  localStorage.getItem('vectorise_guest_user_id')
+                ).catch(err => console.error("[AuthContext] Guest migration error:", err));
+              });
+
               hasFetchedFromServer = true;
             }
           }

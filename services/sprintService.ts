@@ -2147,6 +2147,89 @@ export const sprintService = {
         return newEnrollment;
     },
 
+    migrateGuestEnrollment: async (authUserId: string, authEmail: string, localGuestUserId?: string | null) => {
+        try {
+            const emailClean = authEmail.trim().toLowerCase();
+            let guestUserId = localGuestUserId || localStorage.getItem('vectorise_guest_user_id');
+            
+            // If we don't have a local guestUserId, we can search the Firestore database for any guest user doc with this email
+            if (!guestUserId) {
+                const guestsQuery = query(
+                    collection(db, 'users'),
+                    where('isGuest', '==', true),
+                    where('email', '==', emailClean)
+                );
+                const guestsSnap = await getDocs(guestsQuery);
+                if (!guestsSnap.empty) {
+                    guestUserId = guestsSnap.docs[0].id;
+                }
+            }
+
+            if (!guestUserId) return null;
+
+            // Fetch the guest's enrollments
+            const guestEnrollmentsQuery = query(collection(db, 'users', guestUserId, 'enrollments'));
+            const guestEnrollmentsSnap = await getDocs(guestEnrollmentsQuery);
+
+            if (guestEnrollmentsSnap.empty) return null;
+
+            for (const docSnap of guestEnrollmentsSnap.docs) {
+                const guestEnrollment = docSnap.data() as ParticipantSprint;
+                const sprintId = guestEnrollment.sprint_id;
+                
+                // Construct the new enrollment ID for the authenticated user
+                const authEnrollmentId = `enrollment_${authUserId}_${sprintId}`;
+                const authEnrollmentRef = doc(db, 'users', authUserId, 'enrollments', authEnrollmentId);
+
+                // Copy guest enrollment data into new enrollment
+                const newEnrollment: ParticipantSprint = {
+                    ...guestEnrollment,
+                    id: authEnrollmentId,
+                    user_id: authUserId,
+                    email: emailClean,
+                };
+                delete (newEnrollment as any).isGuest;
+
+                await setDoc(authEnrollmentRef, sanitizeData(newEnrollment));
+
+                // Also link this sprint in user's enrolledSprintIds
+                const authUserRef = doc(db, 'users', authUserId);
+                await updateDoc(authUserRef, {
+                    enrolledSprintIds: arrayUnion(sprintId)
+                });
+
+                console.log(`[SprintService] Successfully migrated guest enrollment ${guestEnrollment.id} to auth user ${authUserId}`);
+            }
+
+            // Cleanup guest references from localStorage to avoid dual migrations
+            localStorage.removeItem('vectorise_guest_user_id');
+            localStorage.removeItem('guest_email');
+
+            return true;
+        } catch (e) {
+            console.error("[SprintService] Failed to migrate guest enrollment:", e);
+            return null;
+        }
+    },
+
+    updateGuestEmail: async (guestUserId: string, email: string, sprintId: string) => {
+        try {
+            const emailClean = email.trim().toLowerCase();
+            const guestUserRef = doc(db, 'users', guestUserId);
+            await updateDoc(guestUserRef, { email: emailClean });
+            
+            const enrollmentId = `enrollment_${guestUserId}_${sprintId}`;
+            const enrollmentRef = doc(db, 'users', guestUserId, 'enrollments', enrollmentId);
+            const enrollmentSnap = await getDoc(enrollmentRef);
+            if (enrollmentSnap.exists()) {
+                await updateDoc(enrollmentRef, { email: emailClean });
+            }
+            console.log(`[SprintService] Updated guest ${guestUserId} email to ${emailClean}`);
+        } catch (e) {
+            console.warn("[SprintService] Error updating guest email:", e);
+        }
+    },
+
     getUserEnrollments: async (userId: string) => {
         const q = query(collection(db, 'users', userId, 'enrollments'));
         const snap = await getDocs(q);

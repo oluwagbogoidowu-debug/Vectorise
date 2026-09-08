@@ -425,12 +425,33 @@ const SprintPreview: React.FC = () => {
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
         
         let enrollmentId = "";
-        if (user && sprint && !isCoachPreview) {
+        if (sprint && !isCoachPreview) {
             isNavigatingToSuccessRef.current = true;
             try {
                 const effectiveInputs = getEffectiveTaskInputs();
                 const firstInput = effectiveInputs[0] || "";
-                const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration, {
+                const emailToSave = prefilledEmail || localStorage.getItem('guest_email') || "";
+
+                let targetUserId = user?.id;
+                if (!targetUserId) {
+                    let guestUserId = localStorage.getItem('vectorise_guest_user_id');
+                    if (!guestUserId) {
+                        guestUserId = `guest_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+                        localStorage.setItem('vectorise_guest_user_id', guestUserId);
+                    }
+                    targetUserId = guestUserId;
+
+                    // Ensure guest user doc is saved in Firestore database
+                    await userService.createUserDocument(guestUserId, {
+                        id: guestUserId,
+                        name: "Guest Participant",
+                        email: emailToSave || undefined,
+                        role: UserRole.PARTICIPANT,
+                        isGuest: true
+                    } as any);
+                }
+
+                const enrollment = await sprintService.enrollUser(targetUserId, sprint.id, sprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs
                 } as any);
@@ -445,7 +466,7 @@ const SprintPreview: React.FC = () => {
                             answers: effectiveInputs,
                             submission: firstInput
                         };
-                        const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+                        const enrollmentRef = doc(db, "users", targetUserId, "enrollments", enrollment.id);
                         await updateDoc(enrollmentRef, { 
                             progress: updatedProgress,
                             last_activity_at: new Date().toISOString()
@@ -454,7 +475,7 @@ const SprintPreview: React.FC = () => {
                 }
                 localStorage.removeItem('pending_first_action');
             } catch (e) {
-                console.error("Error saving preview progress for logged-in user:", e);
+                console.error("Error saving preview progress:", e);
             }
         }
 
@@ -712,6 +733,10 @@ const SprintPreview: React.FC = () => {
                 isCoachRequestMode: isCoachRegistration ? true : undefined,
             };
             await userService.createUserDocument(firebaseUser.uid, newUser);
+
+            // Migrate any guest data matching local guestUserId or email
+            const localGuestUserId = localStorage.getItem('vectorise_guest_user_id');
+            await sprintService.migrateGuestEnrollment(firebaseUser.uid, authEmail.trim().toLowerCase(), localGuestUserId);
 
             let enrollmentId = "";
             const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;

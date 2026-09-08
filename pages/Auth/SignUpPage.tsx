@@ -190,6 +190,13 @@ const SignUpPage: React.FC = () => {
           referralFirstTouch: storedRef || null
         };
         await userService.createUserDocument(firebaseUser.uid, newUser);
+        
+        // Migrate any guest data matching local guestUserId or email
+        await sprintService.migrateGuestEnrollment(
+          firebaseUser.uid,
+          firebaseUser.email || newUser.email || '',
+          localStorage.getItem('vectorise_guest_user_id')
+        );
       }
 
       const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
@@ -348,6 +355,13 @@ const SignUpPage: React.FC = () => {
       };
       
       await userService.createUserDocument(firebaseUser.uid, newUser);
+
+      // Migrate any guest data matching local guestUserId or email
+      await sprintService.migrateGuestEnrollment(
+        firebaseUser.uid,
+        firebaseUser.email || newUser.email || '',
+        localStorage.getItem('vectorise_guest_user_id')
+      );
 
       // 4. Create real-time Referral record
       if (resolvedReferrerId) {
