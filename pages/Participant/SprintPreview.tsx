@@ -258,19 +258,110 @@ const SprintPreview: React.FC = () => {
         }
         return null;
     });
+    const targetSprintId = sprint?.id || sprintId || 'default';
+
+    const [completedDays, setCompletedDays] = useState<number[]>(() => {
+        const sId = location.state?.sprint?.id || sprintId;
+        if (!sId) return [];
+        try {
+            const stored = localStorage.getItem(`preview_completed_days_${sId}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) return parsed;
+            }
+        } catch (e) {}
+        return [];
+    });
+
+    const [allDayInputs, setAllDayInputs] = useState<Record<number, string[]>>(() => {
+        const sId = location.state?.sprint?.id || sprintId;
+        if (!sId) return {};
+        try {
+            const stored = localStorage.getItem(`preview_all_inputs_${sId}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
+        } catch (e) {}
+        return {};
+    });
+
     const [previewDay, setPreviewDay] = useState(() => {
         return Number(location.state?.targetDay || 1);
     });
 
+    const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+    const [taskInputs, setTaskInputs] = useState<string[]>(() => {
+        const initialDay = Number(location.state?.targetDay || 1);
+        const sId = location.state?.sprint?.id || sprintId;
+        try {
+            const stored = localStorage.getItem(`preview_all_inputs_${sId}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && Array.isArray(parsed[initialDay]) && parsed[initialDay].length > 0) {
+                    return parsed[initialDay];
+                }
+            }
+        } catch (e) {}
+        return [];
+    });
+
+    const switchDay = (newDay: number) => {
+        const sId = sprint?.id || sprintId;
+        const updatedInputs = { ...allDayInputs, [previewDay]: taskInputs };
+        setAllDayInputs(updatedInputs);
+        if (sId) {
+            try {
+                localStorage.setItem(`preview_all_inputs_${sId}`, JSON.stringify(updatedInputs));
+            } catch (e) {}
+        }
+
+        setPreviewDay(newDay);
+        setActiveTaskIndex(0);
+        const dayInputs = updatedInputs[newDay] || [];
+        setTaskInputs(dayInputs);
+    };
+
     useEffect(() => {
         if (location.state?.targetDay) {
-            setPreviewDay(Number(location.state.targetDay));
+            const target = Number(location.state.targetDay);
+            setPreviewDay(target);
             setActiveTaskIndex(0);
-            setTaskInputs([]);
+            const saved = allDayInputs[target] || [];
+            setTaskInputs(saved);
         }
     }, [location.state?.targetDay]);
-    const [activeTaskIndex, setActiveTaskIndex] = useState(0);
-    const [taskInputs, setTaskInputs] = useState<string[]>([]);
+
+    useEffect(() => {
+        const sId = sprint?.id || sprintId;
+        if (!sId) return;
+        try {
+            const storedDays = localStorage.getItem(`preview_completed_days_${sId}`);
+            if (storedDays) {
+                const parsed = JSON.parse(storedDays);
+                if (Array.isArray(parsed)) setCompletedDays(parsed);
+            }
+            const storedInputs = localStorage.getItem(`preview_all_inputs_${sId}`);
+            if (storedInputs) {
+                const parsed = JSON.parse(storedInputs);
+                if (parsed && typeof parsed === 'object') setAllDayInputs(parsed);
+            }
+        } catch (e) {}
+    }, [sprintId, sprint?.id]);
+
+    useEffect(() => {
+        const sId = sprint?.id || sprintId;
+        if (!sId) return;
+        setAllDayInputs(prev => {
+            const next = { ...prev, [previewDay]: taskInputs };
+            try {
+                localStorage.setItem(`preview_all_inputs_${sId}`, JSON.stringify(next));
+            } catch (e) {}
+            return next;
+        });
+    }, [taskInputs, previewDay, sprint?.id, sprintId]);
+
+    const isDayCompleted = completedDays.includes(previewDay);
     const [showSignupModal, setShowSignupModal] = useState(false);
     const [showLockModal, setShowLockModal] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
@@ -426,13 +517,27 @@ const SprintPreview: React.FC = () => {
         }
         triggerHaptic(hapticPatterns.success);
 
+        const sId = sprint?.id || sprintId;
+        const nextCompleted = completedDays.includes(previewDay) ? completedDays : [...completedDays, previewDay];
+        setCompletedDays(nextCompleted);
+
+        const effectiveInputs = getEffectiveTaskInputs();
+        const nextAllInputs = { ...allDayInputs, [previewDay]: effectiveInputs };
+        setAllDayInputs(nextAllInputs);
+
+        if (sId) {
+            try {
+                localStorage.setItem(`preview_completed_days_${sId}`, JSON.stringify(nextCompleted));
+                localStorage.setItem(`preview_all_inputs_${sId}`, JSON.stringify(nextAllInputs));
+            } catch (e) {}
+        }
+
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
         
         let enrollmentId = "";
         if (user && sprint && !isCoachPreview) {
             isNavigatingToSuccessRef.current = true;
             try {
-                const effectiveInputs = getEffectiveTaskInputs();
                 const firstInput = effectiveInputs[0] || "";
                 const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration, {
                     firstActionInput: firstInput,
@@ -441,9 +546,10 @@ const SprintPreview: React.FC = () => {
                 if (enrollment) {
                     enrollmentId = enrollment.id;
                     const updatedProgress = [...(enrollment.progress || [])];
-                    if (updatedProgress[0]) {
-                        updatedProgress[0] = {
-                            ...updatedProgress[0],
+                    const dayIdx = previewDay - 1;
+                    if (updatedProgress[dayIdx]) {
+                        updatedProgress[dayIdx] = {
+                            ...updatedProgress[dayIdx],
                             completed: true,
                             completedAt: new Date().toISOString(),
                             answers: effectiveInputs,
@@ -1162,7 +1268,7 @@ const SprintPreview: React.FC = () => {
                         const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
                         const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent);
                         if (isStepOrSubStepPoll(rawTargetType) || targetType === "poll" || targetType === "tags" || targetType.includes("tags") || targetType === "dual") {
-                            const val = targetProgress?.answers?.[targetStepIdx];
+                            const val = targetProgress?.answers?.[targetStepIdx] || allDayInputs[targetDay]?.[targetStepIdx];
                             if (val) {
                                 allTags.push(...parseAnswerValues(val, targetType));
                             } else {
@@ -1261,7 +1367,7 @@ const SprintPreview: React.FC = () => {
                     if (targetDayContent) {
                         const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
                         const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent);
-                        const val = targetProgress?.answers?.[targetStepIdx];
+                        const val = targetProgress?.answers?.[targetStepIdx] || allDayInputs[dNum]?.[targetStepIdx];
                         if (val) {
                             allTags.push(...parseAnswerValues(val, targetType));
                         } else {
@@ -1432,23 +1538,57 @@ const SprintPreview: React.FC = () => {
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Day Selector (Disabled/Preview) */}
-                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1 opacity-50">
-                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
-                        <div
-                            key={day}
-                            className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
-                                day === previewDay ? 'bg-[#0E7850] text-white shadow-xl' : 'bg-[#F3F4F6] text-gray-400'
-                            }`}
-                        >
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${day === previewDay ? 'text-white/60' : 'text-gray-300'}`}>Move</span>
-                            <span className="text-3xl font-black leading-none">{day}</span>
-                        </div>
-                    ))}
+                {/* Day Selector */}
+                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
+                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
+                        const isDayDone = completedDays.includes(day);
+                        const isCurrentActive = day === previewDay;
+                        const maxCompleted = completedDays.length > 0 ? Math.max(...completedDays) : 0;
+                        const isUnlocked = isDayDone || day <= maxCompleted + 1;
+
+                        return (
+                            <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                    if (isUnlocked) {
+                                        switchDay(day);
+                                    } else {
+                                        setShowLockModal(true);
+                                    }
+                                }}
+                                className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
+                                    isCurrentActive 
+                                        ? 'bg-[#0E7850] text-white shadow-xl shadow-emerald-900/10 scale-105 ring-4 ring-[#0E7850]/20' 
+                                        : isDayDone 
+                                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60 hover:bg-emerald-100/80 cursor-pointer' 
+                                            : isUnlocked 
+                                                ? 'bg-white text-gray-700 border border-gray-200 hover:border-[#0E7850]/40 cursor-pointer' 
+                                                : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 cursor-pointer'
+                                }`}
+                            >
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${
+                                    isCurrentActive ? 'text-white/70' : isDayDone ? 'text-emerald-600' : 'text-gray-400'
+                                }`}>Move</span>
+                                <span className="text-3xl font-black leading-none">{day}</span>
+                                
+                                {isDayDone && !isCurrentActive && (
+                                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500" />
+                                )}
+                                {!isUnlocked && (
+                                    <span className="absolute top-2 right-2 text-gray-300">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="space-y-2 text-left animate-slide-up">
-                    <SectionHeading>Today's Insight</SectionHeading>
+                    <SectionHeading showDot={!isDayCompleted}>Today's Insight</SectionHeading>
                     <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                         <FormattedText text={day1Content?.lessonText || ""} />
                     </div>
@@ -1478,7 +1618,7 @@ const SprintPreview: React.FC = () => {
                             return (
                                 <>
                                     <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative overflow-hidden animate-fade-in">
-                                        <h2 className="text-[8px] font-black text-primary uppercase tracking-[0.4em] mb-4">Action Step {getVisibleStepIndexOrder(i)} of {getTotalVisibleStepsCount()}</h2>
+                                        <SectionHeading showDot={!isDayCompleted}>Action Step {getVisibleStepIndexOrder(i)} of {getTotalVisibleStepsCount()}</SectionHeading>
 
                                         {(() => {
                                             let notesMap: Record<string, string> = {};
@@ -1588,7 +1728,101 @@ const SprintPreview: React.FC = () => {
                                                 </div>
                                             );
                                         })()}
-                                        {effectiveInputType === "tags" ? (
+                                        {isDayCompleted && (
+                                            <div className="space-y-4 mb-4 text-left animate-fade-in">
+                                                <div className="px-4 py-3 bg-white/70 border border-primary/10 rounded-xl text-base font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                                                    <svg className="w-4 h-4 shrink-0 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                    {day1Content?.taskPollArrange?.[i] && taskInputs[i]?.startsWith("[") ? (
+                                                        <div className="flex flex-col gap-1.5 w-full text-left">
+                                                            {(() => {
+                                                                try {
+                                                                    const arr = JSON.parse(taskInputs[i]);
+                                                                    return arr.map((item: string, rIdx: number) => (
+                                                                        <div key={rIdx} className="flex items-center gap-2">
+                                                                            <span className={`w-5 h-5 rounded-md flex items-center justify-center font-black text-[10px] ${rIdx === 0 ? "bg-primary text-white" : "bg-gray-150 text-gray-700"}`}>
+                                                                                #{rIdx + 1}
+                                                                            </span>
+                                                                            <span className="text-gray-800 font-semibold">{item}</span>
+                                                                        </div>
+                                                                    ));
+                                                                } catch (e) {
+                                                                    return <span>{taskInputs[i]}</span>;
+                                                                }
+                                                            })()}
+                                                        </div>
+                                                    ) : effectiveInputType === "tags" || effectiveInputType === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]")) ? (
+                                                        (() => {
+                                                            let tags: string[] = [];
+                                                            const cleanVal = taskInputs[i] ? taskInputs[i].trim() : "";
+                                                            if (cleanVal.startsWith("[") && cleanVal.endsWith("]")) {
+                                                                try {
+                                                                    tags = JSON.parse(cleanVal);
+                                                                } catch (e) {
+                                                                    tags = [taskInputs[i]];
+                                                                }
+                                                            } else if (cleanVal) {
+                                                                tags = [cleanVal];
+                                                            }
+                                                            if (tags.length === 0) return <span className="text-gray-500 font-medium text-sm">Completed</span>;
+                                                            return tags.map((tag: string, tIndex: number) => (
+                                                                <span
+                                                                    key={tIndex}
+                                                                    className="inline-flex items-center px-2.5 py-1 text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider rounded-md"
+                                                                >
+                                                                    {tag}
+                                                                </span>
+                                                            ));
+                                                        })()
+                                                    ) : isLinkedTextStep(i) && taskInputs[i]?.startsWith("{") ? (
+                                                        <div className="space-y-2 w-full text-left font-medium">
+                                                            {(() => {
+                                                                try {
+                                                                    const parsed = JSON.parse(taskInputs[i]);
+                                                                    return Object.entries(parsed).map(([tag, ans], idx) => (
+                                                                        <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                                                            <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider rounded-md">
+                                                                                🏷️ {tag}
+                                                                            </span>
+                                                                            <p className="text-gray-700 font-medium text-sm pl-1">
+                                                                                {ans as string}
+                                                                            </p>
+                                                                        </div>
+                                                                    ));
+                                                                } catch (e) {
+                                                                    return <span>{taskInputs[i]}</span>;
+                                                                }
+                                                            })()}
+                                                        </div>
+                                                    ) : isMultiTextStep(i) && taskInputs[i]?.startsWith("{") ? (
+                                                        <div className="space-y-2 w-full text-left font-medium animate-fade-in">
+                                                            {(() => {
+                                                                try {
+                                                                    const parsed = JSON.parse(taskInputs[i]);
+                                                                    return Object.entries(parsed).map(([lbl, ans], idx) => (
+                                                                        <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                                                                            <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider rounded-md">
+                                                                                📝 {lbl}
+                                                                            </span>
+                                                                            <p className="text-gray-700 font-medium text-sm pl-1">
+                                                                                {ans as string}
+                                                                            </p>
+                                                                        </div>
+                                                                    ));
+                                                                } catch (e) {
+                                                                    return <span>{taskInputs[i]}</span>;
+                                                                }
+                                                            })()}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-800 font-semibold">{taskInputs[i] || "Completed"}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {!isDayCompleted && (
+                                            effectiveInputType === "tags" ? (
                                             <div className="space-y-3 mb-4">
                                                 <TagInput
                                                     value={taskInputs[i] || ""}
@@ -2020,20 +2254,43 @@ const SprintPreview: React.FC = () => {
                                                 }}
                                                 placeholder="What's on your mind..."
                                                  className="w-full px-4 py-3 bg-white border border-primary/10 rounded-xl text-sm font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all mb-4 resize-none"
-                                             />
-                                         ))}
+                                              />
+                                          ))
+                                        )}
                                         <div className="flex justify-between items-center gap-4 pt-4">
                                             {getPrevVisibleStepIndex(i) !== -1 ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => setActiveTaskIndex(getPrevVisibleStepIndex(i))}
-                                                    className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95"
+                                                    className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95 cursor-pointer"
                                                 >
                                                     Back
                                                 </button>
                                             ) : <div />}
                                             
-                                            {(() => {
+                                            {isDayCompleted ? (
+                                                getNextVisibleStepIndex(i) !== -1 ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setActiveTaskIndex(getNextVisibleStepIndex(i))}
+                                                        className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95"
+                                                    >
+                                                        Next Step
+                                                    </button>
+                                                ) : previewDay < (sprint?.duration || 0) ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => switchDay(previewDay + 1)}
+                                                        className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/20 cursor-pointer active:scale-95"
+                                                    >
+                                                        Continue to Move {previewDay + 1}
+                                                    </button>
+                                                ) : (
+                                                    <div className="px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-xl text-xs font-bold">
+                                                        Move Complete
+                                                    </div>
+                                                )
+                                            ) : (() => {
                                                 const isTags = effectiveInputType === "tags";
                                                 const isNote = effectiveInputType === "note";
                                                 const isMark = effectiveInputType === "mark";
@@ -2111,16 +2368,17 @@ const SprintPreview: React.FC = () => {
                                         <div className="flex justify-center items-center gap-2 mt-8">
                                             {activePrompts.map((_, idx) => {
                                                 if (!isStepVisible(idx)) return null;
+                                                const canClick = isDayCompleted || idx <= activeTaskIndex;
                                                 return (
                                                     <button
                                                         type="button"
                                                         key={idx} 
                                                         onClick={() => {
-                                                            if (idx <= activeTaskIndex) {
-                                                                    setActiveTaskIndex(idx);
+                                                            if (canClick) {
+                                                                setActiveTaskIndex(idx);
                                                             }
                                                         }}
-                                                        className={`h-1.5 rounded-full transition-all duration-300 ${idx <= activeTaskIndex ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : idx < activeTaskIndex ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
+                                                        className={`h-1.5 rounded-full transition-all duration-300 ${canClick ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : (isDayCompleted || idx < activeTaskIndex) ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
                                                     />
                                                 );
                                             })}
