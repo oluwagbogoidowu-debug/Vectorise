@@ -2881,7 +2881,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       setHasTriggeredAutoClaim(true);
       const isAllCompleted = enrollment?.progress && enrollment.progress.length > 0 && enrollment.progress.every((p: any) => p.completed);
       if (isAllCompleted) {
-        setIsCompletionModalOpen(true);
+        if (sprint?.previewMode === 'flow') {
+          navigate('/participant/day-success', {
+            state: {
+              day: enrollment.progress.length,
+              sprintId: sprint?.id,
+              sprint: sprint,
+              enrollment: enrollment
+            }
+          });
+        } else {
+          setIsCompletionModalOpen(true);
+        }
       }
       
       const triggerMilestone = async () => {
@@ -3145,7 +3156,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           if (currentSprintId) {
             sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
           }
-          setIsCompletionModalOpen(true);
+          if (sprint?.previewMode === 'flow') {
+            navigate('/participant/day-success', { 
+              state: { 
+                day: viewingDay, 
+                coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+                bridgeNote: dayContent?.bridgeNote,
+                sprintId: sprint?.id || previewSprintId,
+                sprint: sprint,
+                enrollment: updatedEnrollment,
+                isPreview: true,
+                returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
+              } 
+            });
+          } else {
+            setIsCompletionModalOpen(true);
+          }
         } else {
           navigate('/participant/day-success', { 
             state: { 
@@ -3238,7 +3264,21 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         triggerHaptic(hapticPatterns.success);
 
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
-          setIsCompletionModalOpen(true);
+          if (sprint?.previewMode === 'flow') {
+            navigate('/participant/day-success', { 
+              state: { 
+                day: viewingDay, 
+                coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+                bridgeNote: dayContent?.bridgeNote,
+                enrollmentId: enrollment.id,
+                sprintId: enrollment.sprint_id,
+                sprint: sprint,
+                enrollment: enrollment
+              } 
+            });
+          } else {
+            setIsCompletionModalOpen(true);
+          }
         } else {
           navigate('/participant/day-success', { 
             state: { 
@@ -3307,7 +3347,21 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
         sprintAnalyticsService.trackSprintCompletion(enrollment.sprint_id, user.id);
-        setIsCompletionModalOpen(true);
+        if (sprint?.previewMode === 'flow') {
+          navigate('/participant/day-success', { 
+            state: { 
+              day: viewingDay, 
+              coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+              bridgeNote: dayContent?.bridgeNote,
+              enrollmentId: enrollment.id,
+              sprintId: enrollment.sprint_id,
+              sprint: sprint,
+              enrollment: enrollment
+            } 
+          });
+        } else {
+          setIsCompletionModalOpen(true);
+        }
       } else {
         navigate('/participant/day-success', { 
           state: { 

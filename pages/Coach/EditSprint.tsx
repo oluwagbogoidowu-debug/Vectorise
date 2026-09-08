@@ -5388,6 +5388,80 @@ const EditSprint: React.FC = () => {
                             </div>
                         );
                     })()}
+
+                    {/* Completion Note Section - Only for Flow sprints on the last day */}
+                    {sprint.previewMode === 'flow' && selectedDay === (sprint.duration || 7) && (() => {
+                        const completionValidation = validateStepPlaceholders(
+                            currentContent.completionNote || '',
+                            999,
+                            currentContent.taskInputTypes || [],
+                            currentContent.taskPollOptions,
+                            selectedDay,
+                            sprint.dailyContent,
+                            true
+                        );
+                        const previewCompletionText = formatInterpolatedText(
+                            currentContent.completionNote || '',
+                            currentContent,
+                            null,
+                            sprint.dailyContent
+                        );
+
+                        return (
+                            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm space-y-3 mt-6" id="tour-step-completion-note">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+                                        <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                                            Completion Note (Shown on Offer Page)
+                                        </span>
+                                    </div>
+                                    {completionValidation.hasPlaceholders && (
+                                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${completionValidation.isValid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                            {completionValidation.isValid ? 'Valid dynamic placeholders' : 'Invalid placeholder'}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                                    This note is shown on the final Offer/Monetization Landing Page after completing the last move of this Flow-sprint. It can incorporate dynamic placeholders from any move (e.g. &#123;M2 Step 1&#125;).
+                                </p>
+
+                                {isAdmin && !isFoundational && originalSprint && (
+                                    <DiffHighlight 
+                                        label="Completion Note" 
+                                        original={Array.isArray(originalSprint.dailyContent) ? originalSprint.dailyContent.find(c => c.day === selectedDay)?.completionNote : undefined} 
+                                        updated={currentContent.completionNote} 
+                                    />
+                                )}
+                                <textarea
+                                    value={currentContent.completionNote || ''}
+                                    onChange={(e) => handleContentChange('completionNote', e.target.value)}
+                                    rows={3}
+                                    className={editorInputClasses}
+                                    placeholder="Write a completion note to celebrate and summarize..."
+                                />
+
+                                {/* Validation warning if invalid */}
+                                {!completionValidation.isValid && completionValidation.invalidReason && (
+                                    <p className="text-[10px] text-rose-600 font-bold bg-rose-50 p-2.5 rounded-xl border border-rose-100">
+                                        {completionValidation.invalidReason}
+                                    </p>
+                                )}
+
+                                {/* Live Interpolated Preview */}
+                                {currentContent.completionNote && currentContent.completionNote.trim() && (
+                                    <div className="bg-emerald-50/40 border border-emerald-100/60 rounded-xl p-3 text-left">
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
+                                            Participant Preview:
+                                        </span>
+                                        <p className="text-xs text-gray-800 italic font-medium">
+                                            "{previewCompletionText || currentContent.completionNote}"
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
 
               {/* COMPLETION PROTOCOL CURATION */}

@@ -454,6 +454,7 @@ export interface DailyContent {
   mirrorParaphrases?: string[];
   mirrorDisabledSteps?: boolean[];
   bridgeNote?: string;
+  completionNote?: string;
 }
 
 export interface User {

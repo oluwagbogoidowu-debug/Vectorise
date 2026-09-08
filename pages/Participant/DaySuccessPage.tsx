@@ -17,6 +17,7 @@ const DaySuccessPage: React.FC = () => {
   // Retrieve parameters from state or use sensible fallbacks
   const completedDay = location.state?.day || 1;
   const initialBridgeNote = location.state?.bridgeNote;
+  const initialCompletionNote = location.state?.completionNote || location.state?.dayContent?.completionNote;
 
   const [resolvedEnrollmentId, setResolvedEnrollmentId] = useState<string | null>(location.state?.enrollmentId || null);
 
@@ -74,8 +75,9 @@ const DaySuccessPage: React.FC = () => {
   };
 
   const [liveBridgeNote, setLiveBridgeNote] = useState<string | null>(initialBridgeNote || null);
+  const [liveCompletionNote, setLiveCompletionNote] = useState<string | null>(initialCompletionNote || null);
 
-  // Subscribe to real-time updates for the sprint's bridge note for the completed day
+  // Subscribe to real-time updates for the sprint's bridge note and completion note for the completed day
   useEffect(() => {
     const targetSprintId = location.state?.sprintId || (user as any)?.enrolledSprintIds?.[0] || localStorage.getItem('vectorise_last_sprint');
     if (!targetSprintId) return;
@@ -83,8 +85,13 @@ const DaySuccessPage: React.FC = () => {
     const unsubscribe = sprintService.subscribeToSprint(targetSprintId, (sprint) => {
       if (sprint && Array.isArray(sprint.dailyContent)) {
         const dContent = sprint.dailyContent.find((dc: any) => dc.day === completedDay);
-        if (dContent && typeof dContent.bridgeNote === 'string' && dContent.bridgeNote.trim()) {
-          setLiveBridgeNote(dContent.bridgeNote);
+        if (dContent) {
+          if (typeof dContent.bridgeNote === 'string' && dContent.bridgeNote.trim()) {
+            setLiveBridgeNote(dContent.bridgeNote);
+          }
+          if (typeof dContent.completionNote === 'string' && dContent.completionNote.trim()) {
+            setLiveCompletionNote(dContent.completionNote);
+          }
         }
       }
     });
@@ -113,6 +120,19 @@ const DaySuccessPage: React.FC = () => {
   const displayBridgeNote = formattedBridgeNote
     ? formattedBridgeNote
     : (isSprintLastDay ? '' : '');
+
+  const rawCompletionNote = isSprintLastDay ? (liveCompletionNote || initialCompletionNote || '') : '';
+  const formattedCompletionNote = rawCompletionNote
+    ? formatInterpolatedText(
+        rawCompletionNote,
+        dayContent,
+        location.state?.taskInputs,
+        location.state?.sprint?.dailyContent || location.state?.allDaysContent,
+        location.state?.enrollment?.progress || location.state?.allDaysInputs
+      )
+    : '';
+
+  const displayCompletionNote = formattedCompletionNote;
 
   // Push notification subscription states
   const [isSubscribed, setIsSubscribed] = useState<boolean>(true); // default true to prevent flicker
@@ -282,6 +302,12 @@ const DaySuccessPage: React.FC = () => {
             <p className="text-base text-gray-500 leading-relaxed pt-2 max-w-md mx-auto">
               {sprint?.offerDescription || "Unlock permanent access to all your results, download exclusive companion resources, and accelerate your development with personalized feedback from the coach."}
             </p>
+
+            {displayCompletionNote ? (
+              <p className="text-xs sm:text-sm md:text-base font-black text-gray-900 tracking-tight leading-tight py-4 max-w-md mx-auto italic">
+                "{displayCompletionNote}"
+              </p>
+            ) : null}
           </motion.div>
 
           {/* Core Trust Pillars */}
