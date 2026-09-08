@@ -8,13 +8,14 @@ import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
-import { db } from '../../services/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { db, auth } from '../../services/firebase';
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { userService, safeJSONStringify, sanitizeData } from '../../services/userService';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
-import { X } from 'lucide-react';
+import { X, Sparkles, Check, ArrowRight, Lock, Eye, EyeOff, ShieldCheck, Mail, KeyRound, User as UserIcon } from 'lucide-react';
 
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
@@ -297,83 +298,154 @@ const SprintPreview: React.FC = () => {
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
 
-    // Auto-redirect already logged-in users with active enrollments
-    useEffect(() => {
-        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        if (isCoachPreview || sprint?.previewMode === 'flow') return;
-        if (isNavigatingToSuccessRef.current) return;
-        if (previewDay > 1) return; // Prevent redirecting when previewing Day 2/Move 2 or beyond
-        
-        if (!loading && user) {
-            // Check if there are task inputs or pending action from preview
-            const effectiveInputs = getEffectiveTaskInputs();
-            const hasInputs = effectiveInputs.some(v => v && String(v).trim().length > 0);
-            const pendingRaw = localStorage.getItem('pending_first_action');
-            
-            if (hasInputs || pendingRaw) {
-                isNavigatingToSuccessRef.current = true;
-                const firstInput = effectiveInputs[0] || "";
-                const targetSprint = sprint;
-                const targetSprintId = sprint?.id || sprintId;
-                
-                if (targetSprintId) {
-                    sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
-                        firstActionInput: firstInput,
-                        taskInputs: effectiveInputs
-                    } as any).then(async (enrollment) => {
-                        if (enrollment && enrollment.progress && enrollment.progress[0]) {
-                            const updatedProgress = [...enrollment.progress];
-                            updatedProgress[0] = {
-                                ...updatedProgress[0],
-                                completed: true,
-                                completedAt: new Date().toISOString(),
-                                answers: effectiveInputs,
-                                submission: firstInput
-                            };
-                            const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
-                            await updateDoc(enrollmentRef, sanitizeData({ 
-                                progress: sanitizeData(updatedProgress),
-                                last_activity_at: new Date().toISOString()
-                            }));
-                        }
-                        await userService.addUserEnrollment(user.id, targetSprintId);
-                        localStorage.removeItem('pending_first_action');
-                        localStorage.removeItem('vectorise_last_sprint');
-                        const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
-                        navigate('/participant/day-success', { 
-                            state: { 
-                                day: 1, 
-                                coinsUnlocked: 10, 
-                                bridgeNote: d1Content?.bridgeNote,
-                                sprintId: targetSprintId,
-                                sprint: targetSprint,
-                                enrollmentId: enrollment?.id,
-                                taskInputs: effectiveInputs,
-                                redirectToDaySuccess: true
-                            }, 
-                            replace: true 
-                        });
-                    }).catch(err => {
-                        console.error("Auto enrollment & day 1 completion on login failed:", err);
-                        localStorage.removeItem('pending_first_action');
-                        navigate('/participant/day-success', { 
-                            state: { 
-                                day: 1, 
-                                coinsUnlocked: 10, 
-                                sprintId: targetSprintId,
-                                sprint: targetSprint,
-                                taskInputs: effectiveInputs,
-                                redirectToDaySuccess: true
-                            }, 
-                            replace: true 
-                        });
-                    });
+    const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
+
+    // Helper to get effective task inputs from state or localStorage
+    const getEffectiveTaskInputs = () => {
+        let inputs = [...taskInputs];
+        const raw = localStorage.getItem('pending_first_action');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                const dayMove = parsed?.moves?.[previewDay];
+                if (dayMove?.taskInputs && Array.isArray(dayMove.taskInputs) && dayMove.taskInputs.length > 0) {
+                    const maxLen = Math.max(inputs.length, dayMove.taskInputs.length);
+                    const merged: string[] = [];
+                    for (let i = 0; i < maxLen; i++) {
+                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (dayMove.taskInputs[i] || "");
+                    }
+                    inputs = merged;
+                } else if (previewDay === 1 && parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                    const maxLen = Math.max(inputs.length, parsed.taskInputs.length);
+                    const merged: string[] = [];
+                    for (let i = 0; i < maxLen; i++) {
+                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputs[i] || "");
+                    }
+                    inputs = merged;
+                } else if (previewDay === 2 && parsed?.taskInputsDay2 && Array.isArray(parsed.taskInputsDay2) && parsed.taskInputsDay2.length > 0) {
+                    const maxLen = Math.max(inputs.length, parsed.taskInputsDay2.length);
+                    const merged: string[] = [];
+                    for (let i = 0; i < maxLen; i++) {
+                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputsDay2[i] || "");
+                    }
+                    inputs = merged;
+                } else if (previewDay === 1 && parsed?.firstActionInput && (!inputs[0] || String(inputs[0]).trim().length === 0)) {
+                    inputs[0] = parsed.firstActionInput;
                 }
+            } catch(e) {}
+        }
+        return inputs;
+    };
+
+    // Restore pending sprint preview state from localStorage on load/mount or previewDay change
+    useEffect(() => {
+        if (!sprintId) return;
+        const pendingRaw = localStorage.getItem('pending_first_action');
+        if (pendingRaw) {
+            try {
+                const parsed = JSON.parse(pendingRaw);
+                if (parsed && (parsed.sprintId === sprintId || !parsed.sprintId)) {
+                    const dayMove = parsed.moves?.[previewDay];
+                    if (dayMove && Array.isArray(dayMove.taskInputs) && dayMove.taskInputs.length > 0) {
+                        setTaskInputs(dayMove.taskInputs);
+                        if (typeof dayMove.activeTaskIndex === 'number' && dayMove.activeTaskIndex >= 0) {
+                            setActiveTaskIndex(dayMove.activeTaskIndex);
+                        }
+                    } else if (previewDay === 1 && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                        setTaskInputs(parsed.taskInputs);
+                        if (typeof parsed.activeTaskIndex === 'number' && parsed.activeTaskIndex >= 0) {
+                            setActiveTaskIndex(parsed.activeTaskIndex);
+                        }
+                    } else if (previewDay === 2 && Array.isArray(parsed.taskInputsDay2) && parsed.taskInputsDay2.length > 0) {
+                        setTaskInputs(parsed.taskInputsDay2);
+                    } else {
+                        setTaskInputs([]);
+                        setActiveTaskIndex(0);
+                    }
+                }
+            } catch (e) {
+                console.error("Error restoring pending sprint preview:", e);
             }
         }
-    }, [user, loading, sprintId, navigate, location.pathname, sprint, previewDay]);
+    }, [sprintId, previewDay]);
 
+    // Helper to save day inputs locally to localStorage
+    const saveDayInputsLocally = (dayToSave: number, inputsToSave: string[], activeIdx: number = 0) => {
+        if (!sprint) return;
+        const existingRaw = localStorage.getItem('pending_first_action');
+        let pendingObj: any = {};
+        if (existingRaw) {
+            try {
+                pendingObj = JSON.parse(existingRaw) || {};
+            } catch (e) {}
+        }
+
+        pendingObj.sprintId = sprint.id || sprintId;
+        pendingObj.pricingType = sprint.pricingType || 'cash';
+        pendingObj.moves = pendingObj.moves || {};
+        pendingObj.moves[dayToSave] = {
+            taskInputs: inputsToSave,
+            firstActionInput: inputsToSave[0] || "",
+            activeTaskIndex: activeIdx,
+            completed: Boolean(pendingObj.moves?.[dayToSave]?.completed),
+            completedAt: pendingObj.moves?.[dayToSave]?.completedAt || null
+        };
+
+        if (dayToSave === 1) {
+            pendingObj.taskInputs = inputsToSave;
+            pendingObj.firstActionInput = inputsToSave[0] || "";
+            pendingObj.activeTaskIndex = activeIdx;
+        } else if (dayToSave === 2) {
+            pendingObj.taskInputsDay2 = inputsToSave;
+        }
+
+        pendingObj.prefilledEmail = prefilledEmail || localStorage.getItem('guest_email') || '';
+        pendingObj.updatedAt = new Date().toISOString();
+        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+    };
+
+    // Continuously store sprint preview inputs locally so page reloads and move switches maintain state
+    useEffect(() => {
+        if (!sprint) return;
+        const hasSomeInput = taskInputs.some(val => val && String(val).trim().length > 0);
+        if (!hasSomeInput) return;
+        saveDayInputsLocally(previewDay, taskInputs, activeTaskIndex);
+    }, [sprint, taskInputs, activeTaskIndex, prefilledEmail, previewDay]);
+
+    // Track completed days stored locally
+    const storedCompletedDays = useMemo(() => {
+        try {
+            const raw = localStorage.getItem('pending_first_action');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed?.moves) {
+                    return Object.keys(parsed.moves)
+                        .filter(day => parsed.moves[day]?.completed)
+                        .map(Number);
+                }
+                if (parsed?.completedDays && Array.isArray(parsed.completedDays)) {
+                    return parsed.completedDays;
+                }
+            }
+        } catch (e) {}
+        return [];
+    }, [previewDay, taskInputs]);
+
+    const isDayUnlocked = (day: number) => {
+        if (day === 1) return true;
+        if (storedCompletedDays.includes(day)) return true;
+        if (day <= previewDay) return true;
+        const maxCompleted = storedCompletedDays.length > 0 ? Math.max(...storedCompletedDays) : 0;
+        if (day <= maxCompleted + 1) return true;
+        return false;
+    };
+
+    // Move Completion Handler: Local-only saving for Flow and Coach preview without login restrictions
     const handleCompletePreviewDay = async () => {
+        if (!sprint || isNavigatingToSuccessRef.current) return;
+        isNavigatingToSuccessRef.current = true;
+        setTimeout(() => { isNavigatingToSuccessRef.current = false; }, 2000);
+
         if (soundEnabled) {
             try {
                 const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
@@ -385,141 +457,73 @@ const SprintPreview: React.FC = () => {
         triggerHaptic(hapticPatterns.success);
 
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        
-        let enrollmentId = "";
-        if (sprint && !isCoachPreview) {
-            isNavigatingToSuccessRef.current = true;
+        const effectiveInputs = getEffectiveTaskInputs();
+        const firstInput = effectiveInputs[0] || "";
+
+        // Update local storage representation and mark move completed
+        const existingRaw = localStorage.getItem('pending_first_action');
+        let pendingObj: any = {};
+        if (existingRaw) {
             try {
-                const effectiveInputs = getEffectiveTaskInputs();
-                const firstInput = effectiveInputs[0] || "";
-                const emailToSave = prefilledEmail || localStorage.getItem('guest_email') || "";
-
-                let targetUserId = user?.id;
-                if (!targetUserId) {
-                    let guestUserId = localStorage.getItem('vectorise_guest_user_id');
-                    if (!guestUserId) {
-                        guestUserId = `guest_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-                        localStorage.setItem('vectorise_guest_user_id', guestUserId);
-                    }
-                    targetUserId = guestUserId;
-
-                    // Ensure guest user doc is saved in Firestore database
-                    await userService.createUserDocument(guestUserId, sanitizeData({
-                        id: guestUserId,
-                        name: "Guest Participant",
-                        email: emailToSave || null,
-                        role: UserRole.PARTICIPANT,
-                        isGuest: true
-                    }) as any);
-                }
-
-                const enrollment = await sprintService.enrollUser(targetUserId, sprint.id, sprint.duration, {
-                    firstActionInput: firstInput,
-                    taskInputs: effectiveInputs
-                } as any);
-                if (enrollment) {
-                    enrollmentId = enrollment.id;
-                    const updatedProgress = [...(enrollment.progress || [])];
-                    if (updatedProgress[0]) {
-                        updatedProgress[0] = {
-                            ...updatedProgress[0],
-                            completed: true,
-                            completedAt: new Date().toISOString(),
-                            answers: effectiveInputs,
-                            submission: firstInput
-                        };
-                        const enrollmentRef = doc(db, "users", targetUserId, "enrollments", enrollment.id);
-                        await updateDoc(enrollmentRef, sanitizeData({ 
-                            progress: sanitizeData(updatedProgress),
-                            last_activity_at: new Date().toISOString()
-                        }));
-                    }
-                }
-                localStorage.removeItem('pending_first_action');
-            } catch (e) {
-                console.error("Error saving preview progress:", e);
-            }
+                pendingObj = JSON.parse(existingRaw) || {};
+            } catch (e) {}
         }
 
-        const daySuccessState = { 
-            day: previewDay, 
-            coinsUnlocked: 0, 
-            bridgeNote: day1Content?.bridgeNote,
-            sprintId: sprint?.id,
-            sprint: sprint,
-            enrollmentId: enrollmentId,
-            isPreview: true,
-            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : `/sprint/preview/${sprint?.id}`,
-            redirectToDaySuccess: true
+        pendingObj.sprintId = sprint?.id || sprintId;
+        pendingObj.pricingType = sprint?.pricingType || 'cash';
+        pendingObj.moves = pendingObj.moves || {};
+        pendingObj.moves[previewDay] = {
+            taskInputs: effectiveInputs,
+            firstActionInput: firstInput,
+            completed: true,
+            completedAt: new Date().toISOString()
         };
+
+        if (previewDay === 1) {
+            pendingObj.taskInputs = effectiveInputs;
+            pendingObj.firstActionInput = firstInput;
+        } else if (previewDay === 2) {
+            pendingObj.taskInputsDay2 = effectiveInputs;
+        }
+
+        const completedDays = new Set(pendingObj.completedDays || []);
+        completedDays.add(previewDay);
+        pendingObj.completedDays = Array.from(completedDays);
+        pendingObj.lastActiveDay = previewDay;
+
+        pendingObj.prefilledEmail = prefilledEmail || localStorage.getItem('guest_email') || '';
+        pendingObj.updatedAt = new Date().toISOString();
+        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+
+        // Track analytics
         const targetTrackId = sprint?.id || sprintId;
         if (targetTrackId) {
-            sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
-        }
-        navigate('/participant/day-success', { state: daySuccessState, replace: true });
-    };
-
-    const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
-
-    // Restore pending sprint preview state from localStorage on load/mount
-    useEffect(() => {
-        if (!sprintId) return;
-        const pendingRaw = localStorage.getItem('pending_first_action');
-        if (pendingRaw) {
-            try {
-                const parsed = JSON.parse(pendingRaw);
-                if (parsed && parsed.sprintId === sprintId) {
-                    if (Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
-                        setTaskInputs(parsed.taskInputs);
-                    }
-                    if (typeof parsed.activeTaskIndex === 'number' && parsed.activeTaskIndex >= 0) {
-                        setActiveTaskIndex(parsed.activeTaskIndex);
-                    }
-                }
-            } catch (e) {
-                console.error("Error restoring pending sprint preview:", e);
+            if (previewDay === 1) {
+                sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
+            }
+            if (sprint?.duration && previewDay >= sprint.duration) {
+                sprintAnalyticsService.trackSprintCompletion(targetTrackId, user?.id);
             }
         }
-    }, [sprintId]);
 
-    // Continuously store sprint preview inputs locally before login so page reloads maintain state
-    useEffect(() => {
-        if (!sprint || user) return;
-        const hasSomeInput = taskInputs.some(val => val && String(val).trim().length > 0);
-        if (!hasSomeInput) return;
+        const returnToPreviewUrl = isCoachPreview 
+            ? `/coach/sprint/preview/${sprint?.id || sprintId}` 
+            : `/sprint/preview/${sprint?.id || sprintId}`;
 
-        const pendingObj = {
-            sprintId: sprint.id,
-            pricingType: sprint.pricingType || 'cash',
-            firstActionInput: taskInputs[0] || "",
-            taskInputs: taskInputs,
-            activeTaskIndex: activeTaskIndex,
-            prefilledEmail: prefilledEmail || '',
-            updatedAt: new Date().toISOString()
+        // Replicate Coach preview: Seamlessly navigate to DaySuccessPage without restrictions or login walls
+        const daySuccessState = { 
+            day: previewDay, 
+            coinsUnlocked: previewDay * 10, 
+            bridgeNote: day1Content?.bridgeNote,
+            completionNote: day1Content?.completionNote,
+            sprintId: sprint?.id || sprintId,
+            sprint: sprint,
+            isPreview: true,
+            returnToPreviewUrl: returnToPreviewUrl,
+            taskInputs: effectiveInputs,
+            redirectToDaySuccess: true
         };
-        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-    }, [sprint, taskInputs, activeTaskIndex, user, prefilledEmail]);
-
-    // Helper to get effective task inputs from state or localStorage
-    const getEffectiveTaskInputs = () => {
-        let inputs = [...taskInputs];
-        const raw = localStorage.getItem('pending_first_action');
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
-                    const maxLen = Math.max(inputs.length, parsed.taskInputs.length);
-                    const merged: string[] = [];
-                    for (let i = 0; i < maxLen; i++) {
-                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputs[i] || "");
-                    }
-                    inputs = merged;
-                } else if (parsed?.firstActionInput && (!inputs[0] || String(inputs[0]).trim().length === 0)) {
-                    inputs[0] = parsed.firstActionInput;
-                }
-            } catch(e) {}
-        }
-        return inputs;
+        navigate('/participant/day-success', { state: daySuccessState, replace: true });
     };
 
     useEffect(() => {
@@ -1086,19 +1090,54 @@ const SprintPreview: React.FC = () => {
             </header>
 
             <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Day Selector (Disabled/Preview) */}
-                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1 opacity-50">
-                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
-                        <div
-                            key={day}
-                            className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
-                                day === previewDay ? 'bg-[#0E7850] text-white shadow-xl' : 'bg-[#F3F4F6] text-gray-400'
-                            }`}
-                        >
-                            <span className={`text-[8px] font-black uppercase tracking-widest ${day === previewDay ? 'text-white/60' : 'text-gray-300'}`}>Move</span>
-                            <span className="text-3xl font-black leading-none">{day}</span>
-                        </div>
-                    ))}
+                {/* Day Selector */}
+                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
+                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
+                        const unlocked = isDayUnlocked(day);
+                        const isSelected = day === previewDay;
+                        const isCompleted = storedCompletedDays.includes(day) || day < previewDay;
+
+                        return (
+                            <button
+                                key={day}
+                                type="button"
+                                onClick={() => {
+                                    if (unlocked) {
+                                        setPreviewDay(day);
+                                    }
+                                }}
+                                disabled={!unlocked}
+                                className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
+                                    isSelected 
+                                        ? 'bg-[#0E7850] text-white shadow-xl scale-105' 
+                                        : isCompleted
+                                            ? 'bg-white text-gray-800 border-2 border-emerald-500/30 shadow-sm hover:border-emerald-500 cursor-pointer'
+                                            : unlocked
+                                                ? 'bg-white text-gray-800 border border-gray-200 shadow-sm hover:border-primary/50 cursor-pointer'
+                                                : 'bg-gray-100 text-gray-300 border border-gray-200 cursor-not-allowed opacity-60'
+                                }`}
+                            >
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${isSelected ? 'text-white/60' : isCompleted ? 'text-emerald-600' : unlocked ? 'text-gray-400' : 'text-gray-300'}`}>
+                                    {isCompleted ? 'Done' : 'Move'}
+                                </span>
+                                <span className="text-3xl font-black leading-none">{day}</span>
+                                {!unlocked && (
+                                    <div className="absolute top-2 right-2 text-gray-300">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                        </svg>
+                                    </div>
+                                )}
+                                {isCompleted && !isSelected && (
+                                    <div className="absolute top-2 right-2 text-emerald-600">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="space-y-2 text-left animate-slide-up">

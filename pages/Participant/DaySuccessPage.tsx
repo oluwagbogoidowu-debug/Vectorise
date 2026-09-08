@@ -8,6 +8,7 @@ import { ArrowRight, Sparkles, Bell, Check, Award, Tag, Mail } from 'lucide-reac
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
+import { UserRole } from '../../types';
 
 const DaySuccessPage: React.FC = () => {
   const { user } = useAuth();
@@ -55,10 +56,13 @@ const DaySuccessPage: React.FC = () => {
           sessionStorage.removeItem(`vectorise_preview_enrollment_${sprintId}`);
         } catch (e) {}
       }
+      const isCoachRole = user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
+      const isCoachPreview = returnToPreviewUrl?.startsWith('/coach/sprint/preview') || (isCoachRole && location.pathname.startsWith('/coach/'));
+      const fallbackPreviewUrl = isCoachPreview ? `/coach/sprint/preview/${sprintId}` : `/sprint/preview/${sprintId}`;
       if (returnToPreviewUrl) {
         navigate(returnToPreviewUrl, { replace: true, state: { resetPreview: true } });
       } else if (sprintId) {
-        navigate(`/coach/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
+        navigate(fallbackPreviewUrl, { replace: true, state: { resetPreview: true } });
       } else {
         navigate(-1);
       }
@@ -180,7 +184,10 @@ const DaySuccessPage: React.FC = () => {
     const nextDay = completedDay + 1;
 
     if (isPreview) {
-      const targetUrl = returnToPreviewUrl || `/coach/sprint/preview/${sprintId}`;
+      const isCoachRole = user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
+      const isCoachPreview = returnToPreviewUrl?.startsWith('/coach/sprint/preview') || (isCoachRole && location.pathname.startsWith('/coach/'));
+      const fallbackPreviewUrl = isCoachPreview ? `/coach/sprint/preview/${sprintId}` : `/sprint/preview/${sprintId}`;
+      const targetUrl = returnToPreviewUrl || fallbackPreviewUrl;
       navigate(targetUrl, {
         replace: true,
         state: {
