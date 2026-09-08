@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, Sparkles, Bell, Check, Award, Tag } from 'lucide-react';
+import { ArrowRight, Sparkles, Bell, Check, Award, Tag, Mail } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
@@ -218,6 +218,29 @@ const DaySuccessPage: React.FC = () => {
   const sprint = location.state?.sprint;
   const isFlowSprint = sprint?.previewMode === 'flow';
 
+  const [emailInput, setEmailInput] = useState(user?.email || '');
+  const [emailError, setEmailError] = useState('');
+
+  const getCtaUrlWithEmail = (baseUrl: string, email: string) => {
+    if (!baseUrl) return '';
+    if (!email) return baseUrl;
+    try {
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      return `${baseUrl}${separator}email=${encodeURIComponent(email)}&prefilled_email=${encodeURIComponent(email)}&customer_email=${encodeURIComponent(email)}`;
+    } catch (e) {
+      return baseUrl;
+    }
+  };
+
+  const handleCtaClick = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
+    if (!emailInput || !emailInput.includes('@')) {
+      e.preventDefault();
+      setEmailError('Please enter a valid email address to track your payment.');
+      return;
+    }
+    setEmailError('');
+  };
+
   if (isFlowSprint && isSprintLastDay) {
     return (
       <div className="min-h-[100dvh] w-screen bg-[#FDFDFD] flex flex-col justify-between p-6 md:p-12 overflow-x-hidden relative text-gray-900 font-sans">
@@ -281,6 +304,42 @@ const DaySuccessPage: React.FC = () => {
               <p className="text-xs font-semibold text-gray-600">Downloadable interactive worksheets and summary notes.</p>
             </div>
           </motion.div>
+
+          {/* Email Tracking Input Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5 }}
+            className="w-full max-w-md bg-gray-50/80 p-6 rounded-[2rem] border border-gray-100 text-left space-y-3"
+          >
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">
+              Your Payment Tracking Email
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                <Mail className="w-4 h-4 text-gray-400" />
+              </span>
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => {
+                  setEmailInput(e.target.value);
+                  if (emailError) setEmailError('');
+                }}
+                placeholder="name@example.com"
+                className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 focus:border-[#0E7850] focus:ring-1 focus:ring-[#0E7850] rounded-2xl text-xs font-semibold outline-none transition-all shadow-sm text-gray-900"
+              />
+            </div>
+            {emailError ? (
+              <p className="text-[10px] font-bold text-red-500 tracking-wide uppercase">
+                {emailError}
+              </p>
+            ) : (
+              <p className="text-[9px] text-gray-400 font-medium leading-normal">
+                Enter the email you intend to use at checkout. The coach uses this to automatically track and verify your payment to unlock permanent access.
+              </p>
+            )}
+          </motion.div>
         </main>
 
         {/* CTA Button Footer */}
@@ -293,7 +352,8 @@ const DaySuccessPage: React.FC = () => {
           >
             {sprint?.offerCtaUrl ? (
               <a
-                href={sprint?.offerCtaUrl}
+                href={getCtaUrlWithEmail(sprint.offerCtaUrl, emailInput)}
+                onClick={handleCtaClick}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-4 bg-[#0E7850] hover:bg-[#0c6644] text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-center animate-pulse"
