@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../services/sprintService';
-import { userService } from '../services/userService';
+import { userService, sanitizeData } from '../services/userService';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { NotificationManager } from './NotificationManager';
@@ -64,10 +64,10 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                         completedAt: new Date().toISOString(), answers: pending.taskInputs || [pending.firstActionInput], submission: pending.taskInputs?.[0] || pending.firstActionInput
                     };
                     const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
-                    await updateDoc(enrollmentRef, { 
-                        progress: updatedProgress,
+                    await updateDoc(enrollmentRef, sanitizeData({ 
+                        progress: sanitizeData(updatedProgress),
                         last_activity_at: new Date().toISOString()
-                    });
+                    }));
                   }
                   if (enrollment && enrollment.id) {
                     console.log("[ParticipantLayout] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
@@ -106,10 +106,10 @@ const ParticipantLayout: React.FC<ParticipantLayoutProps> = ({ children }) => {
                       submission: pending.taskInputs?.[0] || pending.firstActionInput || ""
                     };
                     const enrollmentRef = doc(db, "users", user.id, "enrollments", existingEnrollment.id);
-                    await updateDoc(enrollmentRef, {
-                      progress: updatedProgress,
+                    await updateDoc(enrollmentRef, sanitizeData({
+                      progress: sanitizeData(updatedProgress),
                       last_activity_at: new Date().toISOString()
-                    });
+                    }));
                   } catch (e) {
                     console.error("Failed to update active enrollment progress with pending preview action:", e);
                   }

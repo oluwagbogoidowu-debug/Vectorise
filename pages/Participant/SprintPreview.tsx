@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
 import { db } from '../../services/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { userService, safeJSONStringify } from '../../services/userService';
+import { userService, safeJSONStringify, sanitizeData } from '../../services/userService';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
@@ -331,10 +331,10 @@ const SprintPreview: React.FC = () => {
                                 submission: firstInput
                             };
                             const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
-                            await updateDoc(enrollmentRef, { 
-                                progress: updatedProgress,
+                            await updateDoc(enrollmentRef, sanitizeData({ 
+                                progress: sanitizeData(updatedProgress),
                                 last_activity_at: new Date().toISOString()
-                            });
+                            }));
                         }
                         await userService.addUserEnrollment(user.id, targetSprintId);
                         localStorage.removeItem('pending_first_action');
@@ -404,13 +404,13 @@ const SprintPreview: React.FC = () => {
                     targetUserId = guestUserId;
 
                     // Ensure guest user doc is saved in Firestore database
-                    await userService.createUserDocument(guestUserId, {
+                    await userService.createUserDocument(guestUserId, sanitizeData({
                         id: guestUserId,
                         name: "Guest Participant",
-                        email: emailToSave || undefined,
+                        email: emailToSave || null,
                         role: UserRole.PARTICIPANT,
                         isGuest: true
-                    } as any);
+                    }) as any);
                 }
 
                 const enrollment = await sprintService.enrollUser(targetUserId, sprint.id, sprint.duration, {
@@ -429,10 +429,10 @@ const SprintPreview: React.FC = () => {
                             submission: firstInput
                         };
                         const enrollmentRef = doc(db, "users", targetUserId, "enrollments", enrollment.id);
-                        await updateDoc(enrollmentRef, { 
-                            progress: updatedProgress,
+                        await updateDoc(enrollmentRef, sanitizeData({ 
+                            progress: sanitizeData(updatedProgress),
                             last_activity_at: new Date().toISOString()
-                        });
+                        }));
                     }
                 }
                 localStorage.removeItem('pending_first_action');

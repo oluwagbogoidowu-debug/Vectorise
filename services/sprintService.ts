@@ -2034,7 +2034,7 @@ export const sprintService = {
                 const freshProgress = Array.from({ length: effectiveDuration }, (_, i) => ({
                     day: i + 1,
                     completed: (i === 0 && hasInputs) ? true : false,
-                    completedAt: (i === 0 && hasInputs) ? now : undefined,
+                    completedAt: (i === 0 && hasInputs) ? now : null,
                     answers: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs : (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
                     submission: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs[0] || "" : (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
                 }));
@@ -2071,10 +2071,10 @@ export const sprintService = {
                         answers: commercial?.taskInputs || (commercial?.firstActionInput ? [commercial.firstActionInput] : updatedProgress[0].answers),
                         submission: commercial?.taskInputs?.[0] || commercial?.firstActionInput || updatedProgress[0].submission || ""
                     };
-                    await updateDoc(enrollmentRef, {
-                        progress: updatedProgress,
+                    await updateDoc(enrollmentRef, sanitizeData({
+                        progress: sanitizeData(updatedProgress),
                         last_activity_at: now
-                    });
+                    }));
                     existingData.progress = updatedProgress;
                 }
             }
@@ -2114,7 +2114,7 @@ export const sprintService = {
             progress: Array.from({ length: effectiveDuration }, (_, i) => ({
                 day: i + 1,
                 completed: (i === 0 && hasInputs) ? true : false,
-                completedAt: (i === 0 && hasInputs) ? now : undefined,
+                completedAt: (i === 0 && hasInputs) ? now : null,
                 answers: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs : (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
                 submission: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs[0] || "" : (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
             }))
@@ -2589,36 +2589,64 @@ export const sprintService = {
 
     checkReferralStart: async (userId: string) => {
         try {
+            // Check top-level referrals collection (no collectionGroup index required)
             const q = query(
-                collectionGroup(db, 'referrals'),
+                collection(db, 'referrals'),
                 where('refereeId', '==', userId)
             );
             const snap = await getDocs(q);
-            if (snap.empty) return;
 
-            const docsToProcess = snap.docs.filter(d => d.data()?.status === 'joined');
+            const userDoc = await userService.getUserDocument(userId);
+            const directReferrerId = userDoc?.referrerId || (userDoc as any)?.referralFirstTouch;
+
+            const docsToProcess: { refDocRef?: any; subRefDoc?: any; referrerId: string; status: string }[] = [];
+
+            if (!snap.empty) {
+                snap.docs.forEach(d => {
+                    const rData = d.data();
+                    if (rData?.status === 'joined' && rData.referrerId) {
+                        docsToProcess.push({
+                            refDocRef: d.ref,
+                            subRefDoc: doc(db, 'users', rData.referrerId, 'referrals', userId),
+                            referrerId: rData.referrerId,
+                            status: rData.status
+                        });
+                    }
+                });
+            } else if (directReferrerId) {
+                const subRefDoc = doc(db, 'users', directReferrerId, 'referrals', userId);
+                const subSnap = await getDoc(subRefDoc);
+                if (subSnap.exists() && subSnap.data()?.status === 'joined') {
+                    const refDocRef = doc(db, 'referrals', `${directReferrerId}_${userId}`);
+                    docsToProcess.push({
+                        refDocRef,
+                        subRefDoc,
+                        referrerId: directReferrerId,
+                        status: subSnap.data()?.status
+                    });
+                }
+            }
+
             if (docsToProcess.length === 0) return;
 
             const { runTransaction } = await import('firebase/firestore');
-            for (const referralDoc of docsToProcess) {
-                const rData = referralDoc.data();
-                const referrerId = rData.referrerId;
+            for (const item of docsToProcess) {
+                const referrerId = item.referrerId;
                 
                 await runTransaction(db, async (transaction) => {
-                    const refDocRef = referralDoc.ref;
                     const referrerRef = doc(db, 'users', referrerId);
-                    
                     const referrerSnap = await transaction.get(referrerRef);
                     if (!referrerSnap.exists()) return;
 
-                    transaction.update(refDocRef, { status: 'started_sprint' });
+                    if (item.refDocRef) {
+                        transaction.set(item.refDocRef, { status: 'started_sprint' }, { merge: true });
+                    }
+                    if (item.subRefDoc) {
+                        transaction.set(item.subRefDoc, { status: 'started_sprint' }, { merge: true });
+                    }
                     transaction.update(referrerRef, {
                         'impactStats.peopleHelped': increment(1)
                     });
-
-                    // Also update nested subcollection record
-                    const subRefDoc = doc(db, 'users', referrerId, 'referrals', userId);
-                    transaction.set(subRefDoc, { status: 'started_sprint' }, { merge: true });
 
                     // Drop a notification about referral completion immediately
                     const notifId = `${referrerId}_completed_${userId}`;
@@ -2647,7 +2675,7 @@ export const sprintService = {
                 console.log(`[Referral System] Realtime trigger: Referee ${userId} started first sprint. Referrer ${referrerId} peopleHelped count incremented. Nested referral and notifications set.`);
             }
         } catch (err) {
-            console.error("Error checking referral start:", err);
+            console.warn("[Referral System] Non-blocking referral check notice:", err);
         }
     },
 

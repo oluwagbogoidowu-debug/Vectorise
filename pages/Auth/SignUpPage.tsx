@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { auth, db } from '../../services/firebase';
 import { createUserWithEmailAndPassword, updateProfile as updateFbProfile, sendEmailVerification, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, updateDoc, collection, query, where, getDocs, getDoc, setDoc } from 'firebase/firestore';
-import { userService, safeJSONStringify } from '../../services/userService';
+import { userService, safeJSONStringify, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { UserRole, Participant } from '../../types';
 import Button from '../../components/Button';
@@ -87,10 +87,10 @@ const SignUpPage: React.FC = () => {
           submission: firstInput || ""
         };
         const enrollmentRef = doc(db, "users", uid, "enrollments", enrollment.id);
-        await updateDoc(enrollmentRef, { 
-          progress: updatedProgress,
+        await updateDoc(enrollmentRef, sanitizeData({ 
+          progress: sanitizeData(updatedProgress),
           last_activity_at: new Date().toISOString()
-        });
+        }));
       }
 
       await userService.addUserEnrollment(uid, sprintId);
