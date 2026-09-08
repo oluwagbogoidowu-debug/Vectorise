@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, Sparkles, Bell, Check } from 'lucide-react';
+import { ArrowRight, Sparkles, Bell, Check, Award, Tag } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
@@ -214,6 +214,112 @@ const DaySuccessPage: React.FC = () => {
       triggerHaptic(hapticPatterns.success);
     }
   };
+
+  const sprint = location.state?.sprint;
+  const isFlowSprint = sprint?.previewMode === 'flow';
+
+  if (isFlowSprint && isSprintLastDay) {
+    return (
+      <div className="min-h-[100dvh] w-screen bg-[#FDFDFD] flex flex-col justify-between p-6 md:p-12 overflow-x-hidden relative text-gray-900 font-sans">
+        {/* Background Ambience */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[50%] bg-[#0E7850]/5 rounded-full blur-[120px]" />
+          <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-[#0E7850]/5 rounded-full blur-[120px]" />
+        </div>
+
+        {/* Top Header Bar */}
+        <div className="relative z-10 w-full max-w-lg mx-auto flex flex-col items-center pt-4 pb-2 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-amber-800">
+            <Award className="w-3.5 h-3.5 text-amber-600" />
+            <span className="text-xs font-black uppercase tracking-wider">
+              Sprint Fully Completed!
+            </span>
+          </div>
+        </div>
+
+        {/* Main Content Landing Page */}
+        <main className="relative z-10 max-w-lg w-full mx-auto flex-1 flex flex-col justify-center items-center py-8 text-center space-y-6">
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+            className="space-y-4"
+          >
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight uppercase">
+              {sprint?.offerTitle || "Upgrade to the Premium Masterclass"}
+            </h1>
+            
+            {sprint?.offerPrice ? (
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850] text-sm font-black uppercase tracking-wider font-mono">
+                <Tag className="w-4 h-4 text-[#0E7850]" />
+                <span>Special Price: ${sprint?.offerPrice}</span>
+              </div>
+            ) : null}
+
+            <p className="text-base text-gray-500 leading-relaxed pt-2 max-w-md mx-auto">
+              {sprint?.offerDescription || "Unlock permanent access to all your results, download exclusive companion resources, and accelerate your development with personalized feedback from the coach."}
+            </p>
+          </motion.div>
+
+          {/* Core Trust Pillars */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="w-full bg-gray-50/50 p-6 rounded-[2rem] border border-gray-100 text-left space-y-3 max-w-md"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-[#0E7850] font-bold text-lg select-none">✓</span>
+              <p className="text-xs font-semibold text-gray-600">Full lifetime access to this sprint and future iterations.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-[#0E7850] font-bold text-lg select-none">✓</span>
+              <p className="text-xs font-semibold text-gray-600">Verified certification of completion to showcase your achievement.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-[#0E7850] font-bold text-lg select-none">✓</span>
+              <p className="text-xs font-semibold text-gray-600">Downloadable interactive worksheets and summary notes.</p>
+            </div>
+          </motion.div>
+        </main>
+
+        {/* CTA Button Footer */}
+        <footer className="relative z-10 w-full max-w-md mx-auto py-4">
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="space-y-3"
+          >
+            {sprint?.offerCtaUrl ? (
+              <a
+                href={sprint?.offerCtaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-4 bg-[#0E7850] hover:bg-[#0c6644] text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-center animate-pulse"
+              >
+                <span>{sprint?.offerCtaText || "Get Access Now"}</span>
+                <ArrowRight className="w-4 h-4 text-white" />
+              </a>
+            ) : (
+              <button
+                disabled
+                className="w-full py-4 bg-gray-300 text-gray-500 rounded-3xl font-black uppercase tracking-[0.15em] text-xs flex items-center justify-center gap-2"
+              >
+                <span>Offer link not set by coach</span>
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/explore', { replace: true })}
+              className="w-full py-3 bg-transparent text-gray-400 hover:text-gray-600 text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Back to Explore
+            </button>
+          </motion.div>
+        </footer>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] w-screen bg-[#FDFDFD] flex flex-col justify-between p-6 md:p-12 overflow-x-hidden relative">

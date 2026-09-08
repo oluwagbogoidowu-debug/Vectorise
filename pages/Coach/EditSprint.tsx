@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu } from 'lucide-react';
+import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
@@ -388,6 +388,23 @@ const EditSprint: React.FC = () => {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [activeStepIndices, setActiveStepIndices] = useState<Record<number, number>>({});
   const [showAddVersionFullBleed, setShowAddVersionFullBleed] = useState(false);
+  const [showOfferFullBleed, setShowOfferFullBleed] = useState(false);
+  const [offerTitleDraft, setOfferTitleDraft] = useState('');
+  const [offerDescriptionDraft, setOfferDescriptionDraft] = useState('');
+  const [offerPriceDraft, setOfferPriceDraft] = useState<number | ''>('');
+  const [offerCtaTextDraft, setOfferCtaTextDraft] = useState('');
+  const [offerCtaUrlDraft, setOfferCtaUrlDraft] = useState('');
+  const [isSavingOffer, setIsSavingOffer] = useState(false);
+
+  useEffect(() => {
+    if (showOfferFullBleed && sprint) {
+      setOfferTitleDraft(sprint.offerTitle || '');
+      setOfferDescriptionDraft(sprint.offerDescription || '');
+      setOfferPriceDraft(sprint.offerPrice ?? '');
+      setOfferCtaTextDraft(sprint.offerCtaText || '');
+      setOfferCtaUrlDraft(sprint.offerCtaUrl || '');
+    }
+  }, [showOfferFullBleed, sprint]);
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [showCreatedPopup, setShowCreatedPopup] = useState(false);
   const [newlyCreatedSprintId, setNewlyCreatedSprintId] = useState('');
@@ -398,6 +415,7 @@ const EditSprint: React.FC = () => {
       audience: [] as string[],
       difficulty: 'Beginner' as SprintDifficulty,
       pricingType: 'cash' as 'cash' | 'credits',
+      previewMode: 'vectorise' as 'vectorise' | 'flow',
       price: 0,
       pointCost: 0,
       outcomeTag: '',
@@ -2361,6 +2379,7 @@ const EditSprint: React.FC = () => {
       currency: editSettings.currency,
       pointCost: editSettings.pointCost,
       pricingType: editSettings.pricingType,
+      previewMode: editSettings.previewMode || 'vectorise',
       duration: editSettings.duration,
       outcomeTag: editSettings.outcomeTag,
       checkInReminder: editSettings.checkInReminder || false,
@@ -2480,6 +2499,7 @@ const EditSprint: React.FC = () => {
       audience: sprint.audience || [],
       difficulty: sprint.difficulty || 'Beginner',
       pricingType: sprint.pricingType || 'cash',
+      previewMode: sprint.previewMode || 'vectorise',
       price: sprint.price || 0,
       pointCost: sprint.pointCost || 0,
       outcomeTag: sprint.outcomeTag || '',
@@ -2492,6 +2512,45 @@ const EditSprint: React.FC = () => {
       versionTag: ''
     });
     setShowAddVersionFullBleed(true);
+  };
+
+  const handleSaveOffer = async () => {
+    if (!sprint || !user) return;
+    setIsSavingOffer(true);
+    try {
+      const updatedData = {
+        offerTitle: offerTitleDraft,
+        offerDescription: offerDescriptionDraft,
+        offerPrice: offerPriceDraft === '' ? 0 : Number(offerPriceDraft),
+        offerCtaText: offerCtaTextDraft,
+        offerCtaUrl: offerCtaUrlDraft
+      };
+      
+      const isAdmin = activeRole === UserRole.ADMIN;
+      
+      const updatedLocalSprint = {
+        ...sprint,
+        ...updatedData
+      };
+      
+      await sprintService.updateSprint(sprint.id, updatedData, isAdmin);
+      setSprint(updatedLocalSprint);
+      
+      if (originalSprint) {
+        setOriginalSprint({
+          ...originalSprint,
+          ...updatedData
+        });
+      }
+
+      alert("Offer and Landing Page setup saved successfully!");
+      setShowOfferFullBleed(false);
+    } catch (err: any) {
+      console.error("Failed to save offer settings:", err);
+      alert(`Failed to save offer settings: ${err.message || String(err)}`);
+    } finally {
+      setIsSavingOffer(false);
+    }
   };
 
   const handleCreateNewVersion = async () => {
@@ -2516,6 +2575,7 @@ const EditSprint: React.FC = () => {
         difficulty: versionSettings.difficulty,
         audience: versionSettings.audience,
         pricingType: versionSettings.pricingType,
+        previewMode: versionSettings.previewMode || 'vectorise',
         price: versionSettings.price,
         pointCost: versionSettings.pointCost,
         outcomeTag: versionSettings.outcomeTag,
@@ -3119,7 +3179,15 @@ const EditSprint: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-2">
-                {!sprint.parentSprintId && (
+                {sprint.previewMode === 'flow' ? (
+                  <button 
+                    onClick={() => setShowOfferFullBleed(true)}
+                    className="group flex items-center gap-1 px-3 py-2.5 bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all border border-amber-200"
+                  >
+                    <Tag className="h-3.5 w-3.5 text-amber-600 group-hover:text-white" />
+                    <span>Setup Offer</span>
+                  </button>
+                ) : !sprint.parentSprintId && (
                   <button 
                     onClick={handleInitiateAddVersion}
                     className="group flex items-center gap-1 px-3 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
@@ -3240,7 +3308,7 @@ const EditSprint: React.FC = () => {
 
         <div className="flex flex-col gap-8">
           {/* Version Selector Bar */}
-          {allVersions.length > 1 && (
+          {allVersions.length > 1 && sprint.previewMode !== 'flow' && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-fade-in">
               <div className="flex flex-col gap-1 text-left px-1">
                 <span className="text-[8px] font-black uppercase text-primary tracking-[0.3em]">Sprint Versioning Control</span>
@@ -6144,6 +6212,122 @@ const EditSprint: React.FC = () => {
         </div>
       )}
 
+      {/* Full Bleed Modal for Offer & Landing Page Setup */}
+      {showOfferFullBleed && sprint && (
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-y-auto animate-fade-in text-gray-900 font-sans">
+          <div className="max-w-4xl mx-auto w-full px-6 py-12 md:py-20 space-y-12 relative animate-scale-up">
+            <button 
+              onClick={() => setShowOfferFullBleed(false)}
+              className="absolute top-8 right-6 text-gray-400 hover:text-gray-600 p-2.5 rounded-full hover:bg-gray-50 transition-all cursor-pointer"
+              title="Close and Return"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            
+            <div className="space-y-4">
+              <span className="text-[10px] font-black uppercase text-amber-600 tracking-[0.3em] block">Offer & Monetization Setup</span>
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight text-gray-900 uppercase">
+                Setup Sprint Offer
+              </h1>
+              <p className="text-sm md:text-base text-gray-500 leading-relaxed max-w-xl">
+                Configure the customized premium offer and landing page that will be automatically presented to participants at the very end of this Flow-sprint.
+              </p>
+            </div>
+
+            {/* Offer Fields Form */}
+            <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 space-y-8 shadow-sm">
+              <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                <Tag className="h-4 w-4 text-amber-500" />
+                Landing Page Offer Parameters
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Offer Title / Headline</label>
+                  <input
+                    type="text"
+                    value={offerTitleDraft}
+                    onChange={(e) => setOfferTitleDraft(e.target.value)}
+                    placeholder="e.g. Upgrade to the Masterclass Premium Certificate"
+                    className="w-full px-5 py-4 bg-white border border-gray-200 focus:border-[#0E7850] focus:ring-1 focus:ring-[#0E7850] rounded-2xl text-sm font-semibold outline-none transition-all shadow-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Offer Description / Body Copy</label>
+                  <textarea
+                    rows={4}
+                    value={offerDescriptionDraft}
+                    onChange={(e) => setOfferDescriptionDraft(e.target.value)}
+                    placeholder="e.g. Get lifetime access to over 50+ masterclass videos, live coaching sessions, and exclusive templates."
+                    className="w-full px-5 py-4 bg-white border border-gray-200 focus:border-[#0E7850] focus:ring-1 focus:ring-[#0E7850] rounded-2xl text-sm font-semibold outline-none transition-all resize-none shadow-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Price Setup (Amount)</label>
+                    <div className="relative">
+                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        value={offerPriceDraft}
+                        onChange={(e) => setOfferPriceDraft(e.target.value === '' ? '' : Number(e.target.value))}
+                        placeholder="e.g. 49"
+                        className="w-full pl-9 pr-5 py-4 bg-white border border-gray-200 focus:border-[#0E7850] focus:ring-1 focus:ring-[#0E7850] rounded-2xl text-sm font-semibold outline-none transition-all shadow-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Call to Action (CTA) Button Text</label>
+                    <input
+                      type="text"
+                      value={offerCtaTextDraft}
+                      onChange={(e) => setOfferCtaTextDraft(e.target.value)}
+                      placeholder="e.g. Buy Now for $49"
+                      className="w-full px-5 py-4 bg-white border border-gray-200 focus:border-[#0E7850] focus:ring-1 focus:ring-[#0E7850] rounded-2xl text-sm font-semibold outline-none transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Call to Action (CTA) URL / Redirect Link</label>
+                  <input
+                    type="url"
+                    value={offerCtaUrlDraft}
+                    onChange={(e) => setOfferCtaUrlDraft(e.target.value)}
+                    placeholder="e.g. https://your-payment-gateway.com/checkout"
+                    className="w-full px-5 py-4 bg-white border border-gray-200 focus:border-[#0E7850] focus:ring-1 focus:ring-[#0E7850] rounded-2xl text-sm font-semibold outline-none transition-all shadow-sm font-mono text-blue-600"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-6 border-t border-gray-100">
+              <button 
+                type="button"
+                onClick={() => setShowOfferFullBleed(false)}
+                className="w-full sm:w-auto px-8 py-4 border border-gray-200 rounded-2xl text-xs font-black uppercase tracking-wider text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all cursor-pointer text-center"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={handleSaveOffer}
+                disabled={isSavingOffer}
+                className="w-full sm:w-auto px-10 py-4 bg-[#0E7850] hover:bg-[#0c6644] disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-md hover:shadow-lg active:scale-[0.98] transition-all cursor-pointer text-center"
+              >
+                {isSavingOffer ? 'Saving Offer...' : 'Save Offer Setup'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Full Bleed Modal for Add New Version */}
       {showAddVersionFullBleed && (
         <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-y-auto animate-fade-in text-gray-900 font-sans">
@@ -6423,6 +6607,22 @@ const EditSprint: React.FC = () => {
                       className="mt-2"
                     />
                   </div>
+                  {/* Sprint Preview Mode */}
+                  <div>
+                    <label className={labelClasses}>Sprint Preview Mode</label>
+                    <CustomSelect
+                      value={versionSettings.previewMode || 'vectorise'}
+                      onChange={val => setVersionSettings({...versionSettings, previewMode: val as 'vectorise' | 'flow'})}
+                      options={[
+                        { value: 'vectorise', label: 'Vectorise Mode' },
+                        { value: 'flow', label: 'Flow Mode' }
+                      ]}
+                      className="mt-2"
+                    />
+                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">
+                      Default is Vectorise. Flow Mode allows continuous preview from Move to Move without signing in.
+                    </p>
+                  </div>
 
                   {/* Price / points cost */}
                   {versionSettings.pricingType === 'credits' ? (
@@ -6619,6 +6819,7 @@ const EditSprint: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <DiffHighlight label="Point Cost" original={originalSprint?.pointCost} updated={editSettings.pointCost} />
+                                <DiffHighlight label="Preview Mode" original={originalSprint?.previewMode} updated={editSettings.previewMode} />
                             </div>
                             <div className="mt-8 pt-8 border-t border-gray-100">
                                 <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-6">Dynamic Sections Diff</h4>
@@ -6839,6 +7040,21 @@ const EditSprint: React.FC = () => {
                                                     ]}
                                                     className="mt-2"
                                                 />
+                                            </div>
+                                            <div>
+                                                <label className={labelClasses}>Sprint Preview Mode</label>
+                                                <CustomSelect
+                                                    value={editSettings.previewMode || 'vectorise'}
+                                                    onChange={val => setEditSettings({...editSettings, previewMode: val as 'vectorise' | 'flow'})}
+                                                    options={[
+                                                        { value: "vectorise", label: "Vectorise Mode" },
+                                                        { value: "flow", label: "Flow Mode" }
+                                                    ]}
+                                                    className="mt-2"
+                                                />
+                                                <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">
+                                                    Default is Vectorise. Flow Mode allows continuous preview from Move to Move without signing in.
+                                                </p>
                                             </div>
                                             {editSettings.pricingType === 'credits' ? (
                                                 <div>

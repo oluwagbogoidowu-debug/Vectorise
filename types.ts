@@ -352,6 +352,12 @@ export interface Sprint {
   currency: string;
   pointCost?: number;
   pricingType?: 'cash' | 'credits';
+  previewMode?: 'vectorise' | 'flow';
+  offerTitle?: string;
+  offerDescription?: string;
+  offerPrice?: number;
+  offerCtaText?: string;
+  offerCtaUrl?: string;
   coverImageUrl: string;
   published: boolean;
   deleted?: boolean; 

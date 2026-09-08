@@ -315,7 +315,7 @@ const SprintPreview: React.FC = () => {
     // Auto-redirect already logged-in users so they never see the preview again (unless in coach preview route)
     useEffect(() => {
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        if (isCoachPreview) return;
+        if (isCoachPreview || sprint?.previewMode === 'flow') return;
         if (isNavigatingToSuccessRef.current || isSubmittingAuth) return;
         
         if (!loading && user) {
@@ -460,8 +460,8 @@ const SprintPreview: React.FC = () => {
             sprintId: sprint?.id,
             sprint: sprint,
             enrollmentId: enrollmentId,
-            isPreview: isCoachPreview,
-            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : undefined,
+            isPreview: isCoachPreview || sprint?.previewMode === "flow",
+            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id}` : (sprint?.previewMode === "flow" ? `/sprint/preview/${sprint?.id}` : undefined),
             redirectToDaySuccess: true
         };
         const targetTrackId = sprint?.id || sprintId;
@@ -1594,7 +1594,7 @@ const SprintPreview: React.FC = () => {
                                                         if (isValid) {
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1) {
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1 || sprint?.previewMode === 'flow') {
                                                                 handleCompletePreviewDay();
                                                             } else {
                                                                 const pendingObj = {
@@ -2094,7 +2094,7 @@ const SprintPreview: React.FC = () => {
                                                             if (!stepCompleted) return;
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
-                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1) {
+                                                            } else if (user || location.pathname.startsWith('/coach/sprint/preview') || previewDay === 1 || sprint?.previewMode === 'flow') {
                                                                 handleCompletePreviewDay();
                                                             } else {
                                                                 const pendingObj = {
