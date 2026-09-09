@@ -2694,7 +2694,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       unsubscribe();
       if (unsubSprint) unsubSprint();
     };
-  }, [enrollmentId, location.search, isPreview, previewSprintId, user?.id]);
+  }, [enrollmentId, location.search, isPreview, previewSprintId, user?.id, location.state]);
 
   // Clean viewport body scroll locking for full-bleed focus mode
   useEffect(() => {
@@ -5395,24 +5395,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                                 </div>
                               )}
-                              {isFullBleed && getNextVisibleStepIndex(i) === -1 && (
-                                <div className="mt-8 pt-6 border-t border-gray-100/50 flex flex-col gap-4">
-                                  {!dayProgress?.completed ? (
-                                    <button
-                                      type="button"
-                                      onClick={handleFinishDay}
-                                      disabled={isSubmitting || !isProofMet}
-                                      className={`w-full ${isFullBleed ? 'py-5 sm:py-6 text-sm sm:text-base md:text-lg' : 'py-4.5 text-xs'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
-                                    >
-                                      Today's task completed
-                                    </button>
-                                  ) : (
-                                    <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100">
-                                      Mission Complete
-                                    </div>
-                                  )}
-                                </div>
-                              )}
                             </div>
                           </motion.div>
                         );
@@ -6028,11 +6010,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   disabled={isSubmitting || !isProofMet}
                                   className={`flex-1 ${activeFullBleed ? 'py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'py-2.5 text-xs font-bold'} rounded-2xl font-black uppercase tracking-[0.2em] shadow-md transition-all ${isProofMet ? "bg-[#159E5B] text-white active:scale-95 cursor-pointer hover:shadow-lg" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                 >
-                                  Today's task completed
+                                  {isSubmitting ? "Submitting..." : "Submit Task"}
                                 </button>
                               ) : (
                                 <div className="flex-1 py-3.5 bg-gray-50 text-gray-400 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-center border border-gray-100 flex items-center justify-center">
-                                  Mission Complete
+                                  Move Complete
                                 </div>
                               )}
                             </div>
@@ -6070,21 +6052,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                       ) : taskUI;
                     })()}
                   </div>
-
-                  {!dayProgress?.completed &&
-                    (getNextVisibleStepIndex(activeTaskIndex) === -1 ||
-                      !dayContent?.taskPrompts ||
-                      dayContent.taskPrompts.length <= 1) && (
-                      <div className="mt-12 space-y-6 animate-fade-in">
-                        <button
-                          onClick={handleFinishDay}
-                          disabled={isSubmitting || !isProofMet}
-                          className={`w-full py-5 rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] shadow-xl transition-all ${isProofMet ? "bg-[#159E5B] text-white shadow-primary/10 active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"} disabled:opacity-50`}
-                        >
-                          Today's task completed
-                        </button>
-                      </div>
-                    )}
 
                   {dayProgress?.completed && (
                     <div className="mt-12 space-y-6">

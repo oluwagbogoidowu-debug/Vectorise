@@ -3269,7 +3269,7 @@ const EditSprint: React.FC = () => {
             )}
             <button 
               id="tour-step-preview"
-              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`, { state: { sprint: sprint, resetPreview: true } })} 
+              onClick={() => navigate(`/coach/sprint/preview/${sprintId}`, { state: { sprint: sprint, resetPreview: true, targetDay: selectedDay } })} 
               title="Sprint Stimulation"
               className="w-10 h-10 flex items-center justify-center bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-primary transition-all shadow-sm cursor-pointer shrink-0"
             >
