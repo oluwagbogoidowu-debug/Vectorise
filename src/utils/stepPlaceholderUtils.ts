@@ -1051,8 +1051,8 @@ export function getExplicitLinkedSteps(
       const mode = parsePlaceholderMode(match[6]);
       const targetStepIdx = stepNum - 1;
       
-      // Include if explicitly declared 'main' mode or option link (e.g. {Step 1 Op 2}, {Step 1.2}, {Step 1 main})
-      if (mode === 'main' || opNum !== undefined || mode === 'hide') {
+      // Include if explicitly declared 'main' mode, option link, hide, normal, list, sentence
+      if (mode !== 'disconnect') {
         addLink(dayNum, targetStepIdx, opNum, mode);
       }
     }
@@ -1198,7 +1198,25 @@ export function resolveProgressiveStepSelections(
   };
 
   // 1. Check if there is an explicit Main Linking placeholder {Step M main} or {Step M Op N main}
-  const mainLink = explicitLinks.find(l => l.mode === 'main');
+  let mainLink = explicitLinks.find(l => l.mode === 'main');
+  if (!mainLink) {
+    // Check if any upstream linked step has a main link
+    for (const link of explicitLinks) {
+      if (link.mode === 'disconnect') continue;
+      const sDay = link.day;
+      const sStep = link.stepIdx;
+      const sDC = (sDay === currentDayNum || !allDaysContent)
+        ? dayContent
+        : (allDaysContent.find(d => Number(d.day) === sDay) || dayContent);
+      const upstreamLinks = getExplicitLinkedSteps(sStep, sDC, allDaysContent);
+      const upstreamMain = upstreamLinks.find(l => l.mode === 'main');
+      if (upstreamMain) {
+        mainLink = upstreamMain;
+        break;
+      }
+    }
+  }
+
   if (mainLink) {
     const targetDay = mainLink.day;
     const targetStep = mainLink.stepIdx;
@@ -2272,17 +2290,28 @@ export function resolveStepVersionIndex(
     return [];
   };
 
-  const isOptionMatchedByAnswers = (targetDay: number, targetStepIdx: number, targetOpNum: number): boolean => {
-    const rawVal = getInputValue(targetDay, targetStepIdx);
-    const answers = parseUserAnswers(rawVal);
-    if (answers.length === 0) return false;
+  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
 
+  const isOptionMatchedByAnswers = (targetDay: number, targetStepIdx: number, targetOpNum: number): boolean => {
     const targetDC = (targetDay === currentDayNum || !allDaysContent)
       ? dayContent
       : (allDaysContent.find(d => Number(d.day) === targetDay) || dayContent);
     const opts = getAllStepPollOptions(targetDC, targetStepIdx, taskInputs, allDaysContent, allDaysInputs);
     const optIndex = targetOpNum - 1;
     const targetOptText = opts[optIndex] || `Option ${targetOpNum}`;
+
+    // If main connection narrowed the active option, paramount check against the active choice
+    if (progRes.isNarrowed && progRes.activeSelection) {
+      const activeNorm = progRes.activeSelection.toLowerCase().trim();
+      if (targetOptText && targetOptText.toLowerCase().trim() === activeNorm) return true;
+      if (activeNorm === `option ${targetOpNum}` || activeNorm === `op ${targetOpNum}` || activeNorm === `op${targetOpNum}` || activeNorm === String(targetOpNum) || activeNorm === `poll ${targetOpNum}`) return true;
+      if (progRes.sourceStepIdx === targetStepIdx && progRes.activeOptionIndex === optIndex) return true;
+      return false;
+    }
+
+    const rawVal = getInputValue(targetDay, targetStepIdx);
+    const answers = parseUserAnswers(rawVal);
+    if (answers.length === 0) return false;
 
     return answers.some(ans => {
       const lowerAns = ans.toLowerCase().trim();
@@ -2356,7 +2385,6 @@ export function resolveStepVersionIndex(
   }
 
   // Check progressive selection narrowing
-  const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
   if (progRes.isNarrowed && progRes.activeOptionIndex >= 0 && progRes.activeOptionIndex < promptVersions.length) {
     return progRes.activeOptionIndex;
   }
@@ -2631,9 +2659,11 @@ export function isStepVisibleForSprint(
             const optIndex = oNum - 1;
             const targetWrittenText = writtenOpts[optIndex];
             const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
-            if (prog.isNarrowed && prog.sourceStepIdx === targetIdx) {
-              if (prog.activeOptionIndex === optIndex) return true;
-              if (prog.activeSelection && targetWrittenText && prog.activeSelection.toLowerCase().trim() === targetWrittenText.toLowerCase().trim()) return true;
+            if (prog.isNarrowed && prog.activeSelection) {
+              const activeNorm = prog.activeSelection.toLowerCase().trim();
+              if (targetWrittenText && targetWrittenText.toLowerCase().trim() === activeNorm) return true;
+              if (activeNorm === `option ${oNum}` || activeNorm === `op ${oNum}` || activeNorm === `op${oNum}` || activeNorm === String(oNum) || activeNorm === `poll ${oNum}`) return true;
+              if (prog.sourceStepIdx === targetIdx && prog.activeOptionIndex === optIndex) return true;
               return false;
             }
             return userChoices.some(c => {
