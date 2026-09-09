@@ -4242,9 +4242,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               </div>
             ) : (
               <div className="flex-1 flex flex-col justify-between">
-                {/* Today's Insight */}
+                {/* Move's Insight */}
                 <div className="space-y-4 text-left my-4 animate-slide-up">
-                  <SectionHeading>Today's Insight</SectionHeading>
+                  <SectionHeading>Move's Insight</SectionHeading>
                   <div className="text-gray-800 font-normal text-lg sm:text-xl md:text-2xl leading-[1.8] tracking-normal max-w-3xl">
                     <FormattedText text={dayContent?.lessonText || ""} />
                   </div>
@@ -4436,7 +4436,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               <>
                 <div className="animate-fade-in space-y-6 w-full">
                   <div className="space-y-2 text-left animate-slide-up">
-                    <SectionHeading>Today's Insight</SectionHeading>
+                    <SectionHeading>Move's Insight</SectionHeading>
                     <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                       <FormattedText text={dayContent?.lessonText || ""} />
                     </div>
@@ -6069,12 +6069,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         document.body
                       ) : taskUI;
                     })()}
-                  </div>
-
-                  <div className="text-center mt-6 mb-2">
-                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400">
-                      GET 1% BETTER DAILY
-                    </p>
                   </div>
 
                   {!dayProgress?.completed &&

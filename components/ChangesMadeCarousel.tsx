@@ -8,7 +8,7 @@ export interface SprintChangeItem {
   day?: number; // 1-indexed Move number
   stepIndex?: number; // 0-indexed step index
   title: string; // e.g. "Move 1 Insight Changes Made" or "Move 1 Action Step 1 Changes Made"
-  badge: string; // e.g. "Move 1 • Today's Insight" or "Move 1 • Step 1"
+  badge: string; // e.g. "Move 1 • Move's Insight" or "Move 1 • Step 1"
   originalValue: string;
   updatedValue: string;
   originalSnippet: string;
@@ -108,7 +108,7 @@ export function detectSprintChanges(original: Sprint | null, current: Sprint): S
 
     if (!origDay && !currDay) continue;
 
-    // Check Today's Insight (lessonText)
+    // Check Move's Insight (lessonText)
     const origInsight = normalize(origDay?.lessonText);
     const currInsight = normalize(currDay?.lessonText);
 
@@ -119,7 +119,7 @@ export function detectSprintChanges(original: Sprint | null, current: Sprint): S
         category: 'insight',
         day: dayNum,
         title: `Move ${dayNum} Insight Changes Made`,
-        badge: `Move ${dayNum} • Today's Insight`,
+        badge: `Move ${dayNum} • Move's Insight`,
         originalValue: origInsight,
         updatedValue: currInsight,
         originalSnippet: snippet.originalSnippet,

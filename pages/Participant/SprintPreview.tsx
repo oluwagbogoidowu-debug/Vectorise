@@ -426,24 +426,51 @@ const SprintPreview: React.FC = () => {
             
             if (hasInputs || pendingRaw) {
                 isNavigatingToSuccessRef.current = true;
-                const firstInput = effectiveInputs[0] || "";
                 const targetSprint = sprint;
                 const targetSprintId = sprint?.id || sprintId;
                 
                 if (targetSprintId) {
+                    const sId = targetSprintId;
+                    let localCompletedDays = completedDays.includes(previewDay) ? completedDays : [...completedDays, previewDay];
+                    let localAllDayInputs = { ...allDayInputs, [previewDay]: effectiveInputs };
+                    try {
+                        const storedDays = localStorage.getItem(`preview_completed_days_${sId}`);
+                        if (storedDays) {
+                            const parsed = JSON.parse(storedDays);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                localCompletedDays = Array.from(new Set([...localCompletedDays, ...parsed, previewDay]));
+                            }
+                        }
+                        const storedInputs = localStorage.getItem(`preview_all_inputs_${sId}`);
+                        if (storedInputs) {
+                            const parsed = JSON.parse(storedInputs);
+                            if (parsed && typeof parsed === 'object') {
+                                localAllDayInputs = { ...parsed, ...localAllDayInputs };
+                            }
+                        }
+                    } catch (e) {}
+
+                    const firstInput = (localAllDayInputs[1] && localAllDayInputs[1][0]) || effectiveInputs[0] || "";
+
                     sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
                         firstActionInput: firstInput,
-                        taskInputs: effectiveInputs
+                        taskInputs: localAllDayInputs[1] || effectiveInputs
                     } as any).then(async (enrollment) => {
-                        if (enrollment && enrollment.progress && enrollment.progress[0]) {
+                        if (enrollment && enrollment.progress) {
                             const updatedProgress = [...enrollment.progress];
-                            updatedProgress[0] = {
-                                ...updatedProgress[0],
-                                completed: true,
-                                completedAt: new Date().toISOString(),
-                                answers: effectiveInputs,
-                                submission: firstInput
-                            };
+                            localCompletedDays.forEach(cDay => {
+                                const dayIdx = cDay - 1;
+                                if (updatedProgress[dayIdx]) {
+                                    const dayInputs = localAllDayInputs[cDay] || (cDay === previewDay ? effectiveInputs : []);
+                                    updatedProgress[dayIdx] = {
+                                        ...updatedProgress[dayIdx],
+                                        completed: true,
+                                        completedAt: new Date().toISOString(),
+                                        answers: dayInputs,
+                                        submission: dayInputs[0] || ""
+                                    };
+                                }
+                            });
                             const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
                             await updateDoc(enrollmentRef, { 
                                 progress: updatedProgress,
@@ -454,12 +481,12 @@ const SprintPreview: React.FC = () => {
                         localStorage.removeItem('pending_first_action');
                         localStorage.removeItem('vectorise_last_sprint');
                         setShowLockModal(false);
-                        const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+                        const currentDayContent = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === previewDay) : undefined;
                         navigate('/participant/day-success', { 
                             state: { 
-                                day: 1, 
-                                coinsUnlocked: 10, 
-                                bridgeNote: d1Content?.bridgeNote,
+                                day: previewDay, 
+                                coinsUnlocked: 10 * localCompletedDays.length, 
+                                bridgeNote: currentDayContent?.bridgeNote || day1Content?.bridgeNote,
                                 sprintId: targetSprintId,
                                 sprint: targetSprint,
                                 enrollmentId: enrollment?.id,
@@ -469,13 +496,15 @@ const SprintPreview: React.FC = () => {
                             replace: true 
                         });
                     }).catch(err => {
-                        console.error("Auto enrollment & day 1 completion on login failed:", err);
+                        console.error("Auto enrollment & completion on login failed:", err);
                         localStorage.removeItem('pending_first_action');
                         setShowLockModal(false);
+                        const currentDayContent = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === previewDay) : undefined;
                         navigate('/participant/day-success', { 
                             state: { 
-                                day: 1, 
+                                day: previewDay, 
                                 coinsUnlocked: 10, 
+                                bridgeNote: currentDayContent?.bridgeNote || day1Content?.bridgeNote,
                                 sprintId: targetSprintId,
                                 sprint: targetSprint,
                                 taskInputs: effectiveInputs,
@@ -504,7 +533,7 @@ const SprintPreview: React.FC = () => {
                     navigate('/explore', { replace: true });
                 });
         }
-    }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint]);
+    }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint, previewDay, completedDays, allDayInputs, day1Content]);
 
     const handleCompletePreviewDay = async () => {
         if (soundEnabled) {
@@ -533,12 +562,34 @@ const SprintPreview: React.FC = () => {
         }
 
         const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
+        const isFlowMode = sprint?.previewMode === 'flow';
+
+        // VECTORISE MODE RULE:
+        // When unauthenticated user completes Move 2 action, prompt signup/login via bottom modal bar
+        if (!user && !isCoachPreview && !isFlowMode && previewDay >= 2) {
+            const pendingObj = {
+                sprintId: sId,
+                firstActionInput: (nextAllInputs[1] && nextAllInputs[1][0]) || effectiveInputs[0] || "",
+                taskInputs: effectiveInputs,
+                allDayInputs: nextAllInputs,
+                completedDays: nextCompleted,
+                previewDay: previewDay,
+                activeTaskIndex: activeTaskIndex,
+                prefilledEmail: prefilledEmail || '',
+                updatedAt: new Date().toISOString()
+            };
+            localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+
+            setShowLockModal(true);
+            setBottomModalStep(1);
+            return;
+        }
         
         let enrollmentId = "";
         if (user && sprint && !isCoachPreview) {
             isNavigatingToSuccessRef.current = true;
             try {
-                const firstInput = effectiveInputs[0] || "";
+                const firstInput = (nextAllInputs[1] && nextAllInputs[1][0]) || effectiveInputs[0] || "";
                 const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs
@@ -568,19 +619,21 @@ const SprintPreview: React.FC = () => {
             }
         }
 
+        const currentDayContent = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === previewDay) : undefined;
+
         const daySuccessState = { 
             day: previewDay, 
-            coinsUnlocked: 0, 
-            bridgeNote: day1Content?.bridgeNote,
+            coinsUnlocked: user ? 10 * nextCompleted.length : 10, 
+            bridgeNote: currentDayContent?.bridgeNote || day1Content?.bridgeNote,
             sprintId: sprint?.id || sprintId,
             sprint: sprint,
             enrollmentId: enrollmentId,
-            isPreview: true,
+            isPreview: !user,
             returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id || sprintId}` : `/sprint/preview/${sprint?.id || sprintId}`,
             redirectToDaySuccess: true
         };
         const targetTrackId = sprint?.id || sprintId;
-        if (targetTrackId) {
+        if (targetTrackId && previewDay === 1) {
             sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
         }
         navigate('/participant/day-success', { state: daySuccessState, replace: true });
@@ -1588,7 +1641,7 @@ const SprintPreview: React.FC = () => {
                 </div>
 
                 <div className="space-y-2 text-left animate-slide-up">
-                    <SectionHeading showDot={!isDayCompleted}>Today's Insight</SectionHeading>
+                    <SectionHeading showDot={!isDayCompleted}>Move's Insight</SectionHeading>
                     <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                         <FormattedText text={day1Content?.lessonText || ""} />
                     </div>
@@ -2388,12 +2441,6 @@ const SprintPreview: React.FC = () => {
                             );
                         })()}
                     </div>
-                </div>
-
-                <div className="text-center mt-6 mb-2">
-                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-gray-400">
-                        GET 1% BETTER DAILY
-                    </p>
                 </div>
             </div>
 

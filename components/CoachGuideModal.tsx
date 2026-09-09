@@ -39,7 +39,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
     id: 'insight',
     stepNumber: 1,
     shortLabel: "1. Insight",
-    title: "Today's Insight",
+    title: "Move's Insight",
     subtitle: "Set the thinking and context before action.",
     badge: "01 · Context & Thinking",
     icon: <Lightbulb className="w-5 h-5 text-amber-500" />,

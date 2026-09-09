@@ -34,7 +34,7 @@ export const SPOTLIGHT_STEPS: SpotlightStep[] = [
     id: 'insight',
     targetId: 'tour-step-insight',
     stepNumber: 1,
-    title: "Today's Insight",
+    title: "Move's Insight",
     subtitle: "Set the thinking before the action.",
     badge: "01 · Thinking",
     icon: <Lightbulb className="w-4 h-4 text-amber-500" />,

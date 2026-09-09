@@ -3387,17 +3387,17 @@ const EditSprint: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in" key={selectedDay}>
             {/* EDITOR COLUMN */}
             <div className="space-y-8">
-                {/* Today's Insight Section */}
+                {/* Move's Insight Section */}
                 <div className="space-y-2" id="tour-step-insight">
                     <div className="flex justify-between items-end gap-4">
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-3">
-                                <label className={labelClasses}>Today's Insight</label>
+                                <label className={labelClasses}>Move's Insight</label>
                                 <button
                                     type="button"
                                     onClick={() => setShowInsightHelpSheet(true)}
                                     className="text-gray-400 hover:text-[#0E7850] transition-colors p-0.5 rounded flex items-center justify-center cursor-pointer"
-                                    title="How to use Today's Insight"
+                                    title="How to use Move's Insight"
                                 >
                                     <HelpCircle size={14} />
                                 </button>
@@ -3406,12 +3406,12 @@ const EditSprint: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        if (window.confirm("Are you sure you want to delete Today's Insight content?")) {
+                                        if (window.confirm("Are you sure you want to delete Move's Insight content?")) {
                                             handleContentChange('lessonText', '');
                                         }
                                     }}
                                     className="p-1 px-2 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg border border-red-100 transition-all flex items-center gap-1 cursor-pointer text-[9px] font-black uppercase tracking-widest"
-                                    title="Delete Today's Insight Lesson"
+                                    title="Delete Move's Insight Lesson"
                                 >
                                     <Trash2 size={11} />
                                     <span>Delete</span>
@@ -3441,7 +3441,7 @@ const EditSprint: React.FC = () => {
                     </div>
                     {isAdmin && !isFoundational && originalSprint && (
                         <DiffHighlight 
-                            label="Today's Insight" 
+                            label="Move's Insight" 
                             original={Array.isArray(originalSprint.dailyContent) ? originalSprint.dailyContent.find(c => c.day === selectedDay)?.lessonText : undefined} 
                             updated={currentContent.lessonText} 
                         />
@@ -5493,7 +5493,7 @@ const EditSprint: React.FC = () => {
                     <h2 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.25em] mb-3">Execution Path Move {selectedDay}</h2>
                     
                     <div className="space-y-2">
-                        <SectionHeading>Today's Insight</SectionHeading>
+                        <SectionHeading>Move's Insight</SectionHeading>
                         <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
                             <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
                         </div>
@@ -6074,7 +6074,7 @@ const EditSprint: React.FC = () => {
         />
       )}
 
-      {/* Today's Insight Help Bottom Sheet */}
+      {/* Move's Insight Help Bottom Sheet */}
       {showInsightHelpSheet && (
         <>
           <div 
@@ -6094,7 +6094,7 @@ const EditSprint: React.FC = () => {
 
             {/* Heading */}
             <h3 className="text-xl font-black tracking-tight leading-tight text-center text-gray-900 mb-1 uppercase">
-              Today's Insight
+              Move's Insight
             </h3>
             <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 text-center mb-6">How to write high-impact content</p>
 

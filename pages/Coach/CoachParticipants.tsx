@@ -761,12 +761,12 @@ export const CoachParticipants: React.FC = () => {
 
                     {/* Sprint View Main Workspace */}
                     <div className="space-y-8 animate-fade-in">
-                        {/* 1. Today's Insight (Daily Lesson) */}
+                        {/* 1. Move's Insight (Daily Lesson) */}
                         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8 space-y-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-[#0E7850]"></div>
                                 <h3 className="text-xs font-black uppercase tracking-[0.25em] text-gray-500">
-                                    Today's Insight
+                                    Move's Insight
                                 </h3>
                             </div>
                             <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[65ch]">

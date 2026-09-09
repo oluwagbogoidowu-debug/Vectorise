@@ -867,7 +867,6 @@ const SprintLandingPage: React.FC = () => {
                     <div className="max-w-md mx-auto flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
-                            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">GET 1% BETTER DAILY</p>
                         </div>
                         <Button 
                             onClick={handleJoinClick} 
