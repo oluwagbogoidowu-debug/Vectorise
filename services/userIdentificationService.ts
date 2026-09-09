@@ -58,9 +58,7 @@ export const userIdentificationService = {
 
             const userDocRef = doc(db, 'users', userId);
             const userSnap = await getDoc(userDocRef);
-            if (!userSnap.exists()) return {};
-
-            const userData = userSnap.data() || {};
+            const userData = userSnap.exists() ? (userSnap.data() || {}) : {};
             const existingMetadata = userData.metadata || userData.userMetadata || {};
             const existingIdentification = userData.identificationData || {};
 
@@ -118,6 +116,8 @@ export const userIdentificationService = {
                 const cleanAnswer = answerText.trim();
                 const fieldKey = saveDirective.fieldKey;
                 const fieldLabel = saveDirective.fieldLabel;
+                const sprintId = (sprint as any)?.id || (sprint as any)?.sprint_id || '';
+                const sprintTitle = (sprint as any)?.title || (sprint as any)?.sprint_title || '';
 
                 // Update root property, metadata object, and identification tracking
                 updatesToUser[fieldKey] = cleanAnswer;
@@ -126,8 +126,8 @@ export const userIdentificationService = {
                     field: fieldKey,
                     label: fieldLabel,
                     value: cleanAnswer,
-                    sourceSprintId: sprint.id,
-                    sourceSprintTitle: sprint.title,
+                    sourceSprintId: sprintId,
+                    sourceSprintTitle: sprintTitle,
                     capturedAt: new Date().toISOString()
                 };
                 hasChanges = true;
@@ -137,7 +137,7 @@ export const userIdentificationService = {
                 updatesToUser.metadata = updatedMetadata;
                 updatesToUser.identificationData = updatedIdentification;
                 updatesToUser.lastMetadataUpdate = new Date().toISOString();
-                await updateDoc(userDocRef, sanitizeData(updatesToUser));
+                await setDoc(userDocRef, sanitizeData(updatesToUser), { merge: true });
 
                 // Sync to local storage & broadcast update event
                 if (typeof window !== 'undefined') {
@@ -259,14 +259,17 @@ export const userIdentificationService = {
 
             const userDocRef = doc(db, 'users', userId);
             const userSnap = await getDoc(userDocRef);
-            if (!userSnap.exists()) return {};
-
-            const userData = userSnap.data() || {};
+            const userData = userSnap.exists() ? (userSnap.data() || {}) : {};
+            const existingMetadata = userData.metadata || userData.userMetadata || {};
             const existingIdentification = userData.identificationData || {};
             
             const updatesToUser: Record<string, any> = {};
+            const updatedMetadata = { ...existingMetadata };
             const updatedIdentification = { ...existingIdentification };
             let hasChanges = false;
+
+            const sprintId = (sprint as any)?.id || (sprint as any)?.sprint_id || '';
+            const sprintTitle = (sprint as any)?.title || (sprint as any)?.sprint_title || '';
 
             for (const rule of activeRules) {
                 if (!rule.targetField || !rule.optionCode) continue;
@@ -335,13 +338,14 @@ export const userIdentificationService = {
                 if (isMatch && capturedValue) {
                     const fieldKey = rule.targetField.trim();
                     updatesToUser[fieldKey] = capturedValue;
+                    updatedMetadata[fieldKey] = capturedValue;
                     updatedIdentification[fieldKey] = {
                         field: fieldKey,
                         value: capturedValue,
                         optionCode: rule.optionCode,
                         optionText: rule.optionText || parsed.optionText || '',
-                        sourceSprintId: sprint.id,
-                        sourceSprintTitle: sprint.title,
+                        sourceSprintId: sprintId,
+                        sourceSprintTitle: sprintTitle,
                         capturedAt: new Date().toISOString()
                     };
                     hasChanges = true;
@@ -349,9 +353,24 @@ export const userIdentificationService = {
             }
 
             if (hasChanges) {
+                updatesToUser.metadata = updatedMetadata;
                 updatesToUser.identificationData = updatedIdentification;
                 updatesToUser.lastIdentificationUpdate = new Date().toISOString();
-                await updateDoc(userDocRef, sanitizeData(updatesToUser));
+                await setDoc(userDocRef, sanitizeData(updatesToUser), { merge: true });
+
+                if (typeof window !== 'undefined') {
+                    try {
+                        const localRaw = localStorage.getItem('vectorise_user') || localStorage.getItem('user');
+                        if (localRaw) {
+                            const parsed = JSON.parse(localRaw);
+                            const merged = { ...parsed, ...updatesToUser, metadata: updatedMetadata, identificationData: updatedIdentification };
+                            localStorage.setItem('vectorise_user', JSON.stringify(merged));
+                            localStorage.setItem('user', JSON.stringify(merged));
+                            window.dispatchEvent(new CustomEvent('vectorise_user_updated', { detail: merged }));
+                        }
+                    } catch (e) {}
+                }
+
                 console.log(`[userIdentificationService] Successfully captured & saved identification fields for user ${userId}:`, updatesToUser);
             }
 
@@ -399,8 +418,10 @@ export const userIdentificationService = {
                 processedUsers++;
                 const uId = userDoc.id;
                 const userData = userDoc.data() || {};
+                const existingMetadata = userData.metadata || userData.userMetadata || {};
                 const existingIdentification = userData.identificationData || {};
                 const userUpdates: Record<string, any> = {};
+                const updatedMetadata = { ...existingMetadata };
                 const updatedIdentification = { ...existingIdentification };
                 let userModified = false;
 
@@ -456,6 +477,7 @@ export const userIdentificationService = {
                             if (isMatch && capturedVal) {
                                 const fKey = rule.targetField.trim();
                                 userUpdates[fKey] = capturedVal;
+                                updatedMetadata[fKey] = capturedVal;
                                 updatedIdentification[fKey] = {
                                     field: fKey,
                                     value: capturedVal,
@@ -473,9 +495,10 @@ export const userIdentificationService = {
                 }
 
                 if (userModified) {
+                    userUpdates.metadata = updatedMetadata;
                     userUpdates.identificationData = updatedIdentification;
                     userUpdates.lastIdentificationUpdate = new Date().toISOString();
-                    await updateDoc(doc(db, 'users', uId), sanitizeData(userUpdates));
+                    await setDoc(doc(db, 'users', uId), sanitizeData(userUpdates), { merge: true });
                     updatedUsers++;
                 }
 

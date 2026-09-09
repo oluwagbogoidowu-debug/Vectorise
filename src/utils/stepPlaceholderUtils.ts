@@ -381,9 +381,17 @@ export function extractSaveMetadataFromStep(
 
   const textsToScan: string[] = [];
   if (Array.isArray(dayContent.taskPrompts) && dayContent.taskPrompts[stepIndex]) {
-    textsToScan.push(dayContent.taskPrompts[stepIndex]);
+    const raw = dayContent.taskPrompts[stepIndex];
+    textsToScan.push(raw);
+    if (typeof raw === 'string' && raw.includes('|||')) {
+      raw.split('|||').forEach((p: string) => textsToScan.push(p.trim()));
+    }
   } else if (stepIndex === 0 && dayContent.taskPrompt) {
-    textsToScan.push(dayContent.taskPrompt);
+    const raw = dayContent.taskPrompt;
+    textsToScan.push(raw);
+    if (typeof raw === 'string' && raw.includes('|||')) {
+      raw.split('|||').forEach((p: string) => textsToScan.push(p.trim()));
+    }
   }
   if (Array.isArray(dayContent.taskHints) && dayContent.taskHints[stepIndex]) {
     textsToScan.push(dayContent.taskHints[stepIndex]);
@@ -394,14 +402,33 @@ export function extractSaveMetadataFromStep(
   if (Array.isArray(dayContent.taskTagNotes) && dayContent.taskTagNotes[stepIndex]) {
     textsToScan.push(dayContent.taskTagNotes[stepIndex]);
   }
+  if (Array.isArray(dayContent.taskSubPrompts) && dayContent.taskSubPrompts[stepIndex]) {
+    textsToScan.push(dayContent.taskSubPrompts[stepIndex]);
+  }
+  if (Array.isArray(dayContent.taskPollOptions) && dayContent.taskPollOptions[stepIndex]) {
+    const raw = dayContent.taskPollOptions[stepIndex];
+    if (typeof raw === 'string') textsToScan.push(raw);
+    else if (Array.isArray(raw)) textsToScan.push(...raw.map(String));
+  }
 
   for (const text of textsToScan) {
+    if (!text || typeof text !== 'string') continue;
     const tokens = extractMetadataTokens(text);
-    const saveToken = tokens.find(t => t.mode === 'save');
+    // 1. Explicit save token
+    const saveToken = tokens.find(t => t.mode === 'save' && t.fieldKey);
     if (saveToken && saveToken.fieldKey) {
       return {
         fieldKey: saveToken.fieldKey,
         fieldLabel: saveToken.fieldLabel,
+        mode: 'save'
+      };
+    }
+    // 2. Any metadata token with a recognized fieldKey
+    const anyMetaToken = tokens.find(t => Boolean(t.fieldKey && t.fieldKey.toLowerCase() !== 'metadata'));
+    if (anyMetaToken && anyMetaToken.fieldKey) {
+      return {
+        fieldKey: anyMetaToken.fieldKey,
+        fieldLabel: anyMetaToken.fieldLabel,
         mode: 'save'
       };
     }

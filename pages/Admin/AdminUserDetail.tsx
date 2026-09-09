@@ -11,6 +11,9 @@ import ArchetypeAvatar from '../../components/ArchetypeAvatar';
 import { PERSONA_QUIZZES } from '../../services/mockData';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { metadataService, SystemMetadataField } from '../../services/metadataService';
+
+const METADATA_PAGE_SIZE = 4;
 
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
@@ -22,6 +25,107 @@ export default function AdminUserDetail() {
     const [lastNotificationReceivedAt, setLastNotificationReceivedAt] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [systemMetadataFields, setSystemMetadataFields] = useState<SystemMetadataField[]>(() => metadataService.getCombinedFields());
+    const [metadataPageIndex, setMetadataPageIndex] = useState(0);
+
+    useEffect(() => {
+        const unsubMeta = metadataService.subscribeToMetadataFields((fields) => {
+            setSystemMetadataFields(fields);
+        });
+        return () => unsubMeta();
+    }, []);
+
+    const userMetadataList = useMemo(() => {
+        if (!user) return [];
+
+        const fieldMap = new Map<string, { key: string; label: string; icon: string; category?: string }>();
+
+        // Register all built-in and admin settings custom fields
+        systemMetadataFields.forEach(f => {
+            fieldMap.set(f.key.toLowerCase(), {
+                key: f.key,
+                label: f.label,
+                icon: f.icon || '✨',
+                category: f.category
+            });
+        });
+
+        const userMeta = user.metadata || (user as any).userMetadata || {};
+        const userIdent = user.identificationData || {};
+
+        const allKeys = new Set<string>();
+        systemMetadataFields.forEach(f => allKeys.add(f.key));
+        Object.keys(userMeta).forEach(k => allKeys.add(k));
+        Object.keys(userIdent).forEach(k => allKeys.add(k));
+
+        const result: Array<{
+            key: string;
+            label: string;
+            icon: string;
+            value: string;
+            sourceSprintTitle?: string;
+            isCaptured: boolean;
+            category?: string;
+        }> = [];
+
+        allKeys.forEach(k => {
+            if (!k) return;
+            // Ignore non-metadata internal attributes
+            if (['lastMetadataUpdate', 'lastIdentificationUpdate', 'id', 'email', 'name', 'role', 'createdAt', 'updatedAt'].includes(k)) return;
+
+            const fieldInfo = fieldMap.get(k.toLowerCase()) || {
+                key: k,
+                label: k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim(),
+                icon: '🏷️'
+            };
+
+            const rawVal = userMeta[k] !== undefined && userMeta[k] !== null && userMeta[k] !== '' 
+                ? userMeta[k] 
+                : (userIdent[k]?.value || (user as any)[k] || userIdent[fieldInfo.key]?.value || '');
+                
+            const sourceSprintTitle = userIdent[k]?.sourceSprintTitle || userIdent[fieldInfo.key]?.sourceSprintTitle || undefined;
+            
+            let displayVal = '';
+            if (rawVal !== undefined && rawVal !== null) {
+                if (Array.isArray(rawVal)) {
+                    displayVal = rawVal.filter(Boolean).join(', ');
+                } else if (typeof rawVal === 'object') {
+                    displayVal = rawVal.value || rawVal.text || JSON.stringify(rawVal);
+                } else {
+                    displayVal = String(rawVal).trim();
+                }
+            }
+
+            const isCaptured = Boolean(displayVal && displayVal.length > 0 && displayVal !== 'undefined' && displayVal !== 'null');
+
+            result.push({
+                key: fieldInfo.key,
+                label: fieldInfo.label,
+                icon: fieldInfo.icon,
+                value: isCaptured ? displayVal : '',
+                sourceSprintTitle,
+                isCaptured,
+                category: fieldInfo.category
+            });
+        });
+
+        // Ensure what is filled is what shows first!
+        result.sort((a, b) => {
+            if (a.isCaptured && !b.isCaptured) return -1;
+            if (!a.isCaptured && b.isCaptured) return 1;
+            return a.label.localeCompare(b.label);
+        });
+
+        return result;
+    }, [user, systemMetadataFields]);
+
+    const totalMetadataPages = Math.max(1, Math.ceil(userMetadataList.length / METADATA_PAGE_SIZE));
+    const currentMetadataPage = Math.min(metadataPageIndex, totalMetadataPages - 1);
+    const displayedMetadataItems = userMetadataList.slice(
+        currentMetadataPage * METADATA_PAGE_SIZE,
+        (currentMetadataPage + 1) * METADATA_PAGE_SIZE
+    );
+    const capturedMetadataCount = userMetadataList.filter(item => item.isCaptured).length;
 
 
 
@@ -620,40 +724,93 @@ export default function AdminUserDetail() {
                     <div className="flex gap-4 overflow-x-auto pb-4 pt-1 px-1 snap-x snap-mandatory scrollbar-hidden">
                         
                         {/* Extracted Sprint Metadata & Profile Attributes Card */}
-                        <div className="flex-shrink-0 w-[300px] sm:w-[330px] min-h-[280px] bg-white border border-purple-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-purple-300 transition-all duration-300 relative overflow-hidden">
-                            <div className="flex items-center justify-between mb-3 pb-2 border-b border-purple-50 flex-shrink-0">
-                                <div className="flex items-center gap-2">
+                        <div className="flex-shrink-0 w-[300px] sm:w-[330px] min-h-[300px] bg-white border border-purple-100 rounded-[2rem] p-5 shadow-sm snap-start flex flex-col justify-between hover:border-purple-300 transition-all duration-300 relative overflow-hidden">
+                            <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-purple-50 flex-shrink-0">
+                                <div className="flex items-center gap-1.5">
                                     <span className="text-sm">✨</span>
                                     <h4 className="text-[10px] font-black text-purple-900 uppercase tracking-widest">Sprint Metadata</h4>
                                 </div>
-                                <span className="text-[9px] font-black text-purple-700 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">
-                                    Dynamic Profile
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[8.5px] font-black text-purple-700 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">
+                                        {capturedMetadataCount} Filled
+                                    </span>
+                                    <span className="text-[8.5px] font-bold text-gray-400 bg-gray-50 border border-gray-100 px-1.5 py-0.5 rounded-full">
+                                        {currentMetadataPage + 1}/{totalMetadataPages}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 scrollbar-hidden text-left">
-                                {[
-                                    { key: 'lifeStage', label: 'Life Stage', icon: '🎓', value: user.metadata?.lifeStage || (user as any).lifeStage || user.identificationData?.lifeStage?.value },
-                                    { key: 'currentGoal', label: 'Current Goal', icon: '🎯', value: user.metadata?.currentGoal || (user as any).currentGoal || user.identificationData?.currentGoal?.value },
-                                    { key: 'currentPriority', label: 'Current Priority', icon: '⚡', value: user.metadata?.currentPriority || (user as any).currentPriority || user.identificationData?.currentPriority?.value },
-                                    { key: 'desiredDirection', label: 'Desired Direction', icon: '🧭', value: user.metadata?.desiredDirection || (user as any).desiredDirection || user.identificationData?.desiredDirection?.value },
-                                    { key: 'interests', label: 'Interests', icon: '💡', value: user.metadata?.interests || (user as any).interests || user.identificationData?.interests?.value },
-                                    { key: 'strengths', label: 'Strengths', icon: '💪', value: user.metadata?.strengths || (user as any).strengths || user.identificationData?.strengths?.value }
-                                ].map((item) => (
-                                    <div key={item.key} className="p-2 bg-purple-50/30 rounded-xl border border-purple-50">
-                                        <div className="flex items-center justify-between text-[8px] font-black text-purple-700 uppercase tracking-wider mb-0.5">
-                                            <span>{item.icon} {item.label}</span>
-                                            {user.identificationData?.[item.key]?.sourceSprintTitle && (
-                                                <span className="text-[7px] text-gray-400 font-bold truncate max-w-[110px]" title={user.identificationData[item.key].sourceSprintTitle}>
-                                                    from {user.identificationData[item.key].sourceSprintTitle}
+                            
+                            <div className="flex-1 space-y-2 text-left">
+                                {displayedMetadataItems.map((item) => (
+                                    <div key={item.key} className={`p-2 rounded-xl border transition-all ${item.isCaptured ? 'bg-purple-50/40 border-purple-100/80' : 'bg-gray-50/40 border-gray-100'}`}>
+                                        <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-wider mb-0.5">
+                                            <span className={`flex items-center gap-1 truncate max-w-[150px] ${item.isCaptured ? 'text-purple-800' : 'text-gray-400'}`}>
+                                                <span>{item.icon}</span>
+                                                <span className="truncate">{item.label}</span>
+                                            </span>
+                                            {item.sourceSprintTitle && (
+                                                <span className="text-[7px] text-purple-600/80 font-bold truncate max-w-[110px]" title={item.sourceSprintTitle}>
+                                                    from {item.sourceSprintTitle}
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-[11px] font-bold text-gray-800 leading-snug">
-                                            {item.value ? String(item.value) : <span className="text-gray-300 font-normal italic">Not captured yet</span>}
+                                        <p className={`text-[11px] font-bold leading-snug truncate ${item.isCaptured ? 'text-gray-800' : 'text-gray-300 font-normal italic'}`} title={item.value || undefined}>
+                                            {item.isCaptured ? item.value : 'Not captured yet'}
                                         </p>
                                     </div>
                                 ))}
+
+                                {displayedMetadataItems.length === 0 && (
+                                    <div className="py-8 text-center text-xs text-gray-400 font-medium">
+                                        No metadata attributes configured.
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Pagination Controls */}
+                            {totalMetadataPages > 1 && (
+                                <div className="flex items-center justify-between pt-2 mt-2 border-t border-purple-50 text-[10px] font-bold flex-shrink-0">
+                                    <button
+                                        type="button"
+                                        disabled={currentMetadataPage === 0}
+                                        onClick={() => setMetadataPageIndex(p => Math.max(0, p - 1))}
+                                        className={`px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-all ${
+                                            currentMetadataPage === 0
+                                                ? 'opacity-30 cursor-not-allowed border-gray-200 text-gray-400'
+                                                : 'border-purple-200 bg-purple-50/80 text-purple-700 hover:bg-purple-100 active:scale-95'
+                                        }`}
+                                    >
+                                        ← Prev
+                                    </button>
+
+                                    <div className="flex items-center gap-1">
+                                        {Array.from({ length: totalMetadataPages }).map((_, idx) => (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => setMetadataPageIndex(idx)}
+                                                className={`h-1.5 rounded-full transition-all ${
+                                                    idx === currentMetadataPage ? 'bg-purple-600 w-3.5' : 'bg-purple-200 hover:bg-purple-300 w-1.5'
+                                                }`}
+                                                title={`Page ${idx + 1}`}
+                                            />
+                                        ))}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        disabled={currentMetadataPage >= totalMetadataPages - 1}
+                                        onClick={() => setMetadataPageIndex(p => Math.min(totalMetadataPages - 1, p + 1))}
+                                        className={`px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-all ${
+                                            currentMetadataPage >= totalMetadataPages - 1
+                                                ? 'opacity-30 cursor-not-allowed border-gray-200 text-gray-400'
+                                                : 'border-purple-200 bg-purple-50/80 text-purple-700 hover:bg-purple-100 active:scale-95'
+                                        }`}
+                                    >
+                                        Next →
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Timeline Metrics Card (The 2nd Card) */}
