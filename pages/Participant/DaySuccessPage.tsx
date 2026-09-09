@@ -43,11 +43,19 @@ const DaySuccessPage: React.FC = () => {
   }, [resolvedEnrollmentId, user, location.state]);
 
   const handleExit = () => {
-    const isPreview = location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl);
+    const isPreview = !user && (location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl));
     const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
     const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
     const nextDay = completedDay + 1;
+
+    if (user && enrollmentId) {
+      navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
+        replace: true,
+        state: { targetDay: nextDay }
+      });
+      return;
+    }
 
     if (isPreview) {
       if (sprintId) {
@@ -173,12 +181,42 @@ const DaySuccessPage: React.FC = () => {
 
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
-    const isPreview = location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl);
     const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
     const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
     const nextDay = completedDay + 1;
 
+    // For authenticated users: ALWAYS route to the real SprintView!
+    if (user && enrollmentId) {
+      navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
+        replace: true,
+        state: {
+          targetDay: nextDay
+        }
+      });
+      return;
+    }
+
+    if (user) {
+      sprintService.getUserEnrollments(user.id).then(enrollments => {
+        const found = sprintId ? enrollments.find(e => e.sprint_id === sprintId) : enrollments[0];
+        if (found) {
+          navigate(`/participant/sprint/${found.id}?day=${nextDay}`, { 
+            replace: true,
+            state: {
+              targetDay: nextDay
+            }
+          });
+        } else {
+          navigate('/participant-dashboard', { replace: true });
+        }
+      }).catch(() => {
+        navigate('/participant-dashboard', { replace: true });
+      });
+      return;
+    }
+
+    const isPreview = !user && (location.state?.isPreview || Boolean(location.state?.returnToPreviewUrl));
     if (isPreview) {
       const targetUrl = returnToPreviewUrl || (sprintId ? `/sprint/preview/${sprintId}` : `/coach/sprint/preview/${sprintId}`);
       navigate(targetUrl, {
@@ -196,22 +234,6 @@ const DaySuccessPage: React.FC = () => {
         state: {
           targetDay: nextDay
         }
-      });
-    } else if (user) {
-      sprintService.getUserEnrollments(user.id).then(enrollments => {
-        const found = sprintId ? enrollments.find(e => e.sprint_id === sprintId) : enrollments[0];
-        if (found) {
-          navigate(`/participant/sprint/${found.id}?day=${nextDay}`, { 
-            replace: true,
-            state: {
-              targetDay: nextDay
-            }
-          });
-        } else {
-          navigate('/participant-dashboard', { replace: true });
-        }
-      }).catch(() => {
-        navigate('/participant-dashboard', { replace: true });
       });
     } else {
       handleExit();

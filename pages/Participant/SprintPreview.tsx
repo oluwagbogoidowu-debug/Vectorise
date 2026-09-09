@@ -536,6 +536,36 @@ const SprintPreview: React.FC = () => {
     }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint, previewDay, completedDays, allDayInputs, day1Content]);
 
     const handleCompletePreviewDay = async () => {
+        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
+        const isFlowMode = sprint?.previewMode === 'flow';
+
+        // VECTORISE MODE RULE:
+        // When unauthenticated user reaches Move 1 ending, prompt signup/login via bottom modal bar.
+        // Sound of completion does NOT ring. It clearly does NOT complete the action yet.
+        if (!user && !isCoachPreview && !isFlowMode && previewDay >= 1) {
+            const sId = sprint?.id || sprintId;
+            const effectiveInputs = getEffectiveTaskInputs();
+            const nextAllInputs = { ...allDayInputs, [previewDay]: effectiveInputs };
+            setAllDayInputs(nextAllInputs);
+
+            const pendingObj = {
+                sprintId: sId,
+                firstActionInput: (nextAllInputs[1] && nextAllInputs[1][0]) || effectiveInputs[0] || "",
+                taskInputs: effectiveInputs,
+                allDayInputs: nextAllInputs,
+                completedDays: completedDays, // Do not complete yet
+                previewDay: previewDay,
+                activeTaskIndex: activeTaskIndex,
+                prefilledEmail: prefilledEmail || '',
+                updatedAt: new Date().toISOString()
+            };
+            localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+
+            setShowLockModal(true);
+            setBottomModalStep(1);
+            return;
+        }
+
         if (soundEnabled) {
             try {
                 const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3");
@@ -559,30 +589,6 @@ const SprintPreview: React.FC = () => {
                 localStorage.setItem(`preview_completed_days_${sId}`, JSON.stringify(nextCompleted));
                 localStorage.setItem(`preview_all_inputs_${sId}`, JSON.stringify(nextAllInputs));
             } catch (e) {}
-        }
-
-        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        const isFlowMode = sprint?.previewMode === 'flow';
-
-        // VECTORISE MODE RULE:
-        // When unauthenticated user completes Move 2 action, prompt signup/login via bottom modal bar
-        if (!user && !isCoachPreview && !isFlowMode && previewDay >= 2) {
-            const pendingObj = {
-                sprintId: sId,
-                firstActionInput: (nextAllInputs[1] && nextAllInputs[1][0]) || effectiveInputs[0] || "",
-                taskInputs: effectiveInputs,
-                allDayInputs: nextAllInputs,
-                completedDays: nextCompleted,
-                previewDay: previewDay,
-                activeTaskIndex: activeTaskIndex,
-                prefilledEmail: prefilledEmail || '',
-                updatedAt: new Date().toISOString()
-            };
-            localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-
-            setShowLockModal(true);
-            setBottomModalStep(1);
-            return;
         }
         
         let enrollmentId = "";
