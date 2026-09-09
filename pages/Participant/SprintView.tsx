@@ -4437,7 +4437,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 <div className="animate-fade-in space-y-6 w-full">
                   <div className="space-y-2 text-left animate-slide-up">
                     <SectionHeading>Move's Insight</SectionHeading>
-                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
+                    <div className="text-gray-700 font-medium text-lg leading-[1.6] max-w-[60ch]">
                       <FormattedText text={dayContent?.lessonText || ""} />
                     </div>
                   </div>
@@ -4508,7 +4508,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
 
-                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
+                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                               </div>
                               {effectiveFootnote && (
@@ -4531,7 +4531,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           [i]: !prev[i],
                                         }))
                                       }
-                                      className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-2 py-1 rounded-md text-[10px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                      className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-sm font-black' : 'px-2 py-1 rounded-md text-sm font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                                     >
                                       <svg
                                         className={`${isFullBleed ? 'w-4 h-4' : 'w-3 h-3'} transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
@@ -4549,7 +4549,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       <span>Hint</span>
                                     </button>
                                     {revealedHints[i] && (
-                                      <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-base sm:text-lg font-medium' : 'p-4 rounded-xl text-base font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
+                                      <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-sm font-medium' : 'p-4 rounded-xl text-sm font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                         <FormattedText
                                           text={resolvedHint}
                                         />
