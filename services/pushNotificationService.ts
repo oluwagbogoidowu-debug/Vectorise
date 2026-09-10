@@ -286,13 +286,25 @@ export const pushNotificationService = {
 
   updateActivity: async (userId: string, state: string = 'Active') => {
     try {
+      // First update Firestore directly client-side so user state is immediately updated
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        notificationState: state,
+        lastActivityAt: new Date().toISOString()
+      }).catch(err => {
+        console.warn('[PushService] Direct firestore activity update warning:', err);
+      });
+
+      // Synchronize with backend server if available
       await fetch('/api/notifications/update-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId, state }))
+      }).catch(err => {
+        console.warn('[PushService] Backend notification state sync skipped:', err);
       });
     } catch (error) {
-      console.error('Failed to update activity:', error);
+      console.warn('[PushService] Update activity warning:', error);
     }
   },
 
@@ -302,9 +314,11 @@ export const pushNotificationService = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
+      }).catch(err => {
+        console.warn('[PushService] trigger-completed backend sync skipped:', err);
       });
     } catch (error) {
-      console.error('Failed to trigger notification:', error);
+      console.warn('[PushService] Trigger completed notification warning:', error);
     }
   },
   
@@ -314,9 +328,11 @@ export const pushNotificationService = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sanitizeData({ userId }))
+      }).catch(err => {
+        console.warn('[PushService] trigger-update backend sync skipped:', err);
       });
     } catch (error) {
-      console.error('Failed to trigger notification:', error);
+      console.warn('[PushService] Trigger update notification warning:', error);
     }
   },
 
