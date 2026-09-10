@@ -53,8 +53,6 @@ const IdentitySettings: React.FC = () => {
     }
   }, [p]);
 
-  if (!user) return null;
-
   const currentQuiz = useMemo(() => {
     if (!tempPersona || !PERSONA_QUIZZES[tempPersona]) return null;
     if (setupStep < 2 || setupStep > 4) return null;
@@ -65,6 +63,8 @@ const IdentitySettings: React.FC = () => {
     if (currentTaskGroupIdx < 0 || currentTaskGroupIdx >= GROWTH_AREAS.length) return null;
     return GROWTH_AREAS[currentTaskGroupIdx];
   }, [currentTaskGroupIdx]);
+
+  if (!user) return null;
 
   const totalSteps = 11;
   const progressPercent = Math.max(5, Math.min(100, Math.round((setupStep / totalSteps) * 100)));

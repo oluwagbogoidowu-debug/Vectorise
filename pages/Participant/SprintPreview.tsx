@@ -1150,29 +1150,6 @@ const SprintPreview: React.FC = () => {
         }
     };
 
-    if (loadingSprint && !sprint) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Sprint Preview...</p>
-            </div>
-        );
-    }
-
-    if (!sprint) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
-                <h2 className="text-base font-black mb-4 text-gray-800">Sprint preview not found.</h2>
-                <button 
-                    onClick={() => navigate('/discover')} 
-                    className="text-primary font-black uppercase tracking-widest text-xs px-4 py-2 bg-primary/10 rounded-xl hover:bg-primary/20 transition-all cursor-pointer"
-                >
-                    Back to Discover
-                </button>
-            </div>
-        );
-    }
-
     const isStepVisible = (stepIndex: number): boolean => {
         return isStepVisibleForSprint(
             stepIndex,
@@ -1572,6 +1549,29 @@ const SprintPreview: React.FC = () => {
             }
         }
     }, [activeTaskIndex, day1Content, taskInputs]);
+
+    if (loadingSprint && !sprint) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
+                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Sprint Preview...</p>
+            </div>
+        );
+    }
+
+    if (!sprint) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
+                <h2 className="text-base font-black mb-4 text-gray-800">Sprint preview not found.</h2>
+                <button 
+                    onClick={() => navigate('/discover')} 
+                    className="text-primary font-black uppercase tracking-widest text-xs px-4 py-2 bg-primary/10 rounded-xl hover:bg-primary/20 transition-all cursor-pointer"
+                >
+                    Back to Discover
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">

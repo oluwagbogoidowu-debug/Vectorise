@@ -131,9 +131,6 @@ const Profile: React.FC = () => {
     };
   }, [user?.id]);
 
-  if (!user) return null;
-  const p = user as Participant;
-
   const isEligibleForCoachRequest = useMemo(() => {
     if (user?.role === UserRole.COACH) return true;
     return enrollments.some(item => 
@@ -142,8 +139,8 @@ const Profile: React.FC = () => {
   }, [user, enrollments]);
 
   const currentArchetype = useMemo(() => {
-    const p = user as Participant;
-    return ARCHETYPES.find(a => a.id === p.archetype);
+    const p = user as Participant | null;
+    return ARCHETYPES.find(a => a.id === p?.archetype);
   }, [user]);
 
   const activeEntry = useMemo(() => enrollments.find(e => e.enrollment.progress.some(p => !p.completed)), [enrollments]);
@@ -335,6 +332,9 @@ const Profile: React.FC = () => {
     "bg-rose-50 text-rose-800 border-rose-100",
     "bg-amber-50 text-amber-800 border-amber-100"
   ];
+
+  if (!user) return null;
+  const p = user as Participant;
 
   return (
     <div className="bg-[#FDFDFD] dark:bg-[#121212] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in transition-colors duration-300">

@@ -873,9 +873,50 @@ export const CoachParticipants: React.FC = () => {
 
                                             const resolvedHint = resolveTaskHintForUser(contentData?.taskHints?.[idx], idx, contentData, answers, sprintDailyContent, progressList);
                                             const effectiveInputType = getStepInputType(contentData, idx, answers, sprintDailyContent, progressList);
-                                            const customPollOptions = getStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
+                                            const rawPollOptionsStr = getStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
+                                            
+                                            let parsedCustomOptions: string[] = [];
+                                            if (rawPollOptionsStr) {
+                                                if (typeof rawPollOptionsStr === 'string') {
+                                                    try {
+                                                        const parsed = JSON.parse(rawPollOptionsStr);
+                                                        if (Array.isArray(parsed)) {
+                                                            parsedCustomOptions = parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                                                        } else if (typeof parsed === 'string' && parsed.trim()) {
+                                                            parsedCustomOptions = [parsed.trim()];
+                                                        }
+                                                    } catch (e) {
+                                                        try {
+                                                            const rawFallback: any = contentData?.taskPollOptions?.[idx];
+                                                            if (typeof rawFallback === 'string') {
+                                                                const parsed = JSON.parse(rawFallback);
+                                                                if (Array.isArray(parsed)) {
+                                                                    parsedCustomOptions = parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                                                                }
+                                                            } else if (Array.isArray(rawFallback)) {
+                                                                parsedCustomOptions = rawFallback.map((s: any) => String(s).trim()).filter(Boolean);
+                                                            }
+                                                        } catch (err) {}
+                                                        if (parsedCustomOptions.length === 0 && rawPollOptionsStr && rawPollOptionsStr !== '[]') {
+                                                            if (rawPollOptionsStr.includes(',') && !rawPollOptionsStr.startsWith('[') && !rawPollOptionsStr.startsWith('{')) {
+                                                                parsedCustomOptions = rawPollOptionsStr.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                                            } else if (!rawPollOptionsStr.startsWith('[') && !rawPollOptionsStr.startsWith('{')) {
+                                                                parsedCustomOptions = [rawPollOptionsStr.trim()];
+                                                            }
+                                                        }
+                                                    }
+                                                } else if (Array.isArray(rawPollOptionsStr)) {
+                                                    parsedCustomOptions = (rawPollOptionsStr as any[]).map((s: any) => String(s).trim()).filter(Boolean);
+                                                }
+                                            }
+
                                             const linkedTags = getLinkedTagsForStep(idx, contentData, answers, sprintDailyContent, progressList);
-                                            const effectivePollOptions = Array.from(new Set([...linkedTags, ...customPollOptions])).filter(Boolean);
+                                            const effectivePollOptions = Array.from(new Set([...linkedTags, ...parsedCustomOptions]))
+                                                .filter(Boolean)
+                                                .filter(opt => {
+                                                    const trimmed = String(opt).trim();
+                                                    return trimmed !== '[' && trimmed !== ']' && trimmed !== '"' && trimmed !== ',';
+                                                });
                                             const isMultiSelect = Boolean(contentData?.taskPollMultiSelect?.[idx]);
                                             const isMultiText = isMultiTextStep(idx, contentData);
 

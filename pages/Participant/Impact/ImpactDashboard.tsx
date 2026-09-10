@@ -59,27 +59,11 @@ const ImpactDashboard: React.FC = () => {
         return () => { unsubEnrollments(); unsubRef(); unsubLead(); };
     }, [user]);
 
-    if (!user) return null;
-    const p = user as Participant;
-    
     // Claiming status states
     const [claimingId, setClaimingId] = useState<string | null>(null);
 
-    const handleClaimMilestone = async (milestoneId: string, points: number) => {
-        setClaimingId(milestoneId);
-        try {
-            await userService.claimMilestone(p.id, milestoneId, points);
-            toast.success(`Claimed! +${points} Coins added to your wallet.`);
-        } catch (err) {
-            console.error("Failed to claim milestone:", err);
-            toast.error("Failed to default claim credits.");
-        } finally {
-            setClaimingId(null);
-        }
-    };
-
     const peopleHelped = referrals.length;
-    const claimedIds = p.claimedMilestoneIds || [];
+    const claimedIds = (user as Participant)?.claimedMilestoneIds || [];
 
     // The customized 6 impact referral milestone cards
     const impactCards = [
@@ -160,6 +144,22 @@ const ImpactDashboard: React.FC = () => {
     const activeCards = useMemo(() => {
         return impactCards.filter(card => !claimedIds.includes(card.id));
     }, [claimedIds, peopleHelped]);
+
+    if (!user) return null;
+    const p = user as Participant;
+
+    const handleClaimMilestone = async (milestoneId: string, points: number) => {
+        setClaimingId(milestoneId);
+        try {
+            await userService.claimMilestone(p.id, milestoneId, points);
+            toast.success(`Claimed! +${points} Coins added to your wallet.`);
+        } catch (err) {
+            console.error("Failed to claim milestone:", err);
+            toast.error("Failed to default claim credits.");
+        } finally {
+            setClaimingId(null);
+        }
+    };
 
     const handleShareSprint = (sprintId: string) => {
         const shareUrl = `https://${window.location.host}/sprint/${sprintId}?ref=${p.referralCode}`;

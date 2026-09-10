@@ -29,9 +29,6 @@ const CoachProfile: React.FC = () => {
         fetchData();
     }, [user]);
 
-    if (!user) return null;
-    const c = user as Coach;
-
     const milestones = useMemo(() => {
         const publishedSprints = sprints.filter(s => s.published).length;
         const draftSprints = sprints.length - publishedSprints;
@@ -44,6 +41,9 @@ const CoachProfile: React.FC = () => {
 
         return list.map(m => ({ ...m, progress: Math.min(100, (m.currentValue / m.targetValue) * 100) }));
     }, [sprints]);
+
+    if (!user) return null;
+    const c = user as Coach;
 
     return (
         <div className="bg-[#FDFDFD] h-screen w-full font-sans overflow-hidden flex flex-col animate-fade-in">

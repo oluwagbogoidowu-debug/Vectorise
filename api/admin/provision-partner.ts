@@ -1,4 +1,4 @@
-import admin, { db } from '../lib/firebaseAdmin.js';
+import admin, { db } from '../lib/firebaseAdmin';
 
 export default async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');

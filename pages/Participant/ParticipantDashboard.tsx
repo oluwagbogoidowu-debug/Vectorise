@@ -981,8 +981,6 @@ const ParticipantDashboard: React.FC = () => {
       return DAY_TEXTS[day]?.secondCard || null;
   }, [mainTask]);
 
-  if (!user) return null;
-
   const isMainTaskLocked = mainTask?.status?.isLocked;
   const mainTaskProgress = mainTask ? Math.round(((mainTask.enrollment?.progress?.filter(p => p.completed).length || 0) / (mainTask.sprint?.duration || 1)) * 100) : 0;
 
@@ -1261,6 +1259,8 @@ const ParticipantDashboard: React.FC = () => {
         setIsProcessing(false);
     }
   };
+
+  if (!user) return null;
 
   if (isLoading) {
     return (

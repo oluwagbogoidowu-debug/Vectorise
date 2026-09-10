@@ -87,15 +87,7 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
 
     const origStr = formatValue(original);
     const upStr = formatValue(updated);
-
     const hasChanged = origStr !== upStr;
-
-    if (!hasChanged) return (
-        <div className="space-y-1">
-            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">{label}</p>
-            <p className="text-xs text-gray-500 font-medium whitespace-pre-wrap">{origStr || '—'}</p>
-        </div>
-    );
 
     const origWords = useMemo(() => {
         try {
@@ -112,6 +104,13 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
             return [];
         }
     }, [upStr]);
+
+    if (!hasChanged) return (
+        <div className="space-y-1">
+            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">{label}</p>
+            <p className="text-xs text-gray-500 font-medium whitespace-pre-wrap">{origStr || '—'}</p>
+        </div>
+    );
 
     return (
         <div className="space-y-2 p-4 bg-red-50/30 border border-red-100 rounded-2xl animate-fade-in">

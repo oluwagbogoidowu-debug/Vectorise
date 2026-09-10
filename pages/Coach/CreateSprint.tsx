@@ -230,18 +230,6 @@ const CreateSprint: React.FC = () => {
 
     const [sprintId] = useState(() => `sprint_${Date.now()}`);
 
-    if (loading) {
-        return null;
-    }
-
-    if (!user) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <p className="text-red-400 font-bold uppercase tracking-widest text-sm">Access Denied: Please log in.</p>
-            </div>
-        );
-    }
-
     const location = useLocation();
 
     const [previewType, setPreviewType] = useState<'card' | 'landing'>('card');
@@ -570,6 +558,18 @@ const CreateSprint: React.FC = () => {
 
     const inputClasses = "w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-bold text-gray-950 transition-all placeholder-gray-400";
     const labelClasses = "text-[11px] font-black text-gray-400 uppercase tracking-widest";
+
+    if (loading) {
+        return null;
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-red-400 font-bold uppercase tracking-widest text-sm">Access Denied: Please log in.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 pb-32">

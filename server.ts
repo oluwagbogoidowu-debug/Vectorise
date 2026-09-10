@@ -5,29 +5,19 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import puppeteer from 'puppeteer';
-import { pushNotificationManager } from './services/pushNotificationManager.js';
-import { db, isFirebaseAdminAvailable } from './api/lib/firebaseAdmin.js';
+import { pushNotificationManager } from './services/pushNotificationManager';
+import { db, isFirebaseAdminAvailable } from './api/lib/firebaseAdmin';
 
-// @ts-ignore
-import provisionPartner from './api/admin/provision-partner.js';
-// @ts-ignore
-import deleteUserAdmin from './api/admin/delete-user.js';
-// @ts-ignore
-import paymentSuccess from './api/payment-success.js';
-// @ts-ignore
-import initiatePayment from './api/flutterwave/initiate.js';
-// @ts-ignore
-import checkStatus from './api/flutterwave/check-status.js';
-// @ts-ignore
-import webhook from './api/flutterwave/webhook.js';
-// @ts-ignore
-import vapidKeyHandler from './api/vapid-key.js';
-// @ts-ignore
-import subscribeHandler from './api/subscribe.js';
-// @ts-ignore
-import sendHandler from './api/send.js';
-// @ts-ignore
-import ogHandler from './api/og.js';
+import provisionPartner from './api/admin/provision-partner';
+import deleteUserAdmin from './api/admin/delete-user';
+import paymentSuccess from './api/payment-success';
+import initiatePayment from './api/flutterwave/initiate';
+import checkStatus from './api/flutterwave/check-status';
+import webhook from './api/flutterwave/webhook';
+import vapidKeyHandler from './api/vapid-key';
+import subscribeHandler from './api/subscribe';
+import sendHandler from './api/send';
+import ogHandler from './api/og';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
