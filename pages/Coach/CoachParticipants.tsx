@@ -25,6 +25,7 @@ import {
     isStepVisibleForSprint 
 } from '../../src/utils/stepPlaceholderUtils';
 import FormattedText from '../../components/FormattedText';
+import { ArrangePollOptions } from '../../src/components/ArrangePollOptions';
 import { 
     Flame, Sparkles, BookOpen, Trophy, Eye, Heart, MessageSquare, 
     ChevronRight, ArrowLeft, Search, Filter, Calendar, Clock, 
@@ -998,16 +999,18 @@ export const CoachParticipants: React.FC = () => {
                                             }
 
                                             const isMultiSelect = Boolean(contentData?.taskPollMultiSelect?.[idx]);
+                                            const isArrange = Boolean(contentData?.taskPollArrange?.[idx]);
                                             const isMultiText = isMultiTextStep(idx, contentData);
 
                                             // Helper to verify if an option was selected by student (supporting exact text, unquoted, index numbers, letter codes A/B/C)
                                             const isOptionSelected = (opt: string, optIndex: number, selections: string[]): boolean => {
                                                 if (!selections || selections.length === 0 || !opt) return false;
-                                                const cleanOpt = opt.trim().toLowerCase();
+                                                const cleanOpt = String(opt).trim().toLowerCase();
                                                 const unquotedOpt = cleanOpt.replace(/^["']+|["']+$/g, '').trim();
                                                 const optLetter = String.fromCharCode(65 + optIndex).toLowerCase();
                                                 const optNum0 = String(optIndex);
                                                 const optNum1 = String(optIndex + 1);
+                                                const strippedOpt = unquotedOpt.replace(/^(?:[a-z]|\d+)[.):\-\s]+\s*/i, '').trim();
 
                                                 return selections.some(s => {
                                                     if (s === undefined || s === null) return false;
@@ -1045,18 +1048,16 @@ export const CoachParticipants: React.FC = () => {
                                                     }
 
                                                     // 4. Prefix match (e.g. "A. Option Text" vs "Option Text")
-                                                    const letterPrefixRegex = new RegExp(`^(?:${optLetter}|${optNum1}|${optNum0})[.):\\-\\s]+\\s*(.*)$`, 'i');
-                                                    const matchS = unquotedS.match(letterPrefixRegex);
-                                                    if (matchS && matchS[1] && (matchS[1].trim() === unquotedOpt || matchS[1].trim() === cleanOpt)) {
+                                                    const strippedS = unquotedS.replace(/^(?:[a-z]|\d+)[.):\-\s]+\s*/i, '').trim();
+                                                    if (strippedS && (strippedS === unquotedOpt || strippedS === strippedOpt)) {
                                                         return true;
                                                     }
-                                                    const matchOpt = unquotedOpt.match(letterPrefixRegex);
-                                                    if (matchOpt && matchOpt[1] && (matchOpt[1].trim() === unquotedS || matchOpt[1].trim() === cleanS)) {
+                                                    if (strippedOpt && (unquotedS === strippedOpt || strippedS === strippedOpt)) {
                                                         return true;
                                                     }
 
                                                     // 5. Containment match if sufficiently long
-                                                    if (unquotedS.length >= 4 && unquotedOpt.length >= 4) {
+                                                    if (unquotedS.length >= 3 && unquotedOpt.length >= 3) {
                                                         if (unquotedOpt === unquotedS || unquotedOpt.includes(unquotedS) || unquotedS.includes(unquotedOpt)) {
                                                             return true;
                                                         }
@@ -1069,7 +1070,7 @@ export const CoachParticipants: React.FC = () => {
                                             return (
                                                 <div 
                                                     key={idx} 
-                                                    className="p-6 sm:p-8 bg-primary/5 rounded-3xl border border-primary/15 space-y-4 relative group text-left shadow-sm"
+                                                    className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left space-y-4"
                                                 >
                                                     {/* Step Header */}
                                                     <div className="flex items-center justify-between">
@@ -1124,65 +1125,156 @@ export const CoachParticipants: React.FC = () => {
                                                         </div>
                                                     )}
 
-                                                    {/* Exact Interactive Render of Student's Response State */}
+                                                    {/* Exact Interactive Render of Student's Response State (SprintView Parity) */}
                                                     <div className="pt-2">
                                                         {effectiveInputType === "poll" ? (
-                                                            <div className="space-y-4">
-                                                                {effectivePollOptions.length > 6 ? (
-                                                                    <div className="space-y-2">
-                                                                        <p className="text-[10px] font-black uppercase text-[#0E7850] tracking-widest pl-1">
-                                                                            {isMultiSelect ? "☑️ Poll Multi-Select State:" : "🔘 Selected Poll Option:"}
-                                                                        </p>
-                                                                        <div className="flex flex-wrap gap-2 w-full">
-                                                                            {effectivePollOptions.map((opt, optIndex) => {
-                                                                                const isSelected = isOptionSelected(opt, optIndex, selectedPollChoices);
-                                                                                return (
-                                                                                    <div
-                                                                                        key={optIndex}
-                                                                                        className={`px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
-                                                                                            isSelected
-                                                                                                ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md flex items-center gap-1.5"
-                                                                                                : "bg-white border-gray-200 text-gray-400 opacity-60"
-                                                                                        }`}
-                                                                                    >
-                                                                                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                                                                                        <span>{opt}</span>
-                                                                                    </div>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex flex-col gap-2.5">
-                                                                        {effectivePollOptions.map((opt, optIndex) => {
-                                                                            const isSelected = isOptionSelected(opt, optIndex, selectedPollChoices);
+                                                            <div className="space-y-3">
+                                                                {(() => {
+                                                                    if (isArrange) {
+                                                                        return (
+                                                                            <ArrangePollOptions
+                                                                                options={effectivePollOptions}
+                                                                                value={answerVal || ""}
+                                                                                onChange={() => {}}
+                                                                                disabled={true}
+                                                                            />
+                                                                        );
+                                                                    }
+
+                                                                    if (effectivePollOptions.length > 6) {
+                                                                        if (isMultiSelect) {
                                                                             return (
-                                                                                <div
-                                                                                    key={optIndex}
-                                                                                    className={`p-3.5 sm:p-4 rounded-xl border flex items-center justify-between text-left transition-all ${
-                                                                                        isSelected
-                                                                                            ? "bg-primary/10 border-primary text-[#0E7850] font-bold shadow-sm"
-                                                                                            : "bg-white border-gray-200 text-gray-600 opacity-70 font-medium"
-                                                                                    }`}
-                                                                                >
-                                                                                    <div className="flex items-center gap-3">
-                                                                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                                                                                            isSelected ? "bg-[#0E7850] text-white" : "bg-gray-100 text-gray-500"
-                                                                                        }`}>
-                                                                                            {String.fromCharCode(65 + optIndex)}
-                                                                                        </span>
-                                                                                        <span className="text-sm">{opt}</span>
+                                                                                <>
+                                                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-3 flex items-center gap-2">
+                                                                                        <span>☑️ Select one or more:</span>
+                                                                                    </p>
+                                                                                    <div className="flex flex-wrap gap-2 w-full">
+                                                                                        {effectivePollOptions
+                                                                                            .filter(Boolean)
+                                                                                            .map((opt: string, optIndex: number) => {
+                                                                                                const isSel = isOptionSelected(opt, optIndex, selectedPollChoices);
+                                                                                                return (
+                                                                                                    <div
+                                                                                                        key={optIndex}
+                                                                                                        className={`px-3 py-1.5 text-[9px] rounded-full font-black uppercase tracking-widest transition-all border ${
+                                                                                                            isSel
+                                                                                                                ? "bg-primary text-white border-primary shadow-md"
+                                                                                                                : "bg-gray-50 border-gray-100 text-gray-400"
+                                                                                                        }`}
+                                                                                                    >
+                                                                                                        {opt}
+                                                                                                    </div>
+                                                                                                );
+                                                                                            })}
                                                                                     </div>
-                                                                                    {isSelected && (
-                                                                                        <span className="px-2.5 py-0.5 bg-[#0E7850] text-white rounded-md text-[10px] font-black uppercase tracking-wider">
-                                                                                            Selected
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
+                                                                                </>
                                                                             );
-                                                                        })}
-                                                                    </div>
-                                                                )}
+                                                                        }
+
+                                                                        return (
+                                                                            <div className="flex flex-wrap gap-2 w-full">
+                                                                                {effectivePollOptions
+                                                                                    .filter(Boolean)
+                                                                                    .map((opt: string, optIndex: number) => {
+                                                                                        const isSel = isOptionSelected(opt, optIndex, selectedPollChoices);
+                                                                                        return (
+                                                                                            <div
+                                                                                                key={optIndex}
+                                                                                                className={`px-3 py-1.5 text-[9px] rounded-full font-black uppercase tracking-widest transition-all border ${
+                                                                                                    isSel
+                                                                                                        ? "bg-primary text-white border-primary shadow-md"
+                                                                                                        : "bg-gray-50 border-gray-100 text-gray-400"
+                                                                                                }`}
+                                                                                            >
+                                                                                                {opt}
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                            </div>
+                                                                        );
+                                                                    }
+
+                                                                    if (isMultiSelect) {
+                                                                        return (
+                                                                            <>
+                                                                                <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-3 flex items-center gap-2">
+                                                                                    <span>☑️ Select one or more:</span>
+                                                                                </p>
+                                                                                <div className="space-y-3 w-full">
+                                                                                    {effectivePollOptions
+                                                                                        .filter(Boolean)
+                                                                                        .map((opt: string, optIndex: number) => {
+                                                                                            const isSel = isOptionSelected(opt, optIndex, selectedPollChoices);
+                                                                                            return (
+                                                                                                <div
+                                                                                                    key={optIndex}
+                                                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${
+                                                                                                        isSel
+                                                                                                            ? "bg-primary/10 border-primary text-primary"
+                                                                                                            : "bg-white border-primary/10 text-gray-700"
+                                                                                                    }`}
+                                                                                                >
+                                                                                                    <span>
+                                                                                                        {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                                                    </span>
+                                                                                                    <div
+                                                                                                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                                                                                            isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"
+                                                                                                        }`}
+                                                                                                    >
+                                                                                                        {isSel && (
+                                                                                                            <svg
+                                                                                                                className="w-2.5 h-2.5 text-white animate-fade-in"
+                                                                                                                fill="none"
+                                                                                                                stroke="currentColor"
+                                                                                                                strokeWidth={4}
+                                                                                                                viewBox="0 0 24 24"
+                                                                                                            >
+                                                                                                                <path
+                                                                                                                    strokeLinecap="round"
+                                                                                                                    strokeLinejoin="round"
+                                                                                                                    d="M4.5 12.75l6 6 9-13.5"
+                                                                                                                />
+                                                                                                            </svg>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            );
+                                                                                        })}
+                                                                                </div>
+                                                                            </>
+                                                                        );
+                                                                    }
+
+                                                                    return (
+                                                                        <div className="space-y-3 w-full">
+                                                                            {effectivePollOptions
+                                                                                .filter(Boolean)
+                                                                                .map((opt: string, optIndex: number) => {
+                                                                                    const isSel = isOptionSelected(opt, optIndex, selectedPollChoices);
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={optIndex}
+                                                                                            className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${
+                                                                                                isSel
+                                                                                                    ? "bg-primary/10 border-primary text-primary"
+                                                                                                    : "bg-white border-primary/10 text-gray-700"
+                                                                                            }`}
+                                                                                        >
+                                                                                            <span>
+                                                                                                {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                                            </span>
+                                                                                            {isSel && (
+                                                                                                <span className="px-2 py-0.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-md">
+                                                                                                    Selected
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         ) : effectiveInputType === "tags" ? (
                                                             <div className="space-y-3">
