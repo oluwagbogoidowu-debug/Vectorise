@@ -445,7 +445,7 @@ export const CoachParticipants: React.FC = () => {
         }
     }, [isLoading, allEnrollments]);
 
-    // Load day content when reviewing a submission
+    // Load day content and fresh participant enrollment when reviewing a submission
     useEffect(() => {
         if (!viewingSubmission) {
             setActiveDayContent(null);
@@ -457,20 +457,45 @@ export const CoachParticipants: React.FC = () => {
         const day = viewingSubmission.day;
 
         const existingContent = Array.isArray(viewingSubmission.enrollment.sprint.dailyContent)
-            ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c && c.day === day)
+            ? viewingSubmission.enrollment.sprint.dailyContent.find(c => c && Number(c.day) === Number(day))
             : null;
 
         if (existingContent && ((existingContent.taskPrompts && existingContent.taskPrompts.length > 0) || existingContent.taskPrompt || existingContent.lessonText)) {
             setActiveDayContent(existingContent);
         }
 
-        const fetchDayContent = async () => {
+        const fetchDayAndEnrollment = async () => {
             setIsDayContentLoading(true);
             try {
+                // 1. Fetch live fresh enrollment data if available to avoid stale progress cache
+                const userId = viewingSubmission.enrollment.user_id;
+                const enrollId = viewingSubmission.enrollment.id;
+                if (userId && enrollId) {
+                    try {
+                        const enrollRef = doc(db, 'users', userId, 'enrollments', enrollId);
+                        const enrollSnap = await getDoc(enrollRef);
+                        if (enrollSnap.exists() && isMounted) {
+                            const freshData = enrollSnap.data() as ParticipantSprint;
+                            setViewingSubmission(prev => {
+                                if (!prev || prev.enrollment.id !== enrollId) return prev;
+                                return {
+                                    ...prev,
+                                    enrollment: {
+                                        ...prev.enrollment,
+                                        ...freshData,
+                                        progress: Array.isArray(freshData.progress) ? freshData.progress : prev.enrollment.progress
+                                    }
+                                };
+                            });
+                        }
+                    } catch (e) {}
+                }
+
+                // 2. Fetch daily content
                 if (sprintId) {
                     const fullSprint = await sprintService.getSprintById(sprintId, true);
                     if (fullSprint && Array.isArray(fullSprint.dailyContent)) {
-                        const dayMatch = fullSprint.dailyContent.find(c => c && c.day === day);
+                        const dayMatch = fullSprint.dailyContent.find(c => c && Number(c.day) === Number(day));
                         if (dayMatch && isMounted) {
                             setActiveDayContent(dayMatch);
                             viewingSubmission.enrollment.sprint.dailyContent = fullSprint.dailyContent;
@@ -500,12 +525,12 @@ export const CoachParticipants: React.FC = () => {
             }
         };
 
-        fetchDayContent();
+        fetchDayAndEnrollment();
 
         return () => {
             isMounted = false;
         };
-    }, [viewingSubmission?.enrollment.sprint_id, viewingSubmission?.enrollment.sprint?.id, viewingSubmission?.day]);
+    }, [viewingSubmission?.enrollment.id, viewingSubmission?.enrollment.sprint_id, viewingSubmission?.enrollment.sprint?.id, viewingSubmission?.day]);
 
     // Live chat messages for the reviewed day
     useEffect(() => {
@@ -793,9 +818,9 @@ export const CoachParticipants: React.FC = () => {
                             </div>
 
                             {(() => {
-                                const progressObj = viewingSubmission.enrollment.progress.find(p => p.day === viewingSubmission.day);
+                                const progressObj = viewingSubmission.enrollment.progress.find(p => Number(p.day) === Number(viewingSubmission.day));
                                 const sub = progressObj?.submission;
-                                const contentData = activeDayContent || viewingSubmission.enrollment.sprint.dailyContent?.find(c => c.day === viewingSubmission.day);
+                                const contentData = activeDayContent || viewingSubmission.enrollment.sprint.dailyContent?.find(c => Number(c.day) === Number(viewingSubmission.day));
                                 const sprintDailyContent = viewingSubmission.enrollment.sprint.dailyContent;
                                 const progressList = viewingSubmission.enrollment.progress;
                                 
@@ -808,7 +833,47 @@ export const CoachParticipants: React.FC = () => {
                                     candidatePrompts = (progressObj as any).taskPrompts;
                                 }
 
-                                const answers: string[] = progressObj?.answers || (typeof sub === 'string' ? sub.split(' | ') : []);
+                                // Robust answers normalization across all possible storage shapes
+                                let answers: string[] = [];
+                                const rawAnswersField = (progressObj as any)?.answers;
+                                const rawTaskInputsField = (progressObj as any)?.taskInputs;
+                                
+                                if (Array.isArray(rawAnswersField)) {
+                                    answers = rawAnswersField.map((a: any) => typeof a === 'object' && a !== null ? JSON.stringify(a) : (a !== undefined && a !== null ? String(a) : ''));
+                                } else if (Array.isArray(rawTaskInputsField)) {
+                                    answers = rawTaskInputsField.map((a: any) => typeof a === 'object' && a !== null ? JSON.stringify(a) : (a !== undefined && a !== null ? String(a) : ''));
+                                } else if (typeof rawAnswersField === 'string' && rawAnswersField.trim()) {
+                                    const trimmed = rawAnswersField.trim();
+                                    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                                        try {
+                                            const parsed = JSON.parse(trimmed);
+                                            if (Array.isArray(parsed)) {
+                                                answers = parsed.map((a: any) => typeof a === 'object' && a !== null ? JSON.stringify(a) : String(a));
+                                            }
+                                        } catch (e) {
+                                            answers = [trimmed];
+                                        }
+                                    } else if (trimmed.includes(' | ')) {
+                                        answers = trimmed.split(' | ');
+                                    } else {
+                                        answers = [trimmed];
+                                    }
+                                } else if (rawAnswersField && typeof rawAnswersField === 'object') {
+                                    const keys = Object.keys(rawAnswersField).sort((a, b) => Number(a) - Number(b));
+                                    if (keys.length > 0) {
+                                        answers = keys.map(k => {
+                                            const val = rawAnswersField[k];
+                                            return typeof val === 'object' && val !== null ? JSON.stringify(val) : (val !== undefined && val !== null ? String(val) : '');
+                                        });
+                                    }
+                                } else if (typeof sub === 'string' && sub.trim()) {
+                                    if (sub.includes(' | ')) {
+                                        answers = sub.split(' | ');
+                                    } else {
+                                        answers = [sub.trim()];
+                                    }
+                                }
+
                                 const totalCount = Math.max(answers.length, candidatePrompts.length, 1);
 
                                 if (!progressObj?.completed && answers.length === 0 && !sub) {
@@ -922,7 +987,14 @@ export const CoachParticipants: React.FC = () => {
                                                 });
                                             }
 
-                                            const rawAnswer = answers[idx];
+                                            let rawAnswer = answers[idx];
+                                            if ((rawAnswer === undefined || rawAnswer === null || String(rawAnswer).trim() === '') && idx === 0 && sub) {
+                                                rawAnswer = sub;
+                                            }
+                                            if ((rawAnswer === undefined || rawAnswer === null || String(rawAnswer).trim() === '') && Array.isArray((progressObj as any)?.taskInputs) && (progressObj as any).taskInputs[idx]) {
+                                                rawAnswer = (progressObj as any).taskInputs[idx];
+                                            }
+
                                             const answerVal = rawAnswer !== undefined && rawAnswer !== null ? (typeof rawAnswer === 'object' ? JSON.stringify(rawAnswer) : String(rawAnswer)) : '';
                                             const isDualMode = Boolean((contentData as any)?.taskInputChoices?.[idx] && (contentData as any)?.taskInputChoices[idx].length > 0) || effectiveInputType === 'dual';
 
@@ -939,6 +1011,9 @@ export const CoachParticipants: React.FC = () => {
                                                     else if (obj.selected) selectedPollChoices = [String(obj.selected).trim()];
                                                     else if (obj.answer) selectedPollChoices = [String(obj.answer).trim()];
                                                     else if (obj.value) selectedPollChoices = [String(obj.value).trim()];
+                                                    else {
+                                                        selectedPollChoices = Object.values(obj).map((s: any) => String(s).trim()).filter(Boolean);
+                                                    }
                                                 } else {
                                                     const strVal = String(rawAnswer).trim();
                                                     if (strVal) {
@@ -962,7 +1037,7 @@ export const CoachParticipants: React.FC = () => {
                                                                 else if (parsed.selected) selectedPollChoices = [String(parsed.selected).trim()];
                                                                 else if (parsed.answer) selectedPollChoices = [String(parsed.answer).trim()];
                                                                 else if (parsed.value) selectedPollChoices = [String(parsed.value).trim()];
-                                                                else selectedPollChoices = [strVal];
+                                                                else selectedPollChoices = Object.values(parsed).map((s: any) => String(s).trim()).filter(Boolean);
                                                             } catch (e) {
                                                                 selectedPollChoices = [strVal];
                                                             }
@@ -974,10 +1049,14 @@ export const CoachParticipants: React.FC = () => {
                                                             } catch (e) {
                                                                 selectedPollChoices = [strVal.slice(1, -1).trim()];
                                                             }
-                                                        } else if (effectiveInputType === 'tags') {
-                                                            selectedPollChoices = strVal.split(',').map(s => s.trim()).filter(Boolean);
-                                                        } else if (strVal.includes(',') && !parsedCustomOptions.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase())) {
-                                                            selectedPollChoices = strVal.split(',').map(s => s.trim()).filter(Boolean);
+                                                        } else if (effectiveInputType === 'tags' || effectiveInputType === 'poll') {
+                                                            if (strVal.includes(',') && !parsedCustomOptions.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase())) {
+                                                                selectedPollChoices = strVal.split(',').map(s => s.trim()).filter(Boolean);
+                                                            } else if (strVal.includes('|') && !parsedCustomOptions.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase())) {
+                                                                selectedPollChoices = strVal.split('|').map(s => s.trim()).filter(Boolean);
+                                                            } else {
+                                                                selectedPollChoices = [strVal];
+                                                            }
                                                         } else {
                                                             selectedPollChoices = [strVal];
                                                         }
