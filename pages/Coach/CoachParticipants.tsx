@@ -874,6 +874,7 @@ export const CoachParticipants: React.FC = () => {
                                             const resolvedHint = resolveTaskHintForUser(contentData?.taskHints?.[idx], idx, contentData, answers, sprintDailyContent, progressList);
                                             const effectiveInputType = getStepInputType(contentData, idx, answers, sprintDailyContent, progressList);
                                             const rawPollOptionsStr = getStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
+                                            const allConfiguredOptions = getAllStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
                                             
                                             let parsedCustomOptions: string[] = [];
                                             if (rawPollOptionsStr) {
@@ -910,44 +911,160 @@ export const CoachParticipants: React.FC = () => {
                                                 }
                                             }
 
+                                            // Merge all configured options across versions if not already present
+                                            if (Array.isArray(allConfiguredOptions) && allConfiguredOptions.length > 0) {
+                                                allConfiguredOptions.forEach(opt => {
+                                                    const clean = String(opt).trim();
+                                                    if (clean && !parsedCustomOptions.some(p => p.toLowerCase() === clean.toLowerCase())) {
+                                                        parsedCustomOptions.push(clean);
+                                                    }
+                                                });
+                                            }
+
+                                            const rawAnswer = answers[idx];
+                                            const answerVal = rawAnswer !== undefined && rawAnswer !== null ? (typeof rawAnswer === 'object' ? JSON.stringify(rawAnswer) : String(rawAnswer)) : '';
+                                            const isDualMode = Boolean((contentData as any)?.taskInputChoices?.[idx] && (contentData as any)?.taskInputChoices[idx].length > 0) || effectiveInputType === 'dual';
+
+                                            // Parse selected choices for polls / tags / dual robustly
+                                            let selectedPollChoices: string[] = [];
+                                            if (Array.isArray(rawAnswer)) {
+                                                selectedPollChoices = rawAnswer.map((s: any) => String(s).trim()).filter(Boolean);
+                                            } else if (rawAnswer !== undefined && rawAnswer !== null) {
+                                                if (typeof rawAnswer === 'object') {
+                                                    const obj: any = rawAnswer;
+                                                    if (obj.choice) selectedPollChoices = [String(obj.choice).trim()];
+                                                    else if (Array.isArray(obj.choices)) selectedPollChoices = obj.choices.map((s: any) => String(s).trim()).filter(Boolean);
+                                                    else if (Array.isArray(obj.selectedChoices)) selectedPollChoices = obj.selectedChoices.map((s: any) => String(s).trim()).filter(Boolean);
+                                                    else if (obj.selected) selectedPollChoices = [String(obj.selected).trim()];
+                                                    else if (obj.answer) selectedPollChoices = [String(obj.answer).trim()];
+                                                    else if (obj.value) selectedPollChoices = [String(obj.value).trim()];
+                                                } else {
+                                                    const strVal = String(rawAnswer).trim();
+                                                    if (strVal) {
+                                                        if (strVal.startsWith('[') && strVal.endsWith(']')) {
+                                                            try {
+                                                                const parsed = JSON.parse(strVal);
+                                                                if (Array.isArray(parsed)) {
+                                                                    selectedPollChoices = parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                                                                } else if (typeof parsed === 'string') {
+                                                                    selectedPollChoices = [parsed.trim()];
+                                                                }
+                                                            } catch (e) {
+                                                                selectedPollChoices = strVal.slice(1, -1).split(',').map(s => s.replace(/^["']+|["']+$/g, '').trim()).filter(Boolean);
+                                                            }
+                                                        } else if (strVal.startsWith('{') && strVal.endsWith('}')) {
+                                                            try {
+                                                                const parsed = JSON.parse(strVal);
+                                                                if (parsed.choice) selectedPollChoices = [String(parsed.choice).trim()];
+                                                                else if (Array.isArray(parsed.choices)) selectedPollChoices = parsed.choices.map((s: any) => String(s).trim()).filter(Boolean);
+                                                                else if (Array.isArray(parsed.selectedChoices)) selectedPollChoices = parsed.selectedChoices.map((s: any) => String(s).trim()).filter(Boolean);
+                                                                else if (parsed.selected) selectedPollChoices = [String(parsed.selected).trim()];
+                                                                else if (parsed.answer) selectedPollChoices = [String(parsed.answer).trim()];
+                                                                else if (parsed.value) selectedPollChoices = [String(parsed.value).trim()];
+                                                                else selectedPollChoices = [strVal];
+                                                            } catch (e) {
+                                                                selectedPollChoices = [strVal];
+                                                            }
+                                                        } else if (strVal.startsWith('"') && strVal.endsWith('"')) {
+                                                            try {
+                                                                const parsed = JSON.parse(strVal);
+                                                                if (typeof parsed === 'string') selectedPollChoices = [parsed.trim()];
+                                                                else selectedPollChoices = [strVal.slice(1, -1).trim()];
+                                                            } catch (e) {
+                                                                selectedPollChoices = [strVal.slice(1, -1).trim()];
+                                                            }
+                                                        } else if (effectiveInputType === 'tags') {
+                                                            selectedPollChoices = strVal.split(',').map(s => s.trim()).filter(Boolean);
+                                                        } else if (strVal.includes(',') && !parsedCustomOptions.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase())) {
+                                                            selectedPollChoices = strVal.split(',').map(s => s.trim()).filter(Boolean);
+                                                        } else {
+                                                            selectedPollChoices = [strVal];
+                                                        }
+                                                    }
+                                                }
+                                            }
+
                                             const linkedTags = getLinkedTagsForStep(idx, contentData, answers, sprintDailyContent, progressList);
                                             const effectivePollOptions = Array.from(new Set([...linkedTags, ...parsedCustomOptions]))
                                                 .filter(Boolean)
                                                 .filter(opt => {
                                                     const trimmed = String(opt).trim();
-                                                    return trimmed !== '[' && trimmed !== ']' && trimmed !== '"' && trimmed !== ',';
+                                                    return trimmed !== '[' && trimmed !== ']' && trimmed !== '"' && trimmed !== ',' && trimmed !== '[]';
                                                 });
+                                            
+                                            // Fallback: If no configured options exist, show the student's selections as the choices
+                                            if (effectivePollOptions.length === 0 && selectedPollChoices.length > 0) {
+                                                effectivePollOptions.push(...selectedPollChoices);
+                                            }
+
                                             const isMultiSelect = Boolean(contentData?.taskPollMultiSelect?.[idx]);
                                             const isMultiText = isMultiTextStep(idx, contentData);
 
-                                            const answerVal = answers[idx] !== undefined ? String(answers[idx]) : '';
-                                            const isDualMode = Boolean((contentData as any)?.taskInputChoices?.[idx] && (contentData as any)?.taskInputChoices[idx].length > 0) || effectiveInputType === 'dual';
+                                            // Helper to verify if an option was selected by student (supporting exact text, unquoted, index numbers, letter codes A/B/C)
+                                            const isOptionSelected = (opt: string, optIndex: number, selections: string[]): boolean => {
+                                                if (!selections || selections.length === 0 || !opt) return false;
+                                                const cleanOpt = opt.trim().toLowerCase();
+                                                const unquotedOpt = cleanOpt.replace(/^["']+|["']+$/g, '').trim();
+                                                const optLetter = String.fromCharCode(65 + optIndex).toLowerCase();
+                                                const optNum0 = String(optIndex);
+                                                const optNum1 = String(optIndex + 1);
 
-                                            // Parse selected choices for polls / tags / dual
-                                            let selectedPollChoices: string[] = [];
-                                            if (answerVal) {
-                                                if (answerVal.startsWith('[')) {
-                                                    try {
-                                                        const p = JSON.parse(answerVal);
-                                                        if (Array.isArray(p)) selectedPollChoices = p.map(String);
-                                                    } catch (e) {
-                                                        selectedPollChoices = [answerVal];
+                                                return selections.some(s => {
+                                                    if (s === undefined || s === null) return false;
+                                                    const cleanS = String(s).trim().toLowerCase();
+                                                    const unquotedS = cleanS.replace(/^["']+|["']+$/g, '').trim();
+                                                    if (!cleanS && !unquotedS) return false;
+
+                                                    // 1. Direct equality
+                                                    if (cleanS === cleanOpt || unquotedS === unquotedOpt || cleanS === unquotedOpt || unquotedS === cleanOpt) return true;
+
+                                                    // 2. Letter match ('a', 'b', 'option a', '(a)', '[a]', 'a.', 'a)')
+                                                    if (
+                                                        unquotedS === optLetter ||
+                                                        unquotedS === `option ${optLetter}` ||
+                                                        unquotedS === `(${optLetter})` ||
+                                                        unquotedS === `[${optLetter}]` ||
+                                                        unquotedS === `${optLetter}.` ||
+                                                        unquotedS === `${optLetter})` ||
+                                                        unquotedS === `${optLetter}:`
+                                                    ) {
+                                                        return true;
                                                     }
-                                                } else if (answerVal.startsWith('{')) {
-                                                    try {
-                                                        const p = JSON.parse(answerVal);
-                                                        if (p.choice) selectedPollChoices = [p.choice];
-                                                        else if (Array.isArray(p.choices)) selectedPollChoices = p.choices.map(String);
-                                                        else if (Array.isArray(p.selectedChoices)) selectedPollChoices = p.selectedChoices.map(String);
-                                                    } catch (e) {
-                                                        selectedPollChoices = [answerVal];
+
+                                                    // 3. Numeric index match ('0', '1', 'option 1', etc.)
+                                                    if (
+                                                        unquotedS === optNum0 ||
+                                                        unquotedS === optNum1 ||
+                                                        unquotedS === `option ${optNum1}` ||
+                                                        unquotedS === `option ${optNum0}` ||
+                                                        unquotedS === `(${optNum1})` ||
+                                                        unquotedS === `[${optNum1}]` ||
+                                                        unquotedS === `${optNum1}.`
+                                                    ) {
+                                                        return true;
                                                     }
-                                                } else if (effectiveInputType === 'tags') {
-                                                    selectedPollChoices = answerVal.split(',').map(s => s.trim()).filter(Boolean);
-                                                } else {
-                                                    selectedPollChoices = [answerVal.trim()];
-                                                }
-                                            }
+
+                                                    // 4. Prefix match (e.g. "A. Option Text" vs "Option Text")
+                                                    const letterPrefixRegex = new RegExp(`^(?:${optLetter}|${optNum1}|${optNum0})[.):\\-\\s]+\\s*(.*)$`, 'i');
+                                                    const matchS = unquotedS.match(letterPrefixRegex);
+                                                    if (matchS && matchS[1] && (matchS[1].trim() === unquotedOpt || matchS[1].trim() === cleanOpt)) {
+                                                        return true;
+                                                    }
+                                                    const matchOpt = unquotedOpt.match(letterPrefixRegex);
+                                                    if (matchOpt && matchOpt[1] && (matchOpt[1].trim() === unquotedS || matchOpt[1].trim() === cleanS)) {
+                                                        return true;
+                                                    }
+
+                                                    // 5. Containment match if sufficiently long
+                                                    if (unquotedS.length >= 4 && unquotedOpt.length >= 4) {
+                                                        if (unquotedOpt === unquotedS || unquotedOpt.includes(unquotedS) || unquotedS.includes(unquotedOpt)) {
+                                                            return true;
+                                                        }
+                                                    }
+
+                                                    return false;
+                                                });
+                                            };
 
                                             return (
                                                 <div 
@@ -1018,7 +1135,7 @@ export const CoachParticipants: React.FC = () => {
                                                                         </p>
                                                                         <div className="flex flex-wrap gap-2 w-full">
                                                                             {effectivePollOptions.map((opt, optIndex) => {
-                                                                                const isSelected = selectedPollChoices.some(s => s.trim().toLowerCase() === opt.trim().toLowerCase());
+                                                                                const isSelected = isOptionSelected(opt, optIndex, selectedPollChoices);
                                                                                 return (
                                                                                     <div
                                                                                         key={optIndex}
@@ -1038,7 +1155,7 @@ export const CoachParticipants: React.FC = () => {
                                                                 ) : (
                                                                     <div className="flex flex-col gap-2.5">
                                                                         {effectivePollOptions.map((opt, optIndex) => {
-                                                                            const isSelected = selectedPollChoices.some(s => s.trim().toLowerCase() === opt.trim().toLowerCase());
+                                                                            const isSelected = isOptionSelected(opt, optIndex, selectedPollChoices);
                                                                             return (
                                                                                 <div
                                                                                     key={optIndex}
@@ -1076,7 +1193,7 @@ export const CoachParticipants: React.FC = () => {
                                                                         </p>
                                                                         <div className="flex flex-wrap gap-2">
                                                                             {linkedTags.map((tag, tIndex) => {
-                                                                                const isSel = selectedPollChoices.includes(tag);
+                                                                                const isSel = selectedPollChoices.some(s => s.trim().toLowerCase() === tag.trim().toLowerCase());
                                                                                 return (
                                                                                     <span 
                                                                                         key={tIndex}
