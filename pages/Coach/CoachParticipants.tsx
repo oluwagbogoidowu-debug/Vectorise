@@ -66,7 +66,7 @@ export const CoachParticipants: React.FC = () => {
 
     // Helper functions for dynamic step reconstruction matching SprintView
     const parseAnswerValues = (val: any, srcType: string): string[] => {
-        if (!val) return [];
+        if (val === undefined || val === null) return [];
         const res: string[] = [];
         if (typeof val === 'string') {
             const trimmed = val.trim();
@@ -93,15 +93,24 @@ export const CoachParticipants: React.FC = () => {
                     }
                 } catch (e) {}
             }
-            if (srcType === 'tags' || srcType.includes('tags')) {
-                return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+            if (trimmed.includes(' | ')) {
+                return trimmed.split(' | ').map(s => s.trim()).filter(Boolean);
+            }
+            if (srcType === 'tags' || srcType.includes('tags') || trimmed.includes(',')) {
+                return trimmed.split(',').map(s => s.trim().replace(/^["']+|["']+$/g, '')).filter(Boolean);
             }
             return [trimmed];
         }
         if (Array.isArray(val)) {
-            return val.map((s: any) => String(s).trim()).filter(Boolean);
+            return val.map((s: any) => typeof s === 'object' && s !== null ? JSON.stringify(s) : String(s).trim()).filter(Boolean);
         }
-        return [];
+        if (typeof val === 'object' && val !== null) {
+            if (val.choice) return [String(val.choice).trim()];
+            if (Array.isArray(val.choices)) return val.choices.map((c: any) => String(c).trim()).filter(Boolean);
+            if (Array.isArray(val.selectedChoices)) return val.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean);
+            return Object.values(val).map((s: any) => String(s).trim()).filter(Boolean);
+        }
+        return [String(val).trim()];
     };
 
     const getLinkedTagsForStep = (
@@ -114,44 +123,75 @@ export const CoachParticipants: React.FC = () => {
         if (!dayContent) return [];
         const allTags: string[] = [];
 
+        // Helper to extract a step's answer value for a specific day
+        const getAnswerForDayStep = (targetDay: number, targetStep: number): any => {
+            if (targetDay === Number(dayContent?.day || 1)) {
+                if (taskInputs && taskInputs[targetStep] !== undefined && taskInputs[targetStep] !== null && String(taskInputs[targetStep]).trim() !== '') {
+                    return taskInputs[targetStep];
+                }
+            }
+            const prog = progressList?.find((p: any) => Number(p.day) === targetDay);
+            if (!prog) return undefined;
+            if (Array.isArray(prog.answers) && prog.answers[targetStep] !== undefined && prog.answers[targetStep] !== null && String(prog.answers[targetStep]).trim() !== '') {
+                return prog.answers[targetStep];
+            }
+            if (Array.isArray(prog.taskInputs) && prog.taskInputs[targetStep] !== undefined && prog.taskInputs[targetStep] !== null && String(prog.taskInputs[targetStep]).trim() !== '') {
+                return prog.taskInputs[targetStep];
+            }
+            if (prog.answers && typeof prog.answers === 'object') {
+                const val = prog.answers[targetStep] ?? prog.answers[String(targetStep)];
+                if (val !== undefined && val !== null && String(val).trim() !== '') return val;
+            }
+            if (typeof prog.answers === 'string') {
+                try {
+                    const parsed = JSON.parse(prog.answers);
+                    if (Array.isArray(parsed) && parsed[targetStep] !== undefined) return parsed[targetStep];
+                } catch (e) {
+                    const parts = prog.answers.split(' | ');
+                    if (parts[targetStep] !== undefined) return parts[targetStep];
+                }
+            }
+            if (typeof prog.submission === 'string' && prog.submission.trim()) {
+                const parts = prog.submission.split(' | ');
+                if (parts[targetStep] !== undefined) return parts[targetStep];
+            }
+            return undefined;
+        };
+
         // 1. Check if taskLinkedSources has explicit links
         if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
             const sources = dayContent.taskLinkedSources[stepIndex];
             sources.forEach((srcIndex: any) => {
                 if (typeof srcIndex !== 'number') return;
-                if (srcIndex >= 0) {
-                    const rawSrcType = dayContent.taskInputTypes?.[srcIndex];
-                    const srcType = getStepInputType(dayContent, srcIndex, taskInputs, dailyContent, progressList);
-                    if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
-                        const val = (taskInputs && taskInputs[srcIndex]) || progressList?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[srcIndex];
-                        if (val) {
-                            allTags.push(...parseAnswerValues(val, srcType));
-                        } else {
-                            const configuredOpts = getAllStepPollOptions(dayContent, srcIndex, taskInputs, dailyContent, progressList);
-                            if (configuredOpts.length > 0) {
-                                allTags.push(...configuredOpts);
-                            }
-                        }
-                    }
-                } else {
-                    // Cross-day link
+                let targetDay = Number(dayContent.day || 1);
+                let targetStepIdx = srcIndex;
+
+                if (srcIndex < 0) {
                     const absVal = Math.abs(srcIndex);
-                    const targetDay = Math.floor(absVal / 100);
-                    const targetStepIdx = absVal % 100;
-                    
-                    const targetProgress = progressList?.find((p: any) => Number(p.day) === targetDay);
-                    const targetDayContent = Array.isArray(dailyContent)
-                        ? dailyContent.find((dc: any) => Number(dc.day) === targetDay)
-                        : undefined;
-                        
-                    if (targetDayContent) {
-                        const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
-                        const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
-                        if (isStepOrSubStepPoll(rawTargetType) || targetType === "poll" || targetType === "tags" || targetType.includes("tags") || targetType === "dual") {
-                            const val = targetProgress?.answers?.[targetStepIdx];
-                            if (val) {
-                                allTags.push(...parseAnswerValues(val, targetType));
-                            } else {
+                    targetDay = Math.floor(absVal / 100);
+                    targetStepIdx = absVal % 100;
+                }
+
+                const targetDayContent = targetDay === Number(dayContent.day || 1)
+                    ? dayContent
+                    : (Array.isArray(dailyContent) ? dailyContent.find((dc: any) => Number(dc.day) === targetDay) : undefined);
+
+                if (targetDayContent) {
+                    const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
+                    const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                    if (isStepOrSubStepPoll(rawTargetType) || targetType === "poll" || targetType === "tags" || targetType.includes("tags") || targetType === "dual") {
+                        const val = getAnswerForDayStep(targetDay, targetStepIdx);
+                        if (val) {
+                            allTags.push(...parseAnswerValues(val, targetType));
+                        } else {
+                            const specificOpts = getStepPollOptions(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                            if (specificOpts) {
+                                try {
+                                    const parsed = JSON.parse(specificOpts);
+                                    if (Array.isArray(parsed)) allTags.push(...parsed);
+                                } catch (e) {}
+                            }
+                            if (allTags.length === 0) {
                                 const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
                                 if (configuredOpts.length > 0) {
                                     allTags.push(...configuredOpts);
@@ -172,9 +212,10 @@ export const CoachParticipants: React.FC = () => {
             const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
             if (pollLinkInfo && pollLinkInfo.targetPollIdx >= 0) {
                 const tIdx = pollLinkInfo.targetPollIdx;
+                const targetDay = Number(dayContent.day || 1);
                 const rawSrcType = dayContent.taskInputTypes?.[tIdx];
                 const srcType = getStepInputType(dayContent, tIdx, taskInputs, dailyContent, progressList);
-                const val = (taskInputs && taskInputs[tIdx]) || progressList?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[tIdx];
+                const val = getAnswerForDayStep(targetDay, tIdx);
                 if (val) {
                     allTags.push(...parseAnswerValues(val, srcType));
                 } else {
@@ -196,10 +237,11 @@ export const CoachParticipants: React.FC = () => {
         // 3. Check taskLinkedToNext
         if (stepIndex > 0 && dayContent.taskLinkedToNext?.[stepIndex - 1] === true) {
             const prevIdx = stepIndex - 1;
+            const targetDay = Number(dayContent.day || 1);
             const rawSrcType = dayContent.taskInputTypes?.[prevIdx];
             const srcType = getStepInputType(dayContent, prevIdx, taskInputs, dailyContent, progressList);
             if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
-                const val = (taskInputs && taskInputs[prevIdx]) || progressList?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[prevIdx];
+                const val = getAnswerForDayStep(targetDay, prevIdx);
                 if (val) {
                     allTags.push(...parseAnswerValues(val, srcType));
                 } else {
@@ -227,34 +269,20 @@ export const CoachParticipants: React.FC = () => {
                 if (match[2]) lastStepNum = sNum;
                 const targetStepIdx = sNum - 1;
                 
-                if (dNum === currentDay) {
-                    const rawSrcType = dayContent.taskInputTypes?.[targetStepIdx];
-                    const srcType = getStepInputType(dayContent, targetStepIdx, taskInputs, dailyContent, progressList);
-                    const val = (taskInputs && taskInputs[targetStepIdx]) || progressList?.find((p: any) => Number(p.day) === dNum)?.answers?.[targetStepIdx];
+                const targetDayContent = dNum === currentDay
+                    ? dayContent
+                    : (Array.isArray(dailyContent) ? dailyContent.find((dc: any) => Number(dc.day) === dNum) : undefined);
+
+                if (targetDayContent) {
+                    const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
+                    const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                    const val = getAnswerForDayStep(dNum, targetStepIdx);
                     if (val) {
-                        allTags.push(...parseAnswerValues(val, srcType));
+                        allTags.push(...parseAnswerValues(val, targetType));
                     } else {
-                        const configuredOpts = getAllStepPollOptions(dayContent, targetStepIdx, taskInputs, dailyContent, progressList);
+                        const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
                         if (configuredOpts.length > 0) {
                             allTags.push(...configuredOpts);
-                        }
-                    }
-                } else {
-                    const targetProgress = progressList?.find((p: any) => Number(p.day) === dNum);
-                    const targetDayContent = Array.isArray(dailyContent)
-                        ? dailyContent.find((dc: any) => Number(dc.day) === dNum)
-                        : undefined;
-                    if (targetDayContent) {
-                        const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
-                        const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
-                        const val = targetProgress?.answers?.[targetStepIdx];
-                        if (val) {
-                            allTags.push(...parseAnswerValues(val, targetType));
-                        } else {
-                            const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, dailyContent, progressList);
-                            if (configuredOpts.length > 0) {
-                                allTags.push(...configuredOpts);
-                            }
                         }
                     }
                 }
@@ -940,7 +968,6 @@ export const CoachParticipants: React.FC = () => {
                                             const resolvedHint = resolveTaskHintForUser(contentData?.taskHints?.[idx], idx, contentData, answers, sprintDailyContent, progressList);
                                             const effectiveInputType = getStepInputType(contentData, idx, answers, sprintDailyContent, progressList);
                                             const rawPollOptionsStr = getStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
-                                            const allConfiguredOptions = getAllStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
                                             
                                             let parsedCustomOptions: string[] = [];
                                             if (rawPollOptionsStr) {
@@ -975,16 +1002,6 @@ export const CoachParticipants: React.FC = () => {
                                                 } else if (Array.isArray(rawPollOptionsStr)) {
                                                     parsedCustomOptions = (rawPollOptionsStr as any[]).map((s: any) => String(s).trim()).filter(Boolean);
                                                 }
-                                            }
-
-                                            // Merge all configured options across versions if not already present
-                                            if (Array.isArray(allConfiguredOptions) && allConfiguredOptions.length > 0) {
-                                                allConfiguredOptions.forEach(opt => {
-                                                    const clean = String(opt).trim();
-                                                    if (clean && !parsedCustomOptions.some(p => p.toLowerCase() === clean.toLowerCase())) {
-                                                        parsedCustomOptions.push(clean);
-                                                    }
-                                                });
                                             }
 
                                             let rawAnswer = answers[idx];
@@ -1140,6 +1157,18 @@ export const CoachParticipants: React.FC = () => {
                                                         if (unquotedOpt === unquotedS || unquotedOpt.includes(unquotedS) || unquotedS.includes(unquotedOpt)) {
                                                             return true;
                                                         }
+                                                    }
+
+                                                    // 6. Path / version code match (e.g. s is "1.1" and opt is "1.1 Option Title" or vice versa)
+                                                    if (
+                                                        unquotedOpt.startsWith(`${unquotedS} `) ||
+                                                        unquotedOpt.startsWith(`${unquotedS}.`) ||
+                                                        unquotedOpt.startsWith(`${unquotedS}:`) ||
+                                                        unquotedOpt.startsWith(`${unquotedS}-`) ||
+                                                        unquotedS.startsWith(`${unquotedOpt} `) ||
+                                                        unquotedS.startsWith(`${unquotedOpt}.`)
+                                                    ) {
+                                                        return true;
                                                     }
 
                                                     return false;
