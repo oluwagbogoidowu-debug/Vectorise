@@ -1510,24 +1510,6 @@ export const CoachParticipants: React.FC = () => {
                                                             </div>
                                                         )}
                                                     </div>
-
-                                                    {/* Response Confirmation Pill Banner (Matching SprintView line 3891) */}
-                                                    {progressObj?.completed && (
-                                                        <div className="px-4 py-3 bg-white/80 border border-[#0E7850]/20 rounded-xl text-xs sm:text-sm font-bold text-[#0E7850] italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
-                                                            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#0E7850]" />
-                                                            {selectedPollChoices.length > 0 ? (
-                                                                <div className="flex flex-wrap gap-1.5 items-center">
-                                                                    {selectedPollChoices.map((c, cIdx) => (
-                                                                        <span key={cIdx} className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-[#0E7850]/10 text-[#0E7850] uppercase tracking-wider rounded-md">
-                                                                            {c}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <span>{answerVal || "Completed"}</span>
-                                                            )}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             );
                                         })}

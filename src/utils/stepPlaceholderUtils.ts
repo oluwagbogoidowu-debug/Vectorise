@@ -2317,9 +2317,41 @@ export function resolveStepVersionIndex(
     return [];
   };
 
+  // 1. Direct answer match: If current step has submitted answers, check which version's options match the student's submission
+  const currentStepVal = getInputValue(currentDayNum, stepIdx);
+  const currentStepAnswers = parseUserAnswers(currentStepVal);
+  if (currentStepAnswers.length > 0) {
+    for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
+      const vPollRaw = getStepVersionValue(dayContent.taskPollOptions?.[stepIdx], vIdx, '');
+      let vOpts: string[] = [];
+      if (vPollRaw) {
+        try {
+          const parsed = JSON.parse(vPollRaw);
+          if (Array.isArray(parsed)) vOpts = parsed.map(s => String(s).trim()).filter(Boolean);
+        } catch (e) {
+          if (!vPollRaw.startsWith('[') && !vPollRaw.startsWith('{')) {
+            vOpts = vPollRaw.split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
+      }
+      if (vOpts.length > 0) {
+        const hasDirectMatch = currentStepAnswers.some(ans => {
+          const cleanAns = ans.trim().toLowerCase();
+          return vOpts.some(opt => {
+            const cleanOpt = opt.trim().toLowerCase();
+            return cleanOpt === cleanAns || cleanOpt.includes(cleanAns) || cleanAns.includes(cleanOpt);
+          });
+        });
+        if (hasDirectMatch) {
+          return vIdx;
+        }
+      }
+    }
+  }
+
   const progRes = resolveProgressiveStepSelections(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
 
-  const isOptionMatchedByAnswers = (targetDay: number, targetStepIdx: number, targetOpNum: number): boolean => {
+  const getOptionMatchRank = (targetDay: number, targetStepIdx: number, targetOpNum: number): number => {
     const targetDC = (targetDay === currentDayNum || !allDaysContent)
       ? dayContent
       : (allDaysContent.find(d => Number(d.day) === targetDay) || dayContent);
@@ -2330,26 +2362,30 @@ export function resolveStepVersionIndex(
     // If main connection narrowed the active option, paramount check against the active choice
     if (progRes.isNarrowed && progRes.activeSelection) {
       const activeNorm = progRes.activeSelection.toLowerCase().trim();
-      if (targetOptText && targetOptText.toLowerCase().trim() === activeNorm) return true;
-      if (activeNorm === `option ${targetOpNum}` || activeNorm === `op ${targetOpNum}` || activeNorm === `op${targetOpNum}` || activeNorm === String(targetOpNum) || activeNorm === `poll ${targetOpNum}`) return true;
-      if (progRes.sourceStepIdx === targetStepIdx && progRes.activeOptionIndex === optIndex) return true;
-      return false;
+      if (targetOptText && targetOptText.toLowerCase().trim() === activeNorm) return 0;
+      if (activeNorm === `option ${targetOpNum}` || activeNorm === `op ${targetOpNum}` || activeNorm === `op${targetOpNum}` || activeNorm === String(targetOpNum) || activeNorm === `poll ${targetOpNum}`) return 0;
+      if (progRes.sourceStepIdx === targetStepIdx && progRes.activeOptionIndex === optIndex) return 0;
+      return -1;
     }
 
     const rawVal = getInputValue(targetDay, targetStepIdx);
     const answers = parseUserAnswers(rawVal);
-    if (answers.length === 0) return false;
+    if (answers.length === 0) return -1;
 
-    return answers.some(ans => {
+    for (let aIdx = 0; aIdx < answers.length; aIdx++) {
+      const ans = answers[aIdx];
       const lowerAns = ans.toLowerCase().trim();
-      if (targetOptText && lowerAns === targetOptText.toLowerCase().trim()) return true;
-      if (lowerAns === `poll ${targetOpNum}` || lowerAns === `op ${targetOpNum}` || lowerAns === `op${targetOpNum}` || lowerAns === `option ${targetOpNum}` || lowerAns === String(targetOpNum)) return true;
-      return false;
-    });
+      if (targetOptText && lowerAns === targetOptText.toLowerCase().trim()) return aIdx;
+      if (lowerAns === `poll ${targetOpNum}` || lowerAns === `op ${targetOpNum}` || lowerAns === `op${targetOpNum}` || lowerAns === `option ${targetOpNum}` || lowerAns === String(targetOpNum)) return aIdx;
+    }
+    return -1;
   };
 
   // Check each version independently to find which one matches the user's choices!
-  // Versioned steps (1.1, 1.2, 1.3) connect to (Op 1, Op 2, Op 3) without clashing or omitting.
+  // Prioritize earlier choices made by the user in multi-select steps
+  let bestVerIdx = -1;
+  let bestAnswerRank = Infinity;
+
   for (let vIdx = 0; vIdx < promptVersions.length; vIdx++) {
     const vPrompt = promptVersions[vIdx] || '';
     const vHint = getStepVersionValue(dayContent.taskHints?.[stepIdx], vIdx, '');
@@ -2359,7 +2395,6 @@ export function resolveStepVersionIndex(
 
     const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:[.:_](\d+))?(?:\s*[oO][pP]\s*(\d+)(?:[.:_](\d+))?)?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
     let match: RegExpExecArray | null;
-    let hasMatchedToken = false;
 
     while ((match = regex.exec(vCombined)) !== null) {
       const dayNum = match[1] ? parseInt(match[1], 10) : currentDayNum;
@@ -2370,16 +2405,22 @@ export function resolveStepVersionIndex(
 
       const targetOpNum = opNum !== undefined ? opNum : subStepNum;
       if (targetOpNum !== undefined) {
-        if (isOptionMatchedByAnswers(dayNum, targetStepIdx, targetOpNum)) {
-          hasMatchedToken = true;
-          break;
+        const rank = getOptionMatchRank(dayNum, targetStepIdx, targetOpNum);
+        if (rank !== -1 && rank < bestAnswerRank) {
+          bestAnswerRank = rank;
+          bestVerIdx = vIdx;
+          if (rank === 0) break;
         }
       }
     }
 
-    if (hasMatchedToken) {
-      return vIdx;
+    if (bestAnswerRank === 0) {
+      return bestVerIdx;
     }
+  }
+
+  if (bestVerIdx >= 0) {
+    return bestVerIdx;
   }
 
   // If current step is a poll and user directly answered current step, map answer to version index
@@ -2404,7 +2445,7 @@ export function resolveStepVersionIndex(
     if (info && info.optNum !== undefined && info.optNum > 0) {
       const optIdx = info.optNum - 1;
       if (optIdx < promptVersions.length) {
-        if (isOptionMatchedByAnswers(currentDayNum, info.targetPollIdx >= 0 ? info.targetPollIdx : 0, info.optNum)) {
+        if (getOptionMatchRank(currentDayNum, info.targetPollIdx >= 0 ? info.targetPollIdx : 0, info.optNum) !== -1) {
           return optIdx;
         }
       }
