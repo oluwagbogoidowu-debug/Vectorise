@@ -2146,6 +2146,65 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       }
     }
 
+    // 5. Check placeholders in prompt, footnote, hint (e.g. {Step 1})
+    const textsToCheck = [
+      dayContent.taskPrompts?.[stepIndex] || (stepIndex === 0 ? dayContent.taskPrompt : ''),
+      dayContent.taskFootnotes?.[stepIndex],
+      dayContent.taskHints?.[stepIndex],
+    ].filter(Boolean);
+
+    for (const text of textsToCheck) {
+      if (typeof text === 'string' && /\{[^{}]+\}/.test(text)) {
+        const currentDay = Number(dayContent.day || 1);
+        const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
+        let match: RegExpExecArray | null;
+        let lastStepNum = 1;
+        while ((match = regex.exec(text)) !== null) {
+          const dNum = match[1] ? parseInt(match[1], 10) : currentDay;
+          const sNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
+          if (match[2]) lastStepNum = sNum;
+          const targetStepIdx = sNum - 1;
+          
+          if (dNum === currentDay) {
+            if (targetStepIdx !== stepIndex) {
+              const rawSrcType = dayContent.taskInputTypes?.[targetStepIdx];
+              const srcType = getStepInputType(dayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+              const val = (taskInputs && taskInputs[targetStepIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === dNum)?.answers?.[targetStepIdx];
+              if (val) {
+                allTags.push(...parseAnswerValues(val, srcType));
+              } else {
+                const configuredOpts = getAllStepPollOptions(dayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                if (configuredOpts.length > 0) {
+                  allTags.push(...configuredOpts);
+                }
+              }
+            }
+          } else {
+            const targetProgress = enrollment?.progress?.find((p: any) => Number(p.day) === dNum);
+            const targetDayContent = Array.isArray(sprint?.dailyContent)
+              ? sprint.dailyContent.find((dc: any) => Number(dc.day) === dNum)
+              : undefined;
+            if (targetDayContent) {
+              const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
+              const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+              const val = targetProgress?.answers?.[targetStepIdx];
+              if (val) {
+                allTags.push(...parseAnswerValues(val, targetType));
+              } else {
+                const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                if (configuredOpts.length > 0) {
+                  allTags.push(...configuredOpts);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if (allTags.length > 0) {
+      return Array.from(new Set(allTags)).filter(Boolean);
+    }
+
     return [];
   };
 
@@ -2738,12 +2797,29 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   useEffect(() => {
     if (!enrollment || !sprint) return;
 
-    // Check if we have already loaded the inputs for this specific day and enrollment to avoid resetting page indexes on subscription updates
+    const existingAnswersCount = Array.isArray(dayProgress?.answers)
+      ? dayProgress.answers.length
+      : dayProgress?.submission
+      ? dayProgress.submission.split(" | ").length
+      : 0;
+    const promptsCount = dayContent?.taskPrompts?.length || 0;
+    const promptsLength = Math.max(promptsCount, existingAnswersCount, 1);
+
+    // Check if we have already loaded the inputs for this specific day and enrollment
     if (loadedDayRef.current === viewingDay && loadedEnrollmentIdRef.current === enrollment.id) {
+      // If taskInputs is shorter than the loaded dayContent steps, expand it without resetting
+      if (taskInputs.length < promptsLength) {
+        setTaskInputs(prev => {
+          const next = [...prev];
+          while (next.length < promptsLength) {
+            next.push(dayProgress?.answers?.[next.length] || "");
+          }
+          return next;
+        });
+      }
       return;
     }
 
-    const promptsLength = dayContent?.taskPrompts?.length || 1;
     let loaded: string[] = Array(promptsLength).fill("");
 
     if (dayProgress?.answers && Array.isArray(dayProgress.answers)) {
@@ -2768,9 +2844,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     setIsFullBleed(false);
     setRevealedHints({});
 
-    // Record that we have loaded for this day/enrollment
-    loadedDayRef.current = viewingDay;
-    loadedEnrollmentIdRef.current = enrollment.id;
+    // Record that we have loaded for this day/enrollment only if dayContent or answers are resolved
+    if (dayContent || existingAnswersCount > 0) {
+      loadedDayRef.current = viewingDay;
+      loadedEnrollmentIdRef.current = enrollment.id;
+    }
     lastSavedInputsRef.current = JSON.stringify(loaded);
   }, [viewingDay, enrollment, sprint, dayProgress, dayContent]);
 
@@ -3475,6 +3553,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
       if (type === "mark") {
         return val === "Completed" || val === "Skipped";
+      }
+
+      if (type === "dual") {
+        const parsed = parseDualInputState(val);
+        return (parsed.selectedChoices && parsed.selectedChoices.length > 0) || Boolean(parsed.choice) || parsed.text.trim().length > 0;
+      }
+
+      if (type === "tags" || type === "poll") {
+        if (val === "[]" || val.trim() === "") return false;
+        try {
+          if (val.startsWith("[")) {
+            const parsed = JSON.parse(val);
+            return Array.isArray(parsed) && parsed.length > 0;
+          }
+        } catch (e) {}
+        return val.trim().length > 0;
       }
       
       if (isLinkedTextStep(i)) {
@@ -4864,7 +4958,109 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         )}
                                       </button>
                                     </div>
-                                  ) : effectiveInputType === "none" ? null : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                  ) : effectiveInputType === "none" ? null : effectiveInputType === "dual" ? (
+                                    <div className="space-y-4 animate-fade-in text-left">
+                                      {(() => {
+                                        let pollOptions: string[] = [];
+                                        let customOptions: string[] = [];
+                                        const optsStr = effectivePollOptions || dayContent?.taskPollOptions?.[i] || "[]";
+                                        try {
+                                          customOptions = JSON.parse(optsStr);
+                                        } catch (e) {
+                                          try {
+                                            customOptions = JSON.parse(dayContent?.taskPollOptions?.[i] || "[]");
+                                          } catch (err) {}
+                                        }
+                                        if (!Array.isArray(customOptions)) customOptions = [];
+                                        customOptions = customOptions.filter(Boolean);
+
+                                        const linkedTags = getLinkedTagsForStep(i);
+                                        pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+
+                                        const isMultiSelect = !!dayContent.taskPollMultiSelect?.[i];
+                                        const dualState = parseDualInputState(taskInputs[i]);
+                                        const selectedOpts = dualState.selectedChoices && dualState.selectedChoices.length > 0 
+                                          ? dualState.selectedChoices 
+                                          : (dualState.choice ? [dualState.choice] : []);
+
+                                        return (
+                                          <div className="space-y-4">
+                                            {pollOptions.length > 0 && (
+                                              <div className="space-y-2">
+                                                <p className={`${isFullBleed ? 'text-xs sm:text-sm font-black' : 'text-[10px] font-black'} uppercase text-primary tracking-widest pl-1 flex items-center gap-2`}>
+                                                  <span>{isMultiSelect ? '☑️ Select Option(s):' : '🔘 Select an Option:'}</span>
+                                                </p>
+                                                <div className="flex flex-wrap gap-2 w-full">
+                                                  {pollOptions.map((opt: string, optIndex: number) => {
+                                                    const isSel = selectedOpts.includes(opt) || dualState.choice === opt;
+                                                    return (
+                                                      <button
+                                                        key={optIndex}
+                                                        type="button"
+                                                        onClick={() => {
+                                                          let newSelected: string[];
+                                                          let newChoice = '';
+                                                          if (isMultiSelect) {
+                                                            if (selectedOpts.includes(opt)) {
+                                                              newSelected = selectedOpts.filter(o => o !== opt);
+                                                            } else {
+                                                              newSelected = [...selectedOpts, opt];
+                                                            }
+                                                            newChoice = newSelected[0] || '';
+                                                          } else {
+                                                            if (isSel) {
+                                                              newSelected = [];
+                                                              newChoice = '';
+                                                            } else {
+                                                              newSelected = [opt];
+                                                              newChoice = opt;
+                                                            }
+                                                          }
+                                                          const newInputs = [...taskInputs];
+                                                          newInputs[i] = serializeDualInputState({
+                                                            choice: newChoice,
+                                                            selectedChoices: newSelected,
+                                                            text: dualState.text || ''
+                                                          });
+                                                          setTaskInputs(newInputs);
+                                                          triggerHaptic(hapticPatterns.light);
+                                                        }}
+                                                        className={`${isFullBleed ? 'px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm' : 'px-3 py-1.5 text-[9px]'} rounded-full font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                                          isSel 
+                                                            ? "bg-primary text-white border-primary shadow-md ring-2 ring-primary/20" 
+                                                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-primary/30"
+                                                        }`}
+                                                      >
+                                                        {isSel ? `✓ ${opt}` : opt}
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+
+                                            <div className="space-y-1.5">
+                                              <AutoGrowingTextarea
+                                                value={dualState.text || ""}
+                                                onChange={(val) => {
+                                                  const newInputs = [...taskInputs];
+                                                  newInputs[i] = serializeDualInputState({
+                                                    choice: dualState.choice,
+                                                    selectedChoices: dualState.selectedChoices,
+                                                    text: val
+                                                  });
+                                                  setTaskInputs(newInputs);
+                                                }}
+                                                placeholder="Add your note or reflection here..."
+                                                isFullBleed={isFullBleed}
+                                                className={`w-full ${isFullBleed ? 'px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-base rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
+                                              />
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  ) : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       {getLinkedTagsForStep(i).map((tag, tagIndex) => {
                                         let currentAnswers: Record<string, string> = {};

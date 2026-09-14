@@ -2092,19 +2092,30 @@ export function getStepInputType(
   allDaysInputs?: any[] | Record<number, any>
 ): string {
   if (!dayContent) return 'text';
+  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
+  const rawType = dayContent.taskInputTypes?.[stepIdx];
+  const baseType = getStepVersionValue(rawType, 0, (rawType || 'text'));
+  const typeVal = getStepVersionValue(rawType, verIdx, baseType);
+  const resolvedType = typeVal ? typeVal.trim().toLowerCase() : (baseType ? baseType.trim().toLowerCase() : 'text');
+
+  // If explicitly configured as non-poll, non-text types (tags, mark, note, dual, none), respect it
+  if (resolvedType && resolvedType !== 'text' && resolvedType !== 'poll') {
+    return resolvedType;
+  }
+
+  if (resolvedType === 'poll') {
+    return 'poll';
+  }
+
   const pollOpts = getAllStepPollOptions(dayContent, stepIdx, taskInputs, allDaysContent, allDaysInputs);
   if (pollOpts.length > 0) {
     return 'poll';
   }
   const promptVal = dayContent.taskPrompts?.[stepIdx] || (stepIdx === 0 ? dayContent?.taskPrompt : '');
-  const rawType = dayContent.taskInputTypes?.[stepIdx];
   if (isStepOrSubStepPoll(rawType, pollOpts, promptVal)) {
     return 'poll';
   }
-  const verIdx = resolveStepVersionIndex(stepIdx, dayContent, taskInputs, allDaysContent, allDaysInputs);
-  const baseType = getStepVersionValue(rawType, 0, (rawType || 'text'));
-  const typeVal = getStepVersionValue(rawType, verIdx, baseType);
-  return typeVal ? typeVal.trim().toLowerCase() : (baseType ? baseType.trim().toLowerCase() : 'text');
+  return resolvedType || 'text';
 }
 
 export function getStepPollOptions(
