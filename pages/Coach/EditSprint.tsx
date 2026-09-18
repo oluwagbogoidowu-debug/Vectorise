@@ -6511,7 +6511,7 @@ const EditSprint: React.FC = () => {
                     <CustomSelect
                       value={versionSettings.duration}
                       onChange={val => setVersionSettings({...versionSettings, duration: Number(val)})}
-                      options={[3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Continuous Days` }))}
+                      options={[2, 3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Continuous Days` }))}
                       className="mt-2"
                     />
                   </div>
@@ -6950,7 +6950,7 @@ const EditSprint: React.FC = () => {
                                                 <CustomSelect
                                                     value={editSettings.duration || 7}
                                                     onChange={val => setEditSettings({...editSettings, duration: Number(val)})}
-                                                    options={[3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Continuous Days` }))}
+                                                    options={[2, 3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Continuous Days` }))}
                                                     className="mt-2"
                                                 />
                                             </div>

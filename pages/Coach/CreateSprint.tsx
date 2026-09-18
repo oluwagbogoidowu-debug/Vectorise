@@ -743,7 +743,7 @@ const CreateSprint: React.FC = () => {
                                         <div>
                                             <label className={labelClasses}>Duration (Move)</label>
                                             <CustomSelect
-                                                options={[3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Move` }))}
+                                                options={[2, 3, 5, 7, 10, 14, 21, 30].map(d => ({ value: d, label: `${d} Move` }))}
                                                 value={formData.duration}
                                                 onChange={(val) => setFormData(prev => ({ ...prev, duration: Number(val) }))}
                                                 className="mt-2"
