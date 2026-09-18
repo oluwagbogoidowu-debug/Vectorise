@@ -16,10 +16,12 @@ import { paymentService } from '../../services/paymentService';
 import { assetService } from '../../services/assetService';
 import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '../../services/milestoneConstants';
 import { shineService } from '../../services/shineService';
-import { Sprint, Coach, UserRole, Participant, LifecycleSlotAssignment } from '../../types';
+import { Sprint, Coach, UserRole, Participant, LifecycleSlotAssignment, Track } from '../../types';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
-import { getExploreFirstSprint, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
+import { getExploreNextRecommendation, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
+import TrackCard from '../../components/TrackCard';
+import { trackService } from '../../services/trackService';
 import { toast } from 'sonner';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 
@@ -33,6 +35,9 @@ export const NextSprintRecommendation: React.FC = () => {
     const initialSprint = location.state?.recommendedSprint || location.state?.sprint || null;
 
     const [sprint, setSprint] = useState<Sprint | null>(initialSprint);
+    const [recommendedTrack, setRecommendedTrack] = useState<Track | null>(null);
+    const [allPublishedSprints, setAllPublishedSprints] = useState<Sprint[]>([]);
+    const [isSuperiorMatch, setIsSuperiorMatch] = useState<boolean>(false);
     const [fetchedCoach, setFetchedCoach] = useState<Coach | null>(null);
     const [isLoading, setIsLoading] = useState(!initialSprint);
     const [sprintLinks, setSprintLinks] = useState<any[]>([]);
@@ -276,10 +281,11 @@ export const NextSprintRecommendation: React.FC = () => {
         approved: true
     }), []);
 
-    // Load next recommended sprint using Explore recommendation logic
+    // Load next recommended sprint or track using Explore recommendation logic
     const loadNextSprint = useCallback(async () => {
         if (initialSprint) {
             setSprint(initialSprint);
+            setRecommendedTrack(null);
             if (initialSprint.coachId) {
                 try {
                     const dbCoach = await userService.getUserDocument(initialSprint.coachId);
@@ -296,18 +302,29 @@ export const NextSprintRecommendation: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const [allPublished, dbCoaches, orchestration, links] = await Promise.all([
+            const [allPublished, allTracksList, dbCoaches, orchestration, links] = await Promise.all([
                 sprintService.getPublishedSprints().catch(() => []),
+                trackService.getAllTracks().catch(() => []),
                 userService.getCoaches().catch(() => []),
                 (sprintService.getOrchestration() as Promise<Record<string, LifecycleSlotAssignment>>).catch(() => ({} as Record<string, LifecycleSlotAssignment>)),
                 sprintService.getSprintLinks().catch(() => [])
             ]);
+            setAllPublishedSprints(allPublished);
             setSprintLinks(links || []);
             
             if (sprintId) {
+                const matchedTrack = allTracksList.find(t => t.id === sprintId);
+                if (matchedTrack) {
+                    setRecommendedTrack(matchedTrack);
+                    setSprint(null);
+                    setIsLoading(false);
+                    return;
+                }
+
                 const target = allPublished.find(s => s.id === sprintId) || await sprintService.getSprintById(sprintId);
                 if (target) {
                     setSprint(target);
+                    setRecommendedTrack(null);
                     if (target.coachId) {
                         try {
                             const dbCoach = dbCoaches.find(c => c.id === target.coachId) || await userService.getUserDocument(target.coachId);
@@ -339,19 +356,27 @@ export const NextSprintRecommendation: React.FC = () => {
                 enrolledSet.add(completedSprintId);
             }
 
-            // Sprint-to-Sprint Option Linking is senior brother to all other orchestrator logic
-            const candidateSprint = getExploreFirstSprint(
-                allPublished, 
-                user, 
-                orchestration, 
-                enrolledSet, 
-                userEnrollments, 
-                links, 
+            // Sprint-to-Track & Sprint-to-Sprint Option Linking (Track is senior brother / highest priority)
+            const recommendation = getExploreNextRecommendation(
+                allPublished,
+                allTracksList,
+                user,
+                orchestration,
+                enrolledSet,
+                userEnrollments,
+                links,
                 completedSprintId
             );
 
-            if (candidateSprint) {
+            if (recommendation?.type === 'track' && recommendation.track) {
+                setRecommendedTrack(recommendation.track);
+                setSprint(null);
+                setIsSuperiorMatch(Boolean(recommendation.isSuperior));
+            } else if (recommendation?.type === 'sprint' && recommendation.sprint) {
+                const candidateSprint = recommendation.sprint;
                 setSprint(candidateSprint);
+                setRecommendedTrack(null);
+                setIsSuperiorMatch(Boolean(recommendation.isSuperior));
                 if (candidateSprint.coachId) {
                     const matchedCoach = dbCoaches.find(c => c.id === candidateSprint?.coachId);
                     if (matchedCoach) {
@@ -367,9 +392,12 @@ export const NextSprintRecommendation: React.FC = () => {
                 } else {
                     setFetchedCoach(vectoriseCoach);
                 }
+            } else {
+                setSprint(null);
+                setRecommendedTrack(null);
             }
         } catch (err) {
-            console.error("[NextSprintRecommendation] Error loading next sprint:", err);
+            console.error("[NextSprintRecommendation] Error loading next recommendation:", err);
         } finally {
             setIsLoading(false);
         }
@@ -717,8 +745,13 @@ export const NextSprintRecommendation: React.FC = () => {
         </div>
                     )}
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-950 dark:text-white flex flex-wrap items-center justify-center gap-2">
-                        <span>Your Next Sprint</span>
-                        {isCoachRequestEligible && !user?.coachApplicationSubmitted && (
+                        <span>{recommendedTrack ? 'Your Next Track' : 'Your Next Sprint'}</span>
+                        {recommendedTrack && (
+                            <span className="inline-block px-2.5 py-0.5 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 text-[8px] font-black uppercase tracking-wider rounded-full">
+                                {isSuperiorMatch ? '⭐ Matched Track' : 'Curated Track Bundle'}
+                            </span>
+                        )}
+                        {!recommendedTrack && isCoachRequestEligible && !user?.coachApplicationSubmitted && (
                             <span className="inline-block px-2.5 py-0.5 bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 text-[8px] font-black uppercase tracking-wider rounded-full">
                                 request coach mode
                             </span>
@@ -727,15 +760,21 @@ export const NextSprintRecommendation: React.FC = () => {
                     
         </div>
 
-                {/* Sprint Card with Price Badge visible */}
+                {/* Sprint or Track Card */}
                 <div className="w-full text-left bg-transparent dark:bg-transparent">
                     {isLoading ? (
                         <div className="py-20 flex justify-center items-center bg-transparent dark:bg-transparent">
                             <div className="w-8 h-8 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin"></div>
-                            
-        </div>
+                        </div>
+                    ) : recommendedTrack ? (
+                        <div className="space-y-3 bg-transparent dark:bg-transparent animate-fade-in">
+                            <TrackCard 
+                                track={recommendedTrack} 
+                                sprints={allPublishedSprints} 
+                            />
+                        </div>
                     ) : sprint ? (
-                        <div className="space-y-2 bg-transparent dark:bg-transparent">
+                        <div className="space-y-2 bg-transparent dark:bg-transparent animate-fade-in">
                             <SprintCard 
                                 sprint={sprint} 
                                 coach={fetchedCoach || vectoriseCoach} 
@@ -745,44 +784,54 @@ export const NextSprintRecommendation: React.FC = () => {
                                 isRerun={isRerun}
                                 onOpenOverview={() => setShowOverviewModal(true)}
                             />
-                            
-        </div>
+                        </div>
                     ) : (
                         <div className="p-8 text-center bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xl shadow-gray-100/40 dark:shadow-none flex flex-col items-center justify-center space-y-4">
                             <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
                                 <Sparkles className="w-6 h-6 animate-pulse" />
-                                
-        </div>
+                            </div>
                             <div className="space-y-1">
                                 <h3 className="text-base font-black text-gray-900 dark:text-white tracking-tight italic">Your next sprint is in view.</h3>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">We are working on it. We will get back to you soon.</p>
-                                
-        </div>
+                            </div>
                             <button
                                 onClick={() => navigate('/explore')}
                                 className="px-6 py-2.5 bg-[#0E7850] hover:bg-[#085C3D] text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md shadow-emerald-500/10 active:scale-95 cursor-pointer"
                             >
                                 Browse Sprints
                             </button>
-                            
-        </div>
+                        </div>
                     )}
-                    
-        </div>
+                </div>
 
                 {/* Recommendation Note before Continue button */}
-                {isRerun && (
+                {!recommendedTrack && isRerun && (
                     <div className="w-full text-center px-4 py-1.5 animate-fade-in">
                         <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 leading-relaxed">
                             We recommend you take the sprint again for fresh perspective.
                         </p>
-                        
-        </div>
+                    </div>
                 )}
 
-                {/* Continue CTA */}
-                {sprint && (
-                    <div className="w-full space-y-3">
+                {/* Track Continue CTA */}
+                {recommendedTrack && (
+                    <div className="w-full space-y-3 animate-fade-in">
+                        <button
+                            onClick={() => {
+                                triggerHaptic(hapticPatterns.light);
+                                navigate(`/track/${recommendedTrack.id}`);
+                            }}
+                            className="w-full py-5 font-black uppercase tracking-[0.2em] text-xs rounded-2xl transition-all flex items-center justify-center gap-2 bg-[#0E7850] hover:bg-[#085C3D] text-white shadow-xl shadow-[#0E7850]/20 hover:scale-[1.02] active:scale-95 cursor-pointer"
+                        >
+                            <span>Explore Track Bundle</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Sprint Continue CTA */}
+                {sprint && !recommendedTrack && (
+                    <div className="w-full space-y-3 animate-fade-in">
                         <button
                             onClick={() => {
                                 if (activeOngoingEnrollment) {
@@ -801,9 +850,7 @@ export const NextSprintRecommendation: React.FC = () => {
                             <span>{activeOngoingEnrollment ? 'Sprint in Progress' : 'Continue'}</span>
                             {!activeOngoingEnrollment && <ArrowRight className="w-4 h-4" />}
                         </button>
-
-                        
-        </div>
+                    </div>
                 )}
                 
         </div>

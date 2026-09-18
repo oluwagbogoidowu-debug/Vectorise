@@ -1,4 +1,4 @@
-import { Sprint, UserRole, Participant, LifecycleSlotAssignment, User, ParticipantSprint } from '../types';
+import { Sprint, UserRole, Participant, LifecycleSlotAssignment, User, ParticipantSprint, Track } from '../types';
 import { FOCUS_OPTIONS } from '../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../constants';
 
@@ -677,6 +677,178 @@ export const getExploreNextSteps = (
         allPublishedSprintsPool
     );
     return items.map(item => item.sprint);
+};
+
+export interface ExploreRecommendation {
+    type: 'track' | 'sprint';
+    track?: Track;
+    sprint?: Sprint;
+    isSuperior?: boolean;
+    linkSourceTitle?: string;
+}
+
+/**
+ * Resolves the next recommendation for the participant (used on "Your Next Sprint" page and recommendations).
+ * Hierarchy rules:
+ * 1. Track is higher in priority than any form of sprint to sprint linking:
+ *    - Coded Sprint-to-Track link (User clicked the option) -> Highest Priority
+ *    - Uncoded Sprint-to-Track link (Normal link from active/completed sprint) -> High Priority
+ * 2. Coded Sprint-to-Sprint link (User clicked the option)
+ * 3. Normal Sprint-to-Sprint link (Uncoded)
+ * 4. General explore first sprint fallback
+ */
+export const getExploreNextRecommendation = (
+    allPublishedSprints: Sprint[],
+    allTracks: Track[] = [],
+    user: Participant | User | null,
+    orchestration: Record<string, LifecycleSlotAssignment> = {},
+    enrolledSprintIds: Set<string> = new Set(),
+    userEnrollments: ParticipantSprint[] = [],
+    sprintLinks: any[] = [],
+    currentOrCompletedSprintId?: string
+): ExploreRecommendation | null => {
+    const normalizeId = (val: any): string => String(val || '').trim();
+
+    // 1. Identify active or last completed sprint A
+    let sprintAId: string | null = null;
+    let enrollmentA: ParticipantSprint | undefined = undefined;
+
+    if (currentOrCompletedSprintId) {
+        sprintAId = normalizeId(currentOrCompletedSprintId);
+        enrollmentA = userEnrollments.find(e => normalizeId(e.sprint_id) === sprintAId);
+    } else if (userEnrollments && userEnrollments.length > 0) {
+        const sortedEnrollments = [...userEnrollments].sort((a, b) => {
+            const aIsActive = a.status === 'active';
+            const bIsActive = b.status === 'active';
+            if (aIsActive && !bIsActive) return -1;
+            if (!aIsActive && bIsActive) return 1;
+            const datesA = [a.last_activity_at, a.completed_at, (a as any).updated_at, a.started_at].filter(Boolean);
+            const datesB = [b.last_activity_at, b.completed_at, (b as any).updated_at, b.started_at].filter(Boolean);
+            const timeA = datesA.length > 0 ? Math.max(...datesA.map(d => new Date(d).getTime() || 0)) : 0;
+            const timeB = datesB.length > 0 ? Math.max(...datesB.map(d => new Date(d).getTime() || 0)) : 0;
+            return timeB - timeA;
+        });
+        enrollmentA = sortedEnrollments[0];
+        sprintAId = normalizeId(enrollmentA?.sprint_id);
+    }
+
+    // Fallback if no user enrollment
+    if (!sprintAId) {
+        const firstLink = Array.isArray(sprintLinks) && sprintLinks.length > 0
+            ? [...sprintLinks].sort((a, b) => (new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()))[0]
+            : null;
+        if (firstLink) {
+            sprintAId = normalizeId(firstLink.sourceSprintId || firstLink.source_sprint_id || firstLink.sourceId);
+        } else if (allPublishedSprints.length > 0) {
+            sprintAId = normalizeId(allPublishedSprints[0].id);
+        }
+    }
+
+    const sourceSprint = sprintAId ? allPublishedSprints.find(s => normalizeId(s.id) === sprintAId) : null;
+    const sourceLinks = sprintAId && Array.isArray(sprintLinks)
+        ? sprintLinks.filter(l => normalizeId(l.sourceSprintId || l.source_sprint_id || l.sourceId) === sprintAId)
+            .sort((a, b) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return timeA - timeB;
+            })
+        : [];
+
+    const findTrack = (targetId: string): Track | undefined => {
+        const norm = normalizeId(targetId);
+        if (!norm) return undefined;
+        return allTracks.find(t => normalizeId(t.id) === norm);
+    };
+
+    // Filter track links: explicit targetType track, targetTrackId present, or matches track ID in allTracks
+    const isTrackLink = (l: any) => {
+        if (l.targetType === 'track') return true;
+        if (l.targetTrackId && String(l.targetTrackId).trim().length > 0) return true;
+        const tgt = l.targetTrackId || l.targetSprintId || l.targetId;
+        return Boolean(tgt && findTrack(tgt));
+    };
+
+    const trackLinks = sourceLinks.filter(isTrackLink);
+
+    // =========================================================================
+    // PRIORITY 1: Coded Superior Sprint-to-Track Link (Matched by user click)
+    // =========================================================================
+    const codedTrackLinks = trackLinks.filter(l => {
+        const code = l.optionCode || l.option_code;
+        return code && String(code).trim().length > 0;
+    });
+
+    for (const link of codedTrackLinks) {
+        if (isOptionLinkMatchedByUser(enrollmentA, sourceSprint, link)) {
+            const targetTrackId = link.targetTrackId || link.targetSprintId || link.targetId;
+            const targetTrack = findTrack(targetTrackId);
+            if (targetTrack) {
+                return {
+                    type: 'track',
+                    track: targetTrack,
+                    isSuperior: true,
+                    linkSourceTitle: sourceSprint?.title
+                };
+            }
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 2: Normal (Uncoded) Sprint-to-Track Link
+    // "Track is higher in priority than any form of sprint to sprint linking."
+    // =========================================================================
+    const normalTrackLinks = trackLinks.filter(l => {
+        const code = l.optionCode || l.option_code;
+        return !code || String(code).trim().length === 0;
+    });
+
+    for (const link of normalTrackLinks) {
+        const targetTrackId = link.targetTrackId || link.targetSprintId || link.targetId;
+        const targetTrack = findTrack(targetTrackId);
+        if (targetTrack) {
+            return {
+                type: 'track',
+                track: targetTrack,
+                isSuperior: false,
+                linkSourceTitle: sourceSprint?.title
+            };
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 3 & 4: Sprint-to-Sprint Links (Coded superior, then Normal)
+    // =========================================================================
+    const items = getExploreSprintItems(
+        allPublishedSprints,
+        user,
+        enrolledSprintIds,
+        userEnrollments,
+        sprintLinks,
+        currentOrCompletedSprintId,
+        allPublishedSprints
+    );
+
+    const firstClickableItem = items.find(item => item.isClickable) || items[0];
+    if (firstClickableItem) {
+        return {
+            type: 'sprint',
+            sprint: firstClickableItem.sprint,
+            isSuperior: firstClickableItem.isSuperior,
+            linkSourceTitle: firstClickableItem.linkSourceTitle
+        };
+    }
+
+    // Fallback: First available published sprint
+    const fallback = allPublishedSprints.find(s => !enrolledSprintIds.has(s.id)) || allPublishedSprints[0] || null;
+    if (fallback) {
+        return {
+            type: 'sprint',
+            sprint: fallback,
+            isSuperior: false
+        };
+    }
+
+    return null;
 };
 
 /**

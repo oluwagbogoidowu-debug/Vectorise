@@ -33,9 +33,12 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
     const [sprintLinks, setSprintLinks] = useState<any[]>([]);
+    const [sprintLinkingSubTab, setSprintLinkingSubTab] = useState<'sprint_to_sprint' | 'sprint_to_track'>('sprint_to_sprint');
     const [linkSourceSprintId, setLinkSourceSprintId] = useState<string>('');
     const [linkOptionCode, setLinkOptionCode] = useState<string>('');
     const [linkTargetSprintId, setLinkTargetSprintId] = useState<string>('');
+    const [linkTargetTrackId, setLinkTargetTrackId] = useState<string>('');
+    const [linkFilterType, setLinkFilterType] = useState<'all' | 'sprint' | 'track'>('all');
 
     // RiseBlog linking state
     const [sprintBlogLinks, setSprintBlogLinks] = useState<SprintBlogLink[]>([]);
@@ -118,6 +121,60 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
             setSprintLinks(updatedLinks);
         } catch (err) {
             toast.error("Failed to save sprint link.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSaveSprintTrackLink = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!linkSourceSprintId) {
+            toast.error("Please select a source sprint.");
+            return;
+        }
+        if (!linkTargetTrackId) {
+            toast.error("Please select a target track.");
+            return;
+        }
+
+        const sourceSprint = allSprints.find(s => s.id === linkSourceSprintId);
+        if (!sourceSprint) {
+            toast.error("Source sprint not found.");
+            return;
+        }
+
+        const targetTrack = (allTracks || []).find(t => t.id === linkTargetTrackId);
+        if (!targetTrack) {
+            toast.error("Target track not found.");
+            return;
+        }
+
+        let optionText = `Direct Sprint-to-Track Link (${targetTrack.title})`;
+        if (linkOptionCode && linkOptionCode.trim()) {
+            const parsed = parseOptionCode(linkOptionCode, sourceSprint);
+            optionText = parsed?.optionText || linkOptionCode;
+        }
+
+        setIsSaving(true);
+        try {
+            const newLink = {
+                id: '',
+                sourceSprintId: linkSourceSprintId,
+                optionCode: linkOptionCode ? linkOptionCode.trim() : '',
+                optionText,
+                targetTrackId: linkTargetTrackId,
+                targetSprintId: linkTargetTrackId,
+                targetType: 'track' as const,
+                createdAt: new Date().toISOString()
+            };
+            await sprintService.saveSprintLink(newLink);
+            toast.success(linkOptionCode?.trim() ? "⭐ Superior Coded Track Link (Top Priority) saved!" : "🏁 Normal Track Link (High Priority) saved!");
+            setLinkOptionCode('');
+            setLinkTargetTrackId('');
+            const updatedLinks = await sprintService.getSprintLinks();
+            setSprintLinks(updatedLinks);
+        } catch (err) {
+            toast.error("Failed to save sprint to track link.");
         } finally {
             setIsSaving(false);
         }
@@ -734,225 +791,510 @@ const LifecycleOrchestrator: React.FC<OrchestratorProps> = ({ allSprints, allTra
                     <header className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm relative overflow-hidden">
                         <div className="relative z-10">
                             <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-2 italic">
-                                Sprint-to-Sprint Option Linking
+                                {sprintLinkingSubTab === 'sprint_to_track' ? 'Sprint-to-Track Option Linking' : 'Sprint-to-Sprint Option Linking'}
                             </h2>
                             <p className="text-sm font-medium text-gray-400 italic">
-                                "Map specific option choices within a source sprint to recommended target sprints. When a participant selects that option, the linked sprint becomes their recommended next path."
+                                {sprintLinkingSubTab === 'sprint_to_track' 
+                                    ? '"Map specific option choices within a source sprint to recommended Curated Track Bundles. When a participant triggers this link, the Track Card is featured on their Next Sprint page with top priority over sprint-to-sprint links."'
+                                    : '"Map specific option choices within a source sprint to recommended target sprints. When a participant selects that option, the linked sprint becomes their recommended next path."'}
                             </p>
                         </div>
                     </header>
 
-                    {/* Create Link Card */}
-                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-8">
-                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Create New Sprint Link</h4>
-                        
-                        <form onSubmit={handleSaveSprintLink} className="space-y-6">
-                            {/* 1. Source Sprint Dropdown */}
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">1. Select First Sprint (Source Sprint)</label>
-                                <CustomSelect
-                                    value={linkSourceSprintId}
-                                    onChange={(val) => setLinkSourceSprintId(String(val))}
-                                    options={[
-                                        { value: '', label: '-- Choose Source Sprint --' },
-                                        ...availableSprintsOnly.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
-                                    ]}
-                                    className="w-full"
-                                />
-                            </div>
+                    {/* Sub-Session Navigation */}
+                    <div className="flex flex-wrap gap-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSprintLinkingSubTab('sprint_to_sprint');
+                                setLinkOptionCode('');
+                            }}
+                            className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                                sprintLinkingSubTab === 'sprint_to_sprint'
+                                    ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
+                                    : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                            }`}
+                        >
+                            <span>⚡ Sprint-to-Sprint Linking</span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] bg-white/20">
+                                {sprintLinks.filter(l => l.targetType !== 'track' && !l.targetTrackId && !(allTracks || []).some(t => t.id === l.targetSprintId)).length}
+                            </span>
+                        </button>
 
-                            {/* Source Sprint Active Card Details if selected */}
-                            {linkSourceSprintId && (() => {
-                                const src = allSprints.find(s => s.id === linkSourceSprintId);
-                                if (!src) return null;
-                                return (
-                                    <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center gap-4 animate-fade-in">
-                                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-primary/20 shadow-sm">
-                                            <img src={src.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Active Source Sprint</p>
-                                            <h6 className="text-base font-black text-gray-900">{src.title}</h6>
-                                            <p className="text-xs text-gray-500 mt-0.5">{src.duration} Days • {src.category}</p>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-
-                            {/* 2. Option Code & Proof Display */}
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                        2. Option Code (Optional — e.g. <code className="text-primary font-mono lowercase">{'{m1 step 3 op 3}'}</code>)
-                                    </label>
-                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${linkOptionCode?.trim() ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
-                                        {linkOptionCode?.trim() ? '⭐ Superior Link (1st Priority on Click)' : '🔗 Normal Link (2nd Priority Stage)'}
-                                    </span>
-                                </div>
-                                <input
-                                    type="text"
-                                    value={linkOptionCode}
-                                    onChange={(e) => setLinkOptionCode(e.target.value)}
-                                    placeholder="{m1 step 3 op 3} (Optional)"
-                                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
-                                />
-                                <div className="p-3.5 bg-gray-50 border border-gray-100 rounded-xl space-y-1 text-[11px] text-gray-600">
-                                    <p className="font-bold text-gray-800">2 Different Forms of Linking:</p>
-                                    <p><strong className="text-amber-700">⭐ 1st Priority (Superior with Code):</strong> Put <code className="bg-white px-1.5 py-0.5 rounded border font-mono">{'{m1 step 3 op 3}'}</code>. When the participant clicks this option in the sprint, this linked sprint becomes their #1 top recommendation in Explore.</p>
-                                    <p><strong className="text-blue-700">🔗 2nd Priority Stage (Normal without Code):</strong> Leave blank. Once the participant starts this sprint, this next linked sprint is automatically recorded in Explore as the 2nd priority stage recommendation.</p>
-                                </div>
-                            </div>
-
-                            {/* Actual Text Proof Display */}
-                            {linkSourceSprintId && linkOptionCode && (() => {
-                                const src = allSprints.find(s => s.id === linkSourceSprintId);
-                                if (!src) return null;
-                                const parsed = parseOptionCode(linkOptionCode, src);
-                                if (!parsed) {
-                                    return (
-                                        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
-                                            ⚠️ Could not parse option code or find matching step/poll options in source sprint. Check syntax (e.g. {'{m1 step 3 op 3}'}).
-                                        </div>
-                                    );
-                                }
-                                return (
-                                    <div className="p-5 rounded-2xl bg-green-50 border border-green-200 space-y-1 animate-fade-in">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Actual Text Proof (Matched Option)</p>
-                                            <span className="text-[9px] font-black bg-green-200 text-green-900 px-2 py-0.5 rounded-full">1st Priority on Click</span>
-                                        </div>
-                                        <p className="text-sm font-black text-gray-900">"{parsed.optionText}"</p>
-                                        <p className="text-[10px] font-medium text-green-600">Move/Day {parsed.dayNum}, Step {parsed.stepIdx + 1}, Option {parsed.optionIdx + 1}</p>
-                                    </div>
-                                );
-                            })()}
-
-                            {/* 3. Target Linked Sprint Dropdown */}
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked Sprint (Recommended When Clicked or Started)</label>
-                                <CustomSelect
-                                    value={linkTargetSprintId}
-                                    onChange={(val) => setLinkTargetSprintId(String(val))}
-                                    options={[
-                                        { value: '', label: '-- Choose Target Linked Sprint --' },
-                                        ...availableSprintsOnly.map(s => {
-                                            const isSame = s.id === linkSourceSprintId;
-                                            return {
-                                                value: s.id,
-                                                label: `${s.title} (${s.category})${isSame ? ' — 🔁 [Repeat This Sprint]' : ''}`
-                                            };
-                                        })
-                                    ]}
-                                    className="w-full"
-                                />
-                            </div>
-
-                            {/* Target Sprint Active Card Details if selected */}
-                            {linkTargetSprintId && (() => {
-                                const tgt = allSprints.find(s => s.id === linkTargetSprintId);
-                                if (!tgt) return null;
-                                const isSame = tgt.id === linkSourceSprintId;
-                                return (
-                                    <div className={`p-5 rounded-2xl border flex items-center gap-4 animate-fade-in ${
-                                        isSame 
-                                            ? 'bg-emerald-50/80 border-emerald-200' 
-                                            : 'bg-orange-50 border-orange-100'
-                                    }`}>
-                                        <div className={`w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border shadow-sm ${
-                                            isSame ? 'border-emerald-300' : 'border-orange-200'
-                                        }`}>
-                                            <img src={tgt.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                                        </div>
-                                        <div>
-                                            <p className={`text-[9px] font-black uppercase tracking-widest ${
-                                                isSame ? 'text-emerald-700' : 'text-orange-600'
-                                            }`}>
-                                                {isSame ? '🔁 Direct Repeat Recommendation (Same Sprint)' : 'Linked Target Sprint (Recommendation)'}
-                                            </p>
-                                            <h6 className="text-base font-black text-gray-900">{tgt.title}</h6>
-                                            <p className="text-xs text-gray-500 mt-0.5">{tgt.duration} Days • {tgt.category}</p>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-
-                            <div className="flex justify-end pt-4">
-                                <Button
-                                    type="submit"
-                                    disabled={isSaving}
-                                    className="px-8 py-4 bg-[#0E7850] text-white hover:bg-[#0b5d3e] rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg transition-all active:scale-95"
-                                >
-                                    {isSaving ? 'Saving Link...' : 'Save Sprint Link'}
-                                </Button>
-                            </div>
-                        </form>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSprintLinkingSubTab('sprint_to_track');
+                                setLinkOptionCode('');
+                            }}
+                            className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                                sprintLinkingSubTab === 'sprint_to_track'
+                                    ? 'bg-[#0E7850] text-white shadow-md shadow-[#0E7850]/20 scale-[1.02]'
+                                    : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                            }`}
+                        >
+                            <span>🏁 Sprint-to-Track Linking</span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] bg-white/20">
+                                {sprintLinks.filter(l => l.targetType === 'track' || Boolean(l.targetTrackId) || (allTracks || []).some(t => t.id === l.targetSprintId)).length}
+                            </span>
+                        </button>
                     </div>
 
-                    {/* Existing Links List */}
-                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-6">
-                        <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Configured Sprint Links ({sprintLinks.length})</h4>
-                        
-                        {sprintLinks.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-4">
-                                {sprintLinks.map((link) => {
-                                    const srcSprint = allSprints.find(s => s.id === link.sourceSprintId);
-                                    const tgtSprint = allSprints.find(s => s.id === link.targetSprintId);
-                                    const isCoded = Boolean(link.optionCode && link.optionCode.trim());
+                    {/* SPRINT-TO-SPRINT FORM */}
+                    {sprintLinkingSubTab === 'sprint_to_sprint' && (
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-8">
+                            <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Create New Sprint-to-Sprint Link</h4>
+                            
+                            <form onSubmit={handleSaveSprintLink} className="space-y-6">
+                                {/* 1. Source Sprint Dropdown */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">1. Select First Sprint (Source Sprint)</label>
+                                    <CustomSelect
+                                        value={linkSourceSprintId}
+                                        onChange={(val) => setLinkSourceSprintId(String(val))}
+                                        options={[
+                                            { value: '', label: '-- Choose Source Sprint --' },
+                                            ...availableSprintsOnly.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
+                                        ]}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* Source Sprint Active Card Details if selected */}
+                                {linkSourceSprintId && (() => {
+                                    const src = allSprints.find(s => s.id === linkSourceSprintId);
+                                    if (!src) return null;
                                     return (
-                                        <div key={link.id} className="p-6 rounded-3xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                                            <div className="flex items-center gap-5 min-w-0">
-                                                <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-200 shadow-sm">
-                                                    <img src={srcSprint?.coverImageUrl || ''} className="w-full h-full object-cover" alt="" />
+                                        <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center gap-4 animate-fade-in">
+                                            <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-primary/20 shadow-sm">
+                                                <img src={src.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] font-black text-primary uppercase tracking-widest">Active Source Sprint</p>
+                                                <h6 className="text-base font-black text-gray-900">{src.title}</h6>
+                                                <p className="text-xs text-gray-500 mt-0.5">{src.duration} Days • {src.category}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* 2. Option Code & Proof Display */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                            2. Option Code (Optional — e.g. <code className="text-primary font-mono lowercase">{'{m1 step 3 op 3}'}</code>)
+                                        </label>
+                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${linkOptionCode?.trim() ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                                            {linkOptionCode?.trim() ? '⭐ Superior Link (1st Priority on Click)' : '🔗 Normal Link (2nd Priority Stage)'}
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={linkOptionCode}
+                                        onChange={(e) => setLinkOptionCode(e.target.value)}
+                                        placeholder="{m1 step 3 op 3} (Optional)"
+                                        className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
+                                    />
+                                    <div className="p-3.5 bg-gray-50 border border-gray-100 rounded-xl space-y-1 text-[11px] text-gray-600">
+                                        <p className="font-bold text-gray-800">2 Different Forms of Linking:</p>
+                                        <p><strong className="text-amber-700">⭐ 1st Priority (Superior with Code):</strong> Put <code className="bg-white px-1.5 py-0.5 rounded border font-mono">{'{m1 step 3 op 3}'}</code>. When the participant clicks this option in the sprint, this linked sprint becomes their #1 top recommendation in Explore.</p>
+                                        <p><strong className="text-blue-700">🔗 2nd Priority Stage (Normal without Code):</strong> Leave blank. Once the participant starts this sprint, this next linked sprint is automatically recorded in Explore as the 2nd priority stage recommendation.</p>
+                                    </div>
+                                </div>
+
+                                {/* Actual Text Proof Display */}
+                                {linkSourceSprintId && linkOptionCode && (() => {
+                                    const src = allSprints.find(s => s.id === linkSourceSprintId);
+                                    if (!src) return null;
+                                    const parsed = parseOptionCode(linkOptionCode, src);
+                                    if (!parsed) {
+                                        return (
+                                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
+                                                ⚠️ Could not parse option code or find matching step/poll options in source sprint. Check syntax (e.g. {'{m1 step 3 op 3}'}).
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className="p-5 rounded-2xl bg-green-50 border border-green-200 space-y-1 animate-fade-in">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Actual Text Proof (Matched Option)</p>
+                                                <span className="text-[9px] font-black bg-green-200 text-green-900 px-2 py-0.5 rounded-full">1st Priority on Click</span>
+                                            </div>
+                                            <p className="text-sm font-black text-gray-900">"{parsed.optionText}"</p>
+                                            <p className="text-[10px] font-medium text-green-600">Move/Day {parsed.dayNum}, Step {parsed.stepIdx + 1}, Option {parsed.optionIdx + 1}</p>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* 3. Target Linked Sprint Dropdown */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Linked Sprint (Recommended When Clicked or Started)</label>
+                                    <CustomSelect
+                                        value={linkTargetSprintId}
+                                        onChange={(val) => setLinkTargetSprintId(String(val))}
+                                        options={[
+                                            { value: '', label: '-- Choose Target Linked Sprint --' },
+                                            ...availableSprintsOnly.map(s => {
+                                                const isSame = s.id === linkSourceSprintId;
+                                                return {
+                                                    value: s.id,
+                                                    label: `${s.title} (${s.category})${isSame ? ' — 🔁 [Repeat This Sprint]' : ''}`
+                                                };
+                                            })
+                                        ]}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* Target Sprint Active Card Details if selected */}
+                                {linkTargetSprintId && (() => {
+                                    const tgt = allSprints.find(s => s.id === linkTargetSprintId);
+                                    if (!tgt) return null;
+                                    const isSame = tgt.id === linkSourceSprintId;
+                                    return (
+                                        <div className={`p-5 rounded-2xl border flex items-center gap-4 animate-fade-in ${
+                                            isSame 
+                                                ? 'bg-emerald-50/80 border-emerald-200' 
+                                                : 'bg-orange-50 border-orange-100'
+                                        }`}>
+                                            <div className={`w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border shadow-sm ${
+                                                isSame ? 'border-emerald-300' : 'border-orange-200'
+                                            }`}>
+                                                <img src={tgt.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                            </div>
+                                            <div>
+                                                <p className={`text-[9px] font-black uppercase tracking-widest ${
+                                                    isSame ? 'text-emerald-700' : 'text-orange-600'
+                                                }`}>
+                                                    {isSame ? '🔁 Direct Repeat Recommendation (Same Sprint)' : 'Linked Target Sprint (Recommendation)'}
+                                                </p>
+                                                <h6 className="text-base font-black text-gray-900">{tgt.title}</h6>
+                                                <p className="text-xs text-gray-500 mt-0.5">{tgt.duration} Days • {tgt.category}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                <div className="flex justify-end pt-4">
+                                    <Button
+                                        type="submit"
+                                        disabled={isSaving}
+                                        className="px-8 py-4 bg-[#0E7850] text-white hover:bg-[#0b5d3e] rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg transition-all active:scale-95"
+                                    >
+                                        {isSaving ? 'Saving Link...' : 'Save Sprint Link'}
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* SPRINT-TO-TRACK FORM */}
+                    {sprintLinkingSubTab === 'sprint_to_track' && (
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-8 animate-fade-in">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-lg font-black text-gray-900 tracking-tight italic">Create New Sprint-to-Track Link</h4>
+                                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                    ⭐ Track Priority Over Sprints
+                                </span>
+                            </div>
+                            
+                            <form onSubmit={handleSaveSprintTrackLink} className="space-y-6">
+                                {/* 1. Source Sprint Dropdown */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">1. Select First Sprint (Source Sprint)</label>
+                                    <CustomSelect
+                                        value={linkSourceSprintId}
+                                        onChange={(val) => setLinkSourceSprintId(String(val))}
+                                        options={[
+                                            { value: '', label: '-- Choose Source Sprint --' },
+                                            ...availableSprintsOnly.map(s => ({ value: s.id, label: `${s.title} (${s.category})` }))
+                                        ]}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* Source Sprint Active Card Details if selected */}
+                                {linkSourceSprintId && (() => {
+                                    const src = allSprints.find(s => s.id === linkSourceSprintId);
+                                    if (!src) return null;
+                                    return (
+                                        <div className="p-5 rounded-2xl bg-primary/5 border border-primary/10 flex items-center gap-4 animate-fade-in">
+                                            <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-primary/20 shadow-sm">
+                                                <img src={src.coverImageUrl} className="w-full h-full object-cover" alt="" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[9px] font-black text-primary uppercase tracking-widest">Active Source Sprint</p>
+                                                <h6 className="text-base font-black text-gray-900">{src.title}</h6>
+                                                <p className="text-xs text-gray-500 mt-0.5">{src.duration} Days • {src.category}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* 2. Option Code & Proof Display */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                            2. Option Code (Optional — e.g. <code className="text-primary font-mono lowercase">{'{m1 step 3 op 3}'}</code>)
+                                        </label>
+                                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${linkOptionCode?.trim() ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                            {linkOptionCode?.trim() ? '⭐ Superior Track Link (1st Priority on Click)' : '🏁 Normal Track Link (High Priority on Start)'}
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={linkOptionCode}
+                                        onChange={(e) => setLinkOptionCode(e.target.value)}
+                                        placeholder="{m1 step 3 op 3} (Optional)"
+                                        className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-4 focus:ring-primary/10 transition-all font-mono"
+                                    />
+                                    <div className="p-4 bg-emerald-50/70 border border-emerald-100 rounded-2xl space-y-1.5 text-[11px] text-gray-700">
+                                        <p className="font-black text-emerald-950 uppercase tracking-wider text-[10px]">Track Recommendation Priority Rule:</p>
+                                        <p><strong className="text-emerald-900">👑 Track Priority:</strong> When a Track is linked, the Track Card is displayed in the <em>Your Next Sprint</em> page instead of standard sprint cards.</p>
+                                        <p><strong className="text-amber-800">⭐ 1st Priority (Superior with Code):</strong> Put <code className="bg-white px-1.5 py-0.5 rounded border font-mono">{'{m1 step 3 op 3}'}</code>. When the participant clicks this option, this Track Card instantly becomes their top recommendation.</p>
+                                        <p><strong className="text-emerald-800">🏁 2nd Priority Stage (Normal without Code):</strong> Leave blank. Once the participant starts the source sprint, this Track Card takes precedence over sprint-to-sprint links.</p>
+                                    </div>
+                                </div>
+
+                                {/* Actual Text Proof Display */}
+                                {linkSourceSprintId && linkOptionCode && (() => {
+                                    const src = allSprints.find(s => s.id === linkSourceSprintId);
+                                    if (!src) return null;
+                                    const parsed = parseOptionCode(linkOptionCode, src);
+                                    if (!parsed) {
+                                        return (
+                                            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">
+                                                ⚠️ Could not parse option code or find matching step/poll options in source sprint. Check syntax (e.g. {'{m1 step 3 op 3}'}).
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className="p-5 rounded-2xl bg-green-50 border border-green-200 space-y-1 animate-fade-in">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-[9px] font-black text-green-700 uppercase tracking-widest">Actual Text Proof (Matched Option)</p>
+                                                <span className="text-[9px] font-black bg-green-200 text-green-900 px-2 py-0.5 rounded-full">1st Priority on Click</span>
+                                            </div>
+                                            <p className="text-sm font-black text-gray-900">"{parsed.optionText}"</p>
+                                            <p className="text-[10px] font-medium text-green-600">Move/Day {parsed.dayNum}, Step {parsed.stepIdx + 1}, Option {parsed.optionIdx + 1}</p>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* 3. Target Linked Track Dropdown */}
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">3. Select Target Curated Track Bundle</label>
+                                    <CustomSelect
+                                        value={linkTargetTrackId}
+                                        onChange={(val) => setLinkTargetTrackId(String(val))}
+                                        options={[
+                                            { value: '', label: '-- Choose Target Track Bundle --' },
+                                            ...(allTracks || []).map(t => ({
+                                                value: t.id,
+                                                label: `🏁 ${t.title} (${(t.sprintIds || []).length} Sprints • SAVE ${t.discountPercentage || 0}%)`
+                                            }))
+                                        ]}
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* Target Track Active Card Details if selected */}
+                                {linkTargetTrackId && (() => {
+                                    const tgtTrack = (allTracks || []).find(t => t.id === linkTargetTrackId);
+                                    if (!tgtTrack) return null;
+                                    const bundledSprints = allSprints.filter(s => (tgtTrack.sprintIds || []).includes(s.id));
+                                    return (
+                                        <div className="p-6 rounded-3xl bg-emerald-50/70 border border-emerald-200 space-y-4 animate-fade-in">
+                                            <div className="flex items-center gap-5">
+                                                <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 border border-emerald-200 shadow-sm">
+                                                    <img src={tgtTrack.coverImageUrl || 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80'} className="w-full h-full object-cover" alt="" />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                        <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[8px] font-black uppercase tracking-widest">{srcSprint?.title || 'Unknown Source'}</span>
-                                                        <span className="text-gray-300">→</span>
-                                                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
-                                                            srcSprint?.id === tgtSprint?.id 
-                                                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
-                                                                : 'bg-orange-100 text-orange-700'
-                                                        }`}>
-                                                            {srcSprint?.id === tgtSprint?.id ? '🔁 Repeat Sprint' : (tgtSprint?.title || 'Unknown Target')}
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className="px-2.5 py-0.5 bg-emerald-600 text-white rounded-full text-[8px] font-black uppercase tracking-widest">
+                                                            🏁 Curated Track Bundle
                                                         </span>
-                                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
-                                                            isCoded ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-blue-100 text-blue-800'
-                                                        }`}>
-                                                            {isCoded ? '⭐ 1st Priority (Coded Link)' : '🔗 2nd Priority (Normal Link)'}
-                                                        </span>
+                                                        {tgtTrack.discountPercentage > 0 && (
+                                                            <span className="px-2 py-0.5 bg-amber-400 text-amber-950 rounded-full text-[8px] font-black uppercase tracking-widest">
+                                                                SAVE {tgtTrack.discountPercentage}%
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    <p className="text-xs font-black text-gray-900 font-mono bg-white px-2.5 py-1 rounded-xl border border-gray-200 inline-block">
-                                                        {link.optionCode || 'Direct Sprint Link (No Option Code)'}
-                                                    </p>
-                                                    <p className="text-xs font-bold text-gray-600 mt-1 italic">
-                                                        {isCoded ? `Proof: "${link.optionText}"` : 'Active upon starting source sprint'}
-                                                    </p>
+                                                    <h6 className="text-lg font-black text-gray-900 leading-tight">{tgtTrack.title}</h6>
+                                                    <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">{tgtTrack.subtitle || 'Complete bundled pathway'}</p>
                                                 </div>
                                             </div>
 
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    if (window.confirm("Are you sure you want to delete this sprint link?")) {
-                                                        await sprintService.deleteSprintLink(link.id);
-                                                        setSprintLinks(await sprintService.getSprintLinks());
-                                                        toast.success("Sprint link deleted.");
-                                                    }
-                                                }}
-                                                className="px-4 py-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
-                                            >
-                                                Delete Link
-                                            </button>
+                                            {bundledSprints.length > 0 && (
+                                                <div className="pt-3 border-t border-emerald-200/60">
+                                                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-800 mb-2">
+                                                        Bundled Sprints ({bundledSprints.length}):
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {bundledSprints.map((bs, i) => (
+                                                            <span key={bs.id} className="px-2.5 py-1 bg-white border border-emerald-100 rounded-xl text-[10px] font-bold text-gray-800 flex items-center gap-1.5 shadow-2xs">
+                                                                <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[8px] font-black">{i + 1}</span>
+                                                                {bs.title}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     );
-                                })}
+                                })()}
+
+                                <div className="flex justify-end pt-4">
+                                    <Button
+                                        type="submit"
+                                        disabled={isSaving}
+                                        className="px-8 py-4 bg-[#0E7850] text-white hover:bg-[#0b5d3e] rounded-2xl text-xs font-black uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                    >
+                                        <span>🏁</span>
+                                        <span>{isSaving ? 'Saving Track Link...' : 'Save Sprint-to-Track Link'}</span>
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* Existing Links List */}
+                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 shadow-sm space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <h4 className="text-lg font-black text-gray-900 tracking-tight italic">
+                                Configured Links ({sprintLinks.length})
+                            </h4>
+
+                            {/* Filter Tabs */}
+                            <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setLinkFilterType('all')}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                                        linkFilterType === 'all'
+                                            ? 'bg-white text-gray-900 shadow-xs'
+                                            : 'text-gray-400 hover:text-gray-700'
+                                    }`}
+                                >
+                                    All ({sprintLinks.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setLinkFilterType('sprint')}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                                        linkFilterType === 'sprint'
+                                            ? 'bg-primary text-white shadow-xs'
+                                            : 'text-gray-400 hover:text-gray-700'
+                                    }`}
+                                >
+                                    ⚡ Sprints ({sprintLinks.filter(l => l.targetType !== 'track' && !l.targetTrackId && !(allTracks || []).some(t => t.id === l.targetSprintId)).length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setLinkFilterType('track')}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                                        linkFilterType === 'track'
+                                            ? 'bg-[#0E7850] text-white shadow-xs'
+                                            : 'text-gray-400 hover:text-gray-700'
+                                    }`}
+                                >
+                                    🏁 Tracks ({sprintLinks.filter(l => l.targetType === 'track' || Boolean(l.targetTrackId) || (allTracks || []).some(t => t.id === l.targetSprintId)).length})
+                                </button>
                             </div>
-                        ) : (
-                            <div className="py-12 text-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
-                                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No Sprint Links Configured Yet</p>
-                                <p className="text-[10px] text-gray-300 mt-1">Use the form above to link a source sprint option to a target recommended sprint.</p>
-                            </div>
-                        )}
+                        </div>
+                        
+                        {(() => {
+                            const filteredLinks = sprintLinks.filter(link => {
+                                const isTrack = link.targetType === 'track' || Boolean(link.targetTrackId) || (allTracks || []).some(t => t.id === link.targetSprintId);
+                                if (linkFilterType === 'sprint') return !isTrack;
+                                if (linkFilterType === 'track') return isTrack;
+                                return true;
+                            });
+
+                            if (filteredLinks.length === 0) {
+                                return (
+                                    <div className="py-12 text-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">No Links Configured Yet</p>
+                                        <p className="text-[10px] text-gray-300 mt-1">Use the form above to link a source sprint option to a target sprint or track.</p>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="grid grid-cols-1 gap-4">
+                                    {filteredLinks.map((link) => {
+                                        const srcSprint = allSprints.find(s => s.id === link.sourceSprintId);
+                                        const isTrack = link.targetType === 'track' || Boolean(link.targetTrackId) || (allTracks || []).some(t => t.id === link.targetSprintId);
+                                        const tgtTrack = isTrack ? (allTracks || []).find(t => t.id === (link.targetTrackId || link.targetSprintId)) : null;
+                                        const tgtSprint = !isTrack ? allSprints.find(s => s.id === link.targetSprintId) : null;
+                                        const isCoded = Boolean(link.optionCode && link.optionCode.trim());
+
+                                        return (
+                                            <div key={link.id} className="p-6 rounded-3xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                                                <div className="flex items-center gap-5 min-w-0">
+                                                    <div className="w-12 h-12 rounded-2xl overflow-hidden flex-shrink-0 border border-gray-200 shadow-sm">
+                                                        <img src={srcSprint?.coverImageUrl || ''} className="w-full h-full object-cover" alt="" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md text-[8px] font-black uppercase tracking-widest">
+                                                                {srcSprint?.title || 'Unknown Source'}
+                                                            </span>
+                                                            <span className="text-gray-300">→</span>
+                                                            {isTrack ? (
+                                                                <span className="px-2.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-900 border border-emerald-200 flex items-center gap-1">
+                                                                    <span>🏁 Track:</span>
+                                                                    <span>{tgtTrack?.title || 'Unknown Track'}</span>
+                                                                    {tgtTrack && (
+                                                                        <span className="text-[7px] opacity-75 font-normal">({(tgtTrack.sprintIds || []).length} Sprints)</span>
+                                                                    )}
+                                                                </span>
+                                                            ) : (
+                                                                <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                                                    srcSprint?.id === tgtSprint?.id 
+                                                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                                                                        : 'bg-orange-100 text-orange-700'
+                                                                }`}>
+                                                                    {srcSprint?.id === tgtSprint?.id ? '🔁 Repeat Sprint' : (tgtSprint?.title || 'Unknown Target')}
+                                                                </span>
+                                                            )}
+                                                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                                                isCoded 
+                                                                    ? 'bg-amber-100 text-amber-900 border border-amber-200' 
+                                                                    : isTrack
+                                                                        ? 'bg-emerald-100 text-emerald-800'
+                                                                        : 'bg-blue-100 text-blue-800'
+                                                            }`}>
+                                                                {isCoded ? '⭐ 1st Priority (Coded Link)' : isTrack ? '🏁 High Priority (Track Link)' : '🔗 2nd Priority (Normal Link)'}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs font-black text-gray-900 font-mono bg-white px-2.5 py-1 rounded-xl border border-gray-200 inline-block">
+                                                            {link.optionCode || (isTrack ? 'Direct Sprint-to-Track Link' : 'Direct Sprint Link (No Option Code)')}
+                                                        </p>
+                                                        <p className="text-xs font-bold text-gray-600 mt-1 italic">
+                                                            {isCoded ? `Proof: "${link.optionText}"` : 'Active upon starting source sprint'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        if (window.confirm("Are you sure you want to delete this link?")) {
+                                                            await sprintService.deleteSprintLink(link.id);
+                                                            setSprintLinks(await sprintService.getSprintLinks());
+                                                            toast.success("Link deleted.");
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                                                >
+                                                    Delete Link
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
                     </div>
                 </main>
             ) : (

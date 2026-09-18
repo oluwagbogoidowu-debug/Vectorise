@@ -789,7 +789,9 @@ export interface SprintLink {
   sourceSprintId: string;
   optionCode: string;
   optionText: string;
-  targetSprintId: string;
+  targetSprintId?: string;
+  targetTrackId?: string;
+  targetType?: 'sprint' | 'track';
   createdAt: string;
 }
 
