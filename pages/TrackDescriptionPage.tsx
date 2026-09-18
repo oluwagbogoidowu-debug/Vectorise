@@ -13,6 +13,8 @@ import DynamicSectionRenderer from '../components/DynamicSectionRenderer';
 import LocalLogo from '../components/LocalLogo';
 import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar, Plus, Minus } from 'lucide-react';
 import { getSprintCashPrice } from '../utils/sprintUtils';
+import { paymentService } from '../services/paymentService';
+import { toast } from 'sonner';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h2 className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-6">
@@ -122,7 +124,7 @@ const TrackDescriptionPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     const [guestEmail, setGuestEmail] = useState('');
-    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
     const [emailError, setEmailError] = useState('');
 
     const [imageError, setImageError] = useState(false);
@@ -168,41 +170,54 @@ const TrackDescriptionPage: React.FC = () => {
     const handleJoinClick = async () => {
         if (!track) return;
         
-        if (!user) {
-            if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
-                setEmailError("Please enter a valid email to continue.");
+        let effectiveEmail = '';
+        let traceId = '';
+        let userName = '';
+
+        if (user) {
+            effectiveEmail = (user.email || '').trim().toLowerCase();
+            traceId = user.id;
+            userName = user.name || 'Vectorise User';
+        } else {
+            if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+                setEmailError("Please enter a valid email to proceed to payment.");
                 return;
             }
-
-            setIsCheckingEmail(true);
-            setEmailError('');
-            try {
-                const emailExists = await userService.checkEmailExists(guestEmail);
-                if (emailExists) {
-                    // User exists, must login
-                    analyticsTracker.trackEvent('track_intent_captured', { track_id: trackId, existing_user: true }, undefined, guestEmail);
-                    navigate('/login', { state: { prefilledEmail: guestEmail, targetTrackId: track.id } });
-                } else {
-                    // New/guest user, proceed directly to day one preview of the first sprint in track
-                    analyticsTracker.trackEvent('track_intent_captured', { track_id: trackId, existing_user: false }, undefined, guestEmail);
-                    const firstSprintId = sprints[0]?.id;
-                    if (firstSprintId) {
-                        navigate(`/sprint/preview/${firstSprintId}`, { state: { trackId: track.id, track: track, prefilledEmail: guestEmail } });
-                    } else {
-                        navigate('/onboarding/commitment', { state: { trackId: track.id, track: track, prefilledEmail: guestEmail } });
-                    }
-                }
-            } catch (err) {
-                console.error("Error checking email:", err);
-                setEmailError("Something went wrong. Please try again.");
-            } finally {
-                setIsCheckingEmail(false);
-            }
-            return;
+            effectiveEmail = guestEmail.trim().toLowerCase();
+            traceId = `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
+            userName = 'Vectorise Guest';
         }
 
-        analyticsTracker.trackEvent('track_intent_captured', { track_id: trackId }, user?.id);
-        navigate('/onboarding/commitment', { state: { trackId: track.id, track: track } });
+        setIsProcessingPayment(true);
+        setEmailError('');
+
+        const amountToPay = Math.round(discountedPrice);
+
+        try {
+            analyticsTracker.trackEvent('track_payment_initiated', { track_id: track.id, amount: amountToPay }, user?.id, effectiveEmail);
+
+            const payload = {
+                userId: traceId,
+                email: effectiveEmail,
+                trackId: track.id,
+                amount: amountToPay,
+                currency: "NGN",
+                name: userName
+            };
+
+            const checkoutUrl = await paymentService.initializeFlutterwave(payload);
+            if (checkoutUrl) {
+                window.location.href = checkoutUrl;
+            } else {
+                throw new Error("Payment link not received.");
+            }
+        } catch (err: any) {
+            console.error("Error initiating track payment:", err);
+            const msg = err.message || "Unable to reach the payment gateway. Please try again.";
+            setEmailError(msg);
+            toast.error(msg);
+            setIsProcessingPayment(false);
+        }
     };
 
     if (isLoading) {
@@ -432,11 +447,11 @@ const TrackDescriptionPage: React.FC = () => {
                                 )}
                                 <Button 
                                     onClick={handleJoinClick} 
-                                    isLoading={isCheckingEmail}
+                                    isLoading={isProcessingPayment}
                                     className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.25em] font-black group/btn"
                                 >
-                                    Unlock Track Bundle 
-                                    <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                                    {isProcessingPayment ? "Redirecting to Payment..." : "Unlock Track Bundle"}
+                                    {!isProcessingPayment && <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />}
                                 </Button>
                                 
                                 <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
