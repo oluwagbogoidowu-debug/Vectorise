@@ -10,6 +10,7 @@ import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sprint, Track, Participant, GlobalOrchestrationSettings } from '../../types';
+import { getSprintCashPrice } from '../../utils/sprintUtils';
 
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ const SprintPayment: React.FC = () => {
   
   const getPrice = () => {
       if (selectedTrack) {
-          const total = trackSprints.reduce((sum, s) => sum + (s.price || 0), 0);
+          const total = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
           return total * (1 - selectedTrack.discountPercentage / 100);
       }
       return isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 3000);

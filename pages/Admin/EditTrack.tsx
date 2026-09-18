@@ -6,10 +6,11 @@ import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { Sprint, Track } from '../../types';
 import Button from '../../components/Button';
-import { List, Plus, Trash2, Search, Package, Save, AlertTriangle } from 'lucide-react';
+import { List, Plus, Trash2, Search, Package, Save, AlertTriangle, Copy, Check, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { adminCache } from './adminCache';
+import { getSprintCashPrice } from '../../utils/sprintUtils';
 
 const EditTrack: React.FC = () => {
     const { trackId } = useParams();
@@ -21,6 +22,21 @@ const EditTrack: React.FC = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCopied, setIsCopied] = useState(false);
+
+    const handleCopyLink = async () => {
+        if (!trackId) return;
+        const url = `${window.location.origin}/track/${trackId}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setIsCopied(true);
+            toast.success('Track link copied to clipboard!');
+            setTimeout(() => setIsCopied(false), 2000);
+        } catch (error) {
+            console.error('Failed to copy track link:', error);
+            toast.error('Failed to copy track link');
+        }
+    };
 
     const [formData, setFormData] = useState({
         title: '',
@@ -75,7 +91,7 @@ const EditTrack: React.FC = () => {
     }, [sprints, formData.sprintIds]);
 
     const totalPrice = useMemo(() => {
-        return selectedSprints.reduce((sum, s) => sum + (s.price || 0), 0);
+        return selectedSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
     }, [selectedSprints]);
 
     const discountedPrice = useMemo(() => {
@@ -213,14 +229,38 @@ const EditTrack: React.FC = () => {
                             <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Update Platform Bundle</p>
                         </div>
                     </div>
-                    <button 
-                        type="button"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="px-6 py-3 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                        Delete Track
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button 
+                            type="button"
+                            onClick={handleCopyLink}
+                            className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 ${
+                                isCopied 
+                                    ? 'bg-green-50 text-green-600 border border-green-200' 
+                                    : 'bg-white border border-gray-200 text-gray-700 hover:text-primary hover:border-primary/30 shadow-2xs'
+                            }`}
+                            title="Copy Track Landing Page Link"
+                        >
+                            {isCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                            <span>{isCopied ? 'Link Copied!' : 'Copy Link'}</span>
+                        </button>
+                        <a 
+                            href={`/track/${trackId}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="px-5 py-3 bg-white border border-gray-200 text-gray-700 hover:text-primary hover:border-primary/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-2xs"
+                        >
+                            <Eye className="w-4 h-4" />
+                            <span>Preview</span>
+                        </a>
+                        <button 
+                            type="button"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="px-6 py-3 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Delete Track
+                        </button>
+                    </div>
                 </header>
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
@@ -361,7 +401,7 @@ const EditTrack: React.FC = () => {
                                             </div>
                                             <div className="text-left">
                                                 <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1">{s.title}</p>
-                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{s.duration} Days • {s.price.toLocaleString()} {s.currency}</p>
+                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{s.duration} Days • {getSprintCashPrice(s).toLocaleString()} {s.currency || 'NGN'}</p>
                                             </div>
                                         </div>
                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${formData.sprintIds.includes(s.id) ? 'bg-primary border-primary text-white' : 'border-gray-100 text-transparent group-hover:border-primary/30'}`}>

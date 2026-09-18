@@ -9,6 +9,7 @@ import Button from '../../components/Button';
 import { List, Plus, Trash2, Search, Package } from 'lucide-react';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { adminCache } from './adminCache';
+import { getSprintCashPrice } from '../../utils/sprintUtils';
 
 const CreateTrack: React.FC = () => {
     const navigate = useNavigate();
@@ -47,7 +48,7 @@ const CreateTrack: React.FC = () => {
     }, [sprints, formData.sprintIds]);
 
     const totalPrice = useMemo(() => {
-        return selectedSprints.reduce((sum, s) => sum + (s.price || 0), 0);
+        return selectedSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
     }, [selectedSprints]);
 
     const discountedPrice = useMemo(() => {
@@ -240,7 +241,7 @@ const CreateTrack: React.FC = () => {
                                             </div>
                                             <div className="text-left">
                                                 <p className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1">{s.title}</p>
-                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{s.duration} Days • {s.price.toLocaleString()} {s.currency}</p>
+                                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{s.duration} Days • {getSprintCashPrice(s).toLocaleString()} {s.currency || 'NGN'}</p>
                                             </div>
                                         </div>
                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${formData.sprintIds.includes(s.id) ? 'bg-primary border-primary text-white' : 'border-gray-100 text-transparent group-hover:border-primary/30'}`}>

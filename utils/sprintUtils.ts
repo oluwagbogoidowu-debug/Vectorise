@@ -967,3 +967,33 @@ export const getEffectiveSprintPricing = (
     };
 };
 
+export const COIN_NAIRA_RATE = 20;
+
+/**
+ * Returns the cash equivalent price (in NGN) for a sprint.
+ * Each coin is worth 20 Naira.
+ * If the sprint is priced in credits/coins (or has 0 cash price and pointCost > 0),
+ * the cash equivalent is pointCost * 20 Naira.
+ */
+export const getSprintCashPrice = (sprint?: Sprint | null): number => {
+    if (!sprint) return 0;
+    
+    // Explicit credit/coin pricing
+    if (sprint.pricingType === 'credits') {
+        const coins = sprint.pointCost ?? 0;
+        return coins * COIN_NAIRA_RATE;
+    }
+    
+    // If standard cash price is explicitly defined (> 0) and not credit type
+    if (sprint.price !== undefined && sprint.price !== null && sprint.price > 0) {
+        return sprint.price;
+    }
+    
+    // If cash price is 0 or undefined, but pointCost (coin cost) is defined (> 0)
+    if (sprint.pointCost !== undefined && sprint.pointCost !== null && sprint.pointCost > 0) {
+        return sprint.pointCost * COIN_NAIRA_RATE;
+    }
+    
+    return sprint.price || 0;
+};
+

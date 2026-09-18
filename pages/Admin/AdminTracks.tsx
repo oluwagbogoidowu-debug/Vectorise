@@ -5,9 +5,10 @@ import { Track, Sprint } from '../../types';
 import { trackService } from '../../services/trackService';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
-import { Edit2, Trash2, Eye, Package, AlertTriangle } from 'lucide-react';
+import { Edit2, Trash2, Eye, Package, AlertTriangle, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminCache } from './adminCache';
+import { getSprintCashPrice } from '../../utils/sprintUtils';
 
 const AdminTracks: React.FC = () => {
     const navigate = useNavigate();
@@ -16,6 +17,22 @@ const AdminTracks: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    const handleCopyLink = async (trackId: string) => {
+        const url = `${window.location.origin}/track/${trackId}`;
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopiedId(trackId);
+            toast.success('Track link copied to clipboard!');
+            setTimeout(() => {
+                setCopiedId((prev) => (prev === trackId ? null : prev));
+            }, 2000);
+        } catch (error) {
+            console.error('Failed to copy track link:', error);
+            toast.error('Failed to copy track link');
+        }
+    };
 
     const handleDelete = async (id: string) => {
         setIsDeleting(true);
@@ -136,7 +153,7 @@ const AdminTracks: React.FC = () => {
             <div className="grid grid-cols-1 gap-4">
                 {tracks.length > 0 ? tracks.map(track => {
                     const trackSprints = sprints.filter(s => track.sprintIds?.includes(s.id));
-                    const totalValue = trackSprints.reduce((sum, s) => sum + (s.price || 0), 0);
+                    const totalValue = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
                     const discountedPrice = totalValue * (1 - track.discountPercentage / 100);
 
                     return (
@@ -184,6 +201,21 @@ const AdminTracks: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleCopyLink(track.id)}
+                                    className={`p-3 rounded-xl transition-all ${
+                                        copiedId === track.id
+                                            ? 'bg-green-50 text-green-600'
+                                            : 'bg-gray-50 text-gray-400 hover:text-primary'
+                                    }`}
+                                    title="Copy Track Description Page Link"
+                                >
+                                    {copiedId === track.id ? (
+                                        <Check className="w-4 h-4 text-green-600 animate-scale-in" />
+                                    ) : (
+                                        <Copy className="w-4 h-4" />
+                                    )}
+                                </button>
                                 <Link to={`/admin/track/edit/${track.id}`}>
                                     <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="Edit Track">
                                         <Edit2 className="w-4 h-4" />

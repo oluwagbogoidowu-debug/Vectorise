@@ -12,6 +12,7 @@ import FormattedText from '../components/FormattedText';
 import DynamicSectionRenderer from '../components/DynamicSectionRenderer';
 import LocalLogo from '../components/LocalLogo';
 import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar, Plus, Minus } from 'lucide-react';
+import { getSprintCashPrice } from '../utils/sprintUtils';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h2 className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-6">
@@ -156,7 +157,7 @@ const TrackDescriptionPage: React.FC = () => {
     }, [track?.coverImageUrl]);
 
     const totalPrice = useMemo(() => {
-        return sprints.reduce((sum, s) => sum + (s.price || 0), 0);
+        return sprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
     }, [sprints]);
 
     const discountedPrice = useMemo(() => {

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Track, Sprint } from '../types';
 import { Package, ArrowRight } from 'lucide-react';
 import { sprintService } from '../services/sprintService';
+import { getSprintCashPrice } from '../utils/sprintUtils';
 
 interface TrackCardProps {
     track: Track;
@@ -33,7 +34,7 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
     }, [track.sprintIds, sprints]);
 
     const trackSprints = fetchedSprints.length > 0 ? fetchedSprints : (sprints || []).filter(s => track.sprintIds.includes(s.id));
-    const totalValue = trackSprints.reduce((sum, s) => sum + (s.price || 0), 0);
+    const totalValue = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
     const discountedPrice = totalValue * (1 - track.discountPercentage / 100);
 
     return (
