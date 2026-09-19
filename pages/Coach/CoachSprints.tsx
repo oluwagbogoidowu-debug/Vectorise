@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sprint, Coach, Review } from '../../types';
+import { Sprint, Coach, Review, ChallengeType, ChallengeCategory } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { assetService } from '../../services/assetService';
 import Button from '../../components/Button';
-import { Eye, Flame, BookOpen, Sparkles, Save, Share2, Trophy, Info, Star, Heart } from 'lucide-react';
+import { Eye, Flame, BookOpen, Sparkles, Save, Share2, Trophy, Info, Star, Heart, Repeat, ListOrdered, Link2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import CustomSelect from '../../components/CustomSelect';
 import CreateTypeModal from '../../components/CreateTypeModal';
 import SprintReviewsModal from '../../components/SprintReviewsModal';
+import { CHALLENGE_TYPES, CHALLENGE_CATEGORIES } from '../../constants/sprintConstants';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -1025,22 +1026,198 @@ const EditIgniteModal: React.FC<{
   );
 };
 
-const CoachSprints: React.FC = () =>
-                                 {
+const EditChallengeModal: React.FC<{
+  challenge: Sprint;
+  availableSprints: Sprint[];
+  onClose: () => void;
+  onSave: (updated: Partial<Sprint>) => Promise<void>;
+  isSaving: boolean;
+}> = ({ challenge, availableSprints, onClose, onSave, isSaving }) => {
+  const [name, setName] = useState(challenge.challengeData?.name || challenge.title || '');
+  const [type, setType] = useState<ChallengeType>(challenge.challengeType || (challenge.challengeData?.type as ChallengeType) || 'Repetition');
+  const [category, setCategory] = useState<ChallengeCategory>((challenge.challengeCategory as ChallengeCategory) || (challenge.category as ChallengeCategory) || 'Mastery');
+  const [recommendedAfterSprintId, setRecommendedAfterSprintId] = useState<string>(
+    challenge.recommendedAfterSprintId || challenge.challengeData?.recommendedAfterSprintId || ''
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      alert('Please enter a challenge name');
+      return;
+    }
+    const selectedSprint = availableSprints.find(s => s.id === recommendedAfterSprintId);
+    const updated: Partial<Sprint> = {
+      title: name.trim(),
+      subtitle: `${type} Challenge • ${category}${selectedSprint ? ` • Recommended After: ${selectedSprint.title}` : ''}`,
+      category: category,
+      challengeType: type,
+      challengeCategory: category,
+      recommendedAfterSprintId: recommendedAfterSprintId || undefined,
+      recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+      challengeData: {
+        ...(challenge.challengeData || {}),
+        name: name.trim(),
+        type: type,
+        category: category,
+        recommendedAfterSprintId: recommendedAfterSprintId || undefined,
+        recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+      }
+    };
+    onSave(updated);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fade-in font-sans">
+      <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl overflow-hidden border border-gray-100 animate-scale-up">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-100 px-8 py-5 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-200">
+              <Trophy className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-gray-900 tracking-tight">Edit Challenge</h2>
+              <p className="text-[10px] text-purple-600 font-black uppercase tracking-[0.2em]">Coach Action Setup</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-all cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          {/* 1. Challenge Name */}
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+              1. Challenge Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. 14-Day Morning Hydration & Deep Focus"
+              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm focus:ring-4 focus:ring-purple-600/5 focus:border-purple-600 outline-none text-sm font-black mt-1.5 transition-all text-gray-900"
+              required
+            />
+          </div>
+
+          {/* 2. Challenge Type */}
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+              2. Challenge Type
+            </label>
+            <div className="grid grid-cols-2 gap-3 mt-1.5">
+              {CHALLENGE_TYPES.map((t) => {
+                const isSelected = type === t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setType(t)}
+                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                      isSelected
+                        ? 'border-purple-600 bg-purple-50 text-purple-900 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 bg-white text-gray-700'
+                    }`}
+                  >
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                      isSelected ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {t === 'Repetition' ? <Repeat className="w-3.5 h-3.5" /> : <ListOrdered className="w-3.5 h-3.5" />}
+                    </div>
+                    <div>
+                      <div className="text-xs font-black">{t}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3. Challenge Category */}
+          <div>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+              3. Challenge Category
+            </label>
+            <CustomSelect
+              options={CHALLENGE_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+              value={category}
+              onChange={(val) => setCategory(val as ChallengeCategory)}
+              className="mt-1.5"
+            />
+          </div>
+
+          {/* 4. Recommended After */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+                4. Recommended After
+              </label>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Connects to Sprint</span>
+            </div>
+            <div className="mt-1.5">
+              <CustomSelect
+                options={[
+                  { value: '', label: '-- None (Stand-alone Challenge) --' },
+                  ...availableSprints.map(s => ({
+                    value: s.id,
+                    label: `${s.title} (${s.duration || 7} Days)`
+                  }))
+                ]}
+                value={recommendedAfterSprintId}
+                onChange={(val) => setRecommendedAfterSprintId(String(val))}
+                placeholder="Select a sprint it connects to..."
+              />
+            </div>
+            {recommendedAfterSprintId && (
+              <div className="mt-2 flex items-center gap-2 p-2.5 bg-purple-50/60 border border-purple-100 rounded-xl text-[11px] text-purple-900 font-bold">
+                <Link2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                <span>Connected to selected sprint</span>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={onClose}
+              className="px-6 py-3 rounded-2xl border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-black uppercase tracking-wider cursor-pointer"
+            >
+              Cancel
+            </button>
+            <Button
+              type="submit"
+              isLoading={isSaving}
+              className="px-8 py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200 text-xs font-black uppercase tracking-wider cursor-pointer"
+            >
+              Save Challenge
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const CoachSprints: React.FC = () => {
   const { user, hasPermission } = useAuth();
   const location = useLocation();
-  const [sprints, setSprints] = useState<Sprint[]>
-                                ([]);
-  const [orchestratedIds, setOrchestratedIds] = useState<Set<string>
-                                >(new Set());
-  const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'rejected' | 'draft'>
-                                ('all');
-  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite' | 'challenge'>
-                                ('sprint');
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [orchestratedIds, setOrchestratedIds] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'rejected' | 'draft'>('all');
+  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite' | 'challenge'>('sprint');
   const [isCreateTypeOpen, setIsCreateTypeOpen] = useState(false);
 
-  useEffect(() =>
-                                 {
+  useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
     if (tab === 'sprint' || tab === 'blog' || tab === 'ignite' || tab === 'challenge') {
@@ -1054,9 +1231,10 @@ const CoachSprints: React.FC = () =>
   const [reviewSprint, setReviewSprint] = useState<Sprint | null>(null);
   const [allReviews, setAllReviews] = useState<Review[]>([]);
 
-  // Edit states for blog and ignite
+  // Edit states for blog, ignite, and challenge
   const [editingBlog, setEditingBlog] = useState<Sprint | null>(null);
   const [editingIgnite, setEditingIgnite] = useState<Sprint | null>(null);
+  const [editingChallenge, setEditingChallenge] = useState<Sprint | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Preview states
@@ -1288,8 +1466,7 @@ const CoachSprints: React.FC = () =>
     }
   };
 
-  const handleSaveIgniteEdit = async (updated: Partial<Sprint>
-                                ) => {
+  const handleSaveIgniteEdit = async (updated: Partial<Sprint>) => {
     if (!editingIgnite) return;
     setSavingEdit(true);
     try {
@@ -1298,6 +1475,21 @@ const CoachSprints: React.FC = () =>
     } catch (err) {
       console.error(err);
       alert('Save ignite edit failed.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleSaveChallengeEdit = async (updated: Partial<Sprint>) => {
+    if (!editingChallenge) return;
+    setSavingEdit(true);
+    try {
+      await sprintService.updateSprint(editingChallenge.id, updated);
+      toast.success('Challenge updated successfully');
+      setEditingChallenge(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update challenge');
     } finally {
       setSavingEdit(false);
     }
@@ -1341,6 +1533,16 @@ const CoachSprints: React.FC = () =>
             isSaving={savingEdit}
           />
                                 
+      )}
+
+      {editingChallenge && (
+          <EditChallengeModal 
+            challenge={editingChallenge}
+            availableSprints={sprints.filter(s => (!s.contentType || s.contentType === 'sprint') && s.id !== editingChallenge.id)}
+            onClose={() => setEditingChallenge(null)}
+            onSave={handleSaveChallengeEdit}
+            isSaving={savingEdit}
+          />
       )}
 
       {previewingBlog && (
@@ -1741,34 +1943,32 @@ const CoachSprints: React.FC = () =>
                                 
                             ) : sprint.contentType === 'challenge' ? (
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                                
+                                    <button 
+                                        type="button"
+                                        onClick={() => setEditingChallenge(sprint)}
+                                        className="w-full sm:w-auto px-6 py-3 bg-white border border-gray-100 hover:bg-gray-50 hover:text-purple-700 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer shadow-sm"
+                                    >
+                                        Edit Challenge
+                                    </button>
+
                                     <Link to={`/coach/sprint/preview/${sprint.id}`} className="flex-1 sm:flex-none">
-                                
                                         <button className="w-full sm:w-auto px-6 py-3 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 cursor-pointer">
-                                
                                             Preview Challenge
                                         </button>
-                                
                                     </Link>
                                 
                                     <button 
-                                        onClick={() =>
-                                 {
+                                        onClick={() => {
                                             const url = `${window.location.origin}/sprint/${sprint.id}`;
                                             navigator.clipboard.writeText(url)
-                                                .then(() =>
-                                 toast.success("Challenge link copied!"))
-                                                .catch(() =>
-                                 toast.error("Could not copy link."));
+                                                .then(() => toast.success("Challenge link copied!"))
+                                                .catch(() => toast.error("Could not copy link."));
                                         }}
                                         className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-all active:scale-90 cursor-pointer"
                                         title="Share Challenge"
                                     >
-                                
                                         <Share2 className="h-4 w-4" />
-                                
                                     </button>
-                                
                                 </div>
                                 
                             ) : (

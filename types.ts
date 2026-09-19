@@ -247,6 +247,25 @@ export interface DynamicSection {
 
 export type ExperienceContentType = 'sprint' | 'blog' | 'ignite' | 'challenge';
 
+export type ChallengeType = 'Repetition' | 'Sequential';
+
+export type ChallengeCategory =
+  | 'Mastery'
+  | 'Build'
+  | 'Courage'
+  | 'Consistency'
+  | 'Exploration'
+  | 'Exposure'
+  | 'Real-World'
+  | 'Reflection'
+  | 'Discipline'
+  | 'Creativity'
+  | 'Confidence'
+  | 'Communication'
+  | 'Networking'
+  | 'Problem-Solving';
+
+
 export interface BaseExperience {
   id: string;
   coachId: string;
@@ -396,8 +415,16 @@ export interface Sprint {
   igniteBody?: string;
   igniteBgColor?: string;
   igniteDate?: string; // Format: YYYY-MM-DD
+  challengeType?: ChallengeType;
+  challengeCategory?: ChallengeCategory | string;
+  recommendedAfterSprintId?: string;
+  recommendedAfterSprintTitle?: string;
   challengeData?: {
     name?: string;
+    type?: ChallengeType;
+    category?: ChallengeCategory | string;
+    recommendedAfterSprintId?: string;
+    recommendedAfterSprintTitle?: string;
     whatToDo?: string;
     howOften?: string;
     howLong?: string;

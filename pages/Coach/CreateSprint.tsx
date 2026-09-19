@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Button from '../../components/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
-import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection, UserRole } from '../../types';
+import { Sprint, SprintDifficulty, DailyContent, Coach, DynamicSection, UserRole, ChallengeType, ChallengeCategory } from '../../types';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -12,8 +12,8 @@ import CustomSelect from '../../components/CustomSelect';
 import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { ALL_CATEGORIES } from '../../services/mockData';
-import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Flame, BookOpen, Sparkles, Trophy } from 'lucide-react';
+import { OUTCOME_TAGS, CHALLENGE_TYPES, CHALLENGE_CATEGORIES } from '../../constants/sprintConstants';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Flame, BookOpen, Sparkles, Trophy, Repeat, ListOrdered, Link2 } from 'lucide-react';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -259,18 +259,26 @@ const CreateSprint: React.FC = () => {
     const [isPreviewingIgnite, setIsPreviewingIgnite] = useState(false);
     const [isSubmittingIgnite, setIsSubmittingIgnite] = useState(false);
 
-    // Challenge State
+    // Challenge State (The only 4 inputs for Coach Challenge setup)
     const [challengeName, setChallengeName] = useState('');
-    const [challengeWhatToDo, setChallengeWhatToDo] = useState('');
-    const [challengeHowOften, setChallengeHowOften] = useState('Daily');
-    const [customHowOften, setCustomHowOften] = useState('');
-    const [challengeHowLong, setChallengeHowLong] = useState('7 Days');
-    const [customHowLong, setCustomHowLong] = useState('');
-    const [challengeCompletionCriteria, setChallengeCompletionCriteria] = useState('');
-    const [challengeWhyDoIt, setChallengeWhyDoIt] = useState('');
-    const [challengeCategory, setChallengeCategory] = useState('Execution');
-    const [challengeCoverImage, setChallengeCoverImage] = useState('');
+    const [challengeType, setChallengeType] = useState<ChallengeType>('Repetition');
+    const [challengeCategory, setChallengeCategory] = useState<ChallengeCategory>('Mastery');
+    const [recommendedAfterSprintId, setRecommendedAfterSprintId] = useState<string>('');
+    const [availableSprints, setAvailableSprints] = useState<Sprint[]>([]);
+    const [isLoadingSprints, setIsLoadingSprints] = useState(false);
     const [isSubmittingChallenge, setIsSubmittingChallenge] = useState(false);
+
+    // Fetch coach's sprints for the "Recommended after" dropdown
+    useEffect(() => {
+        if (!user) return;
+        setIsLoadingSprints(true);
+        const unsub = sprintService.subscribeToCoachSprints(user.id, (data) => {
+            const sprintList = data.filter(s => !s.contentType || s.contentType === 'sprint');
+            setAvailableSprints(sprintList.length > 0 ? sprintList : data);
+            setIsLoadingSprints(false);
+        });
+        return () => unsub();
+    }, [user]);
 
     // Sprint State
     const [isPreviewingSprint, setIsPreviewingSprint] = useState(false);
@@ -284,39 +292,43 @@ const CreateSprint: React.FC = () => {
         }
         setIsSubmittingChallenge(true);
         const challengeId = `challenge_${Date.now()}`;
-        const finalFrequency = challengeHowOften === 'Custom' ? (customHowOften.trim() || 'Custom') : challengeHowOften;
-        const finalDurationStr = challengeHowLong === 'Custom' ? (customHowLong.trim() || '7 Days') : challengeHowLong;
-        
-        const durationMatch = finalDurationStr.match(/\d+/);
-        const durationDays = durationMatch ? parseInt(durationMatch[0], 10) : 7;
+        const selectedSprint = availableSprints.find(s => s.id === recommendedAfterSprintId);
 
         const newChallenge: Sprint = {
             id: challengeId,
             coachId: user.id,
-            title: challengeName,
-            subtitle: `Frequency: ${finalFrequency} • Duration: ${finalDurationStr}`,
-            description: challengeWhyDoIt || challengeWhatToDo || 'Join this action challenge to transform your habits.',
+            title: challengeName.trim(),
+            subtitle: `${challengeType} Challenge • ${challengeCategory}${selectedSprint ? ` • Recommended After: ${selectedSprint.title}` : ''}`,
+            description: `${challengeType} challenge in ${challengeCategory}${selectedSprint ? ` recommended after completing ${selectedSprint.title}` : ''}.`,
             contentType: 'challenge',
-            category: challengeCategory || 'Execution',
-            duration: durationDays,
+            category: challengeCategory,
+            challengeType: challengeType,
+            challengeCategory: challengeCategory,
+            recommendedAfterSprintId: recommendedAfterSprintId || undefined,
+            recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+            duration: 7,
             price: 0,
             currency: 'NGN',
-            coverImageUrl: challengeCoverImage || `https://images.unsplash.com/photo-1517649763962-0c623266010b?auto=format&fit=crop&w=800&q=80`,
+            coverImageUrl: `https://images.unsplash.com/photo-1517649763962-0c623266010b?auto=format&fit=crop&w=800&q=80`,
             published: true,
             approvalStatus: 'approved',
-            dailyContent: Array.from({ length: durationDays }, (_, i) => ({
+            dailyContent: Array.from({ length: 7 }, (_, i) => ({
                 day: i + 1,
-                lessonText: challengeWhatToDo || 'Complete your daily action.',
-                taskPrompt: challengeWhatToDo || 'Log your progress for today.',
-                taskPrompts: [challengeWhatToDo || 'Log your progress for today.'],
+                lessonText: `${challengeCategory} focus: ${challengeType} Day ${i + 1}`,
+                taskPrompt: `Complete today's milestone for ${challengeName.trim()}.`,
+                taskPrompts: [`Complete today's milestone for ${challengeName.trim()}.`],
             })),
             challengeData: {
-                name: challengeName,
-                whatToDo: challengeWhatToDo,
-                howOften: finalFrequency,
-                howLong: finalDurationStr,
-                completionCriteria: challengeCompletionCriteria,
-                whyDoIt: challengeWhyDoIt,
+                name: challengeName.trim(),
+                type: challengeType,
+                category: challengeCategory,
+                recommendedAfterSprintId: recommendedAfterSprintId || undefined,
+                recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+                whatToDo: `Complete the ${challengeName.trim()} challenge actions.`,
+                howOften: challengeType === 'Repetition' ? 'Daily Repetition' : 'Sequential Step Progression',
+                howLong: '7 Days',
+                completionCriteria: 'Complete and record daily progress.',
+                whyDoIt: `Strengthen ${challengeCategory} through structured ${challengeType.toLowerCase()} engagement.`,
             }
         };
 
@@ -1126,21 +1138,21 @@ const CreateSprint: React.FC = () => {
                 )}
 
                 {activeTab === 'challenge' && (
-                    <div className="grid grid-cols-1 gap-10 max-w-4xl mx-auto">
+                    <div className="grid grid-cols-1 gap-10 max-w-3xl mx-auto">
                         <div className="bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden p-8 md:p-12 animate-slide-up">
                             <form onSubmit={handleSaveChallenge} className="space-y-8">
-                                <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                                <div className="flex items-center gap-3.5 pb-5 border-b border-gray-100">
                                     <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-lg shadow-purple-200">
                                         <Trophy className="w-6 h-6" />
                                     </div>
                                     <div>
                                         <h2 className="text-2xl font-black text-gray-900 tracking-tight italic">Setup A Challenge</h2>
-                                        <p className="text-[10px] text-purple-600 font-black uppercase tracking-[0.2em]">Coach Action System</p>
+                                        <p className="text-[10px] text-purple-600 font-black uppercase tracking-[0.2em]">Coach Action Setup</p>
                                     </div>
                                 </div>
 
                                 <div className="space-y-6">
-                                    {/* 1. Challenge name */}
+                                    {/* 1. Challenge Name */}
                                     <div>
                                         <label className={labelClasses}>1. Challenge Name</label>
                                         <input 
@@ -1148,132 +1160,94 @@ const CreateSprint: React.FC = () => {
                                             value={challengeName} 
                                             onChange={(e) => setChallengeName(e.target.value)} 
                                             className={inputClasses + " mt-2"} 
-                                            placeholder="e.g. 14-Day Morning Hydration & Focus Challenge" 
+                                            placeholder="e.g. 14-Day Morning Hydration & Deep Focus" 
                                             required 
                                         />
                                     </div>
 
-                                    {/* 2. What should participants do? */}
+                                    {/* 2. Challenge Type */}
                                     <div>
-                                        <label className={labelClasses}>2. What should participants do?</label>
-                                        <textarea 
-                                            value={challengeWhatToDo} 
-                                            onChange={(e) => setChallengeWhatToDo(e.target.value)} 
-                                            rows={3}
-                                            className={inputClasses + " mt-2"} 
-                                            placeholder="e.g. Drink 1 Liter of water immediately upon waking, then complete 10 minutes of uninterrupted planning." 
-                                            required 
-                                        />
-                                    </div>
-
-                                    {/* 3. How often? & 4. For how long? */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <label className={labelClasses}>3. How often?</label>
-                                            <CustomSelect 
-                                                value={challengeHowOften} 
-                                                onChange={(val) => setChallengeHowOften(String(val))} 
-                                                options={[
-                                                    { value: "Daily", label: "Daily" },
-                                                    { value: "3 times a week", label: "3 times a week" },
-                                                    { value: "Weekdays only", label: "Weekdays only" },
-                                                    { value: "Twice daily", label: "Twice daily" },
-                                                    { value: "Custom", label: "Custom schedule..." }
-                                                ]}
-                                                className="mt-2" 
-                                            />
-                                            {challengeHowOften === 'Custom' && (
-                                                <input 
-                                                    type="text" 
-                                                    value={customHowOften} 
-                                                    onChange={(e) => setCustomHowOften(e.target.value)} 
-                                                    className={inputClasses + " mt-2"} 
-                                                    placeholder="e.g. Every Monday & Thursday" 
-                                                />
-                                            )}
-                                        </div>
-
-                                        <div>
-                                            <label className={labelClasses}>4. For how long?</label>
-                                            <CustomSelect 
-                                                value={challengeHowLong} 
-                                                onChange={(val) => setChallengeHowLong(String(val))} 
-                                                options={[
-                                                    { value: "7 Days", label: "7 Days" },
-                                                    { value: "14 Days", label: "14 Days" },
-                                                    { value: "21 Days", label: "21 Days" },
-                                                    { value: "30 Days", label: "30 Days" },
-                                                    { value: "Custom", label: "Custom duration..." }
-                                                ]}
-                                                className="mt-2" 
-                                            />
-                                            {challengeHowLong === 'Custom' && (
-                                                <input 
-                                                    type="text" 
-                                                    value={customHowLong} 
-                                                    onChange={(e) => setCustomHowLong(e.target.value)} 
-                                                    className={inputClasses + " mt-2"} 
-                                                    placeholder="e.g. 10 Days" 
-                                                />
-                                            )}
+                                        <label className={labelClasses}>2. Challenge Type</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                                            {CHALLENGE_TYPES.map((type) => {
+                                                const isSelected = challengeType === type;
+                                                return (
+                                                    <button
+                                                        key={type}
+                                                        type="button"
+                                                        onClick={() => setChallengeType(type)}
+                                                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-3 ${
+                                                            isSelected
+                                                                ? 'border-purple-600 bg-purple-50/80 text-purple-900 shadow-sm'
+                                                                : 'border-gray-150 hover:border-gray-300 bg-white text-gray-700'
+                                                        }`}
+                                                    >
+                                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                                            isSelected ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'
+                                                        }`}>
+                                                            {type === 'Repetition' ? (
+                                                                <Repeat className="w-4 h-4" />
+                                                            ) : (
+                                                                <ListOrdered className="w-4 h-4" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-sm font-black tracking-tight">{type}</div>
+                                                            <div className="text-[11px] text-gray-400 font-medium">
+                                                                {type === 'Repetition' ? 'Daily repetition habit' : 'Sequential step progression'}
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
-                                    {/* 5. What counts as completing it? */}
+                                    {/* 3. Challenge Category */}
                                     <div>
-                                        <label className={labelClasses}>5. What counts as completing it?</label>
-                                        <textarea 
-                                            value={challengeCompletionCriteria} 
-                                            onChange={(e) => setChallengeCompletionCriteria(e.target.value)} 
-                                            rows={3}
-                                            className={inputClasses + " mt-2"} 
-                                            placeholder="e.g. Submitting daily photo or text proof for at least 80% of challenge days." 
-                                            required 
+                                        <label className={labelClasses}>3. Challenge Category</label>
+                                        <CustomSelect
+                                            options={CHALLENGE_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                                            value={challengeCategory}
+                                            onChange={(val) => setChallengeCategory(val as ChallengeCategory)}
+                                            className="mt-2"
                                         />
                                     </div>
 
-                                    {/* 6. Why should they do it? */}
+                                    {/* 4. Recommended After: Which Sprint It Connects To */}
                                     <div>
-                                        <label className={labelClasses}>6. Why should they do it?</label>
-                                        <textarea 
-                                            value={challengeWhyDoIt} 
-                                            onChange={(e) => setChallengeWhyDoIt(e.target.value)} 
-                                            rows={3}
-                                            className={inputClasses + " mt-2"} 
-                                            placeholder="e.g. To eliminate morning brain fog, build compounding willpower, and gain daily momentum." 
-                                            required 
-                                        />
-                                    </div>
-
-                                    {/* Category & Cover Image */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
-                                        <div>
-                                            <label className={labelClasses}>Discovery Category</label>
+                                        <div className="flex items-center justify-between">
+                                            <label className={labelClasses}>4. Recommended After</label>
+                                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Connects to Sprint</span>
+                                        </div>
+                                        <div className="mt-2">
                                             <CustomSelect
-                                                options={ALL_CATEGORIES}
-                                                value={challengeCategory}
-                                                onChange={(val) => setChallengeCategory(String(val))}
-                                                className="mt-2"
+                                                options={[
+                                                    { value: '', label: '-- None (Stand-alone Challenge) --' },
+                                                    ...availableSprints.map(s => ({
+                                                        value: s.id,
+                                                        label: `${s.title} (${s.duration || 7} Days)`
+                                                    }))
+                                                ]}
+                                                value={recommendedAfterSprintId}
+                                                onChange={(val) => setRecommendedAfterSprintId(String(val))}
+                                                placeholder={isLoadingSprints ? "Loading coach sprints..." : "Select a sprint it connects to..."}
                                             />
                                         </div>
-                                        <div>
-                                            <label className={labelClasses}>Cover Image URL (Optional)</label>
-                                            <input 
-                                                type="url" 
-                                                value={challengeCoverImage} 
-                                                onChange={(e) => setChallengeCoverImage(e.target.value)} 
-                                                className={inputClasses + " mt-2"} 
-                                                placeholder="https://..." 
-                                            />
-                                        </div>
+                                        {recommendedAfterSprintId && (
+                                            <div className="mt-2.5 flex items-center gap-2 p-3 bg-purple-50/60 border border-purple-100 rounded-2xl text-[11px] text-purple-900 font-bold">
+                                                <Link2 className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                                                <span>Participants will be recommended this challenge after completing the connected sprint.</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end gap-3 pt-6 border-t border-gray-50">
+                                <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
                                     <Button 
                                         type="submit" 
                                         isLoading={isSubmittingChallenge} 
-                                        className="px-10 py-3.5 rounded-[1.25rem] bg-purple-600 hover:bg-purple-700 text-white shadow-xl shadow-purple-200 cursor-pointer"
+                                        className="px-10 py-3.5 rounded-[1.25rem] bg-purple-600 hover:bg-purple-700 text-white shadow-xl shadow-purple-200 cursor-pointer text-xs font-black uppercase tracking-widest"
                                     >
                                         Publish Challenge &rarr;
                                     </Button>

@@ -27,3 +27,26 @@ export const OUTCOME_TAGS = [
   "First Opportunity Landed",
   "Role Acquired"
 ];
+
+export const CHALLENGE_TYPES = [
+  'Repetition',
+  'Sequential'
+] as const;
+
+export const CHALLENGE_CATEGORIES = [
+  'Mastery',
+  'Build',
+  'Courage',
+  'Consistency',
+  'Exploration',
+  'Exposure',
+  'Real-World',
+  'Reflection',
+  'Discipline',
+  'Creativity',
+  'Confidence',
+  'Communication',
+  'Networking',
+  'Problem-Solving'
+] as const;
+
