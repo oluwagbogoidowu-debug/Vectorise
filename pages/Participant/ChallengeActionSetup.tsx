@@ -8,16 +8,12 @@ import {
   Trophy, 
   ArrowLeft, 
   CheckCircle2, 
-  Link2, 
   Sparkles, 
-  PlusCircle, 
-  UserCheck, 
-  Target,
+  Plus, 
   ArrowRight,
-  Flame,
-  HelpCircle,
   Repeat,
-  ListOrdered
+  ListOrdered,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,7 +33,6 @@ const ChallengeActionSetup: React.FC = () => {
   const [connectedSprint, setConnectedSprint] = useState<Sprint | null>(null);
   const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
-  const [activeSelectionType, setActiveSelectionType] = useState<'sprint' | 'coach' | 'custom'>('sprint');
   const [customGoalInput, setCustomGoalInput] = useState<string>('');
   const [isSetting, setIsSetting] = useState(false);
   const [isLoading, setIsLoading] = useState(!challenge);
@@ -100,8 +95,9 @@ const ChallengeActionSetup: React.FC = () => {
   const challengeTitle = challenge?.challengeData?.name || challenge?.title || 'Get Clear on What You Want';
   const rawCategory = (challenge?.challengeCategory || challenge?.challengeData?.category || challenge?.category || 'Mastery') as ChallengeCategory;
   const category = rawCategory in CHALLENGE_CATEGORY_DESCRIPTIONS ? rawCategory : 'Mastery';
-  const type = (challenge?.challengeType || challenge?.challengeData?.type || 'Sequential') as ChallengeType;
-  const categoryDescription = CHALLENGE_CATEGORY_DESCRIPTIONS[category] || 'Take a series of focused actions to strengthen your capabilities.';
+  const type = (challenge?.challengeType || challenge?.challengeData?.type || 'Repetition') as ChallengeType;
+  const categoryDescription = CHALLENGE_CATEGORY_DESCRIPTIONS[category] || 'Take focused action to build mastery.';
+  const isRepetition = type === 'Repetition';
 
   // Coach recommendations tags
   const coachRecommendations = useMemo(() => {
@@ -141,7 +137,6 @@ const ChallengeActionSetup: React.FC = () => {
       if (dayProgress && dayProgress.answers && dayProgress.answers[targetStepIdx] !== undefined) {
         const rawAns: any = dayProgress.answers[targetStepIdx];
         if (typeof rawAns === 'string' && rawAns.trim().length > 0) {
-          // If JSON string for dual input
           try {
             const parsed = JSON.parse(rawAns);
             if (parsed.text) userResponse = parsed.text;
@@ -157,11 +152,7 @@ const ChallengeActionSetup: React.FC = () => {
     }
 
     if (userResponse && userResponse.trim().length > 0) {
-      return {
-        text: userResponse.trim(),
-        hasRealResponse: true,
-        sourceLabel: `Your response from Milestone ${targetDay}, Step ${targetStep}`,
-      };
+      return userResponse.trim();
     }
 
     // Fallback if user has not completed that step yet
@@ -177,34 +168,56 @@ const ChallengeActionSetup: React.FC = () => {
       }
     }
 
-    return {
-      text: fallbackText,
-      hasRealResponse: false,
-      sourceLabel: `Suggested from Milestone ${targetDay}, Step ${targetStep}`,
-    };
+    return fallbackText;
   }, [challenge, connectedSprintId, connectedSprintTitle, connectedSprint, userEnrollments]);
 
   // Set default selection on initial render
   useEffect(() => {
-    if (selectedActions.length === 0 && sprintActionResponse.text) {
-      setSelectedActions([sprintActionResponse.text]);
-      setActiveSelectionType('sprint');
+    if (selectedActions.length === 0 && sprintActionResponse) {
+      setSelectedActions([sprintActionResponse]);
     }
-  }, [sprintActionResponse.text]);
+  }, [sprintActionResponse]);
 
-  const toggleAction = (action: string) => {
-    if (type === 'Repetition') {
-      setSelectedActions([action]);
+  const toggleAction = (actionText: string) => {
+    const trimmed = actionText.trim();
+    if (!trimmed) return;
+
+    if (isRepetition) {
+      // Repetitive challenge: pick exactly one action
+      setSelectedActions([trimmed]);
     } else {
-      setSelectedActions(prev => 
-        prev.includes(action) ? prev.filter(a => a !== action) : [...prev, action]
-      );
+      // Sequential challenge: pick more than one action in sequence
+      setSelectedActions(prev => {
+        if (prev.includes(trimmed)) {
+          return prev.filter(a => a !== trimmed);
+        } else {
+          return [...prev, trimmed];
+        }
+      });
     }
+  };
+
+  const handleAddCustomGoal = () => {
+    const trimmed = customGoalInput.trim();
+    if (!trimmed) return;
+
+    if (isRepetition) {
+      setSelectedActions([trimmed]);
+    } else {
+      if (!selectedActions.includes(trimmed)) {
+        setSelectedActions(prev => [...prev, trimmed]);
+      }
+    }
+    setCustomGoalInput('');
+  };
+
+  const handleRemoveAction = (actionText: string) => {
+    setSelectedActions(prev => prev.filter(a => a !== actionText));
   };
 
   const handleSetAction = async () => {
     if (selectedActions.length === 0) {
-      toast.error('Please select or enter what you are working with.');
+      toast.error('Please select at least one action.');
       return;
     }
 
@@ -224,14 +237,16 @@ const ChallengeActionSetup: React.FC = () => {
 
       // Also cache locally for instant retrieval
       localStorage.setItem(`vectorise_challenge_action_${challengeId}`, JSON.stringify(selectedActions));
+      localStorage.setItem(`vectorise_challenge_single_action_${challengeId}`, selectedActions[0]);
       
-      toast.success(`Action(s) set: ${selectedActions.join(', ')}`);
+      toast.success(isRepetition ? `Action set: "${selectedActions[0]}"` : `${selectedActions.length} action(s) set in sequence`);
 
       // Navigate to challenge workspace / sprint view
       navigate(`/sprint/${challengeId}`, { 
         state: { 
           sprint: challenge,
           selectedActions: selectedActions,
+          selectedAction: selectedActions[0],
           isChallenge: true,
         } 
       });
@@ -246,105 +261,148 @@ const ChallengeActionSetup: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FDFDFD] dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 flex flex-col font-sans">
       {/* Top Navbar */}
-      <header className="w-full max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
+      <header className="w-full max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
         <button
           type="button"
           onClick={() => navigate('/explore')}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Explore</span>
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] font-black uppercase tracking-[0.2em]">
-            <Trophy className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-bold">
+            {isRepetition ? <Repeat className="w-3.5 h-3.5" /> : <ListOrdered className="w-3.5 h-3.5" />}
             {category} • {type} Challenge
           </span>
         </div>
       </header>
 
       {/* Main Form Content */}
-      <main className="flex-1 w-full max-w-3xl mx-auto px-6 pb-20 pt-4 flex flex-col justify-center animate-fade-in">
-        <div className="bg-white dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-[2.5rem] p-7 md:p-10 shadow-xl shadow-purple-950/5">
+      <main className="flex-1 w-full max-w-2xl mx-auto px-4 sm:px-6 pb-12 pt-1 flex flex-col justify-center animate-fade-in">
+        <div className="bg-white dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-3xl p-5 sm:p-7 shadow-lg shadow-purple-950/5">
           {/* Challenge Badge & Title */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-wider mb-2">
-              <Sparkles className="w-4 h-4" />
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 text-[11px] font-black uppercase tracking-wider mb-1">
+              <Sparkles className="w-3.5 h-3.5" />
               <span>Challenge Setup</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-gray-950 dark:text-white">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-950 dark:text-white">
               What are you working with?
             </h1>
-            <p className="text-sm md:text-[15px] text-gray-500 dark:text-zinc-400 mt-2 font-medium leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-1 font-medium leading-relaxed line-clamp-1">
               {challengeTitle} • {categoryDescription}
             </p>
-          </div>
 
-          {/* Current Active Actions List */}
-          <div className="mb-8">
-            <label className="block text-[11px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-2">
-              Selected Actions
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {selectedActions.map((action, i) => (
-                <span key={i} className="px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-sm font-bold flex items-center gap-2">
-                  {action}
-                  <button onClick={() => setSelectedActions(prev => prev.filter((_, idx) => idx !== i))} className="text-purple-600 hover:text-purple-900">×</button>
-                </span>
-              ))}
-              {selectedActions.length === 0 && (
-                <p className="text-gray-400 dark:text-zinc-600 text-sm font-medium italic">No actions selected yet.</p>
+            {/* Instruction Banner based on Challenge Type */}
+            <div className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 text-purple-900 dark:text-purple-300 text-[11px] font-semibold">
+              {isRepetition ? (
+                <>
+                  <Repeat className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span><strong>Repetition Challenge:</strong> Pick 1 action to practice and repeat daily.</span>
+                </>
+              ) : (
+                <>
+                  <ListOrdered className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span><strong>Sequential Challenge:</strong> Pick multiple actions to execute in sequence.</span>
+                </>
               )}
             </div>
           </div>
 
-          {/* Recommendations to pick from */}
-          <div className="space-y-6">
-            <div className="text-[11px] font-black uppercase tracking-[0.25em] text-gray-400 dark:text-zinc-500">
-              Pick your actions
-            </div>
+          {/* Selected Actions Display */}
+          <div className="mb-4">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1.5">
+              {isRepetition ? 'Selected Action' : `Selected Actions (${selectedActions.length})`}
+            </label>
+            
+            {selectedActions.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                {selectedActions.map((action, i) => (
+                  <span 
+                    key={i} 
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100/80 dark:bg-purple-900/40 border border-purple-300 dark:border-purple-700 text-purple-950 dark:text-purple-100 rounded-lg text-xs font-bold shadow-xs animate-fade-in"
+                  >
+                    {!isRepetition && (
+                      <span className="w-4 h-4 rounded-full bg-purple-600 text-white text-[9px] font-black inline-flex items-center justify-center shrink-0">
+                        {i + 1}
+                      </span>
+                    )}
+                    <span className="line-clamp-1">{action}</span>
+                    <button 
+                      type="button"
+                      onClick={() => handleRemoveAction(action)} 
+                      className="w-3.5 h-3.5 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 inline-flex items-center justify-center transition-colors cursor-pointer ml-0.5"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-dashed border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500 text-xs font-medium">
+                No action selected yet. Pick an option below or type your own.
+              </div>
+            )}
+          </div>
 
-            {/* 1. Sprint Action */}
-            <div className="space-y-2">
+          {/* Poll Options Section Header */}
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-zinc-500 mb-2">
+            Recommendations to pick from
+          </div>
+
+          {/* Scrollable Compact Poll Container */}
+          <div className="max-h-60 sm:max-h-72 overflow-y-auto pr-1.5 space-y-2 rounded-2xl border border-gray-100 dark:border-zinc-800/80 p-2 bg-gray-50/50 dark:bg-zinc-950/30">
+            {/* 1. Sprint Option (Rendered as its own separate unique poll option) */}
+            {sprintActionResponse && (
               <button
                 type="button"
-                onClick={() => toggleAction(sprintActionResponse.text)}
-                className={`w-full p-4 md:p-5 rounded-2xl border text-left transition-all cursor-pointer flex items-start justify-between gap-3 group ${
-                  selectedActions.includes(sprintActionResponse.text)
-                    ? 'border-purple-600 bg-purple-50/70 dark:bg-purple-950/30 text-purple-950 dark:text-purple-200 ring-2 ring-purple-600/20'
-                    : 'border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-800/50 text-gray-800 dark:text-zinc-200'
+                onClick={() => toggleAction(sprintActionResponse)}
+                className={`w-full p-2.5 sm:py-2.5 sm:px-3.5 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 group ${
+                  selectedActions.includes(sprintActionResponse)
+                    ? 'border-purple-600 bg-purple-50/80 dark:bg-purple-950/40 text-purple-950 dark:text-purple-200 ring-1 ring-purple-600/30'
+                    : 'border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-800/70 text-gray-800 dark:text-zinc-200'
                 }`}
               >
-                <p className="text-sm md:text-[15px] font-bold text-gray-900 dark:text-white">
-                  "{sprintActionResponse.text}"
+                <p className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white leading-snug">
+                  "{sprintActionResponse}"
                 </p>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-1 transition-all ${
-                  selectedActions.includes(sprintActionResponse.text)
+
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                  selectedActions.includes(sprintActionResponse)
                     ? 'bg-purple-600 text-white'
                     : 'border border-gray-300 dark:border-zinc-600 group-hover:border-purple-400'
                 }`}>
-                  {selectedActions.includes(sprintActionResponse.text) && <CheckCircle2 className="w-4 h-4" />}
+                  {selectedActions.includes(sprintActionResponse) ? (
+                    isRepetition ? (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    ) : (
+                      <span className="text-[10px] font-black">{selectedActions.indexOf(sprintActionResponse) + 1}</span>
+                    )
+                  ) : null}
                 </div>
               </button>
-            </div>
+            )}
 
-            {/* 2. Coach Recommendations */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* 2. Coach Recommendations (Rendered as separate unique poll options) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {coachRecommendations.map((tag, idx) => {
                 const isSelected = selectedActions.includes(tag);
+                const seqIndex = selectedActions.indexOf(tag);
+
                 return (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => toggleAction(tag)}
-                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 group ${
+                    className={`p-2.5 sm:py-2.5 sm:px-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 group ${
                       isSelected
-                        ? 'border-purple-600 bg-purple-50/70 dark:bg-purple-950/30 text-purple-950 dark:text-purple-200 ring-2 ring-purple-600/20'
-                        : 'border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-800/50 text-gray-800 dark:text-zinc-200'
+                        ? 'border-purple-600 bg-purple-50/80 dark:bg-purple-950/40 text-purple-950 dark:text-purple-200 ring-1 ring-purple-600/30'
+                        : 'border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-800/70 text-gray-800 dark:text-zinc-200'
                     }`}
                   >
-                    <span className="text-xs md:text-sm font-bold text-gray-900 dark:text-white leading-snug">
+                    <span className="text-xs font-bold text-gray-900 dark:text-white leading-snug">
                       {tag}
                     </span>
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
@@ -352,54 +410,61 @@ const ChallengeActionSetup: React.FC = () => {
                         ? 'bg-purple-600 text-white'
                         : 'border border-gray-300 dark:border-zinc-600 group-hover:border-purple-400'
                     }`}>
-                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      {isSelected ? (
+                        isRepetition ? (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <span className="text-[9px] font-black">{seqIndex + 1}</span>
+                        )
+                      ) : null}
                     </div>
                   </button>
                 );
               })}
             </div>
+          </div>
 
-            {/* 3. Add new action based on your goal */}
-            <div className="space-y-2.5 pt-2">
-              <div className="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-zinc-300">
-                <PlusCircle className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span>Add new action based on your goal</span>
-              </div>
+          {/* 3. Add custom action option */}
+          <div className="mt-3 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 dark:text-zinc-300">
+              <Plus className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+              <span>Add custom action</span>
+            </div>
 
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={customGoalInput}
-                  onChange={(e) => handleCustomActionChange(e.target.value)}
-                  placeholder="Type your own custom action..."
-                  className="flex-1 px-4 py-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-2xl outline-none text-xs md:text-sm font-bold text-gray-900 dark:text-white focus:border-purple-600"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (customGoalInput.trim()) {
-                      setSelectedAction(customGoalInput.trim());
-                      setActiveSelectionType('custom');
-                    }
-                  }}
-                  className="px-5 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200 font-black text-xs uppercase tracking-wider rounded-2xl shrink-0 transition-all cursor-pointer"
-                >
-                  Use Custom
-                </button>
-              </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customGoalInput}
+                onChange={(e) => setCustomGoalInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomGoal();
+                  }
+                }}
+                placeholder="Type a custom action..."
+                className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-bold text-gray-900 dark:text-white focus:border-purple-600"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomGoal}
+                className="px-4 py-2 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-900/60 text-purple-900 dark:text-purple-200 font-bold text-xs rounded-xl shrink-0 transition-all cursor-pointer"
+              >
+                Add
+              </button>
             </div>
           </div>
 
-          {/* 4. Set Button */}
-          <div className="mt-10 pt-6 border-t border-gray-150 dark:border-zinc-800 flex items-center justify-end">
+          {/* 4. Set Action Button */}
+          <div className="mt-5 pt-3.5 border-t border-gray-150 dark:border-zinc-800 flex items-center justify-end">
             <button
               type="button"
-              disabled={isSetting || !selectedAction.trim()}
+              disabled={isSetting || selectedActions.length === 0}
               onClick={handleSetAction}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-9 py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs md:text-sm font-black uppercase tracking-widest shadow-xl shadow-purple-600/30 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-purple-600/25 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
             >
-              <span>{isSetting ? 'Setting Action...' : 'Set Action'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>{isSetting ? 'Setting Action...' : isRepetition ? 'Set Action' : `Set ${selectedActions.length} Action${selectedActions.length > 1 ? 's' : ''}`}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
