@@ -50,3 +50,20 @@ export const CHALLENGE_CATEGORIES = [
   'Problem-Solving'
 ] as const;
 
+export const CHALLENGE_CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  'Mastery': 'Practice one thing repeatedly until you get better at it.',
+  'Build': 'Take a series of actions to create something meaningful.',
+  'Courage': 'Take action on things you might normally avoid.',
+  'Consistency': 'Show up and keep going over a period of time.',
+  'Exploration': 'Try different things to discover what fits you.',
+  'Exposure': 'Get closer to new people, ideas, experiences, or opportunities.',
+  'Real-World': 'Take what you know and use it in a real situation.',
+  'Reflection': 'Pause, observe your experience, and learn from it.',
+  'Discipline': 'Train yourself to do what you said you would do.',
+  'Creativity': 'Generate, experiment with, and bring new ideas to life.',
+  'Confidence': 'Take action that helps you trust your ability more.',
+  'Communication': 'Practice expressing yourself clearly and effectively.',
+  'Networking': 'Build meaningful connections with people who expand your world.',
+  'Problem-Solving': 'Practice finding solutions to real or unfamiliar problems.'
+};
+

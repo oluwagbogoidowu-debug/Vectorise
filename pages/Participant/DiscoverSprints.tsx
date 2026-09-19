@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { ARCHETYPES, GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
 import LocalLogo from '../../components/LocalLogo';
 import SprintCard from '../../components/SprintCard';
+import ChallengeCard from '../../components/ChallengeCard';
 import { Sparkles, Lock, Loader2 } from 'lucide-react';
 import { filterAllowedSprintsForUser, getExploreSprintItems, ExploreSprintItem } from '../../utils/sprintUtils';
 
@@ -48,6 +49,7 @@ const DiscoverSprints: React.FC = () => {
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [allSprints, setAllSprints] = useState<Sprint[]>([]);
+    const [publishedChallenges, setPublishedChallenges] = useState<Sprint[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [sprintLinks, setSprintLinks] = useState<any[]>([]);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
@@ -61,6 +63,8 @@ const DiscoverSprints: React.FC = () => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
             const nonIgnite = data.filter(s => s.contentType !== 'ignite');
+            const challengesList = data.filter(s => s.contentType === 'challenge');
+            setPublishedChallenges(challengesList);
             setAllSprints(nonIgnite);
             const allowedSprints = filterAllowedSprintsForUser(nonIgnite, user);
             setSprints(allowedSprints);
@@ -125,6 +129,21 @@ const DiscoverSprints: React.FC = () => {
         return exploreItems.filter(item => item.level > 1 || !item.isClickable);
     }, [exploreItems]);
 
+    const topRecommendedSprint = level1Items[0]?.sprint;
+
+    const activeChallenge = useMemo(() => {
+        if (!topRecommendedSprint) {
+            return publishedChallenges[0] || null;
+        }
+        const matching = publishedChallenges.find(
+            c => c.recommendedAfterSprintId === topRecommendedSprint.id || 
+                 c.challengeData?.recommendedAfterSprintId === topRecommendedSprint.id ||
+                 (c.recommendedAfterSprintTitle && topRecommendedSprint.title && 
+                  c.recommendedAfterSprintTitle.toLowerCase() === topRecommendedSprint.title.toLowerCase())
+        );
+        return matching || publishedChallenges[0] || null;
+    }, [topRecommendedSprint, publishedChallenges]);
+
     if (isLoading) {
         return (
             <div className="h-full w-full min-h-screen flex flex-col items-center justify-center bg-[#FDFDFD] dark:bg-zinc-950 p-6">
@@ -180,6 +199,14 @@ const DiscoverSprints: React.FC = () => {
                                         level={1}
                                         isInactive={false}
                                     />
+                                    {index === 0 && (
+                                        <div className="py-2">
+                                            <ChallengeCard 
+                                                challenge={activeChallenge}
+                                                recommendedFromTitle={item.sprint?.title || 'Gain Clarity First'}
+                                            />
+                                        </div>
+                                    )}
                                 </React.Fragment>
                             ))}
                         </div>
