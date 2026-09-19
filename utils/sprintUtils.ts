@@ -975,7 +975,7 @@ export const COIN_NAIRA_RATE = 20;
  * If the sprint is priced in credits/coins (or has 0 cash price and pointCost > 0),
  * the cash equivalent is pointCost * 20 Naira.
  */
-export const getSprintCashPrice = (sprint?: Sprint | null): number => {
+export function getSprintCashPrice(sprint?: Sprint | null): number {
     if (!sprint) return 0;
     
     // Explicit credit/coin pricing
@@ -995,5 +995,5 @@ export const getSprintCashPrice = (sprint?: Sprint | null): number => {
     }
     
     return sprint.price || 0;
-};
+}
 

@@ -71,9 +71,9 @@
 
 /* Dark Mode Soft Border Customization for high-contrast smooth outlines */
 .dark .border-zinc-800,
-.dark .border-zinc-700/50,
+.dark .border-zinc-700\/50,
 .dark .border-gray-100,
-.dark .border-gray-200/10 {
+.dark .border-gray-200\/10 {
   border-color: rgba(255, 255, 255, 0.055) !important;
 }
 
