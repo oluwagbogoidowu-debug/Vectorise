@@ -36,9 +36,8 @@ const ChallengeActionSetup: React.FC = () => {
 
   const [connectedSprint, setConnectedSprint] = useState<Sprint | null>(null);
   const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
-  const [selectedAction, setSelectedAction] = useState<string>('');
+  const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [activeSelectionType, setActiveSelectionType] = useState<'sprint' | 'coach' | 'custom'>('sprint');
-  const [selectedCoachTag, setSelectedCoachTag] = useState<string | null>(null);
   const [customGoalInput, setCustomGoalInput] = useState<string>('');
   const [isSetting, setIsSetting] = useState(false);
   const [isLoading, setIsLoading] = useState(!challenge);
@@ -187,33 +186,24 @@ const ChallengeActionSetup: React.FC = () => {
 
   // Set default selection on initial render
   useEffect(() => {
-    if (!selectedAction && sprintActionResponse.text) {
-      setSelectedAction(sprintActionResponse.text);
+    if (selectedActions.length === 0 && sprintActionResponse.text) {
+      setSelectedActions([sprintActionResponse.text]);
       setActiveSelectionType('sprint');
     }
   }, [sprintActionResponse.text]);
 
-  const handleSelectSprintAction = () => {
-    setSelectedAction(sprintActionResponse.text);
-    setActiveSelectionType('sprint');
-    setSelectedCoachTag(null);
-  };
-
-  const handleSelectCoachTag = (tag: string) => {
-    setSelectedAction(tag);
-    setActiveSelectionType('coach');
-    setSelectedCoachTag(tag);
-  };
-
-  const handleCustomActionChange = (val: string) => {
-    setCustomGoalInput(val);
-    setSelectedAction(val);
-    setActiveSelectionType('custom');
-    setSelectedCoachTag(null);
+  const toggleAction = (action: string) => {
+    if (type === 'Repetition') {
+      setSelectedActions([action]);
+    } else {
+      setSelectedActions(prev => 
+        prev.includes(action) ? prev.filter(a => a !== action) : [...prev, action]
+      );
+    }
   };
 
   const handleSetAction = async () => {
-    if (!selectedAction.trim()) {
+    if (selectedActions.length === 0) {
       toast.error('Please select or enter what you are working with.');
       return;
     }
@@ -225,23 +215,23 @@ const ChallengeActionSetup: React.FC = () => {
       if (user?.id) {
         // Enroll participant or save challenge action configuration
         await sprintService.enrollUser(user.id, challengeId, 7, {
-          firstActionInput: selectedAction.trim(),
-          taskInputs: [selectedAction.trim()]
+          firstActionInput: selectedActions[0],
+          taskInputs: selectedActions
         }).catch(err => {
           console.warn("Could not enroll directly, saving local challenge state:", err);
         });
       }
 
       // Also cache locally for instant retrieval
-      localStorage.setItem(`vectorise_challenge_action_${challengeId}`, selectedAction.trim());
+      localStorage.setItem(`vectorise_challenge_action_${challengeId}`, JSON.stringify(selectedActions));
       
-      toast.success(`Action set: "${selectedAction.trim()}"`);
+      toast.success(`Action(s) set: ${selectedActions.join(', ')}`);
 
       // Navigate to challenge workspace / sprint view
       navigate(`/sprint/${challengeId}`, { 
         state: { 
           sprint: challenge,
-          selectedAction: selectedAction.trim(),
+          selectedActions: selectedActions,
           isChallenge: true,
         } 
       });
@@ -291,108 +281,82 @@ const ChallengeActionSetup: React.FC = () => {
             </p>
           </div>
 
-          {/* Current Active Action Input Box */}
+          {/* Current Active Actions List */}
           <div className="mb-8">
             <label className="block text-[11px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-2">
-              Selected Action
+              Selected Actions
             </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={selectedAction}
-                onChange={(e) => setSelectedAction(e.target.value)}
-                placeholder="e.g. Publish one focused insight daily on LinkedIn"
-                className="w-full px-5 py-4 bg-gray-50 dark:bg-zinc-800/80 border-2 border-purple-500/30 focus:border-purple-600 dark:focus:border-purple-400 focus:bg-white dark:focus:bg-zinc-800 rounded-2xl outline-none text-base md:text-lg font-bold text-gray-900 dark:text-white shadow-inner transition-all"
-              />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                <Target className="w-5 h-5 text-purple-500/60" />
-              </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedActions.map((action, i) => (
+                <span key={i} className="px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-sm font-bold flex items-center gap-2">
+                  {action}
+                  <button onClick={() => setSelectedActions(prev => prev.filter((_, idx) => idx !== i))} className="text-purple-600 hover:text-purple-900">×</button>
+                </span>
+              ))}
+              {selectedActions.length === 0 && (
+                <p className="text-gray-400 dark:text-zinc-600 text-sm font-medium italic">No actions selected yet.</p>
+              )}
             </div>
           </div>
 
           {/* Recommendations to pick from */}
           <div className="space-y-6">
             <div className="text-[11px] font-black uppercase tracking-[0.25em] text-gray-400 dark:text-zinc-500">
-              Recommendations to pick from
+              Pick your actions
             </div>
 
-            {/* 1. Recommended action from sprint title */}
+            {/* 1. Sprint Action */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-zinc-300">
-                <Link2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span>Recommended action from {connectedSprintTitle}</span>
-              </div>
-
               <button
                 type="button"
-                onClick={handleSelectSprintAction}
+                onClick={() => toggleAction(sprintActionResponse.text)}
                 className={`w-full p-4 md:p-5 rounded-2xl border text-left transition-all cursor-pointer flex items-start justify-between gap-3 group ${
-                  activeSelectionType === 'sprint' && selectedAction === sprintActionResponse.text
+                  selectedActions.includes(sprintActionResponse.text)
                     ? 'border-purple-600 bg-purple-50/70 dark:bg-purple-950/30 text-purple-950 dark:text-purple-200 ring-2 ring-purple-600/20'
                     : 'border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-800/50 text-gray-800 dark:text-zinc-200'
                 }`}
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">
-                      {sprintActionResponse.hasRealResponse ? 'Connected Sprint Check-In' : 'Sprint Milestone Default'}
-                    </span>
-                  </div>
-                  <p className="text-sm md:text-[15px] font-bold mt-1 text-gray-900 dark:text-white">
-                    "{sprintActionResponse.text}"
-                  </p>
-                  <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-medium">
-                    {sprintActionResponse.sourceLabel}
-                  </p>
-                </div>
-
+                <p className="text-sm md:text-[15px] font-bold text-gray-900 dark:text-white">
+                  "{sprintActionResponse.text}"
+                </p>
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-1 transition-all ${
-                  activeSelectionType === 'sprint' && selectedAction === sprintActionResponse.text
+                  selectedActions.includes(sprintActionResponse.text)
                     ? 'bg-purple-600 text-white'
                     : 'border border-gray-300 dark:border-zinc-600 group-hover:border-purple-400'
                 }`}>
-                  {activeSelectionType === 'sprint' && selectedAction === sprintActionResponse.text && (
-                    <CheckCircle2 className="w-4 h-4" />
-                  )}
+                  {selectedActions.includes(sprintActionResponse.text) && <CheckCircle2 className="w-4 h-4" />}
                 </div>
               </button>
             </div>
 
-            {/* 2. Recommendations from coach */}
-            <div className="space-y-2.5">
-              <div className="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-zinc-300">
-                <UserCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span>Recommendations from coach</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {coachRecommendations.map((tag, idx) => {
-                  const isSelected = activeSelectionType === 'coach' && selectedAction === tag;
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectCoachTag(tag)}
-                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 group ${
-                        isSelected
-                          ? 'border-purple-600 bg-purple-50/70 dark:bg-purple-950/30 text-purple-950 dark:text-purple-200 ring-2 ring-purple-600/20'
-                          : 'border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-800/50 text-gray-800 dark:text-zinc-200'
-                      }`}
-                    >
-                      <span className="text-xs md:text-sm font-bold text-gray-900 dark:text-white leading-snug">
-                        {tag}
-                      </span>
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                        isSelected
-                          ? 'bg-purple-600 text-white'
-                          : 'border border-gray-300 dark:border-zinc-600 group-hover:border-purple-400'
-                      }`}>
-                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+            {/* 2. Coach Recommendations */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {coachRecommendations.map((tag, idx) => {
+                const isSelected = selectedActions.includes(tag);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => toggleAction(tag)}
+                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2.5 group ${
+                      isSelected
+                        ? 'border-purple-600 bg-purple-50/70 dark:bg-purple-950/30 text-purple-950 dark:text-purple-200 ring-2 ring-purple-600/20'
+                        : 'border-gray-200 dark:border-zinc-800 hover:border-purple-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-800/50 text-gray-800 dark:text-zinc-200'
+                    }`}
+                  >
+                    <span className="text-xs md:text-sm font-bold text-gray-900 dark:text-white leading-snug">
+                      {tag}
+                    </span>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                      isSelected
+                        ? 'bg-purple-600 text-white'
+                        : 'border border-gray-300 dark:border-zinc-600 group-hover:border-purple-400'
+                    }`}>
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             {/* 3. Add new action based on your goal */}
