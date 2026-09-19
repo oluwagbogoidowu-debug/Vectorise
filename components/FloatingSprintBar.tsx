@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, SlidersHorizontal, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,11 +17,13 @@ export const FloatingSprintBar: React.FC = () => {
   const [activeEnrollment, setActiveEnrollment] = useState<ParticipantSprint | null>(null);
   const [hasLoadedEnrollments, setHasLoadedEnrollments] = useState(false);
   const [isSwitchModeOpen, setIsSwitchModeOpen] = useState(false);
+  const [isChallengeActive, setIsChallengeActive] = useState(false);
 
   useEffect(() => {
     if (!user) {
       setActiveEnrollment(null);
       setHasLoadedEnrollments(false);
+      setIsChallengeActive(false);
       return;
     }
 
@@ -36,6 +38,19 @@ export const FloatingSprintBar: React.FC = () => {
 
       setActiveEnrollment(active || null);
       setHasLoadedEnrollments(true);
+
+      if (active?.sprint_id) {
+        sprintService.getSprintById(active.sprint_id).then(sprintData => {
+          if (sprintData) {
+            const isChall = sprintData.contentType === 'challenge' || Boolean(sprintData.challengeData) || Boolean(sprintData.challengeCategory);
+            setIsChallengeActive(isChall);
+          } else {
+            setIsChallengeActive(false);
+          }
+        }).catch(() => setIsChallengeActive(false));
+      } else {
+        setIsChallengeActive(false);
+      }
     });
 
     return () => {
@@ -107,9 +122,12 @@ export const FloatingSprintBar: React.FC = () => {
   const isCurrentSprintActive = Boolean(activeEnrollment);
   const isCurrentlyOnSprintView = activeEnrollment && location.pathname === `/participant/sprint/${activeEnrollment.id}`;
 
-  const primaryText = isCurrentSprintActive
-    ? 'Continue Your Sprint'
-    : 'Start Next Sprint';
+  const primaryText = 'Continue Your Rise';
+
+  const activeDay = activeEnrollment ? (
+    activeEnrollment.progress?.find(p => !p.completed)?.day || 
+    (activeEnrollment.progress?.filter(p => p.completed).length + 1) || 1
+  ) : 1;
 
   const handleClick = () => {
     if (isCurrentSprintActive && activeEnrollment) {
@@ -138,9 +156,18 @@ export const FloatingSprintBar: React.FC = () => {
           type="button"
           onClick={handleClick}
           className="group flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2.5 sm:py-3 bg-gray-950/95 hover:bg-black text-white rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
-          title={primaryText}
+          title="Continue Your Rise | Keep Rising"
         >
           <span className="w-2 h-2 rounded-full bg-[#10b981] shrink-0 animate-pulse shadow-[0_0_8px_#10b981]" />
+
+          {isChallengeActive && (
+            <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 mr-1 shrink-0">
+              <Trophy className="w-3.5 h-3.5 text-purple-400" />
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-purple-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                {activeDay}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center text-xs sm:text-sm tracking-tight whitespace-nowrap overflow-hidden">
             <span className="font-bold text-white group-hover:text-emerald-300 transition-colors">
