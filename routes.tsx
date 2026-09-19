@@ -43,6 +43,8 @@ const PartnerDashboard = lazy(() => import('./pages/Partner/PartnerDashboard'));
 
 const FocusSelector = lazy(() => import('./pages/Onboarding/FocusSelector'));
 const StartHerePage = lazy(() => import('./pages/Onboarding/StartHere'));
+const TrackStarterPage = lazy(() => import('./pages/Onboarding/TrackStarterPage'));
+const TrackStartHerePage = lazy(() => import('./pages/Onboarding/TrackStartHere'));
 const CommitmentFraming = lazy(() => import('./pages/Onboarding/CommitmentFraming'));
 const SprintPayment = lazy(() => import('./pages/Onboarding/SprintPayment'));
 const TheMap = lazy(() => import('./pages/Onboarding/TheMap'));
@@ -140,6 +142,10 @@ export const AppRoutes: React.FC = () => {
         <Route path="/onboarding/focus-selector" element={<FocusSelector />} />
         <Route path="/onboarding/start-here" element={<StartHerePage />} />
         <Route path="/onboarding/start-here/:sprintId" element={<StartHerePage />} />
+        <Route path="/track-starter/:trackId" element={<TrackStarterPage />} />
+        <Route path="/onboarding/track-starter/:trackId" element={<TrackStarterPage />} />
+        <Route path="/track-start-here/:trackId/:sprintId" element={<TrackStartHerePage />} />
+        <Route path="/onboarding/track-start-here/:trackId/:sprintId" element={<TrackStartHerePage />} />
         <Route path="/onboarding/description/:sprintId" element={<SprintLandingPage />} />
         <Route path="/onboarding/commitment" element={<CommitmentFraming />} />
         <Route path="/onboarding/sprint-payment" element={<SprintPayment />} />

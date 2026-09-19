@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { trackService } from '../services/trackService';
 import { sprintService } from '../services/sprintService';
@@ -117,9 +117,10 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
 const TrackDescriptionPage: React.FC = () => {
     const { trackId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     
-    const [track, setTrack] = useState<Track | null>(null);
+    const [track, setTrack] = useState<Track | null>((location.state as any)?.previewTrack || null);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -137,7 +138,11 @@ const TrackDescriptionPage: React.FC = () => {
             }
             setIsLoading(true);
             try {
-                const trackData = await trackService.getTrackById(trackId);
+                // If live preview track was passed in state, use it
+                let trackData: Track | null = (location.state as any)?.previewTrack || null;
+                if (!trackData) {
+                    trackData = await trackService.getTrackById(trackId);
+                }
                 if (trackData) {
                     setTrack(trackData);
                     setImageError(false);
@@ -152,7 +157,7 @@ const TrackDescriptionPage: React.FC = () => {
             }
         };
         fetchData();
-    }, [trackId]);
+    }, [trackId, location.state]);
 
     useEffect(() => {
         setImageError(false);

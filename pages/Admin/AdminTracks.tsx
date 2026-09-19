@@ -5,7 +5,7 @@ import { Track, Sprint } from '../../types';
 import { trackService } from '../../services/trackService';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
-import { Edit2, Trash2, Eye, Package, AlertTriangle, Copy, Check } from 'lucide-react';
+import { Edit2, Trash2, Eye, Package, AlertTriangle, Copy, Check, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminCache } from './adminCache';
 import { getSprintCashPrice } from '../../utils/sprintUtils';
@@ -216,16 +216,27 @@ const AdminTracks: React.FC = () => {
                                         <Copy className="w-4 h-4" />
                                     )}
                                 </button>
-                                <Link to={`/admin/track/edit/${track.id}`}>
-                                    <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="Edit Track">
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
-                                </Link>
-                                <Link to={`/track/${track.id}`} target="_blank">
-                                    <button className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" title="View Landing Page">
-                                        <Eye className="w-4 h-4" />
-                                    </button>
-                                </Link>
+                                <button
+                                    onClick={() => navigate(`/admin/track/edit/${track.id}`)}
+                                    className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" 
+                                    title="Edit Track Setup"
+                                >
+                                    <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => navigate(`/track/${track.id}`)}
+                                    className="p-3 bg-gray-50 text-gray-400 hover:text-primary rounded-xl transition-all" 
+                                    title="Preview Track Description Page"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => navigate(`/track-starter/${track.id}`)}
+                                    className="p-3 bg-emerald-50 text-[#0E7850] hover:bg-[#0E7850] hover:text-white rounded-xl transition-all border border-emerald-200/60" 
+                                    title="Preview After-Payment Flow (Starter Experience)"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                </button>
                                 <button 
                                     onClick={() => trackService.updateTrack(track.id, { published: !track.published })}
                                     className={`p-3 rounded-xl transition-all ${track.published ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}

@@ -760,6 +760,13 @@ export interface Referral {
   refereeAvatar?: string;
 }
 
+export interface TrackStarterQuestion {
+  question: string;
+  pollOptions: string[];
+  pollSprintLinks?: Record<string, string>; // maps option index (e.g. "0") or option string to sprintId
+  isSet?: boolean;
+}
+
 export interface Track {
   id: string;
   title: string;
@@ -772,6 +779,7 @@ export interface Track {
   createdAt: string;
   updatedAt: string;
   currency: string;
+  starterQuestion?: TrackStarterQuestion;
 }
 
 export interface WalletTransaction {

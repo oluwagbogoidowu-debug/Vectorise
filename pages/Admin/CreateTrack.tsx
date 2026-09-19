@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
-import { Sprint, Track } from '../../types';
+import { Sprint, Track, TrackStarterQuestion } from '../../types';
 import Button from '../../components/Button';
 import { List, Plus, Trash2, Search, Package } from 'lucide-react';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { adminCache } from './adminCache';
 import { getSprintCashPrice } from '../../utils/sprintUtils';
+import TrackStarterSetup from '../../components/TrackStarterSetup';
 
 const CreateTrack: React.FC = () => {
     const navigate = useNavigate();
@@ -25,7 +26,13 @@ const CreateTrack: React.FC = () => {
         description: '',
         discountPercentage: 0,
         coverImageUrl: '',
-        sprintIds: [] as string[]
+        sprintIds: [] as string[],
+        starterQuestion: {
+            question: 'Where are you right now?',
+            pollOptions: [],
+            pollSprintLinks: {},
+            isSet: false
+        } as TrackStarterQuestion
     });
 
     useEffect(() => {
@@ -81,7 +88,8 @@ const CreateTrack: React.FC = () => {
             published: true,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
-            currency: selectedSprints[0]?.currency || 'NGN'
+            currency: selectedSprints[0]?.currency || 'NGN',
+            starterQuestion: formData.starterQuestion
         };
 
         try {
@@ -251,6 +259,13 @@ const CreateTrack: React.FC = () => {
                                 ))}
                             </div>
                         </div>
+
+                        {/* Track Starter Experience Setup */}
+                        <TrackStarterSetup
+                            starterQuestion={formData.starterQuestion}
+                            onChange={(sq) => setFormData(prev => ({ ...prev, starterQuestion: sq }))}
+                            selectedSprints={selectedSprints}
+                        />
                     </div>
 
                     <div className="lg:col-span-5 space-y-8 lg:sticky lg:top-12">
