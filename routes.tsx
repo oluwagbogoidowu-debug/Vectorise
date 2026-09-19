@@ -13,6 +13,7 @@ const HomePage = lazy(() => import('./pages/HomePage'));
 const CreateSprint = lazy(() => import('./pages/Coach/CreateSprint'));
 const EditSprint = lazy(() => import('./pages/Coach/EditSprint'));
 const SprintLandingPage = lazy(() => import('./pages/Participant/SprintLandingPage'));
+const ChallengeActionSetup = lazy(() => import('./pages/Participant/ChallengeActionSetup'));
 const DiscoverSprints = lazy(() => import('./pages/Participant/DiscoverSprints'));
 const ParticipantDashboard = lazy(() => import('./pages/Participant/ParticipantDashboard'));
 const SprintView = lazy(() => import('./pages/Participant/SprintView'));
@@ -230,6 +231,8 @@ export const AppRoutes: React.FC = () => {
         
         <Route path="/impact/success" element={<ReferralSuccess />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/challenge/:id" element={<ChallengeActionSetup />} />
+        <Route path="/challenge" element={<ChallengeActionSetup />} />
         <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />
         
         {/* Admin Track */}

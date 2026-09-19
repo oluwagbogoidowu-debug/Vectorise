@@ -189,6 +189,12 @@ const SprintLandingPage: React.FC = () => {
         });
     };
 
+    useEffect(() => {
+        if (sprint?.contentType === 'challenge' && sprintId) {
+            navigate(`/challenge/${sprintId}`, { replace: true, state: { sprint } });
+        }
+    }, [sprint, sprintId, navigate]);
+
     const loadSprintData = useCallback(async () => {
         if (!sprintId) {
             setIsLoading(false);

@@ -38,7 +38,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
       return;
     }
     if (challenge && challenge.id) {
-      navigate(`/sprint/${challenge.id}`, { state: { sprint: challenge } });
+      navigate(`/challenge/${challenge.id}`, { state: { sprint: challenge } });
     } else {
       // Fallback navigation with structured challenge state
       const fallbackId = 'challenge_clarity_default';
@@ -53,6 +53,12 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
         challengeType: type,
         challengeCategory: category,
         recommendedAfterSprintTitle: connectedSprint,
+        actionFromSprintPlaceholder: '{m2 step 2}',
+        actionRecommendations: [
+          'Gain total clarity on primary objective',
+          'Practice 15 minutes of deliberate execution',
+          'Review progress and adjust trajectory'
+        ],
         duration: 7,
         price: 0,
         currency: 'NGN',
@@ -71,6 +77,12 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
           type: type,
           category: category,
           recommendedAfterSprintTitle: connectedSprint,
+          actionFromSprintPlaceholder: '{m2 step 2}',
+          actionRecommendations: [
+            'Gain total clarity on primary objective',
+            'Practice 15 minutes of deliberate execution',
+            'Review progress and adjust trajectory'
+          ],
           whatToDo: `Complete the ${title} action steps.`,
           howOften: type === 'Repetition' ? 'Daily Repetition' : 'Sequential Step Progression',
           howLong: '7 Days',
@@ -78,7 +90,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
           whyDoIt: categoryText,
         }
       };
-      navigate(`/sprint/${fallbackId}`, { state: { sprint: fallbackSprint } });
+      navigate(`/challenge/${fallbackId}`, { state: { sprint: fallbackSprint } });
     }
   };
 

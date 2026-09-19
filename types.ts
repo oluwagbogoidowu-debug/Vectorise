@@ -419,12 +419,16 @@ export interface Sprint {
   challengeCategory?: ChallengeCategory | string;
   recommendedAfterSprintId?: string;
   recommendedAfterSprintTitle?: string;
+  actionRecommendations?: string[];
+  actionFromSprintPlaceholder?: string;
   challengeData?: {
     name?: string;
     type?: ChallengeType;
     category?: ChallengeCategory | string;
     recommendedAfterSprintId?: string;
     recommendedAfterSprintTitle?: string;
+    actionRecommendations?: string[];
+    actionFromSprintPlaceholder?: string;
     whatToDo?: string;
     howOften?: string;
     howLong?: string;

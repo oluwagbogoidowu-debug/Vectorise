@@ -1039,6 +1039,26 @@ const EditChallengeModal: React.FC<{
   const [recommendedAfterSprintId, setRecommendedAfterSprintId] = useState<string>(
     challenge.recommendedAfterSprintId || challenge.challengeData?.recommendedAfterSprintId || ''
   );
+  const [actionRecommendations, setActionRecommendations] = useState<string[]>(
+    challenge.actionRecommendations || challenge.challengeData?.actionRecommendations || []
+  );
+  const [newTagInput, setNewTagInput] = useState('');
+  const [actionFromSprintPlaceholder, setActionFromSprintPlaceholder] = useState<string>(
+    challenge.actionFromSprintPlaceholder || challenge.challengeData?.actionFromSprintPlaceholder || '{m2 step 2}'
+  );
+
+  const handleAddTag = () => {
+    const trimmed = newTagInput.trim().replace(/^,+|,+$/g, '');
+    if (!trimmed) return;
+    if (!actionRecommendations.includes(trimmed)) {
+      setActionRecommendations(prev => [...prev, trimmed]);
+    }
+    setNewTagInput('');
+  };
+
+  const handleRemoveTag = (idx: number) => {
+    setActionRecommendations(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1055,6 +1075,8 @@ const EditChallengeModal: React.FC<{
       challengeCategory: category,
       recommendedAfterSprintId: recommendedAfterSprintId || undefined,
       recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+      actionRecommendations: actionRecommendations,
+      actionFromSprintPlaceholder: actionFromSprintPlaceholder.trim() || '{m2 step 2}',
       challengeData: {
         ...(challenge.challengeData || {}),
         name: name.trim(),
@@ -1062,6 +1084,8 @@ const EditChallengeModal: React.FC<{
         category: category,
         recommendedAfterSprintId: recommendedAfterSprintId || undefined,
         recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+        actionRecommendations: actionRecommendations,
+        actionFromSprintPlaceholder: actionFromSprintPlaceholder.trim() || '{m2 step 2}',
       }
     };
     onSave(updated);
@@ -1182,6 +1206,80 @@ const EditChallengeModal: React.FC<{
                 <span>Connected to selected sprint</span>
               </div>
             )}
+          </div>
+
+          {/* 5. Action Recommendations */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+                5. Action Recommendations
+              </label>
+              <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Poll on user end</span>
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1 font-medium">
+              Recommendation tags displayed as interactive options for participants.
+            </p>
+            <div className="flex gap-2 mt-1.5">
+              <input
+                type="text"
+                value={newTagInput}
+                onChange={e => setNewTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="Type tag & press Enter..."
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-purple-600 text-gray-900"
+              />
+              <button
+                type="button"
+                onClick={handleAddTag}
+                className="px-4 py-2.5 bg-purple-100 hover:bg-purple-200 text-purple-900 font-black text-[11px] uppercase tracking-wider rounded-xl shrink-0 cursor-pointer transition-all"
+              >
+                + Add
+              </button>
+            </div>
+            {actionRecommendations.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {actionRecommendations.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-[11px] font-bold"
+                  >
+                    <span>{tag}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(idx)}
+                      className="w-3.5 h-3.5 rounded-full hover:bg-purple-200 inline-flex items-center justify-center text-purple-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 6. Action from Sprint Input */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-relaxed">
+                6. Action from Sprint Input
+              </label>
+              <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Dynamic Step</span>
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1 font-medium">
+              Specify the sprint milestone/step placeholder (e.g. <code className="text-purple-600 font-bold bg-purple-50 px-1 py-0.5 rounded">{"{m2 step 2}"}</code>) to pull participant's response.
+            </p>
+            <input
+              type="text"
+              value={actionFromSprintPlaceholder}
+              onChange={e => setActionFromSprintPlaceholder(e.target.value)}
+              placeholder="{m2 step 2}"
+              className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl font-mono text-xs font-bold outline-none focus:ring-2 focus:ring-purple-600 text-gray-900 mt-1.5"
+            />
           </div>
 
           {/* Actions */}

@@ -13,7 +13,7 @@ import DynamicSectionRenderer from '../../components/DynamicSectionRenderer';
 import FormattingToolbar from '../../components/FormattingToolbar';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS, CHALLENGE_TYPES, CHALLENGE_CATEGORIES } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Type as TypeIcon, Clock, Flame, BookOpen, Sparkles, Trophy, Repeat, ListOrdered, Link2 } from 'lucide-react';
+import { List, Plus, Trash2, Type as TypeIcon, Clock, Flame, BookOpen, Sparkles, Trophy, Repeat, ListOrdered, Link2, X } from 'lucide-react';
 
 const IGNITE_COLORS = [
   { hex: '#111827', name: 'Charcoal' },
@@ -259,14 +259,30 @@ const CreateSprint: React.FC = () => {
     const [isPreviewingIgnite, setIsPreviewingIgnite] = useState(false);
     const [isSubmittingIgnite, setIsSubmittingIgnite] = useState(false);
 
-    // Challenge State (The only 4 inputs for Coach Challenge setup)
+    // Challenge State (Inputs for Coach Challenge setup)
     const [challengeName, setChallengeName] = useState('');
     const [challengeType, setChallengeType] = useState<ChallengeType>('Repetition');
     const [challengeCategory, setChallengeCategory] = useState<ChallengeCategory>('Mastery');
     const [recommendedAfterSprintId, setRecommendedAfterSprintId] = useState<string>('');
+    const [actionRecommendations, setActionRecommendations] = useState<string[]>([]);
+    const [newTagInput, setNewTagInput] = useState('');
+    const [actionFromSprintPlaceholder, setActionFromSprintPlaceholder] = useState('{m2 step 2}');
     const [availableSprints, setAvailableSprints] = useState<Sprint[]>([]);
     const [isLoadingSprints, setIsLoadingSprints] = useState(false);
     const [isSubmittingChallenge, setIsSubmittingChallenge] = useState(false);
+
+    const handleAddTag = () => {
+        const trimmed = newTagInput.trim().replace(/^,+|,+$/g, '');
+        if (!trimmed) return;
+        if (!actionRecommendations.includes(trimmed)) {
+            setActionRecommendations(prev => [...prev, trimmed]);
+        }
+        setNewTagInput('');
+    };
+
+    const handleRemoveTag = (idx: number) => {
+        setActionRecommendations(prev => prev.filter((_, i) => i !== idx));
+    };
 
     // Fetch coach's sprints for the "Recommended after" dropdown
     useEffect(() => {
@@ -306,6 +322,8 @@ const CreateSprint: React.FC = () => {
             challengeCategory: challengeCategory,
             recommendedAfterSprintId: recommendedAfterSprintId || undefined,
             recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+            actionRecommendations: actionRecommendations,
+            actionFromSprintPlaceholder: actionFromSprintPlaceholder.trim() || '{m2 step 2}',
             duration: 7,
             price: 0,
             currency: 'NGN',
@@ -324,6 +342,8 @@ const CreateSprint: React.FC = () => {
                 category: challengeCategory,
                 recommendedAfterSprintId: recommendedAfterSprintId || undefined,
                 recommendedAfterSprintTitle: selectedSprint ? selectedSprint.title : undefined,
+                actionRecommendations: actionRecommendations,
+                actionFromSprintPlaceholder: actionFromSprintPlaceholder.trim() || '{m2 step 2}',
                 whatToDo: `Complete the ${challengeName.trim()} challenge actions.`,
                 howOften: challengeType === 'Repetition' ? 'Daily Repetition' : 'Sequential Step Progression',
                 howLong: '7 Days',
@@ -1240,6 +1260,76 @@ const CreateSprint: React.FC = () => {
                                                 <span>Participants will be recommended this challenge after completing the connected sprint.</span>
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* 5. Action Recommendations (Tags for poll on user end) */}
+                                    <div>
+                                        <div className="flex items-center justify-between">
+                                            <label className={labelClasses}>5. Action Recommendations</label>
+                                            <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Poll on user end</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1 font-medium">
+                                            Add recommendation tags that will be displayed as interactive options for participants to pick from.
+                                        </p>
+                                        <div className="flex gap-2 mt-2">
+                                            <input
+                                                type="text"
+                                                value={newTagInput}
+                                                onChange={(e) => setNewTagInput(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ',') {
+                                                        e.preventDefault();
+                                                        handleAddTag();
+                                                    }
+                                                }}
+                                                placeholder="Type an action recommendation and press Enter..."
+                                                className={inputClasses}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleAddTag}
+                                                className="px-5 py-3 rounded-2xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-black text-xs uppercase tracking-wider shrink-0 transition-all cursor-pointer"
+                                            >
+                                                + Add Tag
+                                            </button>
+                                        </div>
+                                        {actionRecommendations.length > 0 && (
+                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                {actionRecommendations.map((tag, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-xs font-bold shadow-sm"
+                                                    >
+                                                        <span>{tag}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveTag(idx)}
+                                                            className="w-4 h-4 rounded-full hover:bg-purple-200 inline-flex items-center justify-center text-purple-600 transition-colors"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 6. Action from Sprint (m2 step 2 logic) */}
+                                    <div>
+                                        <div className="flex items-center justify-between">
+                                            <label className={labelClasses}>6. Action from Sprint Input</label>
+                                            <span className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Dynamic Step Response</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-1 font-medium">
+                                            Specify the sprint milestone/step placeholder (e.g. <code className="text-purple-600 font-bold bg-purple-50 px-1 py-0.5 rounded">{"{m2 step 2}"}</code>) to dynamically pull the participant's response from that part of the connected sprint.
+                                        </p>
+                                        <input
+                                            type="text"
+                                            value={actionFromSprintPlaceholder}
+                                            onChange={(e) => setActionFromSprintPlaceholder(e.target.value)}
+                                            placeholder="{m2 step 2}"
+                                            className={inputClasses + " mt-2 font-mono text-sm"}
+                                        />
                                     </div>
                                 </div>
 
