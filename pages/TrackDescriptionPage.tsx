@@ -211,9 +211,24 @@ const TrackDescriptionPage: React.FC = () => {
         setImageError(false);
     }, [track?.coverImageUrl]);
 
-    const totalPrice = useMemo(() => {
+    const baseSprintsPrice = useMemo(() => {
         return sprints.reduce((sum, s) => sum + (getSprintCashPrice(s) || 0), 0);
     }, [sprints]);
+
+    const rerunCost = useMemo(() => {
+        if (!track) return 0;
+        const reruns = track.allowedReruns ?? 2;
+        const isDiscounted = reruns === 1 || reruns === 2;
+        return sprints.reduce((sum, s) => {
+            const basePrice = getSprintCashPrice(s) || 0;
+            const pricePerRerun = isDiscounted ? basePrice * 0.5 : basePrice;
+            return sum + (pricePerRerun * reruns);
+        }, 0);
+    }, [sprints, track]);
+
+    const totalPrice = useMemo(() => {
+        return baseSprintsPrice + rerunCost;
+    }, [baseSprintsPrice, rerunCost]);
 
     const discountedPrice = useMemo(() => {
         if (!track) return totalPrice;

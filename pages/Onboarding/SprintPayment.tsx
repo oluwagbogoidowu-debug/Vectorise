@@ -88,7 +88,15 @@ const SprintPayment: React.FC = () => {
   
   const getPrice = () => {
       if (selectedTrack) {
-          const total = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
+          const baseTotal = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
+          const reruns = selectedTrack.allowedReruns ?? 2;
+          const isDiscounted = reruns === 1 || reruns === 2;
+          const rerunCost = trackSprints.reduce((sum, s) => {
+              const basePrice = getSprintCashPrice(s);
+              const pricePerRerun = isDiscounted ? basePrice * 0.5 : basePrice;
+              return sum + (pricePerRerun * reruns);
+          }, 0);
+          const total = baseTotal + rerunCost;
           return total * (1 - selectedTrack.discountPercentage / 100);
       }
       return isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 3000);

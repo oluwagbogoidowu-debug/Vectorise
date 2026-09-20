@@ -34,7 +34,17 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, sprints }) => {
     }, [track.sprintIds, sprints]);
 
     const trackSprints = fetchedSprints.length > 0 ? fetchedSprints : (sprints || []).filter(s => track.sprintIds.includes(s.id));
-    const totalValue = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
+    const baseValue = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
+    const rerunCost = (() => {
+        const reruns = track.allowedReruns ?? 2;
+        const isDiscounted = reruns === 1 || reruns === 2;
+        return trackSprints.reduce((sum, s) => {
+            const basePrice = getSprintCashPrice(s);
+            const pricePerRerun = isDiscounted ? basePrice * 0.5 : basePrice;
+            return sum + (pricePerRerun * reruns);
+        }, 0);
+    })();
+    const totalValue = baseValue + rerunCost;
     const discountedPrice = totalValue * (1 - track.discountPercentage / 100);
 
     return (

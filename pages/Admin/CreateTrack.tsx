@@ -55,9 +55,23 @@ const CreateTrack: React.FC = () => {
         return sprints.filter(s => formData.sprintIds.includes(s.id));
     }, [sprints, formData.sprintIds]);
 
-    const totalPrice = useMemo(() => {
+    const baseSprintsPrice = useMemo(() => {
         return selectedSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
     }, [selectedSprints]);
+
+    const rerunCost = useMemo(() => {
+        const reruns = formData.allowedReruns || 2;
+        const isDiscounted = reruns === 1 || reruns === 2;
+        return selectedSprints.reduce((sum, s) => {
+            const basePrice = getSprintCashPrice(s);
+            const pricePerRerun = isDiscounted ? basePrice * 0.5 : basePrice;
+            return sum + (pricePerRerun * reruns);
+        }, 0);
+    }, [selectedSprints, formData.allowedReruns]);
+
+    const totalPrice = useMemo(() => {
+        return baseSprintsPrice + rerunCost;
+    }, [baseSprintsPrice, rerunCost]);
 
     const discountedPrice = useMemo(() => {
         return totalPrice * (1 - formData.discountPercentage / 100);
@@ -227,7 +241,7 @@ const CreateTrack: React.FC = () => {
                                     <label className={labelClasses}>Number of Reruns per Sprint</label>
                                     <p className="text-[11px] text-gray-400 font-bold mb-3">Choose how many times a participant can rerun sprints in this track.</p>
                                     <div className="flex gap-2">
-                                        {[1, 2, 3, 4].map((num) => (
+                                        {[1, 2, 3].map((num) => (
                                             <button
                                                 key={num}
                                                 type="button"
@@ -241,6 +255,19 @@ const CreateTrack: React.FC = () => {
                                                 {num} {num === 1 ? 'Rerun' : 'Reruns'}
                                             </button>
                                         ))}
+                                    </div>
+                                    <div className="mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-1">
+                                        <div className="flex justify-between items-center text-xs font-black text-gray-900">
+                                            <span>Rerun Cost:</span>
+                                            <span className="text-primary font-black italic">
+                                                {selectedSprints[0]?.currency || 'NGN'} {rerunCost.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide leading-relaxed mt-1">
+                                            {(formData.allowedReruns === 1 || formData.allowedReruns === 2) 
+                                                ? "50% discount applied per rerun (1 or 2 reruns config)" 
+                                                : "Standard pricing applied per rerun (3 reruns config)"}
+                                        </p>
                                     </div>
                                 </div>
                             </section>
