@@ -4643,7 +4643,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       <span>Hint</span>
                                     </button>
                                     {revealedHints[i] && (
-                                      <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-sm font-medium' : 'p-4 rounded-xl text-sm font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
+                                      <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-[14px] font-medium' : 'p-4 rounded-xl text-[14px] font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                         <FormattedText
                                           text={resolvedHint}
                                         />
@@ -5702,7 +5702,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 <span>Hint</span>
                               </button>
                               {revealedHints[0] && (
-                                <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-sm font-medium' : 'p-3 rounded-xl text-sm font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
+                                <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-[14px] font-medium' : 'p-3 rounded-xl text-[14px] font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                   <FormattedText text={resolvedHint} />
                                 </div>
                               )}

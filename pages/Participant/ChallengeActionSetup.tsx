@@ -16,6 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 
 /**
  * Helper to recursively extract a clean array of strings from any raw answer
@@ -91,6 +92,7 @@ const ChallengeActionSetup: React.FC = () => {
   const [viewMode, setViewMode] = useState<'setup' | 'preview' | 'active'>('setup');
   const [currentDay, setCurrentDay] = useState<number>(1);
   const [showCompleteModal, setShowCompleteModal] = useState<boolean>(false);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
 
   // Load Challenge if not already passed in state
   useEffect(() => {
@@ -555,7 +557,7 @@ const ChallengeActionSetup: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setShowCompleteModal(true)}
+              onClick={() => setShowConfirmModal(true)}
               className="w-full py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-purple-600/25 transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -564,6 +566,19 @@ const ChallengeActionSetup: React.FC = () => {
           </div>
         )}
       </main>
+
+      <ActionStepConfirmModal
+        isOpen={showConfirmModal}
+        onConfirm={() => {
+          setShowConfirmModal(false);
+          setShowCompleteModal(true);
+        }}
+        onCancel={() => setShowConfirmModal(false)}
+        title="Are you sure you have completed this action?"
+        subtitle="Be honest with yourself—taking real action is how you grow and get 1% better every day. Have you completed this challenge action?"
+        confirmText="Yes, I did the action"
+        cancelText="Not yet"
+      />
 
       {/* Mark Complete Popup Modal */}
       {showCompleteModal && (
