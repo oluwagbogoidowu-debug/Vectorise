@@ -204,6 +204,7 @@ const DiscoverSprints: React.FC = () => {
                                             <ChallengeCard 
                                                 challenge={activeChallenge}
                                                 recommendedFromTitle={item.sprint?.title || 'Gain Clarity First'}
+                                                hasStarted={Boolean(activeChallenge?.id && (enrolledSprintIds.has(activeChallenge.id) || localStorage.getItem(`vectorise_challenge_action_${activeChallenge.id}`)))}
                                             />
                                         </div>
                                     )}

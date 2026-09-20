@@ -94,6 +94,46 @@ const ChallengeActionSetup: React.FC = () => {
   const [showCompleteModal, setShowCompleteModal] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
 
+  // Auto-resume active challenge where completion stopped
+  useEffect(() => {
+    const challengeId = challenge?.id || id;
+    if (!challengeId) return;
+
+    const savedActionsJson = localStorage.getItem(`vectorise_challenge_action_${challengeId}`);
+    const matchingEnrollment = userEnrollments.find(e => e.sprint_id === challengeId);
+
+    let actions: string[] = [];
+    if (savedActionsJson) {
+      try {
+        actions = JSON.parse(savedActionsJson);
+      } catch (e) {}
+    } else if (matchingEnrollment && (matchingEnrollment as any).taskInputs && Array.isArray((matchingEnrollment as any).taskInputs)) {
+      actions = (matchingEnrollment as any).taskInputs;
+    } else if (matchingEnrollment && (matchingEnrollment as any).firstActionInput) {
+      actions = [(matchingEnrollment as any).firstActionInput];
+    }
+
+    if (actions.length > 0) {
+      setSelectedActions(actions);
+      const completedProgress = matchingEnrollment?.progress || [];
+      const completedCount = completedProgress.filter(p => p.completed).length;
+
+      if (completedCount > 0 && completedCount < actions.length) {
+        setCurrentDay(completedCount + 1);
+        setViewMode('active');
+      } else if (matchingEnrollment?.status === 'active') {
+        const nextDay = Math.min(completedCount + 1, actions.length);
+        setCurrentDay(nextDay);
+        setViewMode('active');
+      } else if (completedCount >= actions.length) {
+        setCurrentDay(actions.length);
+        setViewMode('active');
+      } else {
+        setViewMode('preview');
+      }
+    }
+  }, [challenge?.id, id, userEnrollments]);
+
   // Load Challenge if not already passed in state
   useEffect(() => {
     let isMounted = true;
@@ -595,20 +635,33 @@ const ChallengeActionSetup: React.FC = () => {
             </p>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 setShowCompleteModal(false);
+                const challengeId = challenge?.id || id;
+                if (challengeId && user?.id) {
+                  const matchingEnrollment = userEnrollments.find(e => e.sprint_id === challengeId);
+                  if (matchingEnrollment) {
+                    const newProgress = [...(matchingEnrollment.progress || [])];
+                    const dayIdx = currentDay - 1;
+                    if (!newProgress[dayIdx]) {
+                      newProgress[dayIdx] = { day: currentDay, completed: true, completedAt: new Date().toISOString() };
+                    } else {
+                      newProgress[dayIdx].completed = true;
+                      newProgress[dayIdx].completedAt = new Date().toISOString();
+                    }
+                    await sprintService.updateEnrollment(matchingEnrollment.id, {
+                      progress: newProgress,
+                      status: currentDay >= totalDays ? 'completed' : 'active',
+                      completed_at: currentDay >= totalDays ? new Date().toISOString() : undefined
+                    }).catch(err => console.error("Error updating challenge progress:", err));
+                  }
+                }
+
                 if (currentDay < totalDays) {
                   setCurrentDay(prev => prev + 1);
                 } else {
                   toast.success("Challenge completed successfully!");
-                  navigate(`/sprint/${challenge?.id || id}`, { 
-                    state: { 
-                      sprint: challenge,
-                      selectedActions: selectedActions,
-                      selectedAction: selectedActions[0],
-                      isChallenge: true,
-                    } 
-                  });
+                  navigate(`/explore`, { replace: true });
                 }
               }}
               className="w-full py-3.5 bg-gray-950 dark:bg-zinc-800 text-white dark:text-zinc-100 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95 cursor-pointer"

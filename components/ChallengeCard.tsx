@@ -8,6 +8,7 @@ interface ChallengeCardProps {
   challenge?: Sprint | null;
   recommendedFromTitle?: string;
   onTry?: () => void;
+  hasStarted?: boolean;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
   challenge,
   recommendedFromTitle,
   onTry,
+  hasStarted = false,
   className = '',
 }) => {
   const navigate = useNavigate();
@@ -31,6 +33,10 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
     challenge?.challengeData?.recommendedAfterSprintTitle || 
     recommendedFromTitle || 
     'Gain Clarity First';
+
+  const challengeId = challenge?.id;
+  const started = hasStarted || (challengeId ? Boolean(localStorage.getItem(`vectorise_challenge_action_${challengeId}`)) : false);
+  const buttonText = started ? 'Continue Challenge' : 'Try Challenge';
 
   const handleAction = () => {
     if (onTry) {
@@ -147,7 +153,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
             onClick={handleAction}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-purple-600/30 transition-all cursor-pointer group/btn"
           >
-            <span>Try Challenge</span>
+            <span>{buttonText}</span>
             <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-0.5 transition-transform" />
           </button>
         </div>

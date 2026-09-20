@@ -321,8 +321,10 @@ const MySprints: React.FC = () => {
                                     const progress = calculateProgress(runProgress || enrollment.progress);
                                     const sprintCover = getSprintCoverImage(sprint);
                                     const completedCount = (runProgress || enrollment.progress || []).filter(p => p.completed).length;
+                                    const isChallenge = sprint.contentType === 'challenge' || sprint.challengeData || sprint.challengeType;
+                                    const linkPath = isChallenge ? `/challenge/${sprint.id}` : `/participant/sprint/${enrollment.id}`;
                                     return (
-                                        <Link key={id} to={`/participant/sprint/${enrollment.id}`} className="block group">
+                                        <Link key={id} to={linkPath} className="block group">
                                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
                                                 <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
                                                     <img 
@@ -335,8 +337,8 @@ const MySprints: React.FC = () => {
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-1.5">
-                                                            <p className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.category}</p>
-                                                            {totalRuns >= 2 && (
+                                                            <p className="text-[8px] font-black text-primary uppercase tracking-widest">{isChallenge ? 'Challenge' : sprint.category}</p>
+                                                            {totalRuns >= 2 && !isChallenge && (
                                                                 <span className="text-[7px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-widest border border-purple-100">
                                                                     Run {runNumber}
                                                                 </span>
@@ -347,7 +349,7 @@ const MySprints: React.FC = () => {
                                                     <h3 className="text-sm font-black text-gray-900 truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
                                                     <ProgressBar value={progress} />
                                                     <div className="mt-3 flex items-center justify-between">
-                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {completedCount + 1} / {sprint.duration}</p>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {completedCount + 1} / {sprint.duration || 7}</p>
                                                         <button className="text-[8px] font-black text-primary uppercase tracking-widest group-hover:underline">Resume &rarr;</button>
                                                     </div>
                                                 </div>
@@ -375,9 +377,10 @@ const MySprints: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-1 gap-2.5">
                                 {(isQueuedExpanded ? allQueuedSprints : allQueuedSprints.slice(0, 2)).map(({ enrollment, sprint, key }, idx) => {
-                                    const path = enrollment 
-                                        ? `/participant/sprint/${enrollment.id}` 
-                                        : `/sprint/${sprint.id}`;
+                                    const isChallenge = sprint.contentType === 'challenge' || sprint.challengeData || sprint.challengeType;
+                                    const path = isChallenge 
+                                        ? `/challenge/${sprint.id}`
+                                        : (enrollment ? `/participant/sprint/${enrollment.id}` : `/sprint/${sprint.id}`);
                                     const sprintCover = getSprintCoverImage(sprint);
                                     return (
                                         <div key={key} className="bg-white rounded-xl p-3 border border-gray-100 flex items-center gap-3 hover:shadow-sm transition-all group animate-fade-in">
@@ -393,7 +396,7 @@ const MySprints: React.FC = () => {
                                             </Link>
                                             <Link to={path} className="min-w-0 flex-1">
                                                 <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
-                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration} Days • {sprint.category}</p>
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration || 7} Days • {isChallenge ? 'Challenge' : sprint.category}</p>
                                             </Link>
                                             <div className="flex items-center gap-1">
                                                 <button 
