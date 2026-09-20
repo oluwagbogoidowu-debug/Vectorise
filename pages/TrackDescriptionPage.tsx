@@ -46,7 +46,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                             {sprint.category && sprint.category.toLowerCase() !== 'foundational path' && sprint.category.toLowerCase() !== 'foundational' && (
                                 <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[8px] font-black uppercase tracking-widest rounded-md">{sprint.category}</span>
                             )}
-                            <span className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.duration} Days</span>
+                            <span className="text-[8px] font-black text-primary uppercase tracking-widest">{sprint.duration} Moves</span>
                         </div>
                         <h4 className="text-lg font-black text-gray-900 tracking-tight group-hover:text-primary transition-colors leading-tight">{sprint.title}</h4>
                     </div>
@@ -105,7 +105,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                         </div>
                         <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
                             <Calendar className="w-3.5 h-3.5 text-primary/40" />
-                            {sprint.duration} Days
+                            {sprint.duration} Moves
                         </div>
                     </div>
                 </div>
