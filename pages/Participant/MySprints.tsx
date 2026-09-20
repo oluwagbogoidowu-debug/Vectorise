@@ -71,6 +71,7 @@ const MySprints: React.FC = () => {
         });
 
         const inProgressList: EnrichedSprintItem[] = [];
+        const activeChallengesList: EnrichedSprintItem[] = [];
         const archivedList: EnrichedSprintItem[] = [];
         const queuedList: { enrollment: ParticipantSprint; sprint: Sprint }[] = [];
 
@@ -142,7 +143,12 @@ const MySprints: React.FC = () => {
                 };
 
                 if (enrichedItem.status === 'active') {
-                    inProgressList.push(enrichedItem);
+                    const isChall = enrichedItem.sprint.contentType === 'challenge' || enrichedItem.sprint.challengeData || enrichedItem.sprint.challengeType;
+                    if (isChall) {
+                        activeChallengesList.push(enrichedItem);
+                    } else {
+                        inProgressList.push(enrichedItem);
+                    }
                 } else if (enrichedItem.status === 'completed') {
                     archivedList.push(enrichedItem);
                 } else if (enrichedItem.status === 'queued') {
@@ -153,11 +159,16 @@ const MySprints: React.FC = () => {
 
         // Sort inProgress by startedAt (most recent first)
         inProgressList.sort((a, b) => new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime());
+        // Sort activeChallenges by startedAt (most recent first)
+        activeChallengesList.sort((a, b) => new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime());
         // Sort archived by completedAt or startedAt (most recent first)
         archivedList.sort((a, b) => new Date(b.completedAt || b.startedAt || 0).getTime() - new Date(a.completedAt || a.startedAt || 0).getTime());
 
         const p = user as Participant;
-        const activeIds = new Set(inProgressList.map(e => e.sprint.id));
+        const activeIds = new Set([
+            ...inProgressList.map(e => e.sprint.id),
+            ...activeChallengesList.map(e => e.sprint.id)
+        ]);
         
         const saved = (p.savedSprintIds || [])
             .filter(id => !activeIds.has(id))
@@ -171,6 +182,7 @@ const MySprints: React.FC = () => {
 
         return { 
             inProgress: inProgressList, 
+            activeChallenges: activeChallengesList,
             archived: archivedList, 
             queued: queuedList, 
             waitlist, 
@@ -286,7 +298,7 @@ const MySprints: React.FC = () => {
         );
     }
 
-    const { inProgress, archived, queued, waitlist, saved } = categorized;
+    const { inProgress, activeChallenges, archived, queued, waitlist, saved } = categorized;
     const fallbackUrl = assetService.URLS.DEFAULT_SPRINT_COVER;
 
     const allQueuedSprints = [
@@ -527,6 +539,57 @@ const MySprints: React.FC = () => {
                                     {isArchivedExpanded ? 'Collapse' : `See More (${archived.length - 2})`}
                                 </button>
                             )}
+                        </section>
+                    )}
+
+                    {/* 5. ACTIVE CHALLENGES */}
+                    {activeChallenges && activeChallenges.length > 0 && (
+                        <section className="mt-10">
+                            <div className="flex items-center gap-2 mb-4">
+                                <h2 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Active Challenges</h2>
+                                <div className="h-px bg-gray-100 flex-1"></div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3">
+                                {activeChallenges.map(({ id, enrollment, sprint, runNumber, totalRuns, progress: runProgress }) => {
+                                    const progress = calculateProgress(runProgress || enrollment.progress);
+                                    const sprintCover = getSprintCoverImage(sprint);
+                                    const completedCount = (runProgress || enrollment.progress || []).filter(p => p.completed).length;
+                                    const linkPath = `/challenge/${sprint.id}`;
+                                    return (
+                                        <Link key={id} to={linkPath} className="block group animate-fade-in">
+                                            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
+                                                <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
+                                                    <img 
+                                                        src={sprintCover} 
+                                                        alt={sprint.title} 
+                                                        className="w-full h-full object-cover transition-transform group-hover:scale-105" 
+                                                        onError={(e) => { e.currentTarget.src = sprintCover }}
+                                                    />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <p className="text-[8px] font-black text-purple-600 uppercase tracking-widest">Challenge</p>
+                                                            {(sprint.challengeType || (sprint as any).challengeData?.type) && (
+                                                                <span className="text-[7px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-widest border border-purple-100">
+                                                                    {sprint.challengeType || (sprint as any).challengeData?.type}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-gray-400">{progress.toFixed(0)}%</span>
+                                                    </div>
+                                                    <h3 className="text-sm font-black text-gray-900 truncate group-hover:text-purple-600 transition-colors">{sprint.title}</h3>
+                                                    <ProgressBar value={progress} />
+                                                    <div className="mt-3 flex items-center justify-between">
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {completedCount + 1} / {sprint.duration || 7}</p>
+                                                        <button className="text-[8px] font-black text-purple-600 uppercase tracking-widest group-hover:underline">Resume &rarr;</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
                         </section>
                     )}
                 </div>

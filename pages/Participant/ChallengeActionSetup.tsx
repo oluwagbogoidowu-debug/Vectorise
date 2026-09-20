@@ -14,10 +14,12 @@ import {
   Repeat,
   ListOrdered,
   Clock,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
+import ParticipantDrawerMenu from '../../components/ParticipantDrawerMenu';
 
 /**
  * Helper to recursively extract a clean array of strings from any raw answer
@@ -104,6 +106,7 @@ const ChallengeActionSetup: React.FC = () => {
 
   // Workflow view mode: 'setup' -> 'preview' -> 'active'
   const [viewMode, setViewMode] = useState<'setup' | 'preview' | 'active'>('setup');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentDay, setCurrentDay] = useState<number>(1);
   const [showCompleteModal, setShowCompleteModal] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
@@ -377,15 +380,11 @@ const ChallengeActionSetup: React.FC = () => {
       <header className="w-full max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
         <button
           type="button"
-          onClick={() => {
-            if (viewMode === 'preview') setViewMode('setup');
-            else if (viewMode === 'active') setViewMode('preview');
-            else navigate('/explore');
-          }}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-600 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
+          onClick={() => setIsMenuOpen(true)}
+          className="p-2.5 bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl shadow-sm text-gray-700 dark:text-zinc-300 hover:text-gray-950 dark:hover:text-white active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          title="Open menu"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back</span>
+          <Menu className="w-5 h-5" />
         </button>
 
         <div className="flex items-center gap-2">
@@ -861,6 +860,7 @@ const ChallengeActionSetup: React.FC = () => {
           </div>
         </div>
       )}
+      <ParticipantDrawerMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
     </div>
   );
 };
