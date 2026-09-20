@@ -47,6 +47,7 @@ const EditTrack: React.FC = () => {
         coverImageUrl: '',
         sprintIds: [] as string[],
         published: true,
+        allowedReruns: 2,
         starterQuestion: {
             question: 'Where are you right now?',
             pollOptions: [],
@@ -71,6 +72,7 @@ const EditTrack: React.FC = () => {
                         coverImageUrl: track.coverImageUrl,
                         sprintIds: track.sprintIds,
                         published: track.published,
+                        allowedReruns: track.allowedReruns ?? 2,
                         starterQuestion: track.starterQuestion || {
                             question: 'Where are you right now?',
                             pollOptions: [],
@@ -136,7 +138,8 @@ const EditTrack: React.FC = () => {
             published: formData.published,
             updatedAt: new Date().toISOString(),
             currency: selectedSprints[0]?.currency || 'NGN',
-            starterQuestion: formData.starterQuestion
+            starterQuestion: formData.starterQuestion,
+            allowedReruns: formData.allowedReruns
         };
 
         try {
@@ -372,7 +375,31 @@ const EditTrack: React.FC = () => {
                                 </div>
                             </section>
 
-                            <section>
+                            <section className="mt-8 pt-8 border-t border-gray-100">
+                                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Sprint Rerun Access</h4>
+                                <div className="space-y-2">
+                                    <label className={labelClasses}>Number of Reruns per Sprint</label>
+                                    <p className="text-[11px] text-gray-400 font-bold mb-3">Choose how many times a participant can rerun sprints in this track.</p>
+                                    <div className="flex gap-2">
+                                        {[1, 2, 3, 4].map((num) => (
+                                            <button
+                                                key={num}
+                                                type="button"
+                                                onClick={() => setFormData({...formData, allowedReruns: num})}
+                                                className={`px-6 py-3 rounded-2xl text-xs font-black transition-all cursor-pointer ${
+                                                    formData.allowedReruns === num
+                                                        ? 'bg-primary text-white shadow-md shadow-primary/20'
+                                                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-100'
+                                                }`}
+                                            >
+                                                {num} {num === 1 ? 'Rerun' : 'Reruns'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="mt-8 pt-8 border-t border-gray-100">
                                 <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-6">Status</h4>
                                 <div className="flex items-center gap-4">
                                     <button 

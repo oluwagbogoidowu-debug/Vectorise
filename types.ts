@@ -811,6 +811,7 @@ export interface Track {
   updatedAt: string;
   currency: string;
   starterQuestion?: TrackStarterQuestion;
+  allowedReruns?: number;
 }
 
 export interface WalletTransaction {

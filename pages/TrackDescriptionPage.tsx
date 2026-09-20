@@ -478,7 +478,9 @@ const TrackDescriptionPage: React.FC = () => {
                                     </div>
                                     <div>
                                         <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Access</p>
-                                        <p className="text-sm font-black text-gray-900 leading-none">Lifetime Unlock</p>
+                                        <p className="text-sm font-black text-gray-900 leading-none">
+                                            {track?.allowedReruns || 2} {(track?.allowedReruns || 2) === 1 ? 'Rerun' : 'Reruns'} per Sprint
+                                        </p>
                                     </div>
                                 </div>
                             </div>
