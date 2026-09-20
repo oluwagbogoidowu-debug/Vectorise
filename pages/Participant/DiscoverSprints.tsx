@@ -49,6 +49,7 @@ const DiscoverSprints: React.FC = () => {
     const navigate = useNavigate();
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [allSprints, setAllSprints] = useState<Sprint[]>([]);
+    const [tracks, setTracks] = useState<Track[]>([]);
     const [publishedChallenges, setPublishedChallenges] = useState<Sprint[]>([]);
     const [coaches, setCoaches] = useState<Coach[]>([]);
     const [sprintLinks, setSprintLinks] = useState<any[]>([]);
@@ -74,6 +75,11 @@ const DiscoverSprints: React.FC = () => {
             setIsSprintsLoaded(true);
         });
 
+        // Subscribe to tracks in real-time
+        const unsubTracks = trackService.subscribeToTracks((tracksData) => {
+            setTracks(tracksData || []);
+        });
+
         // Subscribe to sprint links in real-time so changes in Orchestrator reflect immediately
         const unsubLinks = sprintService.subscribeToSprintLinks((links) => {
             setSprintLinks(links || []);
@@ -93,6 +99,7 @@ const DiscoverSprints: React.FC = () => {
         loadCoaches();
         return () => {
             unsubSprints();
+            unsubTracks();
             unsubLinks();
         };
     }, [user]);
@@ -118,8 +125,8 @@ const DiscoverSprints: React.FC = () => {
 
     // Strict Sprint-to-Sprint linking traversal
     const exploreItems = useMemo(() => {
-        return getExploreSprintItems(sprints, user, enrolledSprintIds, userEnrollments, sprintLinks, undefined, allSprints);
-    }, [sprints, allSprints, user, enrolledSprintIds, userEnrollments, sprintLinks]);
+        return getExploreSprintItems(sprints, user, enrolledSprintIds, userEnrollments, sprintLinks, undefined, allSprints, tracks);
+    }, [sprints, allSprints, tracks, user, enrolledSprintIds, userEnrollments, sprintLinks]);
 
     const level1Items = useMemo(() => {
         return exploreItems.filter(item => item.level === 1 && item.isClickable);

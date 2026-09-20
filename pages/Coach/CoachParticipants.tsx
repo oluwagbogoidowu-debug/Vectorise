@@ -1316,8 +1316,8 @@ export const CoachParticipants: React.FC = () => {
 
                                                     {/* Footnote */}
                                                     {formattedFootnote && (
-                                                        <div className="text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed">
-                                                            <FormattedText text={formattedFootnote} />
+                                                        <div className="text-left text-emerald-600 font-bold text-xs leading-relaxed">
+                                                            <FormattedText className="text-xs font-bold text-emerald-600" text={formattedFootnote} />
                                                         </div>
                                                     )}
 
@@ -1342,8 +1342,8 @@ export const CoachParticipants: React.FC = () => {
                                                                 <span>Hint</span>
                                                             </button>
                                                             {revealedHints[idx] && (
-                                                                <div className="mt-3 p-4 rounded-2xl text-xs sm:text-sm font-medium bg-amber-50/70 border border-amber-200/80 text-amber-950 animate-fade-in leading-relaxed italic">
-                                                                    <FormattedText text={resolvedHint} />
+                                                                <div className="mt-3 p-4 rounded-2xl text-xs font-medium bg-amber-50/70 border border-amber-200/80 text-amber-950 animate-fade-in leading-relaxed italic">
+                                                                    <FormattedText className="text-xs font-medium italic text-amber-950" text={resolvedHint} />
                                                                 </div>
                                                             )}
                                                         </div>

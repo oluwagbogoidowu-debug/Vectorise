@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
-import type { ParticipantSprint, Sprint, Notification as AppNotification, Participant, Referral, Coach } from '../../types';
+import type { ParticipantSprint, Sprint, Notification as AppNotification, Participant, Referral, Coach, Track } from '../../types';
 import { UserRole } from '../../types';
 import { sprintService } from '../../services/sprintService';
+import { trackService } from '../../services/trackService';
 import { analyticsService } from '../../services/analyticsService';
 import { userService } from '../../services/userService';
 import { assetService } from '../../services/assetService';
@@ -131,6 +132,7 @@ const ParticipantDashboard: React.FC = () => {
   const [ignitePosts, setIgnitePosts] = useState<Sprint[]>([]);
   const [blogPosts, setBlogPosts] = useState<Sprint[]>([]);
   const [publishedSprints, setPublishedSprints] = useState<Sprint[]>([]);
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [orchestration, setOrchestration] = useState<Record<string, any>>({});
   const [sprintLinks, setSprintLinks] = useState<any[]>([]);
@@ -373,9 +375,11 @@ const ParticipantDashboard: React.FC = () => {
       orchestration,
       enrolledSprintIds,
       allEnrollments,
-      sprintLinks
+      sprintLinks,
+      undefined,
+      tracks
     );
-  }, [publishedSprints, allEnrollments, user, orchestration, sprintLinks]);
+  }, [publishedSprints, allEnrollments, user, orchestration, sprintLinks, tracks]);
 
   // Set default payment method when overview sheet is shown
   useEffect(() => {
@@ -628,12 +632,17 @@ const ParticipantDashboard: React.FC = () => {
       setSprintLinks(links || []);
     });
 
+    const unsubTracks = trackService.subscribeToTracks((tracksData) => {
+      setTracks(tracksData || []);
+    });
+
     const unsubBlogLinks = sprintService.subscribeToSprintBlogLinks((links) => {
       setSprintBlogLinks(links || []);
     });
 
     return () => {
       unsubLinks();
+      unsubTracks();
       unsubBlogLinks();
     };
   }, []);

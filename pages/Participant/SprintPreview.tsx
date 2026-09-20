@@ -1760,8 +1760,8 @@ const SprintPreview: React.FC = () => {
                                             <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent)} />
                                         </div>
                                         {effectiveFootnote && (
-                                            <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
-                                                <FormattedText text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent)} />
+                                            <div className="mb-4 text-left text-emerald-600 font-bold text-xs leading-relaxed animate-fade-in">
+                                                <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent)} />
                                             </div>
                                         )}
                                         {(() => {
@@ -1780,8 +1780,8 @@ const SprintPreview: React.FC = () => {
                                                         <span>Hint</span>
                                                     </button>
                                                     {revealedHints[i] && (
-                                                        <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-[11px] sm:text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
-                                                            <FormattedText text={resolvedHint} />
+                                                        <div className="mt-3 p-3 bg-amber-50/50 border border-amber-100/70 rounded-xl text-xs font-medium text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                                            <FormattedText className="text-xs font-medium italic text-amber-900/90" text={resolvedHint} />
                                                         </div>
                                                     )}
                                                 </div>

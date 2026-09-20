@@ -4607,8 +4607,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               </div>
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
-                                  <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-sm`}>
-                                    <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                  <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-xs`}>
+                                    <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                                   </div>
                                 </div>
                               )}
@@ -4625,10 +4625,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           [i]: !prev[i],
                                         }))
                                       }
-                                      className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-sm font-black' : 'px-2 py-1 rounded-md text-sm font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                      className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-2 py-1 rounded-md text-[10px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                                     >
                                       <svg
-                                        className={`${isFullBleed ? 'w-4 h-4' : 'w-3 h-3'} transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                        className={`${isFullBleed ? 'w-3.5 h-3.5' : 'w-3 h-3'} transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
                                         fill="none"
                                         viewBox="0 0 24 24"
                                         stroke="currentColor"
@@ -4643,8 +4643,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       <span>Hint</span>
                                     </button>
                                     {revealedHints[i] && (
-                                      <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-[14px] font-medium' : 'p-4 rounded-xl text-[14px] font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
+                                      <div className={`mt-3 ${isFullBleed ? 'p-4 rounded-xl text-xs font-medium' : 'p-3 rounded-lg text-xs font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                         <FormattedText
+                                          className="text-xs font-medium italic text-amber-900/90"
                                           text={resolvedHint}
                                         />
                                       </div>
@@ -5663,8 +5664,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               </div>
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
-                                  <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-sm`}>
-                                    <FormattedText text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                  <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-xs`}>
+                                    <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
                                   </div>
                                 </div>
                               )}
@@ -5687,7 +5688,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-1.5 py-0.5 rounded text-[8px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
                               >
                                 <svg
-                                  className={`${isFullBleed ? 'w-4 h-4' : 'w-2.5 h-2.5'} transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
+                                  className={`${isFullBleed ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'} transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -5702,8 +5703,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 <span>Hint</span>
                               </button>
                               {revealedHints[0] && (
-                                <div className={`mt-3 ${isFullBleed ? 'p-5 rounded-2xl text-[14px] font-medium' : 'p-3 rounded-xl text-[14px] font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
-                                  <FormattedText text={resolvedHint} />
+                                <div className={`mt-3 ${isFullBleed ? 'p-4 rounded-xl text-xs font-medium' : 'p-2.5 rounded-lg text-xs font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
+                                  <FormattedText className="text-xs font-medium italic text-amber-900/90" text={resolvedHint} />
                                 </div>
                               )}
                             </div>

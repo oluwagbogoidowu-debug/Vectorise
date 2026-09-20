@@ -443,7 +443,8 @@ export const getExploreSprintItems = (
     userEnrollments: ParticipantSprint[] = [],
     sprintLinks: any[] = [],
     currentOrCompletedSprintId?: string,
-    allPublishedSprintsPool?: Sprint[]
+    allPublishedSprintsPool?: Sprint[],
+    allTracks: Track[] = []
 ): ExploreSprintItem[] => {
     const normalizeId = (val: any): string => String(val || '').trim();
     const lookupPool = (allPublishedSprintsPool && allPublishedSprintsPool.length > 0) ? allPublishedSprintsPool : sprints;
@@ -525,10 +526,22 @@ export const getExploreSprintItems = (
     // 1. Coded links {m1 step 3 op1}: Show first when the option was clicked.
     //    If not clicked, it is disregarded.
     // 2. Normal links: Show next in order of their first setup (e.g. C, then D).
+    // 3. Track Pack Sequence Rule:
+    //    If Sprint A belongs to a track / pack:
+    //    - If any link from Sprint A is part of the pack, recommend that linked sprint.
+    //    - If the linked sprint is not part of the pack (or there are no pack links),
+    //      show the next sprint in the pack sequence as the next recommended sprint.
     // Capacity: Max 6 visible at Level 1. If up to 6, don't show others.
     // =========================================================================
     const level1Items: ExploreSprintItem[] = [];
     const level1SprintIds = new Set<string>();
+
+    // Check if Sprint A belongs to a Track / Pack
+    const activeTrack = (allTracks || []).find(t => {
+        const trackSprintIds = (t.sprintIds || []).map(id => normalizeId(id));
+        return trackSprintIds.includes(sprintAId || '') || (sprintA && normalizeId(sprintA.trackId) === normalizeId(t.id));
+    });
+    const packSprintIds = activeTrack ? (activeTrack.sprintIds || []).map(id => normalizeId(id)) : [];
 
     // A. Coded links from Sprint A
     const codedLinksA = sourceLinksA.filter(l => {
@@ -541,17 +554,19 @@ export const getExploreSprintItems = (
             const tgtId = normalizeId(link.targetSprintId || link.target_sprint_id || link.targetId);
             const targetSprint = findSprint(tgtId);
             if (targetSprint && !level1SprintIds.has(tgtId)) {
-                level1SprintIds.add(tgtId);
-                level1Items.push({
-                    sprint: targetSprint,
-                    level: 1,
-                    isSuperior: true,
-                    isClickable: true,
-                    linkSourceTitle: sprintA?.title
-                });
+                const isInPack = packSprintIds.length > 0 ? packSprintIds.includes(tgtId) : true;
+                if (isInPack || packSprintIds.length === 0) {
+                    level1SprintIds.add(tgtId);
+                    level1Items.push({
+                        sprint: targetSprint,
+                        level: 1,
+                        isSuperior: true,
+                        isClickable: true,
+                        linkSourceTitle: sprintA?.title
+                    });
+                }
             }
         }
-        // If not matched, it is completely disregarded.
     }
 
     // B. Normal (uncoded) links from Sprint A in setup order
@@ -564,14 +579,17 @@ export const getExploreSprintItems = (
         const tgtId = normalizeId(link.targetSprintId || link.target_sprint_id || link.targetId);
         const targetSprint = findSprint(tgtId);
         if (targetSprint && !level1SprintIds.has(tgtId)) {
-            level1SprintIds.add(tgtId);
-            level1Items.push({
-                sprint: targetSprint,
-                level: 1,
-                isSuperior: false,
-                isClickable: true,
-                linkSourceTitle: sprintA?.title
-            });
+            const isInPack = packSprintIds.length > 0 ? packSprintIds.includes(tgtId) : true;
+            if (isInPack || packSprintIds.length === 0) {
+                level1SprintIds.add(tgtId);
+                level1Items.push({
+                    sprint: targetSprint,
+                    level: 1,
+                    isSuperior: false,
+                    isClickable: true,
+                    linkSourceTitle: sprintA?.title
+                });
+            }
         }
     }
 
@@ -581,14 +599,58 @@ export const getExploreSprintItems = (
         if (directId && !level1SprintIds.has(directId)) {
             const targetSprint = findSprint(directId);
             if (targetSprint) {
-                level1SprintIds.add(directId);
-                level1Items.push({
-                    sprint: targetSprint,
-                    level: 1,
-                    isSuperior: false,
-                    isClickable: true,
-                    linkSourceTitle: sprintA?.title
-                });
+                const isInPack = packSprintIds.length > 0 ? packSprintIds.includes(directId) : true;
+                if (isInPack || packSprintIds.length === 0) {
+                    level1SprintIds.add(directId);
+                    level1Items.push({
+                        sprint: targetSprint,
+                        level: 1,
+                        isSuperior: false,
+                        isClickable: true,
+                        linkSourceTitle: sprintA?.title
+                    });
+                }
+            }
+        }
+    }
+
+    // C. If Sprint A belongs to a track / pack and no pack sprint has been linked at Level 1,
+    // show the next sprint in the pack sequence as the next recommended sprint!
+    if (activeTrack && packSprintIds.length > 0) {
+        const hasPackSprintInLevel1 = level1Items.some(item => packSprintIds.includes(normalizeId(item.sprint.id)));
+        if (!hasPackSprintInLevel1) {
+            const currentIndexInTrack = packSprintIds.indexOf(sprintAId || '');
+            let nextSprintInPackId: string | null = null;
+            // Search forward in pack sequence for next uncompleted sprint
+            for (let i = currentIndexInTrack + 1; i < packSprintIds.length; i++) {
+                const candId = packSprintIds[i];
+                if (!enrolledSprintIds.has(candId)) {
+                    nextSprintInPackId = candId;
+                    break;
+                }
+            }
+            // If not found forward, search from start
+            if (!nextSprintInPackId) {
+                for (let i = 0; i < packSprintIds.length; i++) {
+                    const candId = packSprintIds[i];
+                    if (candId !== sprintAId && !enrolledSprintIds.has(candId)) {
+                        nextSprintInPackId = candId;
+                        break;
+                    }
+                }
+            }
+            if (nextSprintInPackId) {
+                const nextPackSprint = findSprint(nextSprintInPackId);
+                if (nextPackSprint && !level1SprintIds.has(nextSprintInPackId)) {
+                    level1SprintIds.add(nextSprintInPackId);
+                    level1Items.unshift({
+                        sprint: nextPackSprint,
+                        level: 1,
+                        isSuperior: false,
+                        isClickable: true,
+                        linkSourceTitle: activeTrack.title || sprintA?.title
+                    });
+                }
             }
         }
     }
@@ -665,7 +727,8 @@ export const getExploreNextSteps = (
     userEnrollments: ParticipantSprint[] = [],
     sprintLinks: any[] = [],
     currentOrCompletedSprintId?: string,
-    allPublishedSprintsPool?: Sprint[]
+    allPublishedSprintsPool?: Sprint[],
+    allTracks: Track[] = []
 ): Sprint[] => {
     const items = getExploreSprintItems(
         sprints,
@@ -674,7 +737,8 @@ export const getExploreNextSteps = (
         userEnrollments,
         sprintLinks,
         currentOrCompletedSprintId,
-        allPublishedSprintsPool
+        allPublishedSprintsPool,
+        allTracks
     );
     return items.map(item => item.sprint);
 };
@@ -816,7 +880,7 @@ export const getExploreNextRecommendation = (
     }
 
     // =========================================================================
-    // PRIORITY 3 & 4: Sprint-to-Sprint Links (Coded superior, then Normal)
+    // PRIORITY 3 & 4: Sprint-to-Sprint Links (Coded superior, then Normal, with Track Sequence Fallback)
     // =========================================================================
     const items = getExploreSprintItems(
         allPublishedSprints,
@@ -825,7 +889,8 @@ export const getExploreNextRecommendation = (
         userEnrollments,
         sprintLinks,
         currentOrCompletedSprintId,
-        allPublishedSprints
+        allPublishedSprints,
+        allTracks
     );
 
     const firstClickableItem = items.find(item => item.isClickable) || items[0];
@@ -862,7 +927,8 @@ export const getExploreFirstSprint = (
     enrolledSprintIds: Set<string> = new Set(),
     userEnrollments: ParticipantSprint[] = [],
     sprintLinks: any[] = [],
-    currentOrCompletedSprintId?: string
+    currentOrCompletedSprintId?: string,
+    allTracks: Track[] = []
 ): Sprint | null => {
     const items = getExploreSprintItems(
         allPublishedSprints, 
@@ -871,7 +937,8 @@ export const getExploreFirstSprint = (
         userEnrollments, 
         sprintLinks, 
         currentOrCompletedSprintId,
-        allPublishedSprints
+        allPublishedSprints,
+        allTracks
     );
     const firstClickable = items.find(item => item.isClickable)?.sprint;
     return firstClickable || items[0]?.sprint || allPublishedSprints.find(s => !enrolledSprintIds.has(s.id)) || allPublishedSprints[0] || null;
