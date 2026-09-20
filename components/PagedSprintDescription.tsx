@@ -12,7 +12,7 @@ export const PagedSprintDescription: React.FC<PagedSprintDescriptionProps> = ({
   className = "",
   textSizeClass = "text-lg text-gray-800 dark:text-gray-200 font-medium leading-relaxed"
 }) => {
-  const content = (text && text.trim()) ? text.trim() : "Unlock consistency and start your rise.";
+  const content = (typeof text === 'string' && text.trim()) ? text.trim() : (text ? String(text) : "Unlock consistency and start your rise.");
 
   return (
     <div className={`w-full flex flex-col ${className}`}>

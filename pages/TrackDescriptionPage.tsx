@@ -29,7 +29,7 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
     const displayDescription = sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
-    const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => s.body && s.body.trim().length > 0);
+    const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => typeof s?.body === 'string' && s.body.trim().length > 0);
 
     return (
         <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden transition-all hover:shadow-md">
@@ -61,14 +61,14 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
                     <div className="space-y-6 mb-6">
                         <div className={`relative transition-all duration-500 ${!isDescriptionExpanded ? 'max-h-[180px] overflow-hidden' : 'max-h-none'}`}>
                             <div className="space-y-8">
-                                {displayDescription && (!Array.isArray(sprint.dynamicSections) || sprint.dynamicSections.filter(s => s.body && s.body.trim()).length === 0) && (
+                                {displayDescription && (!Array.isArray(sprint.dynamicSections) || sprint.dynamicSections.filter(s => typeof s?.body === 'string' && s.body.trim().length > 0).length === 0) && (
                                     <div className="text-base md:text-lg text-gray-600 font-medium leading-[1.6]">
                                         <FormattedText text={displayDescription} />
                                     </div>
                                 )}
 
                                 {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
-                                    .filter(section => section.body && section.body.trim().length > 0)
+                                    .filter(section => typeof section?.body === 'string' && section.body.trim().length > 0)
                                     .map((section, index) => (
                                         <div key={index} className="animate-fade-in pt-6 first:pt-0 border-t first:border-0 border-gray-100">
                                             {section.id !== 'overview' && <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}
@@ -115,10 +115,19 @@ const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
 };
 
 const TrackDescriptionPage: React.FC = () => {
-    const { trackId } = useParams();
+    const { trackId } = useParams<{ trackId: string }>();
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+
+    const cleanTrackId = useMemo(() => {
+        if (!trackId) return '';
+        try {
+            return decodeURIComponent(trackId).trim();
+        } catch {
+            return trackId.trim();
+        }
+    }, [trackId]);
     
     const [track, setTrack] = useState<Track | null>((location.state as any)?.previewTrack || null);
     const [sprints, setSprints] = useState<Sprint[]>([]);
@@ -131,8 +140,9 @@ const TrackDescriptionPage: React.FC = () => {
     const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchData = async () => {
-            if (!trackId) {
+            if (!cleanTrackId) {
                 setIsLoading(false);
                 return;
             }
@@ -141,35 +151,74 @@ const TrackDescriptionPage: React.FC = () => {
                 // If live preview track was passed in state, use it
                 let trackData: Track | null = (location.state as any)?.previewTrack || null;
                 if (!trackData) {
-                    trackData = await trackService.getTrackById(trackId);
+                    trackData = await trackService.getTrackById(cleanTrackId);
                 }
-                if (trackData) {
+                if (!trackData) {
+                    const allTracks = await trackService.getAllTracks().catch(() => []);
+                    trackData = allTracks.find(t => t.id === cleanTrackId || t.id.toLowerCase() === cleanTrackId.toLowerCase()) || null;
+                }
+
+                if (isMounted && trackData) {
                     setTrack(trackData);
                     setImageError(false);
-                    const sprintPromises = (trackData.sprintIds || []).map(id => sprintService.getSprintById(id));
+                    const sprintPromises = (trackData.sprintIds || []).map(async (id) => {
+                        try {
+                            let s = await sprintService.getSprintById(id);
+                            if (!s) {
+                                const allPublished = await sprintService.getPublishedSprints().catch(() => []);
+                                s = allPublished.find(item => item.id === id) || null;
+                            }
+                            return s;
+                        } catch {
+                            return null;
+                        }
+                    });
                     const sprintData = await Promise.all(sprintPromises);
-                    setSprints(sprintData.filter((s): s is Sprint => !!s));
+                    if (isMounted) {
+                        setSprints(sprintData.filter((s): s is Sprint => !!s));
+                    }
                 }
             } catch (err) {
                 console.error("Error fetching track data:", err);
             } finally {
-                setIsLoading(false);
+                if (isMounted) setIsLoading(false);
             }
         };
+
         fetchData();
-    }, [trackId, location.state]);
+
+        let unsub: (() => void) | undefined;
+        if (cleanTrackId) {
+            try {
+                unsub = trackService.subscribeToTrack(cleanTrackId, (realtimeTrack) => {
+                    if (isMounted && realtimeTrack) {
+                        setTrack(realtimeTrack);
+                        setIsLoading(false);
+                    }
+                });
+            } catch (e) {
+                console.warn("Could not subscribe to track updates:", e);
+            }
+        }
+
+        return () => {
+            isMounted = false;
+            if (unsub) unsub();
+        };
+    }, [cleanTrackId, location.state]);
 
     useEffect(() => {
         setImageError(false);
     }, [track?.coverImageUrl]);
 
     const totalPrice = useMemo(() => {
-        return sprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
+        return sprints.reduce((sum, s) => sum + (getSprintCashPrice(s) || 0), 0);
     }, [sprints]);
 
     const discountedPrice = useMemo(() => {
         if (!track) return totalPrice;
-        return totalPrice * (1 - track.discountPercentage / 100);
+        const discount = typeof track.discountPercentage === 'number' && !isNaN(track.discountPercentage) ? track.discountPercentage : 0;
+        return Math.max(0, Math.round(totalPrice * (1 - discount / 100)));
     }, [totalPrice, track]);
 
     const handleJoinClick = async () => {
@@ -344,9 +393,11 @@ const TrackDescriptionPage: React.FC = () => {
                                         <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
                                         TRACK BUNDLE
                                     </span>
-                                    <span className="px-3 py-1 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-primary/20">
-                                        SAVE {track.discountPercentage}%
-                                    </span>
+                                    {(track.discountPercentage || 0) > 0 && (
+                                        <span className="px-3 py-1 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-lg inline-flex items-center gap-1.5 border border-primary/20">
+                                            SAVE {track.discountPercentage}%
+                                        </span>
+                                    )}
                                 </div>
                                 
                                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter text-white leading-[1.05] uppercase">

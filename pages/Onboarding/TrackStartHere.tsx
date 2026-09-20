@@ -35,24 +35,50 @@ export const TrackStartHerePage: React.FC = () => {
         profileImageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
     }), []);
 
+    const cleanTrackId = useMemo(() => {
+        if (!trackId) return '';
+        try {
+            return decodeURIComponent(trackId).trim();
+        } catch {
+            return trackId.trim();
+        }
+    }, [trackId]);
+
+    const cleanSprintId = useMemo(() => {
+        const sid = sprintId || location.state?.sprintId;
+        if (!sid) return '';
+        try {
+            return decodeURIComponent(sid).trim();
+        } catch {
+            return sid.trim();
+        }
+    }, [sprintId, location.state?.sprintId]);
+
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                if (trackId) {
+                if (cleanTrackId) {
                     let t: Track | null = (location.state as any)?.previewTrack || null;
                     if (!t) {
-                        t = await trackService.getTrackById(trackId);
+                        t = await trackService.getTrackById(cleanTrackId);
+                    }
+                    if (!t) {
+                        const allTracks = await trackService.getAllTracks().catch(() => []);
+                        t = allTracks.find(item => item.id === cleanTrackId || item.id.toLowerCase() === cleanTrackId.toLowerCase()) || null;
                     }
                     setTrack(t);
                 }
 
-                const targetSprintId = sprintId || location.state?.sprintId;
-                if (targetSprintId) {
-                    let s = await sprintService.getSprintById(targetSprintId);
+                if (cleanSprintId) {
+                    let s = await sprintService.getSprintById(cleanSprintId);
+                    if (!s) {
+                        const allPublished = await sprintService.getPublishedSprints().catch(() => []);
+                        s = allPublished.find(item => item.id === cleanSprintId || item.id.toLowerCase() === cleanSprintId.toLowerCase()) || null;
+                    }
                     if (!s) {
                         const allAdmin = await sprintService.getAdminSprints().catch(() => []);
-                        s = allAdmin.find(item => item.id === targetSprintId) || null;
+                        s = allAdmin.find(item => item.id === cleanSprintId || item.id.toLowerCase() === cleanSprintId.toLowerCase()) || null;
                     }
 
                     if (s) {
@@ -77,7 +103,7 @@ export const TrackStartHerePage: React.FC = () => {
         };
 
         loadData();
-    }, [trackId, sprintId, location.state, vectoriseCoach]);
+    }, [cleanTrackId, cleanSprintId, location.state, vectoriseCoach]);
 
     const handleContinue = async () => {
         if (!sprint) return;

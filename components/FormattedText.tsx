@@ -9,7 +9,7 @@ interface FormattedTextProps {
 }
 
 const processListText = (inputText: string): string => {
-  if (!inputText) return "";
+  if (!inputText || typeof inputText !== 'string') return "";
 
   const lines = inputText.split("\n");
   const processedLines: string[] = [];
@@ -120,8 +120,10 @@ const extractBulletPrefix = (children: any): { bulletChar: string | null; cleane
 
 const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inline = false }) => {
   if (!text) return null;
+  const safeText = typeof text === 'string' ? text : String(text || '');
+  if (!safeText.trim()) return null;
 
-  const processedText = inline ? text : processListText(text);
+  const processedText = inline ? safeText : processListText(safeText);
 
   if (inline) {
     return (

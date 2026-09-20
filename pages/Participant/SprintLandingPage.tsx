@@ -211,9 +211,13 @@ const SprintLandingPage: React.FC = () => {
             let data = await sprintService.getSprintById(sprintId);
             
             if (!data) {
-                console.log("[SprintLandingPage] Primary getSprintById returned null, searching admin/coach sprints fallback...");
+                console.log("[SprintLandingPage] Primary getSprintById returned null, searching admin/published sprints fallback...");
+                const published = await sprintService.getPublishedSprints().catch(() => []);
+                data = published.find(s => s.id === sprintId || s.id.toLowerCase() === sprintId.toLowerCase()) || null;
+            }
+            if (!data) {
                 const adminSprints = await sprintService.getAdminSprints().catch(() => []);
-                data = adminSprints.find(s => s.id === sprintId) || null;
+                data = adminSprints.find(s => s.id === sprintId || s.id.toLowerCase() === sprintId.toLowerCase()) || null;
             }
 
             if (data) {
@@ -654,7 +658,7 @@ const SprintLandingPage: React.FC = () => {
     const displayCoachName = isFoundational ? 'Vectorise' : (fetchedCoach?.name || 'Vectorise');
     const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (fetchedCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE);
 
-    const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => s.body && s.body.trim().length > 0);
+    const hasDynamicContent = Array.isArray(sprint.dynamicSections) && sprint.dynamicSections.some(s => typeof s?.body === 'string' && s.body.trim().length > 0);
 
     const handleShare = () => {
         if (!sprint) return;
@@ -811,7 +815,7 @@ const SprintLandingPage: React.FC = () => {
                                         )}
 
                                         {Array.isArray(sprint.dynamicSections) && sprint.dynamicSections
-                                            .filter(section => section.body && section.body.trim().length > 0)
+                                            .filter(section => typeof section?.body === 'string' && section.body.trim().length > 0)
                                             .map((section, index) => (
                                                 <div key={index} className="animate-fade-in pt-6 first:pt-0 border-t first:border-0 border-gray-100">
                                                     {section.id !== 'overview' && <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}

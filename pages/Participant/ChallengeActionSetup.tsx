@@ -13,6 +13,7 @@ import {
   ArrowRight,
   Repeat,
   ListOrdered,
+  Clock,
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -88,11 +89,32 @@ const ChallengeActionSetup: React.FC = () => {
   const [isSetting, setIsSetting] = useState(false);
   const [isLoading, setIsLoading] = useState(!challenge);
 
+  // Challenge type definitions
+  const challengeTitle = challenge?.challengeData?.name || challenge?.title || 'Test Your Direction';
+  const rawCategory = (challenge?.challengeCategory || challenge?.challengeData?.category || challenge?.category || 'Exploration') as ChallengeCategory;
+  const category = rawCategory in CHALLENGE_CATEGORY_DESCRIPTIONS ? rawCategory : 'Exploration';
+  const type = (challenge?.challengeType || challenge?.challengeData?.type || 'Sequential') as ChallengeType;
+  const isRepetition = type === 'Repetition';
+
+  // Duration settings for Repetition challenges (e.g. 3, 5, 7, 14, 21 or custom)
+  const DURATION_PRESETS = [3, 5, 7, 14, 21];
+  const [selectedDuration, setSelectedDuration] = useState<number>(7);
+  const [isCustomDuration, setIsCustomDuration] = useState<boolean>(false);
+  const [customDurationInput, setCustomDurationInput] = useState<string>('');
+
   // Workflow view mode: 'setup' -> 'preview' -> 'active'
   const [viewMode, setViewMode] = useState<'setup' | 'preview' | 'active'>('setup');
   const [currentDay, setCurrentDay] = useState<number>(1);
   const [showCompleteModal, setShowCompleteModal] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+
+  // Total days calculation: Repetition uses selectedDuration; Sequential automatically spins days from selectedActions.length
+  const totalDays = useMemo(() => {
+    if (isRepetition) {
+      return selectedDuration > 0 ? selectedDuration : 7;
+    }
+    return Math.max(1, selectedActions.length);
+  }, [isRepetition, selectedDuration, selectedActions.length]);
 
   // Auto-resume active challenge where completion stopped
   useEffect(() => {
@@ -100,7 +122,28 @@ const ChallengeActionSetup: React.FC = () => {
     if (!challengeId) return;
 
     const savedActionsJson = localStorage.getItem(`vectorise_challenge_action_${challengeId}`);
+    const savedDurationStr = localStorage.getItem(`vectorise_challenge_duration_${challengeId}`);
     const matchingEnrollment = userEnrollments.find(e => e.sprint_id === challengeId);
+
+    let loadedDuration = 7;
+    if (savedDurationStr) {
+      const parsedDur = parseInt(savedDurationStr, 10);
+      if (!isNaN(parsedDur) && parsedDur > 0) {
+        loadedDuration = parsedDur;
+        setSelectedDuration(parsedDur);
+        if (!DURATION_PRESETS.includes(parsedDur)) {
+          setIsCustomDuration(true);
+          setCustomDurationInput(parsedDur.toString());
+        }
+      }
+    } else if ((matchingEnrollment as any)?.duration) {
+      loadedDuration = (matchingEnrollment as any).duration;
+      setSelectedDuration(loadedDuration);
+      if (!DURATION_PRESETS.includes(loadedDuration)) {
+        setIsCustomDuration(true);
+        setCustomDurationInput(loadedDuration.toString());
+      }
+    }
 
     let actions: string[] = [];
     if (savedActionsJson) {
@@ -117,22 +160,23 @@ const ChallengeActionSetup: React.FC = () => {
       setSelectedActions(actions);
       const completedProgress = matchingEnrollment?.progress || [];
       const completedCount = completedProgress.filter(p => p.completed).length;
+      const targetDays = isRepetition ? loadedDuration : (actions.length || 1);
 
-      if (completedCount > 0 && completedCount < actions.length) {
+      if (completedCount > 0 && completedCount < targetDays) {
         setCurrentDay(completedCount + 1);
         setViewMode('active');
       } else if (matchingEnrollment?.status === 'active') {
-        const nextDay = Math.min(completedCount + 1, actions.length);
+        const nextDay = Math.min(completedCount + 1, targetDays);
         setCurrentDay(nextDay);
         setViewMode('active');
-      } else if (completedCount >= actions.length) {
-        setCurrentDay(actions.length);
+      } else if (completedCount >= targetDays) {
+        setCurrentDay(targetDays);
         setViewMode('active');
       } else {
         setViewMode('preview');
       }
     }
-  }, [challenge?.id, id, userEnrollments]);
+  }, [challenge?.id, id, userEnrollments, isRepetition]);
 
   // Load Challenge if not already passed in state
   useEffect(() => {
@@ -188,13 +232,6 @@ const ChallengeActionSetup: React.FC = () => {
     return () => { isMounted = false; };
   }, [connectedSprintId]);
 
-  // Extract challenge parameters
-  const challengeTitle = challenge?.challengeData?.name || challenge?.title || 'Test Your Direction';
-  const rawCategory = (challenge?.challengeCategory || challenge?.challengeData?.category || challenge?.category || 'Exploration') as ChallengeCategory;
-  const category = rawCategory in CHALLENGE_CATEGORY_DESCRIPTIONS ? rawCategory : 'Exploration';
-  const type = (challenge?.challengeType || challenge?.challengeData?.type || 'Sequential') as ChallengeType;
-  const isRepetition = type === 'Repetition';
-
   // Coach recommendations tags
   const coachRecommendations = useMemo(() => {
     const fromChallenge = challenge?.actionRecommendations || challenge?.challengeData?.actionRecommendations;
@@ -248,8 +285,14 @@ const ChallengeActionSetup: React.FC = () => {
     if (!trimmed) return;
 
     if (isRepetition) {
-      setSelectedActions([trimmed]);
+      // Repetition challenge: you can only pick ONE action
+      if (selectedActions.includes(trimmed)) {
+        setSelectedActions([]);
+      } else {
+        setSelectedActions([trimmed]);
+      }
     } else {
+      // Sequential challenge: sequence of actions
       setSelectedActions(prev => {
         if (prev.includes(trimmed)) {
           return prev.filter(a => a !== trimmed);
@@ -265,6 +308,7 @@ const ChallengeActionSetup: React.FC = () => {
     if (!trimmed) return;
 
     if (isRepetition) {
+      // Repetition challenge: only one action allowed
       setSelectedActions([trimmed]);
     } else {
       if (!selectedActions.includes(trimmed)) {
@@ -280,27 +324,38 @@ const ChallengeActionSetup: React.FC = () => {
 
   const handleSetAction = async () => {
     if (selectedActions.length === 0) {
-      toast.error('Please select at least one action.');
+      toast.error(isRepetition ? 'Please select 1 action to practice.' : 'Please select at least one action.');
+      return;
+    }
+
+    if (isRepetition && selectedDuration <= 0) {
+      toast.error('Please choose or enter a valid challenge duration.');
       return;
     }
 
     setIsSetting(true);
     const challengeId = challenge?.id || id || `challenge_${Date.now()}`;
+    const effectiveDuration = isRepetition ? selectedDuration : Math.max(1, selectedActions.length);
 
     try {
       if (user?.id) {
-        await sprintService.enrollUser(user.id, challengeId, 7, {
+        await sprintService.enrollUser(user.id, challengeId, effectiveDuration, {
           firstActionInput: selectedActions[0],
-          taskInputs: selectedActions
-        }).catch(err => {
+          taskInputs: isRepetition ? Array(effectiveDuration).fill(selectedActions[0]) : selectedActions
+        } as any).catch(err => {
           console.warn("Could not enroll directly, saving local challenge state:", err);
         });
       }
 
       localStorage.setItem(`vectorise_challenge_action_${challengeId}`, JSON.stringify(selectedActions));
       localStorage.setItem(`vectorise_challenge_single_action_${challengeId}`, selectedActions[0]);
+      localStorage.setItem(`vectorise_challenge_duration_${challengeId}`, effectiveDuration.toString());
       
-      toast.success(isRepetition ? `Action set: "${selectedActions[0]}"` : `${selectedActions.length} action(s) set in sequence`);
+      toast.success(
+        isRepetition 
+          ? `Repetition set: 1 action for ${effectiveDuration} days` 
+          : `Sequential set: ${selectedActions.length} action(s) (${effectiveDuration} days)`
+      );
 
       // Transition to Challenge Preview view
       setViewMode('preview');
@@ -312,8 +367,9 @@ const ChallengeActionSetup: React.FC = () => {
     }
   };
 
-  const currentActionText = selectedActions[currentDay - 1] || selectedActions[0] || 'Research the path you\'re considering.';
-  const totalDays = selectedActions.length || 5;
+  const currentActionText = isRepetition
+    ? (selectedActions[0] || 'Research the path you\'re considering.')
+    : (selectedActions[currentDay - 1] || selectedActions[0] || 'Research the path you\'re considering.');
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 flex flex-col font-sans">
@@ -507,7 +563,7 @@ const ChallengeActionSetup: React.FC = () => {
                       handleAddCustomGoal();
                     }
                   }}
-                  placeholder="Type a custom action..."
+                  placeholder={isRepetition ? "Type custom action to repeat..." : "Type custom action to add..."}
                   className="flex-1 px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl outline-none text-xs font-bold text-gray-900 dark:text-white focus:border-purple-600"
                 />
                 <button
@@ -520,6 +576,103 @@ const ChallengeActionSetup: React.FC = () => {
               </div>
             </div>
 
+            {/* Repetition Challenge: Duration Selection (3, 5, 7, 14, 21 or custom) */}
+            {isRepetition && (
+              <div className="mt-4 pt-3.5 border-t border-gray-150 dark:border-zinc-800 animate-fade-in">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                    <Clock className="w-3 h-3" />
+                    <span>Set Challenge Duration</span>
+                  </label>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-200 border border-purple-200 dark:border-purple-800">
+                    {selectedDuration} {selectedDuration === 1 ? 'Day' : 'Days'}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-gray-500 dark:text-zinc-400 mb-2.5">
+                  Choose how many days you want to repeat this single action:
+                </p>
+
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  {DURATION_PRESETS.map((days) => {
+                    const isSelected = !isCustomDuration && selectedDuration === days;
+                    return (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDuration(days);
+                          setIsCustomDuration(false);
+                        }}
+                        className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
+                          isSelected
+                            ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-600/30'
+                            : 'bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 hover:border-purple-300 dark:hover:border-zinc-600'
+                        }`}
+                      >
+                        {days} Days
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomDuration(true);
+                      if (customDurationInput) {
+                        const num = parseInt(customDurationInput, 10);
+                        if (!isNaN(num) && num > 0) setSelectedDuration(num);
+                      }
+                    }}
+                    className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
+                      isCustomDuration
+                        ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-600/30'
+                        : 'bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 hover:border-purple-300 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    Custom
+                  </button>
+                </div>
+
+                {isCustomDuration && (
+                  <div className="flex items-center gap-2 mt-2.5 p-2 bg-purple-50/60 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800 animate-fade-in">
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={customDurationInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomDurationInput(val);
+                        const num = parseInt(val, 10);
+                        if (!isNaN(num) && num > 0) {
+                          setSelectedDuration(num);
+                        }
+                      }}
+                      placeholder="Enter custom days (e.g. 10, 30, 60)"
+                      className="flex-1 px-3 py-1.5 bg-white dark:bg-zinc-800 border border-purple-200 dark:border-zinc-700 rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-purple-600"
+                    />
+                    <span className="text-xs font-bold text-purple-700 dark:text-purple-300 pr-2">Days</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Sequential Challenge: Automatic Spin of Days Banner */}
+            {!isRepetition && (
+              <div className="mt-4 pt-3.5 border-t border-gray-150 dark:border-zinc-800 animate-fade-in">
+                <div className="p-3 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-purple-900 dark:text-purple-200 text-xs font-medium">
+                    <ListOrdered className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                    <span>Duration automatically spins from selected actions:</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-xl bg-purple-600 text-white text-xs font-black shrink-0 shadow-xs">
+                    {selectedActions.length} {selectedActions.length === 1 ? 'Day' : 'Days'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* 4. Set Action Button */}
             <div className="mt-5 pt-3.5 border-t border-gray-150 dark:border-zinc-800 flex items-center justify-end">
               <button
@@ -528,7 +681,13 @@ const ChallengeActionSetup: React.FC = () => {
                 onClick={handleSetAction}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white text-xs font-bold uppercase tracking-wider shadow-md shadow-purple-600/25 transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
               >
-                <span>{isSetting ? 'Setting Action...' : isRepetition ? 'Set Action' : `Set ${selectedActions.length} Action${selectedActions.length > 1 ? 's' : ''}`}</span>
+                <span>
+                  {isSetting 
+                    ? 'Setting Action...' 
+                    : isRepetition 
+                      ? `Set Action & Duration (${selectedDuration} Days)` 
+                      : `Set Sequence (${selectedActions.length} Actions · ${selectedActions.length} Days)`}
+                </span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -539,7 +698,8 @@ const ChallengeActionSetup: React.FC = () => {
           <div className="bg-white dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-lg shadow-purple-950/5 animate-fade-in">
             <div className="text-center mb-6">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-wider mb-2">
-                Challenge Preview
+                {isRepetition ? <Repeat className="w-3.5 h-3.5" /> : <ListOrdered className="w-3.5 h-3.5" />}
+                {isRepetition ? `Repetition Challenge · ${totalDays} Days` : `Sequential Challenge · ${totalDays} Days`}
               </span>
               <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-950 dark:text-white">
                 {challengeTitle}
@@ -549,24 +709,47 @@ const ChallengeActionSetup: React.FC = () => {
               </p>
             </div>
 
-            <div className="space-y-3 mb-6">
-              <h3 className="text-xs font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">
-                Your actions
-              </h3>
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {selectedActions.map((action, i) => (
-                  <div key={i} className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700/80 text-xs sm:text-sm font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-3">
-                    <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">
-                      {i + 1}
-                    </span>
-                    <span>{action}</span>
+            {/* Repetition Preview Layout */}
+            {isRepetition ? (
+              <div className="space-y-4 mb-6">
+                <div className="p-4 sm:p-5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60 text-center">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-1.5">
+                    Your Daily Repetition Action
                   </div>
-                ))}
+                  <h3 className="text-base sm:text-lg font-black text-purple-950 dark:text-purple-100 leading-snug">
+                    "{selectedActions[0]}"
+                  </h3>
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-600 text-white text-xs font-bold">
+                    <Repeat className="w-3 h-3" />
+                    <span>Repeat daily for {totalDays} consecutive days</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-zinc-800/50 border border-gray-200 dark:border-zinc-700 text-center text-xs font-medium text-gray-600 dark:text-zinc-400">
+                  Practicing this one single action every day for {totalDays} days builds consistency and reinforces muscle memory.
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Sequential Preview Layout */
+              <div className="space-y-3 mb-6">
+                <h3 className="text-xs font-black uppercase tracking-widest text-purple-600 dark:text-purple-400">
+                  Your Action Sequence ({selectedActions.length} Days)
+                </h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {selectedActions.map((action, i) => (
+                    <div key={i} className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-800/60 border border-gray-200 dark:border-zinc-700/80 text-xs sm:text-sm font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-full bg-purple-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                        D{i + 1}
+                      </span>
+                      <span>{action}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-xs font-bold text-gray-500 dark:text-zinc-400 py-3 border-t border-b border-gray-100 dark:border-zinc-800 mb-6">
-              <span>You'll do one action each day.</span>
+              <span>{isRepetition ? `Duration: ${totalDays} Days` : `Duration: ${totalDays} Days (1 action per day)`}</span>
               <span className="text-purple-600 dark:text-purple-400 font-black">Starts: Today</span>
             </div>
 
@@ -583,13 +766,20 @@ const ChallengeActionSetup: React.FC = () => {
 
         {viewMode === 'active' && (
           <div className="bg-white dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-lg shadow-purple-950/5 text-center animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider mb-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider mb-2">
               Today
             </div>
 
-            <p className="text-xs font-black uppercase tracking-widest text-gray-400 dark:text-zinc-500 mb-2">
-              Day {currentDay} of {totalDays}
-            </p>
+            <div className="text-[11px] font-black uppercase tracking-widest text-purple-600 dark:text-purple-400 mb-2">
+              {isRepetition ? `Daily Repetition (${currentDay} of ${totalDays})` : `Step ${currentDay} of ${totalDays} in Sequence`}
+            </div>
+
+            <div className="w-full bg-gray-100 dark:bg-zinc-800 rounded-full h-1.5 max-w-xs mx-auto mb-6 overflow-hidden">
+              <div 
+                className="bg-purple-600 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, Math.round((currentDay / totalDays) * 100))}%` }}
+              />
+            </div>
 
             <h2 className="text-xl sm:text-2xl font-black text-gray-950 dark:text-white leading-snug mb-8">
               "{currentActionText}"

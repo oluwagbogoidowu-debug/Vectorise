@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import LocalLogo from '../../components/LocalLogo';
 import { trackService } from '../../services/trackService';
@@ -17,9 +17,18 @@ export const TrackStarterPage: React.FC = () => {
     const [activeOptionIndex, setActiveOptionIndex] = useState<number | null>(null);
     const [isResolving, setIsResolving] = useState(false);
 
+    const cleanTrackId = useMemo(() => {
+        if (!trackId) return '';
+        try {
+            return decodeURIComponent(trackId).trim();
+        } catch {
+            return trackId.trim();
+        }
+    }, [trackId]);
+
     useEffect(() => {
         const loadTrack = async () => {
-            if (!trackId) {
+            if (!cleanTrackId) {
                 setIsLoading(false);
                 return;
             }
@@ -27,7 +36,11 @@ export const TrackStarterPage: React.FC = () => {
             try {
                 let fetchedTrack: Track | null = (location.state as any)?.previewTrack || null;
                 if (!fetchedTrack) {
-                    fetchedTrack = await trackService.getTrackById(trackId);
+                    fetchedTrack = await trackService.getTrackById(cleanTrackId);
+                }
+                if (!fetchedTrack) {
+                    const allTracks = await trackService.getAllTracks().catch(() => []);
+                    fetchedTrack = allTracks.find(t => t.id === cleanTrackId || t.id.toLowerCase() === cleanTrackId.toLowerCase()) || null;
                 }
                 setTrack(fetchedTrack);
             } catch (err) {
@@ -38,7 +51,7 @@ export const TrackStarterPage: React.FC = () => {
         };
 
         loadTrack();
-    }, [trackId, location.state]);
+    }, [cleanTrackId, location.state]);
 
     const starterQuestion = track?.starterQuestion?.question || "Where are you right now?";
     const pollOptions = track?.starterQuestion?.pollOptions && track.starterQuestion.pollOptions.length > 0
