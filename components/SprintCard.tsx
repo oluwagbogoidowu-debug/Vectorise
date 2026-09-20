@@ -20,6 +20,7 @@ interface SprintCardProps {
     hideFooterDetails?: boolean; // Hide Guided By and Price/Coins section
     variant?: 'light' | 'dark' | 'glass';
     isRerun?: boolean;
+    runNumber?: number;
     onOpenOverview?: () => void;
     onOpenReviews?: () => void;
 }
@@ -35,6 +36,7 @@ const SprintCard: React.FC<SprintCardProps> = ({
     hideFooterDetails = false, 
     variant = 'light', 
     isRerun,
+    runNumber,
     onOpenOverview,
     onOpenReviews
 }) => {
@@ -320,15 +322,16 @@ const SprintCard: React.FC<SprintCardProps> = ({
                         </div>
                     )}
 
-                    {/* Rerun Badge */}
-                    {!isInactive && effectiveIsRerun && (
-                        <div className="absolute top-3 left-3 bg-emerald-700 text-white border border-white/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lg z-10 animate-fade-in">
-                            <span>Rerun • 50% Off</span>
+                    {/* Run / Rerun Badge */}
+                    {!isInactive && ((runNumber && runNumber > 1) || effectiveIsRerun) && (
+                        <div className="absolute top-3 left-3 bg-purple-700 text-white border border-white/20 backdrop-blur-md px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg z-10 animate-fade-in">
+                            <span>Run {runNumber || 2}</span>
+                            {effectiveIsRerun && <span className="opacity-80">• 50% Off</span>}
                         </div>
                     )}
 
                     {/* Archive Badge Preview */}
-                    {!isInactive && !effectiveIsRerun && forceShowOutcomeTag && sprint.outcomeTag && (
+                    {!isInactive && !effectiveIsRerun && !(runNumber && runNumber > 1) && forceShowOutcomeTag && sprint.outcomeTag && (
                          <div className="absolute top-3 left-3 bg-primary text-white px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest italic shadow-lg z-10 animate-fade-in border border-white/20">
                             {sprint.outcomeTag}
                          </div>

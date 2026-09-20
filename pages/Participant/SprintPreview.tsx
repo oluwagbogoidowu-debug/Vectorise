@@ -1903,56 +1903,6 @@ const SprintPreview: React.FC = () => {
                                                     }}
                                                     placeholder="Type and press Enter to add tags..."
                                                 />
-                                                {(() => {
-                                                    const linkedTags = getLinkedTagsForStep(i);
-                                                    if (linkedTags.length === 0) return null;
-                                                    
-                                                    let selectedTags: string[] = [];
-                                                    try {
-                                                        if (taskInputs[i] && taskInputs[i].startsWith("[")) {
-                                                            selectedTags = JSON.parse(taskInputs[i]);
-                                                        } else if (taskInputs[i]) {
-                                                            selectedTags = [taskInputs[i].trim()].filter(Boolean);
-                                                        }
-                                                    } catch (e) {}
-
-                                                    return (
-                                                        <div className="pt-2 animate-fade-in text-left">
-                                                            <p className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest mb-2">
-                                                                🏷️ Connected Choices (Click to Toggle):
-                                                            </p>
-                                                            <div className="flex flex-wrap gap-1.5">
-                                                                {linkedTags.map((tag, tagIndex) => {
-                                                                    const isSel = selectedTags.some(t => t.toLowerCase() === tag.toLowerCase());
-                                                                    return (
-                                                                        <button
-                                                                            key={tagIndex}
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                let newTags: string[];
-                                                                                if (isSel) {
-                                                                                    newTags = selectedTags.filter(t => t.toLowerCase() !== tag.toLowerCase());
-                                                                                } else {
-                                                                                    newTags = [...selectedTags, tag];
-                                                                                }
-                                                                                const newInputs = [...taskInputs];
-                                                                                newInputs[i] = JSON.stringify(newTags);
-                                                                                setTaskInputs(newInputs);
-                                                                            }}
-                                                                            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
-                                                                                isSel 
-                                                                                    ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md" 
-                                                                                    : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-750"
-                                                                            }`}
-                                                                        >
-                                                                            {tag}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })()}
                                             </div>
                                         ) : effectiveInputType === "note" ? (
                                             <div className="space-y-4 animate-fade-in text-left mb-4">

@@ -407,7 +407,14 @@ const MySprints: React.FC = () => {
                                                 </div>
                                             </Link>
                                             <Link to={path} className="min-w-0 flex-1">
-                                                <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                <div className="flex items-center gap-1.5">
+                                                    <h3 className="font-bold text-gray-900 text-[12px] truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
+                                                    {(enrollment?.currentRun || enrollment?.runNumber || 1) >= 2 && !isChallenge && (
+                                                        <span className="text-[7px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-widest border border-purple-100 shrink-0">
+                                                            Run {enrollment?.currentRun || enrollment?.runNumber}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <p className="text-[8px] font-bold text-gray-400 uppercase tracking-tight">{sprint.duration || 7} Days • {isChallenge ? 'Challenge' : sprint.category}</p>
                                             </Link>
                                             <div className="flex items-center gap-1">

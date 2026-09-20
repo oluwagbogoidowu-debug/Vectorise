@@ -984,7 +984,8 @@ const SprintOverviewSheet: React.FC<{
   onClose: () => void;
   sprint: Sprint | null;
   coach: Coach | null;
-}> = ({ isOpen, onClose, sprint }) => {
+  runNumber?: number;
+}> = ({ isOpen, onClose, sprint, runNumber }) => {
   return createPortal(
     <AnimatePresence>
       {isOpen && sprint && (
@@ -1018,7 +1019,7 @@ const SprintOverviewSheet: React.FC<{
               <X className="w-5 h-5" />
             </button>
 
-            {/* Category / Duration */}
+            {/* Category / Duration / Run */}
             <div className="flex items-center gap-2 mb-3">
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#0E7850] bg-[#0E7850]/5 px-2.5 py-1 rounded-lg">
                 {sprint.category || "Growth"}
@@ -1026,6 +1027,11 @@ const SprintOverviewSheet: React.FC<{
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg">
                 {sprint.duration || 7} Days
               </span>
+              {(runNumber || 1) > 1 && (
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-purple-700 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100">
+                  Run {runNumber}
+                </span>
+              )}
             </div>
 
             {/* Sprint Title */}
@@ -1124,7 +1130,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
     return null;
   });
-  const [viewingDay, setViewingDay] = useState<number>(1);
+  const [viewingDay, setViewingDay] = useState<number>(() => {
+    const params = new URLSearchParams(location.search);
+    const dayParam = params.get("day");
+    if (dayParam) {
+      const parsed = parseInt(dayParam, 10);
+      if (!isNaN(parsed) && parsed >= 1) return parsed;
+    }
+    if (location.state?.targetDay) {
+      return Number(location.state.targetDay) || 1;
+    }
+    return 1;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
   const [isDayCompletionModalOpen, setIsDayCompletionModalOpen] =
@@ -1141,8 +1158,74 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isRestarting, setIsRestarting] = useState(false);
   const [isRerunModalOpen, setIsRerunModalOpen] = useState(false);
   const [isProcessingRerun, setIsProcessingRerun] = useState(false);
+  const [isRerunActivePromptOpen, setIsRerunActivePromptOpen] = useState(false);
+  const [activeOtherSprint, setActiveOtherSprint] = useState<{ enrollment: ParticipantSprint; sprintTitle?: string } | null>(null);
   const [rerunPaymentMethod, setRerunPaymentMethod] = useState<string>("coins");
   const kebabMenuRef = useRef<HTMLDivElement>(null);
+
+  const currentRunNumber = useMemo(() => {
+    if (!enrollment) return 1;
+    if (enrollment.currentRun && enrollment.currentRun >= 1) return enrollment.currentRun;
+    if (enrollment.runNumber && enrollment.runNumber >= 1) return enrollment.runNumber;
+    if (Array.isArray(enrollment.pastRuns) && enrollment.pastRuns.length > 0) {
+      return enrollment.pastRuns.length + 1;
+    }
+    return 1;
+  }, [enrollment]);
+
+  // Track if any other sprint is currently active for this user
+  useEffect(() => {
+    if (!user) {
+      setActiveOtherSprint(null);
+      return;
+    }
+    const unsub = sprintService.subscribeToUserEnrollments(user.id, async (allEnrols) => {
+      const otherActive = allEnrols.find((e) => {
+        if (e.id === enrollmentId || e.sprint_id === (sprint?.id || '')) return false;
+        if (e.status !== 'active') return false;
+        if (e.completed_at) return false;
+        const allDone = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p) => p.completed);
+        return !allDone;
+      });
+
+      if (otherActive) {
+        try {
+          const otherSprintData = await sprintService.getSprintById(otherActive.sprint_id);
+          setActiveOtherSprint({
+            enrollment: otherActive,
+            sprintTitle: otherSprintData?.title || 'Active Sprint'
+          });
+        } catch {
+          setActiveOtherSprint({ enrollment: otherActive, sprintTitle: 'Active Sprint' });
+        }
+      } else {
+        setActiveOtherSprint(null);
+      }
+    });
+
+    return () => unsub();
+  }, [user?.id, enrollmentId, sprint?.id]);
+
+  const handleOpenRerun = () => {
+    setIsKebabMenuOpen(false);
+    if (activeOtherSprint) {
+      setIsRerunActivePromptOpen(true);
+    } else {
+      setIsRerunModalOpen(true);
+    }
+  };
+
+  const handleGoAheadWithRerun = async () => {
+    setIsRerunActivePromptOpen(false);
+    setIsRerunModalOpen(true);
+  };
+
+  const handleContinueActiveSprint = () => {
+    setIsRerunActivePromptOpen(false);
+    if (activeOtherSprint?.enrollment?.id) {
+      navigate(`/participant/sprint/${activeOtherSprint.enrollment.id}`);
+    }
+  };
 
   const isSprintCompleted = useMemo(() => {
     if (!enrollment) return false;
@@ -1691,6 +1774,45 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return parseInt(String(timeStr), 10) || 0;
   };
 
+  const handleExitPreview = () => {
+    const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
+    if (targetSprintId) {
+      try {
+        sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
+      } catch (e) {}
+    }
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/coach-dashboard');
+    }
+  };
+
+  const handleResetPreview = () => {
+    const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
+    if (targetSprintId) {
+      try {
+        sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
+      } catch (e) {}
+    }
+    const duration = sprint?.duration || 5;
+    const freshProgress = Array.from({ length: duration }, (_, i) => ({
+      day: i + 1,
+      completed: false,
+      answers: [],
+      submission: "",
+    }));
+    setEnrollment((prev) => prev ? {
+      ...prev,
+      status: "active",
+      progress: freshProgress
+    } as any : null);
+    setViewingDay(1);
+    setActiveTaskIndex(0);
+    setTaskInputs(["", "", ""]);
+    toast.success("Preview reset to Move 1");
+  };
+
   useEffect(() => {
     if (location.state?.resetPreview) {
       const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
@@ -1718,30 +1840,31 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       setIsReflectionModalOpen(false);
       setIsDayCompletionModalOpen(false);
       setIsCompletionModalOpen(false);
-    } else if (location.state?.targetDay) {
-      const maxDay = sprint?.duration || enrollment?.progress?.length || 1;
-      const destDay = Math.min(location.state.targetDay, maxDay);
-      setViewingDay(destDay);
-      setActiveTaskIndex(0);
-      setIsReflectionModalOpen(false);
-      setIsDayCompletionModalOpen(false);
-      setIsCompletionModalOpen(false);
-    }
-  }, [location.state, sprint?.duration, previewSprintId, sprint?.id, enrollment?.progress?.length]);
-
-  // Clean up preview session storage when unmounting preview
-  useEffect(() => {
-    return () => {
-      if (isPreview) {
-        const targetSprintId = previewSprintId || sprint?.id || location.state?.sprint?.id;
-        if (targetSprintId) {
-          try {
-            sessionStorage.removeItem(`vectorise_preview_enrollment_${targetSprintId}`);
-          } catch (e) {}
+    } else {
+      const params = new URLSearchParams(location.search);
+      const dayParam = params.get("day");
+      if (dayParam) {
+        const parsedDay = parseInt(dayParam, 10);
+        if (!isNaN(parsedDay) && parsedDay >= 1) {
+          const maxDay = sprint?.duration || enrollment?.progress?.length || 1;
+          const destDay = Math.min(Math.max(1, parsedDay), maxDay);
+          setViewingDay(destDay);
+          setActiveTaskIndex(0);
+          setIsReflectionModalOpen(false);
+          setIsDayCompletionModalOpen(false);
+          setIsCompletionModalOpen(false);
         }
+      } else if (location.state?.targetDay) {
+        const maxDay = sprint?.duration || enrollment?.progress?.length || 1;
+        const destDay = Math.min(Math.max(1, Number(location.state.targetDay)), maxDay);
+        setViewingDay(destDay);
+        setActiveTaskIndex(0);
+        setIsReflectionModalOpen(false);
+        setIsDayCompletionModalOpen(false);
+        setIsCompletionModalOpen(false);
       }
-    };
-  }, [isPreview, previewSprintId, sprint?.id, location.state?.sprint?.id]);
+    }
+  }, [location.state, location.search, sprint?.duration, previewSprintId, sprint?.id, enrollment?.progress?.length]);
 
   const isStepVisible = (stepIndex: number): boolean => {
     return isStepVisibleForSprint(
@@ -2144,65 +2267,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       if (allTags.length > 0) {
         return Array.from(new Set(allTags)).filter(Boolean);
       }
-    }
-
-    // 5. Check placeholders in prompt, footnote, hint (e.g. {Step 1})
-    const textsToCheck = [
-      dayContent.taskPrompts?.[stepIndex] || (stepIndex === 0 ? dayContent.taskPrompt : ''),
-      dayContent.taskFootnotes?.[stepIndex],
-      dayContent.taskHints?.[stepIndex],
-    ].filter(Boolean);
-
-    for (const text of textsToCheck) {
-      if (typeof text === 'string' && /\{[^{}]+\}/.test(text)) {
-        const currentDay = Number(dayContent.day || 1);
-        const regex = /\{(?:\s*[dDmM](?:ay|ove)?\s*(\d+)\s+)?\s*[sS]?tep\s*(\d+)?(?:\s*[oO][pP]\s*(\d+))?(?:\s*(list|normal|hide|sentence|disconnect|main|h|s|l|n|d|m))?\}/gi;
-        let match: RegExpExecArray | null;
-        let lastStepNum = 1;
-        while ((match = regex.exec(text)) !== null) {
-          const dNum = match[1] ? parseInt(match[1], 10) : currentDay;
-          const sNum = match[2] ? parseInt(match[2], 10) : lastStepNum;
-          if (match[2]) lastStepNum = sNum;
-          const targetStepIdx = sNum - 1;
-          
-          if (dNum === currentDay) {
-            if (targetStepIdx !== stepIndex) {
-              const rawSrcType = dayContent.taskInputTypes?.[targetStepIdx];
-              const srcType = getStepInputType(dayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
-              const val = (taskInputs && taskInputs[targetStepIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === dNum)?.answers?.[targetStepIdx];
-              if (val) {
-                allTags.push(...parseAnswerValues(val, srcType));
-              } else {
-                const configuredOpts = getAllStepPollOptions(dayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
-                if (configuredOpts.length > 0) {
-                  allTags.push(...configuredOpts);
-                }
-              }
-            }
-          } else {
-            const targetProgress = enrollment?.progress?.find((p: any) => Number(p.day) === dNum);
-            const targetDayContent = Array.isArray(sprint?.dailyContent)
-              ? sprint.dailyContent.find((dc: any) => Number(dc.day) === dNum)
-              : undefined;
-            if (targetDayContent) {
-              const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
-              const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
-              const val = targetProgress?.answers?.[targetStepIdx];
-              if (val) {
-                allTags.push(...parseAnswerValues(val, targetType));
-              } else {
-                const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
-                if (configuredOpts.length > 0) {
-                  allTags.push(...configuredOpts);
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    if (allTags.length > 0) {
-      return Array.from(new Set(allTags)).filter(Boolean);
     }
 
     return [];
@@ -2642,7 +2706,21 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
         setSprint(processed);
         setEnrollment((prevMock) => {
-          if (prevMock && prevMock.sprint_id === previewSprintId && prevMock.progress?.length === processed.duration) return prevMock;
+          if (location.state?.enrollment && Array.isArray(location.state.enrollment.progress)) {
+            return location.state.enrollment;
+          }
+          if (prevMock && (prevMock.sprint_id === previewSprintId || prevMock.sprint_id === targetSource.id) && Array.isArray(prevMock.progress) && prevMock.progress.length === processed.duration) {
+            return prevMock;
+          }
+          try {
+            const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${previewSprintId || targetSource.id}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (parsed && Array.isArray(parsed.progress) && parsed.progress.length === processed.duration) {
+                return parsed;
+              }
+            }
+          } catch (e) {}
           const progress = Array.from({ length: processed.duration || 5 }, (_, i) => ({
             day: i + 1,
             completed: false,
@@ -2651,7 +2729,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           }));
           return {
             id: "preview-enrollment",
-            sprint_id: previewSprintId,
+            sprint_id: previewSprintId || targetSource.id,
             user_id: user?.id || "preview-user",
             status: "active",
             progress,
@@ -3234,7 +3312,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           if (currentSprintId) {
             sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
           }
-          if (sprint?.previewMode === 'flow') {
+          if (sprint?.previewMode === 'flow' || true) {
             navigate('/participant/day-success', { 
               state: { 
                 day: viewingDay, 
@@ -3243,6 +3321,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 sprintId: sprint?.id || previewSprintId,
                 sprint: sprint,
                 enrollment: updatedEnrollment,
+                taskInputs: taskInputs,
                 isPreview: true,
                 returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
               } 
@@ -3259,6 +3338,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               sprintId: sprint?.id || previewSprintId,
               sprint: sprint,
               enrollment: updatedEnrollment,
+              taskInputs: taskInputs,
               isPreview: true,
               returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
             } 
@@ -3608,13 +3688,20 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const renderKebabMenuContent = () => (
     <>
       {sprint?.title && (
-        <div className="px-3 pt-2 pb-2 border-b border-gray-100/70 mb-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-            Sprint Menu
-          </p>
-          <p className="text-xs font-bold text-gray-800 truncate">
-            {sprint.title}
-          </p>
+        <div className="px-3 pt-2 pb-2 border-b border-gray-100/70 mb-1 flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+              Sprint Menu
+            </p>
+            <p className="text-xs font-bold text-gray-800 truncate">
+              {sprint.title}
+            </p>
+          </div>
+          {currentRunNumber > 1 && (
+            <span className="text-[8px] font-black bg-purple-50 text-purple-700 px-2 py-0.5 rounded uppercase tracking-widest border border-purple-100 shrink-0">
+              Run {currentRunNumber}
+            </span>
+          )}
         </div>
       )}
 
@@ -3722,10 +3809,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         {isSprintCompleted ? (
           <button
             type="button"
-            onClick={() => {
-              setIsKebabMenuOpen(false);
-              setIsRerunModalOpen(true);
-            }}
+            onClick={handleOpenRerun}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0">
@@ -3752,6 +3836,37 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             </div>
             <span className="truncate">Restart Sprint</span>
           </button>
+        )}
+
+        {isPreview && (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setIsKebabMenuOpen(false);
+                handleResetPreview();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-4 h-4" />
+              </div>
+              <span className="truncate">Reset Preview (Move 1)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsKebabMenuOpen(false);
+                handleExitPreview();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 active:bg-red-100 transition-all text-left cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+                <X className="w-4 h-4" />
+              </div>
+              <span className="truncate">Exit Preview</span>
+            </button>
+          </>
         )}
 
         <button
@@ -3831,20 +3946,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             localStorage.setItem("show_bonus_toast", "true");
           }
           if (isPreview) {
-            setViewingDay(1);
-            setActiveTaskIndex(0);
-            setTaskInputs(["", "", ""]);
-            setIsCompletionModalOpen(false);
+            handleExitPreview();
           } else {
             navigate("/dashboard", { replace: true });
           }
         }}
         onStartNext={(rating) => {
           if (isPreview) {
-            setViewingDay(1);
-            setActiveTaskIndex(0);
-            setTaskInputs(["", "", ""]);
-            setIsCompletionModalOpen(false);
+            handleExitPreview();
           } else {
             handleCompletionModalAction(rating);
           }
@@ -3877,6 +3986,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         onClose={() => setIsSprintOverviewOpen(false)}
         sprint={sprint}
         coach={coach}
+        runNumber={currentRunNumber}
       />
       <ActionStepConfirmModal
         isOpen={confirmMarkStepIndex !== null}
@@ -3912,6 +4022,51 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         cancelText="Cancel"
         variant="danger"
       />
+
+      {/* Active Sprint Conflict Prompt for Rerun */}
+      <AnimatePresence>
+        {isRerunActivePromptOpen && activeOtherSprint && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs text-center animate-fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] p-6 sm:p-8 max-w-sm w-full text-gray-900 dark:text-gray-100 shadow-2xl border border-gray-100 dark:border-zinc-800 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+                <RotateCcw className="w-7 h-7" />
+              </div>
+
+              <h3 className="text-lg sm:text-xl font-black text-gray-950 dark:text-white tracking-tight leading-snug mb-2">
+                Are you sure you want start a new run as a sprint is active.
+              </h3>
+
+              <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium mb-6 leading-relaxed">
+                <span className="font-bold text-gray-800 dark:text-zinc-200">"{activeOtherSprint.sprintTitle}"</span> is currently running. You can only have one active sprint at a time. Starting this run will place your current sprint in the waitlist.
+              </p>
+
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleGoAheadWithRerun}
+                  className="w-full py-3.5 bg-gray-950 hover:bg-black text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] shadow-lg active:scale-95 transition-all cursor-pointer"
+                >
+                  Go ahead
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleContinueActiveSprint}
+                  className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] transition-all active:scale-95 cursor-pointer"
+                >
+                  Continue active
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Rerun Sprint Bottom Modal Bar */}
       <AnimatePresence>
@@ -4250,6 +4405,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                {isPreview && (
+                  <button
+                    type="button"
+                    onClick={handleExitPreview}
+                    className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                    title="Exit Coach Preview"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Exit Preview
+                  </button>
+                )}
                 {/* Small square Move badge, as small as the kebab menu button */}
                 <div className="w-10 h-10 rounded-2xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-md shrink-0 select-none">
                   <span className="text-[7px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
@@ -4285,8 +4451,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           </header>
 
           <div className="px-6 sm:px-12 md:px-16 max-w-5xl mx-auto w-full flex-1 flex flex-col pt-8">
-            {/* Header row: Small and Centered Sprint title. Original "Move X" badges and "Completed" badges are removed. */}
+            {/* Header row: Small and Centered Sprint title with Run label */}
             <div className="pb-6 border-b border-gray-100 mb-8 text-center">
+              {currentRunNumber > 1 && (
+                <div className="flex items-center justify-center mb-2">
+                  <span className="text-[9px] font-black bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full uppercase tracking-widest border border-purple-100 shadow-xs">
+                    Run {currentRunNumber}
+                  </span>
+                </div>
+              )}
               <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight leading-tight max-w-xl mx-auto">
                 {sprint.title}
               </h1>
@@ -4402,19 +4575,38 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               <Menu className="w-5 h-5" />
             </button>
             <div className="text-center flex-1 mx-4 min-w-0">
-              <h1 className="text-lg font-black text-gray-900 truncate">
-                {sprint.title}
-              </h1>
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="text-lg font-black text-gray-900 truncate">
+                  {sprint.title}
+                </h1>
+                {currentRunNumber > 1 && (
+                  <span className="text-[8px] font-black bg-purple-50 text-purple-700 px-2 py-0.5 rounded uppercase tracking-widest border border-purple-100 shrink-0">
+                    Run {currentRunNumber}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="relative" ref={kebabMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsKebabMenuOpen((prev) => !prev)}
-                className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
-                title="Sprint options"
-              >
-                <MoreVertical className="w-5 h-5" />
-              </button>
+            <div className="flex items-center gap-2">
+              {isPreview && (
+                <button
+                  type="button"
+                  onClick={handleExitPreview}
+                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                  title="Exit Coach Preview"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Exit Preview
+                </button>
+              )}
+              <div className="relative" ref={kebabMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                  className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                  title="Sprint options"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </button>
 
               <AnimatePresence>
                 {isKebabMenuOpen && (
@@ -4429,6 +4621,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   </motion.div>
                 )}
               </AnimatePresence>
+              </div>
             </div>
           </div>
         </header>
@@ -4678,56 +4871,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       placeholder="Type and press Enter to add tags..."
                                       isFullBleed={isFullBleed}
                                     />
-                                    {(() => {
-                                      const linkedTags = getLinkedTagsForStep(i);
-                                      if (linkedTags.length === 0) return null;
-                                      
-                                      let selectedTags: string[] = [];
-                                      try {
-                                        if (taskInputs[i] && taskInputs[i].startsWith("[")) {
-                                          selectedTags = JSON.parse(taskInputs[i]);
-                                        } else if (taskInputs[i]) {
-                                          selectedTags = [taskInputs[i].trim()].filter(Boolean);
-                                        }
-                                      } catch (e) {}
-
-                                      return (
-                                        <div className="pt-2 animate-fade-in text-left">
-                                          <p className={`${isFullBleed ? 'text-xs sm:text-sm font-black' : 'text-[10px] font-black'} text-[#0E7850] uppercase tracking-widest mb-3`}>
-                                            🏷️ Connected Choices (Click to Toggle):
-                                          </p>
-                                          <div className="flex flex-wrap gap-2">
-                                            {linkedTags.map((tag, tagIndex) => {
-                                              const isSel = selectedTags.some(t => t.toLowerCase() === tag.toLowerCase());
-                                              return (
-                                                <button
-                                                  key={tagIndex}
-                                                  type="button"
-                                                  onClick={() => {
-                                                    let newTags: string[];
-                                                    if (isSel) {
-                                                      newTags = selectedTags.filter(t => t.toLowerCase() !== tag.toLowerCase());
-                                                    } else {
-                                                      newTags = [...selectedTags, tag];
-                                                    }
-                                                    const newInputs = [...taskInputs];
-                                                    newInputs[i] = JSON.stringify(newTags);
-                                                    setTaskInputs(newInputs);
-                                                  }}
-                                                  className={`${isFullBleed ? 'px-4 py-2 text-xs sm:text-sm font-black' : 'px-3 py-1.5 text-[10px] font-black'} rounded-full uppercase tracking-widest transition-all border cursor-pointer ${
-                                                    isSel 
-                                                      ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md" 
-                                                      : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-750"
-                                                  }`}
-                                                >
-                                                  {tag}
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
-                                      );
-                                    })()}
                                   </div>
                                 ) : effectiveInputType === "note" ? (
                                   <div className="space-y-4 animate-fade-in text-left">

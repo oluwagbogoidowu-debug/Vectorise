@@ -2285,8 +2285,26 @@ export const sprintService = {
         if (data.status === 'active') {
             const snap = await getDoc(enrollmentRef);
             if (snap.exists()) {
-                const user_id = snap.data().user_id;
+                const user_id = snap.data().user_id || userId;
                 if (user_id) {
+                    // Enforce single active sprint constraint: Place any other active sprints into queued (waitlist)
+                    try {
+                        const activeQuery = query(
+                            collection(db, 'users', user_id, 'enrollments'),
+                            where("status", "==", "active")
+                        );
+                        const activeSnap = await getDocs(activeQuery);
+                        for (const docSnap of activeSnap.docs) {
+                            if (docSnap.id !== enrollmentId) {
+                                await updateDoc(docSnap.ref, {
+                                    status: 'queued',
+                                    last_activity_at: new Date().toISOString()
+                                });
+                            }
+                        }
+                    } catch (queueErr) {
+                        console.error("Error setting other active sprints to queued status:", queueErr);
+                    }
                     await sprintService.checkReferralStart(user_id);
                 }
             }

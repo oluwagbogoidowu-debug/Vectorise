@@ -1502,28 +1502,6 @@ export const CoachParticipants: React.FC = () => {
                                                             </div>
                                                         ) : effectiveInputType === "tags" ? (
                                                             <div className="space-y-3">
-                                                                {linkedTags.length > 0 && (
-                                                                    <div className="space-y-1.5">
-                                                                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-1">
-                                                                            Connected Choices:
-                                                                        </p>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {linkedTags.map((tag, tIndex) => {
-                                                                                const isSel = selectedPollChoices.some(s => s.trim().toLowerCase() === tag.trim().toLowerCase());
-                                                                                return (
-                                                                                    <span 
-                                                                                        key={tIndex}
-                                                                                        className={`px-3 py-1 text-xs font-bold rounded-xl border ${
-                                                                                            isSel ? "bg-[#0E7850] text-white border-[#0E7850] shadow-sm" : "bg-white text-gray-500 border-gray-200"
-                                                                                        }`}
-                                                                                    >
-                                                                                        {isSel ? `✓ ${tag}` : tag}
-                                                                                    </span>
-                                                                                );
-                                                                            })}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
                                                                 <div className="space-y-1.5">
                                                                     <p className="text-[10px] font-black uppercase text-[#0E7850] tracking-widest pl-1">
                                                                         Student Tag Selections:

@@ -1438,7 +1438,14 @@ const ParticipantDashboard: React.FC = () => {
                             
                             <div className="flex-1 p-6 md:p-10 lg:p-12 flex flex-col">
                                 <div className={isMainTaskLocked ? "mb-3 md:mb-4" : "mb-6 md:mb-8"}>
-                                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">{mainTask.sprint.category}</p>
+                                        {(mainTask.enrollment?.currentRun || mainTask.enrollment?.runNumber || (mainTask.enrollment?.pastRuns?.length ? mainTask.enrollment.pastRuns.length + 1 : 1)) > 1 && (
+                                            <span className="text-[8px] md:text-[9px] font-black bg-purple-50 text-purple-700 px-2 py-0.5 rounded uppercase tracking-widest border border-purple-100">
+                                                Run {mainTask.enrollment?.currentRun || mainTask.enrollment?.runNumber || (mainTask.enrollment?.pastRuns ? mainTask.enrollment.pastRuns.length + 1 : 2)}
+                                            </span>
+                                        )}
+                                    </div>
                                     <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight tracking-tight mt-1">{mainTask.sprint.title}</h3>
                                     <p className="text-[9px] md:text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">Day {mainTask.status.day} of {mainTask.sprint.duration}</p>
                                 </div>
