@@ -472,6 +472,7 @@ export interface DailyContent {
   taskTagNotes?: string[];
   taskTagNoteActive?: boolean[];
   taskFootnotes?: string[];
+  taskFills?: (string | null | undefined)[];
   taskVideos?: (TaskVideoConfig | null | undefined)[];
   taskPollMultiSelect?: boolean[];
   taskPollArrange?: boolean[];

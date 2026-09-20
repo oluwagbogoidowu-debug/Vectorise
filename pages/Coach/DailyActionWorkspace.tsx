@@ -139,6 +139,7 @@ export default function DailyActionWorkspace({
     const safeNotes = Array.isArray((content as any).taskNotes) ? (content as any).taskNotes : [];
     const safeTagNotes = Array.isArray((content as any).taskTagNotes) ? (content as any).taskTagNotes : [];
     const safeFootnotes = Array.isArray((content as any).taskFootnotes) ? (content as any).taskFootnotes : [];
+    const safeFills = Array.isArray((content as any).taskFills) ? (content as any).taskFills : [];
     const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect) ? (content as any).taskPollMultiSelect : [];
     const safePollArrange = Array.isArray((content as any).taskPollArrange) ? (content as any).taskPollArrange : [];
     const safeMultiTextLabels = Array.isArray((content as any).taskMultiTextLabels) ? (content as any).taskMultiTextLabels : [];
@@ -153,6 +154,7 @@ export default function DailyActionWorkspace({
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
+        taskFills: safeFills,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
         taskMultiTextLabels: safeMultiTextLabels,
@@ -187,6 +189,9 @@ export default function DailyActionWorkspace({
       const currentFootnotes = Array.isArray(dayContent.taskFootnotes) ? [...dayContent.taskFootnotes] : [];
       while (currentFootnotes.length < currentPrompts.length) currentFootnotes.push(null as any);
 
+      const currentFills = Array.isArray(dayContent.taskFills) ? [...dayContent.taskFills] : [];
+      while (currentFills.length < currentPrompts.length) currentFills.push(null as any);
+
       const currentPollLinks = Array.isArray(dayContent.taskPollOptionLinks) ? [...dayContent.taskPollOptionLinks] : [];
       while (currentPollLinks.length < currentPrompts.length) currentPollLinks.push(null as any);
 
@@ -198,6 +203,7 @@ export default function DailyActionWorkspace({
           taskHints: currentHints,
           taskNotes: currentNotes,
           taskFootnotes: currentFootnotes,
+          taskFills: currentFills,
           taskPollOptionLinks: currentPollLinks
         };
       } else {
@@ -308,6 +314,7 @@ export default function DailyActionWorkspace({
       dayContent.taskTagNotes = reorderArr(dayContent.taskTagNotes);
       dayContent.taskTagNoteActive = reorderArr(dayContent.taskTagNoteActive);
       dayContent.taskFootnotes = reorderArr(dayContent.taskFootnotes);
+      dayContent.taskFills = reorderArr(dayContent.taskFills);
       dayContent.taskVideos = reorderArr(dayContent.taskVideos);
       dayContent.taskPollOptionLinks = reorderArr(dayContent.taskPollOptionLinks);
       dayContent.taskMultiTextLabels = reorderArr(dayContent.taskMultiTextLabels);
@@ -467,6 +474,14 @@ export default function DailyActionWorkspace({
     while (footnotes.length <= index) footnotes.push(null as any);
     footnotes[index] = value as any;
     updateFieldForDay(dayNum, 'taskFootnotes', footnotes);
+  };
+
+  const handleTaskFillChange = (dayNum: number, index: number, value: string | null) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const fills = [...(dayContent.taskFills || [])];
+    while (fills.length <= index) fills.push(null as any);
+    fills[index] = value as any;
+    updateFieldForDay(dayNum, 'taskFills', fills);
   };
 
   const handleTaskVideoChange = (dayNum: number, index: number, value: { url: string; start?: string | number; end?: string | number } | null) => {
@@ -1651,6 +1666,32 @@ export default function DailyActionWorkspace({
                           </button>
                         )}
 
+                        {(!dayContent.taskInputTypes?.[activeIdx] || dayContent.taskInputTypes[activeIdx] === 'text') && (!dayContent.taskMultiTextLabels?.[activeIdx] || dayContent.taskMultiTextLabels[activeIdx].filter((l: any) => l && String(l).trim()).length === 0) && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              const currentFill = dayContent.taskFills?.[activeIdx];
+                              if (currentFill === undefined || currentFill === null) {
+                                handleTaskFillChange(dayNum, activeIdx, '');
+                              } else {
+                                handleTaskFillChange(dayNum, activeIdx, null as any);
+                              }
+                            }}
+                            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskFills?.[activeIdx] !== undefined && dayContent.taskFills?.[activeIdx] !== null) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
+                            title="Fill Option: Pre-fill the participant's text input with pre-written text or prior responses so they can edit and continue."
+                          >
+                            {(dayContent.taskFills?.[activeIdx] !== undefined && dayContent.taskFills?.[activeIdx] !== null) ? (
+                              <>
+                                <span className="text-[10px] text-emerald-500 mr-0.5">●</span>
+                                <span>Fill</span>
+                              </>
+                            ) : (
+                              <span>Fill</span>
+                            )}
+                          </button>
+                        )}
+
                         {(!dayContent.taskInputTypes?.[activeIdx] || dayContent.taskInputTypes[activeIdx] === 'text') && isLinkedFromPrevious && (
                           <button 
                             type="button"
@@ -2066,6 +2107,58 @@ export default function DailyActionWorkspace({
                       }
                       return null;
                     })()}
+
+                    {/* Task Fill edit input */}
+                    {dayContent.taskFills?.[activeIdx] !== undefined && dayContent.taskFills?.[activeIdx] !== null && (
+                      <div className="mt-2 animate-fade-in border border-emerald-200/80 rounded-2xl p-3 bg-emerald-50/20 text-left">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="text-[9px] font-black text-emerald-700 uppercase tracking-widest px-0.5 flex items-center gap-1.5">
+                            <span className="text-[11px]">✍️</span> Pre-filled Text (Fill)
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            {selectedText && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  handleTaskFillChange(dayNum, activeIdx, selectedText);
+                                  setLastAssignedField(`fill-${activeIdx}`);
+                                  setTimeout(() => setLastAssignedField(null), 1500);
+                                  setSelectedText('');
+                                }}
+                                className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[8px] font-bold rounded border border-emerald-300 flex items-center gap-0.5 cursor-pointer"
+                              >
+                                Assign Selected
+                              </button>
+                            )}
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  handleTaskFillChange(dayNum, activeIdx, null as any);
+                              }}
+                              className="text-gray-400 hover:text-red-500 transition-colors p-0.5 cursor-pointer"
+                              title="Remove Fill"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
+                        </div>
+                        <textarea 
+                          value={dayContent.taskFills[activeIdx] || ''} 
+                          onChange={e => {
+                            setSelectedDay(dayNum);
+                            handleTaskFillChange(dayNum, activeIdx, e.target.value);
+                          }} 
+                          rows={2} 
+                          className="w-full px-3 py-2 text-xs bg-white border border-emerald-200/90 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-gray-900 font-medium placeholder:text-gray-400 resize-y transition-all" 
+                          placeholder="e.g. I will {m1 step 3 op 1} to produce something for {m1 step 2}..." 
+                        />
+                        <p className="text-[10px] text-gray-500 mt-1 px-0.5">
+                          Pre-fills the participant's text field with initial text/interpolated tokens so they can edit and continue.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Task Footnote edit input */}
                     {dayContent.taskFootnotes?.[activeIdx] !== undefined && dayContent.taskFootnotes?.[activeIdx] !== null && (

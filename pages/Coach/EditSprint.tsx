@@ -928,6 +928,10 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskFootnotes
       : [];
 
+    const safeFills = Array.isArray((content as any).taskFills)
+      ? (content as any).taskFills
+      : [];
+
     const safeVideos = Array.isArray((content as any).taskVideos)
       ? (content as any).taskVideos
       : [];
@@ -997,6 +1001,7 @@ const EditSprint: React.FC = () => {
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
+        taskFills: safeFills,
         taskVideos: safeVideos,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
@@ -1168,6 +1173,40 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
+  const handleTaskFillChange = (index: number, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentFills = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskFills || [])]
+            : [];
+        
+        while (currentFills.length <= index) {
+            currentFills.push(null as any);
+        }
+        currentFills[index] = value;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskFills: currentFills,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskFills: currentFills,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
   const handleTaskVideoChange = (index: number, value: { url: string; start?: string | number; end?: string | number } | null) => {
     setSprint(prev => {
         if (!prev) return null;
@@ -1202,7 +1241,7 @@ const EditSprint: React.FC = () => {
     setSaveStatus('idle');
   };
 
-  const assignSelectedText = (field: 'prompt' | 'hint' | 'footnote' | 'poll', index: number) => {
+  const assignSelectedText = (field: 'prompt' | 'hint' | 'footnote' | 'fill' | 'poll', index: number) => {
     if (!selectedText) return;
     
     if (field === 'prompt') {
@@ -1211,6 +1250,8 @@ const EditSprint: React.FC = () => {
       handleTaskHintChange(index, selectedText);
     } else if (field === 'footnote') {
       handleTaskFootnoteChange(index, selectedText);
+    } else if (field === 'fill') {
+      handleTaskFillChange(index, selectedText);
     } else if (field === 'poll') {
       const lines = selectedText
         .split(/\r?\n/)
@@ -1953,6 +1994,10 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
 
+        let currentFills = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskFills || [])]
+            : [];
+
         let currentVideos = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskVideos || [])]
             : [];
@@ -1987,6 +2032,7 @@ const EditSprint: React.FC = () => {
         currentNotes.push(null as any);
         currentTagNotes.push('{}');
         currentFootnotes.push(null as any);
+        currentFills.push(null as any);
         currentVideos.push(null as any);
         currentMultiTextLabels.push(null as any);
         currentMultiTextSignals.push([]);
@@ -2004,6 +2050,7 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
+              taskFills: currentFills,
               taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
               taskMultiTextSignals: currentMultiTextSignals,
@@ -2023,6 +2070,7 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
+            taskFills: currentFills,
             taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
             taskMultiTextSignals: currentMultiTextSignals,
@@ -2077,6 +2125,10 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
 
+        let currentFills = existingContentIndex >= 0
+            ? [...(updatedDailyContent[existingContentIndex].taskFills || [])]
+            : [];
+
         let currentVideos = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskVideos || [])]
             : [];
@@ -2118,6 +2170,7 @@ const EditSprint: React.FC = () => {
         while (currentNotes.length < maxNeeded) currentNotes.push(null as any);
         while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
         while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
+        while (currentFills.length < maxNeeded) currentFills.push(null as any);
         while (currentVideos.length < maxNeeded) currentVideos.push(null as any);
         while (currentMultiTextLabels.length < maxNeeded) currentMultiTextLabels.push(null as any);
         while (currentMultiTextSignals.length < maxNeeded) currentMultiTextSignals.push([]);
@@ -2146,6 +2199,7 @@ const EditSprint: React.FC = () => {
         currentNotes.splice(index, deleteCount);
         currentTagNotes.splice(index, deleteCount);
         currentFootnotes.splice(index, deleteCount);
+        currentFills.splice(index, deleteCount);
         currentVideos.splice(index, deleteCount);
         currentMultiTextLabels.splice(index, deleteCount);
         currentMultiTextSignals.splice(index, deleteCount);
@@ -2169,6 +2223,7 @@ const EditSprint: React.FC = () => {
             currentNotes.push(null as any);
             currentTagNotes.push('{}');
             currentFootnotes.push(null as any);
+            currentFills.push(null as any);
             currentVideos.push(null as any);
             currentMultiTextLabels.push(null as any);
             currentMultiTextSignals.push([]);
@@ -2194,6 +2249,7 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
+              taskFills: currentFills,
               taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
               taskMultiTextSignals: currentMultiTextSignals,
@@ -2216,6 +2272,7 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
+            taskFills: currentFills,
             taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
             taskMultiTextSignals: currentMultiTextSignals,
@@ -4244,6 +4301,35 @@ const EditSprint: React.FC = () => {
                                                             )}
                                                         </button>
                                                     )}
+                                                    {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && (!currentContent.taskMultiTextLabels?.[index] || currentContent.taskMultiTextLabels[index].filter((l: any) => l && String(l).trim()).length === 0) && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const currentFill = currentContent.taskFills?.[index];
+                                                                if (currentFill === undefined || currentFill === null) {
+                                                                    handleTaskFillChange(index, '');
+                                                                } else {
+                                                                    const newFills = [...(currentContent.taskFills || [])];
+                                                                    newFills[index] = null as any;
+                                                                    handleContentChange('taskFills', newFills);
+                                                                }
+                                                            }}
+                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFills?.[index] !== undefined && currentContent.taskFills?.[index] !== null) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                            title="Fill Option: Pre-fill the participant's text input with pre-written text or prior responses (e.g. m1 step 3 op 1) so they can edit and continue."
+                                                        >
+                                                            {(currentContent.taskFills?.[index] !== undefined && currentContent.taskFills?.[index] !== null) ? (
+                                                                <>
+                                                                    <span className="text-[10px] text-emerald-500 mr-0.5">●</span>
+                                                                    <span>Fill</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus size={14} />
+                                                                    <span>Fill</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
                                                     {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && isLinkedFromPrevious && (
                                                         <button 
                                                             type="button"
@@ -4569,6 +4655,39 @@ const EditSprint: React.FC = () => {
                                                 }
                                                 return null;
                                             })()}
+                                            {(currentContent.taskFills?.[index] !== undefined && currentContent.taskFills?.[index] !== null) && (
+                                                <div className="mt-2 animate-fade-in bg-emerald-50/20 border border-emerald-200/80 rounded-2xl p-3 text-left">
+                                                    <div className="flex justify-between items-center mb-1.5">
+                                                        <label className="text-[9px] font-black text-emerald-700 uppercase tracking-widest px-0.5 flex items-center gap-1.5">
+                                                            <span className="text-[11px]">✍️</span> Pre-filled Text (Fill)
+                                                        </label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const newFills = [...(currentContent.taskFills || [])];
+                                                                newFills[index] = null as any;
+                                                                handleContentChange('taskFills', newFills);
+                                                            }}
+                                                            className="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded cursor-pointer"
+                                                            title="Remove Fill"
+                                                        >
+                                                            <X size={13} />
+                                                        </button>
+                                                    </div>
+                                                    <textarea 
+                                                        value={currentContent.taskFills[index] || ''} 
+                                                        onChange={e => handleTaskFillChange(index, e.target.value)} 
+                                                        rows={2} 
+                                                        className="w-full px-3 py-2 text-xs bg-white border border-emerald-200/90 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none text-gray-900 font-medium placeholder:text-gray-400 resize-y transition-all" 
+                                                        placeholder="e.g. I will {m1 step 3 op 1} to produce something for {m1 step 2}..." 
+                                                    />
+                                                    <div className="flex items-center justify-between mt-1 px-1">
+                                                        <p className="text-[10px] text-gray-500">
+                                                            Pre-fills the participant's text field with initial text/interpolated tokens so they can edit and continue.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
                                             {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
                                                     <div className="flex justify-between items-center mb-1">
@@ -5926,7 +6045,9 @@ const EditSprint: React.FC = () => {
                                                 </div>
                                             );
                                         } else {
-                                            const val = previewInputs[i] || '';
+                                            const rawFill = currentContent.taskFills?.[i];
+                                            const defaultVal = rawFill ? formatInterpolatedText(rawFill, currentContent, previewInputs as any, sprint?.dailyContent) : '';
+                                            const val = previewInputs[i] !== undefined ? previewInputs[i] : defaultVal;
                                             return (
                                                 <div className="space-y-2 text-left animate-fade-in">
                                                     {isLinked && (

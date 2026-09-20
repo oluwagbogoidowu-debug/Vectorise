@@ -399,6 +399,9 @@ export function extractSaveMetadataFromStep(
   if (Array.isArray(dayContent.taskFootnotes) && dayContent.taskFootnotes[stepIndex]) {
     textsToScan.push(dayContent.taskFootnotes[stepIndex]);
   }
+  if (Array.isArray(dayContent.taskFills) && dayContent.taskFills[stepIndex]) {
+    textsToScan.push(dayContent.taskFills[stepIndex] as string);
+  }
   if (Array.isArray(dayContent.taskTagNotes) && dayContent.taskTagNotes[stepIndex]) {
     textsToScan.push(dayContent.taskTagNotes[stepIndex]);
   }
@@ -550,6 +553,11 @@ export function isMainActiveForStep(
 
   const rawFootnote = dayContent.taskFootnotes?.[stepIdx];
   if (typeof rawFootnote === 'string' && mainRegex.test(rawFootnote)) {
+    return true;
+  }
+
+  const rawFill = dayContent.taskFills?.[stepIdx];
+  if (typeof rawFill === 'string' && mainRegex.test(rawFill)) {
     return true;
   }
 
@@ -2604,6 +2612,7 @@ export function isStepVisibleForSprint(
   const rawPrompt = dayContent.taskPrompts?.[stepIndex] || (stepIndex === 0 ? dayContent.taskPrompt : undefined);
   const rawHint = dayContent.taskHints?.[stepIndex];
   const rawFootnote = dayContent.taskFootnotes?.[stepIndex];
+  const rawFill = dayContent.taskFills?.[stepIndex];
   const rawTagNote = dayContent.taskTagNotes?.[stepIndex];
 
   const textsToScan: string[] = [];
@@ -2618,6 +2627,7 @@ export function isStepVisibleForSprint(
   }
   if (rawHint) textsToScan.push(rawHint);
   if (rawFootnote) textsToScan.push(rawFootnote);
+  if (rawFill && typeof rawFill === 'string') textsToScan.push(rawFill);
   if (rawTagNote) textsToScan.push(rawTagNote);
 
   if (textsToScan.length === 0) return true;
