@@ -1,4 +1,4 @@
-import { db } from './lib/firebaseAdmin.js';
+import { db } from './lib/firebaseAdmin';
 import type { Request, Response } from 'express';
 
 export default async function handler(req: Request, res: Response) {
