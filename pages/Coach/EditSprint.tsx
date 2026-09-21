@@ -4076,369 +4076,380 @@ const EditSprint: React.FC = () => {
                                                     <span>{placeholderVal.errorMsg}</span>
                                                 </div>
                                             )}
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2.5 pt-2 border-t border-gray-100" id={index === 0 ? "tour-step-input-type" : undefined}>
-                                                <div className="flex items-center gap-2">
-                                                    <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
-                                                    <div className="flex items-center gap-1">
-                                                        <div className="flex p-0.5 bg-gray-100 rounded-lg">
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleTaskPromptTypeChange(index, 'text')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!activeInputType || activeInputType === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title="Text Input: Instructs the participant to enter a freeform text response or reflection."
-                                                            >
-                                                                Text
-                                                            </button>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleTaskPromptTypeChange(index, 'tags')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title="Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."
-                                                            >
-                                                                Tags
-                                                            </button>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleTaskPromptTypeChange(index, 'poll')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
-                                                            >
-                                                                Poll
-                                                            </button>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleTaskPromptTypeChange(index, 'mark')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
-                                                            >
-                                                                Mark
-                                                            </button>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleTaskPromptTypeChange(index, 'none')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                title="None: Action step with no input field — participants simply read and press next."
-                                                            >
-                                                                None
-                                                            </button>
-                                                        </div>
-                                                        {(() => {
-                                                            const precedingTagSteps = (currentContent.taskInputTypes || [])
-                                                                .map((type, idx) => {
-                                                                    const rawType = String(type || '');
-                                                                    const isPoll = isStepOrSubStepPoll(rawType);
-                                                                    const isTags = rawType.includes('tags');
-                                                                    let resolvedType = 'text';
-                                                                    if (isPoll) resolvedType = 'poll';
-                                                                    else if (isTags) resolvedType = 'tags';
-                                                                    return { type: resolvedType, rawType, idx };
-                                                                })
-                                                                .filter(item => item.idx < index);
-                                                            
-                                                            const precedingDaysSteps = getPrecedingDaysTagSteps();
-                                                            const showSingleLink = activeInputType === 'tags';
-                                                            
-                                                            const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
-                                                            const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
-                                                            const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
+                                            <div className="flex flex-col gap-2 mt-2.5 pt-2 border-t border-gray-100" id={index === 0 ? "tour-step-input-type" : undefined}>
+                                                {/* Top Row: Input Type + Specific Input Type buttons */}
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="flex p-0.5 bg-gray-100 rounded-lg">
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleTaskPromptTypeChange(index, 'text')}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!activeInputType || activeInputType === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                    title="Text Input: Instructs the participant to enter a freeform text response or reflection."
+                                                                >
+                                                                    Text
+                                                                </button>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleTaskPromptTypeChange(index, 'tags')}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                    title="Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."
+                                                                >
+                                                                    Tags
+                                                                </button>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleTaskPromptTypeChange(index, 'poll')}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                    title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
+                                                                >
+                                                                    Poll
+                                                                </button>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleTaskPromptTypeChange(index, 'mark')}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                    title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
+                                                                >
+                                                                    Mark
+                                                                </button>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => handleTaskPromptTypeChange(index, 'none')}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                    title="None: Action step with no input field — participants simply read and press next."
+                                                                >
+                                                                    None
+                                                                </button>
+                                                            </div>
+                                                            {(() => {
+                                                                const precedingTagSteps = (currentContent.taskInputTypes || [])
+                                                                    .map((type, idx) => {
+                                                                        const rawType = String(type || '');
+                                                                        const isPoll = isStepOrSubStepPoll(rawType);
+                                                                        const isTags = rawType.includes('tags');
+                                                                        let resolvedType = 'text';
+                                                                        if (isPoll) resolvedType = 'poll';
+                                                                        else if (isTags) resolvedType = 'tags';
+                                                                        return { type: resolvedType, rawType, idx };
+                                                                    })
+                                                                    .filter(item => item.idx < index);
+                                                                
+                                                                const precedingDaysSteps = getPrecedingDaysTagSteps();
+                                                                const showSingleLink = activeInputType === 'tags';
+                                                                
+                                                                const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
+                                                                const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
+                                                                const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
 
-                                                            const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags');
-                                                            const precedingDaysPollOnlySteps = precedingDaysSteps.filter(item => item.type === 'poll');
-                                                            const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
+                                                                const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags');
+                                                                const precedingDaysPollOnlySteps = precedingDaysSteps.filter(item => item.type === 'poll');
+                                                                const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
 
-                                                            const hasPrecedingForTagLink = activeInputType === 'poll' || activeInputType === 'tags'
-                                                                ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0)
-                                                                : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
-                                                            const hasPrecedingTexts = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0 || precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
+                                                                const hasPrecedingForTagLink = activeInputType === 'poll' || activeInputType === 'tags'
+                                                                    ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0)
+                                                                    : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
+                                                                const hasPrecedingTexts = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0 || precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
-                                                            const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
-                                                            const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
+                                                                const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
+                                                                const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
 																const showPollBranchLink = (currentContent.taskInputTypes || []).map((type, idx) => ({ type, idx })).filter(item => item.idx < index && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0)))).length > 0;
 																const currentPollLink = currentContent.taskPollOptionLinks?.[index];
-                                                            
-                                                            const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
+                                                                
+                                                                const hasSelectedSources = (currentContent.taskLinkedSources?.[index]?.length || 0) > 0;
 
-                                                            return (
-                                                                <div className="flex items-center gap-1.5 ml-2" id={index === 0 ? "tour-step-dynamic-logic" : undefined}>
-                                                                    {showSingleLink && (
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => handleToggleLinkToNext(index)}
-                                                                            title={currentContent.taskLinkedToNext?.[index] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this step to feed its selected tags/options as active choices or follow-ups for the exact next question."}
-                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                        >
-                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                                                        </button>
-                                                                    )}
-                                                                    {showTagLink && (
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'tag') {
-                                                                                    setActiveLinkSelectorIndex(null);
-                                                                                } else {
-                                                                                    setActiveLinkSelectorIndex(index);
-                                                                                    setActiveLinkSelectorType('tag');
+                                                                return (
+                                                                    <div className="flex items-center gap-1.5 ml-2" id={index === 0 ? "tour-step-dynamic-logic" : undefined}>
+                                                                        {showSingleLink && (
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => handleToggleLinkToNext(index)}
+                                                                                title={currentContent.taskLinkedToNext?.[index] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this step to feed its selected tags/options as active choices or follow-ups for the exact next question."}
+                                                                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskLinkedToNext?.[index] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                            >
+                                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                                                            </button>
+                                                                        )}
+                                                                        {showTagLink && (
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'tag') {
+                                                                                        setActiveLinkSelectorIndex(null);
+                                                                                    } else {
+                                                                                        setActiveLinkSelectorIndex(index);
+                                                                                        setActiveLinkSelectorType('tag');
+                                                                                    }
+                                                                                }}
+                                                                                title={
+                                                                                    activeInputType === 'poll'
+                                                                                        ? (hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding poll step(s). Click to configure or link more dynamic poll source questions.` : "Link Poll Sources: Pull selected options from previous poll steps to populate this question dynamically.")
+                                                                                        : (hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding tag step(s). Click to configure or link more dynamic tag source questions.` : "Link Tag Sources: Pull selected tags from previous tag steps to populate this question dynamically.")
                                                                                 }
-                                                                            }}
-                                                                            title={
-                                                                                activeInputType === 'poll'
-                                                                                    ? (hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding poll step(s). Click to configure or link more dynamic poll source questions.` : "Link Poll Sources: Pull selected options from previous poll steps to populate this question dynamically.")
-                                                                                    : (hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding tag step(s). Click to configure or link more dynamic tag source questions.` : "Link Tag Sources: Pull selected tags from previous tag steps to populate this question dynamically.")
-                                                                            }
-                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'tag' ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                        >
-                                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M6 20h.01M21 12.1a1 1 0 01-.29.7l-7 7a1 1 0 01-1.4 0l-7-7A1 1 0 015 12.1V5a2 2 0 012-2h7.1a1 1 0 01.7.3l7 7a1 1 0 01.29.7z" />
-                                                                            </svg>
-                                                                            {hasSelectedSources && (
-                                                                                <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
-                                                                                    {currentContent.taskLinkedSources?.[index]?.length}
-                                                                                </span>
-                                                                            )}
-                                                                        </button>
-                                                                    )}
-                                                                    {showTextLink && (
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'text') {
-                                                                                    setActiveLinkSelectorIndex(null);
-                                                                                } else {
-                                                                                    setActiveLinkSelectorIndex(index);
-                                                                                    setActiveLinkSelectorType('text');
-                                                                                }
-                                                                            }}
-                                                                            title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more text source questions.` : "Text to Text Link: Pull responses from previous text steps to auto-spread/fill this question."}
-                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'text' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20' : hasSelectedSources ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold' : 'bg-emerald-50/50 text-emerald-500 border border-emerald-100 hover:bg-emerald-100/80 hover:text-emerald-600'}`}
-                                                                        >
-                                                                            <TypeIcon className="w-4 h-4" />
-                                                                            {hasSelectedSources && (
-                                                                                <span className="ml-1 text-[10px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[14px]">
-                                                                                    {currentContent.taskLinkedSources?.[index]?.length}
-                                                                                </span>
-                                                                            )}
-                                                                        </button>
-                                                                    )}
-                                                                    {showPollBranchLink && (
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll') {
-                                                                                    setActiveLinkSelectorIndex(null);
-                                                                                } else {
-                                                                                    setActiveLinkSelectorIndex(index);
-                                                                                    setActiveLinkSelectorType('poll');
-                                                                                }
-                                                                            }}
-                                                                            title={currentPollLink ? `Branching Link Active: ${currentPollLink}. Click to edit or disconnect.` : "Link Poll Branching: Click to connect this step to a specific option in a preceding poll."}
-                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : currentPollLink ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                        >
-                                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                                <path d="M6 3v12" />
-                                                                                <circle cx="18" cy="6" r="3" />
-                                                                                <circle cx="6" cy="18" r="3" />
-                                                                                <path d="M18 9a9 9 0 0 1-9 9" />
-                                                                            </svg>
-                                                                            {currentPollLink && (
-                                                                                <span className="ml-1 text-[10px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[14px]">
-                                                                                    ✓
-                                                                                </span>
-                                                                            )}
-                                                                        </button>
-                                                                    )}
-                                                                    {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => handleTogglePollArrange(index)}
-                                                                            title={currentContent.taskPollArrange?.[index] ? "Arrange Poll Active: In Sprint View, participants drag options up/down to reposition and rank them. Click to disable." : "Arrange Poll: In Sprint View, participants drag options up/down to reposition and rank them."}
-                                                                            className={`p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskPollArrange?.[index] ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                        >
-                                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                                                <polyline points="7 15 12 20 17 15" />
-                                                                                <polyline points="7 9 12 4 17 9" />
-                                                                                <line x1="12" y1="4" x2="12" y2="20" />
-                                                                            </svg>
-                                                                            {currentContent.taskPollArrange?.[index] && (
-                                                                                <span className="ml-1 text-[10px] font-black bg-indigo-800 text-white rounded-full px-1 min-w-[14px]">
-                                                                                    ✓
-                                                                                </span>
-                                                                            )}
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })()}
+                                                                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'tag' ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                            >
+                                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M6 20h.01M21 12.1a1 1 0 01-.29.7l-7 7a1 1 0 01-1.4 0l-7-7A1 1 0 015 12.1V5a2 2 0 012-2h7.1a1 1 0 01.7.3l7 7a1 1 0 01.29.7z" />
+                                                                                </svg>
+                                                                                {hasSelectedSources && (
+                                                                                    <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
+                                                                                        {currentContent.taskLinkedSources?.[index]?.length}
+                                                                                    </span>
+                                                                                )}
+                                                                            </button>
+                                                                        )}
+                                                                        {showTextLink && (
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'text') {
+                                                                                        setActiveLinkSelectorIndex(null);
+                                                                                    } else {
+                                                                                        setActiveLinkSelectorIndex(index);
+                                                                                        setActiveLinkSelectorType('text');
+                                                                                    }
+                                                                                }}
+                                                                                title={hasSelectedSources ? `Connected to ${currentContent.taskLinkedSources?.[index]?.length} preceding step(s). Click to configure or link more text source questions.` : "Text to Text Link: Pull responses from previous text steps to auto-spread/fill this question."}
+                                                                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'text' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20' : hasSelectedSources ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold' : 'bg-emerald-50/50 text-emerald-500 border border-emerald-100 hover:bg-emerald-100/80 hover:text-emerald-600'}`}
+                                                                            >
+                                                                                <TypeIcon className="w-4 h-4" />
+                                                                                {hasSelectedSources && (
+                                                                                    <span className="ml-1 text-[10px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[14px]">
+                                                                                        {currentContent.taskLinkedSources?.[index]?.length}
+                                                                                    </span>
+                                                                                )}
+                                                                            </button>
+                                                                        )}
+                                                                        {showPollBranchLink && (
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll') {
+                                                                                        setActiveLinkSelectorIndex(null);
+                                                                                    } else {
+                                                                                        setActiveLinkSelectorIndex(index);
+                                                                                        setActiveLinkSelectorType('poll');
+                                                                                    }
+                                                                                }}
+                                                                                title={currentPollLink ? `Branching Link Active: ${currentPollLink}. Click to edit or disconnect.` : "Link Poll Branching: Click to connect this step to a specific option in a preceding poll."}
+                                                                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : currentPollLink ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                            >
+                                                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                                    <path d="M6 3v12" />
+                                                                                    <circle cx="18" cy="6" r="3" />
+                                                                                    <circle cx="6" cy="18" r="3" />
+                                                                                    <path d="M18 9a9 9 0 0 1-9 9" />
+                                                                                </svg>
+                                                                                {currentPollLink && (
+                                                                                    <span className="ml-1 text-[10px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[14px]">
+                                                                                        ✓
+                                                                                    </span>
+                                                                                )}
+                                                                            </button>
+                                                                        )}
+                                                                        {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => handleTogglePollArrange(index)}
+                                                                                title={currentContent.taskPollArrange?.[index] ? "Arrange Poll Active: In Sprint View, participants drag options up/down to reposition and rank them. Click to disable." : "Arrange Poll: In Sprint View, participants drag options up/down to reposition and rank them."}
+                                                                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${currentContent.taskPollArrange?.[index] ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                                                            >
+                                                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                                                    <polyline points="7 15 12 20 17 15" />
+                                                                                    <polyline points="7 9 12 4 17 9" />
+                                                                                    <line x1="12" y1="4" x2="12" y2="20" />
+                                                                                </svg>
+                                                                                {currentContent.taskPollArrange?.[index] && (
+                                                                                    <span className="ml-1 text-[10px] font-black bg-indigo-800 text-white rounded-full px-1 min-w-[14px]">
+                                                                                        ✓
+                                                                                    </span>
+                                                                                )}
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Specific Input Type buttons (Multi Text, Fill, Spread) */}
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const currentLabels = currentContent.taskMultiTextLabels?.[index];
+                                                                    if (!currentLabels || currentLabels.length === 0) {
+                                                                        const connectedTags = getAvailableConnectedTags(index);
+                                                                        const labelsToUse = connectedTags.length > 0 ? connectedTags : ['Label 1'];
+                                                                        handleTaskMultiTextLabelsChange(index, labelsToUse);
+                                                                    } else {
+                                                                        handleTaskMultiTextLabelsChange(index, null as any);
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                                title="Multi Text Option: Add multiple labeled text inputs for participants to answer contextually."
+                                                            >
+                                                                {(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? (
+                                                                    <>
+                                                                        <span className="text-[10px] text-primary mr-0.5">●</span>
+                                                                        <span>Multi Text</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Plus size={14} />
+                                                                        <span>Multi Text</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && (!currentContent.taskMultiTextLabels?.[index] || currentContent.taskMultiTextLabels[index].filter((l: any) => l && String(l).trim()).length === 0) && (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const currentFill = currentContent.taskFills?.[index];
+                                                                    if (currentFill === undefined || currentFill === null) {
+                                                                        handleTaskFillChange(index, '');
+                                                                    } else {
+                                                                        const newFills = [...(currentContent.taskFills || [])];
+                                                                        newFills[index] = null as any;
+                                                                        handleContentChange('taskFills', newFills);
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFills?.[index] !== undefined && currentContent.taskFills?.[index] !== null) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                                title="Fill Option: Pre-fill the participant's text input with pre-written text or prior responses (e.g. m1 step 3 op 1) so they can edit and continue."
+                                                            >
+                                                                {(currentContent.taskFills?.[index] !== undefined && currentContent.taskFills?.[index] !== null) ? (
+                                                                    <>
+                                                                        <span className="text-[10px] text-emerald-500 mr-0.5">●</span>
+                                                                        <span>Fill</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Plus size={14} />
+                                                                        <span>Fill</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                        {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && isLinkedFromPrevious && (
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => handleToggleSpread(index)}
+                                                                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskSpread?.[index]) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
+                                                                title="Spread Option: Receive input from previous linked step to edit/revise."
+                                                            >
+                                                                {currentContent.taskSpread?.[index] ? (
+                                                                    <>
+                                                                        <span className="text-[10px] text-primary mr-0.5">●</span>
+                                                                        <span>Spread</span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Sparkles size={14} />
+                                                                        <span>Spread</span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && (
+
+                                                {/* Bottom Row (Horizontal Line Below): Hint, Footnote, Video + Delete action */}
+                                                <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+                                                    <div className="flex items-center gap-2">
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
-                                                                const currentLabels = currentContent.taskMultiTextLabels?.[index];
-                                                                if (!currentLabels || currentLabels.length === 0) {
-                                                                    const connectedTags = getAvailableConnectedTags(index);
-                                                                    const labelsToUse = connectedTags.length > 0 ? connectedTags : ['Label 1'];
-                                                                    handleTaskMultiTextLabelsChange(index, labelsToUse);
+                                                                const currentHint = currentContent.taskHints?.[index];
+                                                                if (currentHint === undefined || currentHint === null) {
+                                                                    handleTaskHintChange(index, '');
                                                                 } else {
-                                                                    handleTaskMultiTextLabelsChange(index, null as any);
+                                                                    // Toggle - if it exists we can just show/hide the input
+                                                                    // but here it's always visible if it's not undefined
                                                                 }
                                                             }}
-                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                            title="Multi Text Option: Add multiple labeled text inputs for participants to answer contextually."
+                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                            title="Hint Option: Toggle an optional expandable hint or helper prompt to guide the participant if they get stuck."
                                                         >
-                                                            {(currentContent.taskMultiTextLabels?.[index] && currentContent.taskMultiTextLabels[index].length > 0) ? (
+                                                            {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? (
                                                                 <>
-                                                                    <span className="text-[10px] text-primary mr-0.5">●</span>
-                                                                    <span>Multi Text</span>
+                                                                    <span className="text-[10px] text-amber-500 mr-0.5">●</span>
+                                                                    <span>Hint</span>
                                                                 </>
                                                             ) : (
                                                                 <>
                                                                     <Plus size={14} />
-                                                                    <span>Multi Text</span>
+                                                                    <span>Hint</span>
                                                                 </>
                                                             )}
                                                         </button>
-                                                    )}
-                                                    {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && (!currentContent.taskMultiTextLabels?.[index] || currentContent.taskMultiTextLabels[index].filter((l: any) => l && String(l).trim()).length === 0) && (
+
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
-                                                                const currentFill = currentContent.taskFills?.[index];
-                                                                if (currentFill === undefined || currentFill === null) {
-                                                                    handleTaskFillChange(index, '');
+                                                                const currentFootnote = currentContent.taskFootnotes?.[index];
+                                                                if (currentFootnote === undefined || currentFootnote === null) {
+                                                                    handleTaskFootnoteChange(index, '');
                                                                 } else {
-                                                                    const newFills = [...(currentContent.taskFills || [])];
-                                                                    newFills[index] = null as any;
-                                                                    handleContentChange('taskFills', newFills);
+                                                                    // Toggle
                                                                 }
                                                             }}
-                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFills?.[index] !== undefined && currentContent.taskFills?.[index] !== null) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                            title="Fill Option: Pre-fill the participant's text input with pre-written text or prior responses (e.g. m1 step 3 op 1) so they can edit and continue."
+                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                                            title="Footnote Option: Add normal text that appears just below the question step."
                                                         >
-                                                            {(currentContent.taskFills?.[index] !== undefined && currentContent.taskFills?.[index] !== null) ? (
+                                                            {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? (
                                                                 <>
-                                                                    <span className="text-[10px] text-emerald-500 mr-0.5">●</span>
-                                                                    <span>Fill</span>
+                                                                    <span className="text-[10px] text-indigo-500 mr-0.5">●</span>
+                                                                    <span>Footnote</span>
                                                                 </>
                                                             ) : (
                                                                 <>
                                                                     <Plus size={14} />
-                                                                    <span>Fill</span>
+                                                                    <span>Footnote</span>
                                                                 </>
                                                             )}
                                                         </button>
-                                                    )}
-                                                    {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && isLinkedFromPrevious && (
+
                                                         <button 
                                                             type="button"
-                                                            onClick={() => handleToggleSpread(index)}
-                                                            className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskSpread?.[index]) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
-                                                            title="Spread Option: Receive input from previous linked step to edit/revise."
+                                                            onClick={() => {
+                                                                const currentVideo = currentContent.taskVideos?.[index];
+                                                                if (currentVideo === undefined || currentVideo === null) {
+                                                                    handleTaskVideoChange(index, { url: '', start: '', end: '' });
+                                                                }
+                                                            }}
+                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? 'bg-red-50 text-red-600 border border-red-100' : 'text-gray-400 hover:text-red-600 hover:bg-red-50/50'}`}
+                                                            title="YouTube Video: Attach a YouTube video to this action step with custom start and end points."
                                                         >
-                                                            {currentContent.taskSpread?.[index] ? (
+                                                            {(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? (
                                                                 <>
-                                                                    <span className="text-[10px] text-primary mr-0.5">●</span>
-                                                                    <span>Spread</span>
+                                                                    <span className="text-[10px] text-red-500 mr-0.5">●</span>
+                                                                    <Youtube size={13} className="text-red-500" />
+                                                                    <span>Video</span>
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <Sparkles size={14} />
-                                                                    <span>Spread</span>
+                                                                    <Plus size={14} />
+                                                                    <Youtube size={13} />
+                                                                    <span>Video</span>
                                                                 </>
                                                             )}
                                                         </button>
-                                                    )}
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const currentHint = currentContent.taskHints?.[index];
-                                                            if (currentHint === undefined || currentHint === null) {
-                                                                handleTaskHintChange(index, '');
-                                                            } else {
-                                                                // Toggle - if it exists we can just show/hide the input
-                                                                // but here it's always visible if it's not undefined
-                                                            }
-                                                        }}
-                                                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                        title="Hint Option: Toggle an optional expandable hint or helper prompt to guide the participant if they get stuck."
-                                                    >
-                                                        {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) ? (
-                                                            <>
-                                                                <span className="text-[10px] text-amber-500 mr-0.5">●</span>
-                                                                <span>Hint</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Plus size={14} />
-                                                                <span>Hint</span>
-                                                            </>
-                                                        )}
-                                                    </button>
-
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const currentFootnote = currentContent.taskFootnotes?.[index];
-                                                            if (currentFootnote === undefined || currentFootnote === null) {
-                                                                handleTaskFootnoteChange(index, '');
-                                                            } else {
-                                                                // Toggle
-                                                            }
-                                                        }}
-                                                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
-                                                        title="Footnote Option: Add normal text that appears just below the question step."
-                                                    >
-                                                        {(currentContent.taskFootnotes?.[index] !== undefined && currentContent.taskFootnotes?.[index] !== null) ? (
-                                                            <>
-                                                                <span className="text-[10px] text-indigo-500 mr-0.5">●</span>
-                                                                <span>Footnote</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Plus size={14} />
-                                                                <span>Footnote</span>
-                                                            </>
-                                                        )}
-                                                    </button>
-
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const currentVideo = currentContent.taskVideos?.[index];
-                                                            if (currentVideo === undefined || currentVideo === null) {
-                                                                handleTaskVideoChange(index, { url: '', start: '', end: '' });
-                                                            }
-                                                        }}
-                                                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? 'bg-red-50 text-red-600 border border-red-100' : 'text-gray-400 hover:text-red-600 hover:bg-red-50/50'}`}
-                                                        title="YouTube Video: Attach a YouTube video to this action step with custom start and end points."
-                                                    >
-                                                        {(currentContent.taskVideos?.[index] !== undefined && currentContent.taskVideos?.[index] !== null) ? (
-                                                            <>
-                                                                <span className="text-[10px] text-red-500 mr-0.5">●</span>
-                                                                <Youtube size={13} className="text-red-500" />
-                                                                <span>Video</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Plus size={14} />
-                                                                <Youtube size={13} />
-                                                                <span>Video</span>
-                                                            </>
-                                                        )}
-                                                    </button>
+                                                    </div>
 
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
-                                                                 if (prompt && prompt.trim() !== "") {
-                                                                     setConfirmDeleteIndex(index);
-                                                                 } else {
-                                                                     removeTaskPrompt(index);
-                                                                 }
-                                                             }}
+                                                                if (prompt && prompt.trim() !== "") {
+                                                                    setConfirmDeleteIndex(index);
+                                                                } else {
+                                                                    removeTaskPrompt(index);
+                                                                }
+                                                            }}
                                                             className="p-1 px-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50/50 rounded-lg transition-colors flex items-center justify-center ml-1"
                                                             title="Remove Step: Permanently delete this action step from today's active curriculum list."
                                                         >

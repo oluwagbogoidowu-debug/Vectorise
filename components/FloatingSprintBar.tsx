@@ -159,7 +159,14 @@ export const FloatingSprintBar: React.FC = () => {
     e.stopPropagation();
     triggerHaptic(hapticPatterns.medium);
     if (activeChallengeEnrollment) {
-      navigate(`/challenge/${activeChallengeEnrollment.sprint.id}`);
+      navigate(`/challenge/${activeChallengeEnrollment.sprint.id}`, {
+        state: {
+          sprint: activeChallengeEnrollment.sprint,
+          enrollment: activeChallengeEnrollment.enrollment,
+          viewMode: 'active',
+          continueChallenge: true
+        }
+      });
     } else {
       navigate('/challenge');
     }

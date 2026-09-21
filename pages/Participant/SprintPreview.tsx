@@ -287,12 +287,20 @@ const SprintPreview: React.FC = () => {
     });
 
     const [previewDay, setPreviewDay] = useState(() => {
+        const params = new URLSearchParams(location.search);
+        const dayParam = params.get('day');
+        if (dayParam) {
+            const parsed = parseInt(dayParam, 10);
+            if (!isNaN(parsed) && parsed >= 1) return parsed;
+        }
         return Number(location.state?.targetDay || 1);
     });
 
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [taskInputs, setTaskInputs] = useState<string[]>(() => {
-        const initialDay = Number(location.state?.targetDay || 1);
+        const params = new URLSearchParams(location.search);
+        const dayParam = params.get('day');
+        const initialDay = (dayParam && !isNaN(parseInt(dayParam, 10))) ? parseInt(dayParam, 10) : Number(location.state?.targetDay || 1);
         const sId = location.state?.sprint?.id || sprintId;
         try {
             const stored = localStorage.getItem(`preview_all_inputs_${sId}`);
@@ -323,14 +331,16 @@ const SprintPreview: React.FC = () => {
     };
 
     useEffect(() => {
-        if (location.state?.targetDay) {
-            const target = Number(location.state.targetDay);
+        const params = new URLSearchParams(location.search);
+        const dayParam = params.get('day');
+        const target = dayParam ? parseInt(dayParam, 10) : Number(location.state?.targetDay);
+        if (target && !isNaN(target) && target >= 1) {
             setPreviewDay(target);
             setActiveTaskIndex(0);
             const saved = allDayInputs[target] || [];
             setTaskInputs(saved);
         }
-    }, [location.state?.targetDay]);
+    }, [location.search, location.state?.targetDay]);
 
     useEffect(() => {
         const sId = sprint?.id || sprintId;
@@ -536,7 +546,7 @@ const SprintPreview: React.FC = () => {
     }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint, previewDay, completedDays, allDayInputs, day1Content]);
 
     const handleCompletePreviewDay = async () => {
-        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
+        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview') || location.pathname.startsWith('/sprint/preview') || (user as any)?.role === 'coach' || user?.role === UserRole.COACH;
         const isFlowMode = sprint?.previewMode === 'flow';
 
         // VECTORISE MODE RULE:
@@ -634,8 +644,8 @@ const SprintPreview: React.FC = () => {
             sprintId: sprint?.id || sprintId,
             sprint: sprint,
             enrollmentId: enrollmentId,
-            isPreview: !user,
-            returnToPreviewUrl: isCoachPreview ? `/coach/sprint/preview/${sprint?.id || sprintId}` : `/sprint/preview/${sprint?.id || sprintId}`,
+            isPreview: isCoachPreview || !user || !enrollmentId,
+            returnToPreviewUrl: isCoachPreview ? (location.pathname.startsWith('/coach') ? `/coach/sprint/preview/${sprint?.id || sprintId}` : `/sprint/preview/${sprint?.id || sprintId}`) : `/sprint/preview/${sprint?.id || sprintId}`,
             redirectToDaySuccess: true
         };
         const targetTrackId = sprint?.id || sprintId;
@@ -1537,18 +1547,21 @@ const SprintPreview: React.FC = () => {
         if (isText && !isMultiTextStep(activeTaskIndex)) {
             const currentValue = taskInputs[activeTaskIndex];
             if (!currentValue || currentValue.trim() === "") {
+                const rawFill = day1Content.taskFills?.[activeTaskIndex];
+                const fillValue = rawFill ? formatInterpolatedText(rawFill, day1Content, taskInputs, sprint?.dailyContent, undefined, user) : "";
                 const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
-                if (spreadValue && spreadValue.trim() !== "") {
+                const prefillVal = fillValue || spreadValue;
+                if (prefillVal && prefillVal.trim() !== "") {
                     setTaskInputs(prev => {
-                        if (prev[activeTaskIndex] === spreadValue) return prev;
+                        if (prev[activeTaskIndex] === prefillVal) return prev;
                         const updated = [...prev];
-                        updated[activeTaskIndex] = spreadValue;
+                        updated[activeTaskIndex] = prefillVal;
                         return updated;
                     });
                 }
             }
         }
-    }, [activeTaskIndex, day1Content, taskInputs]);
+    }, [activeTaskIndex, day1Content, taskInputs, sprint?.dailyContent, user]);
 
     if (loadingSprint && !sprint) {
         return (
@@ -2255,7 +2268,11 @@ const SprintPreview: React.FC = () => {
                                                  </div>
                                              ) : (
                                                  <AutoGrowingTextarea 
-                                                value={taskInputs[i] || ''}
+                                                value={taskInputs[i] !== undefined && taskInputs[i] !== '' 
+                                                    ? taskInputs[i] 
+                                                    : (day1Content?.taskFills?.[i] 
+                                                      ? formatInterpolatedText(day1Content.taskFills[i], day1Content, taskInputs, sprint?.dailyContent, undefined, user) 
+                                                      : (taskInputs[i] || ''))}
                                                 onChange={(val) => {
                                                     const newInputs = [...taskInputs];
                                                     newInputs[i] = val;

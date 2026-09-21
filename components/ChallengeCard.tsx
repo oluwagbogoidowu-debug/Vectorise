@@ -44,7 +44,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
       return;
     }
     if (challenge && challenge.id) {
-      navigate(`/challenge/${challenge.id}`, { state: { sprint: challenge } });
+      navigate(`/challenge/${challenge.id}`, { state: { sprint: challenge, viewMode: started ? 'active' : undefined, continueChallenge: started } });
     } else {
       // Fallback navigation with structured challenge state
       const fallbackId = 'challenge_clarity_default';
@@ -96,7 +96,7 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({
           whyDoIt: categoryText,
         }
       };
-      navigate(`/challenge/${fallbackId}`, { state: { sprint: fallbackSprint } });
+      navigate(`/challenge/${fallbackId}`, { state: { sprint: fallbackSprint, viewMode: started ? 'active' : undefined, continueChallenge: started } });
     }
   };
 

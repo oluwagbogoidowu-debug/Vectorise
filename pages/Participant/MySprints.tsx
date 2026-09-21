@@ -336,7 +336,12 @@ const MySprints: React.FC = () => {
                                     const isChallenge = sprint.contentType === 'challenge' || sprint.challengeData || sprint.challengeType;
                                     const linkPath = isChallenge ? `/challenge/${sprint.id}` : `/participant/sprint/${enrollment.id}`;
                                     return (
-                                        <Link key={id} to={linkPath} className="block group">
+                                        <Link 
+                                            key={id} 
+                                            to={linkPath} 
+                                            state={isChallenge ? { sprint, enrollment, viewMode: 'active', continueChallenge: true } : undefined}
+                                            className="block group"
+                                        >
                                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
                                                 <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
                                                     <img 
@@ -563,7 +568,12 @@ const MySprints: React.FC = () => {
                                     const completedCount = (runProgress || enrollment.progress || []).filter(p => p.completed).length;
                                     const linkPath = `/challenge/${sprint.id}`;
                                     return (
-                                        <Link key={id} to={linkPath} className="block group animate-fade-in">
+                                        <Link 
+                                            key={id} 
+                                            to={linkPath} 
+                                            state={{ sprint, enrollment, viewMode: 'active', continueChallenge: true }}
+                                            className="block group animate-fade-in"
+                                        >
                                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col sm:flex-row gap-4">
                                                 <div className="w-full sm:w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 shadow-inner bg-gray-50">
                                                     <img 

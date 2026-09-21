@@ -1277,11 +1277,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
   // Set Guided Mode to start from the current incomplete move (or last progress day) when active
   useEffect(() => {
-    if (sprintMode === "guided" && enrollment?.progress) {
+    const params = new URLSearchParams(location.search);
+    const hasDayParam = Boolean(params.get("day") || location.state?.targetDay);
+    if (sprintMode === "guided" && enrollment?.progress && !hasDayParam && !isPreview) {
       const firstIncomplete = enrollment.progress.find((p) => !p.completed)?.day || 1;
       setViewingDay(firstIncomplete);
     }
-  }, [sprintMode, enrollment?.progress]);
+  }, [sprintMode, enrollment?.progress, isPreview, location.search, location.state]);
 
   // Close kebab menu when clicking outside
   useEffect(() => {
@@ -2661,18 +2663,21 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (isText && !isMultiTextStep(activeTaskIndex)) {
       const currentValue = taskInputs[activeTaskIndex];
       if (!currentValue || currentValue.trim() === "") {
+        const rawFill = dayContent.taskFills?.[activeTaskIndex];
+        const fillValue = rawFill ? formatInterpolatedText(rawFill, dayContent, taskInputs, sprint?.dailyContent, undefined, user) : "";
         const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
-        if (spreadValue && spreadValue.trim() !== "") {
+        const prefillVal = fillValue || spreadValue;
+        if (prefillVal && prefillVal.trim() !== "") {
           setTaskInputs(prev => {
-            if (prev[activeTaskIndex] === spreadValue) return prev;
+            if (prev[activeTaskIndex] === prefillVal) return prev;
             const updated = [...prev];
-            updated[activeTaskIndex] = spreadValue;
+            updated[activeTaskIndex] = prefillVal;
             return updated;
           });
         }
       }
     }
-  }, [activeTaskIndex, dayContent, taskInputs]);
+  }, [activeTaskIndex, dayContent, taskInputs, sprint?.dailyContent, user]);
 
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
   const completedDaysCount = useMemo(
@@ -5366,7 +5371,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     </div>
                                   ) : (
                                     <AutoGrowingTextarea
-                                      value={taskInputs[i] || ""}
+                                      value={taskInputs[i] !== undefined && taskInputs[i] !== "" 
+                                        ? taskInputs[i] 
+                                        : (dayContent?.taskFills?.[i] 
+                                          ? formatInterpolatedText(dayContent.taskFills[i], dayContent, taskInputs, sprint?.dailyContent, undefined, user) 
+                                          : (taskInputs[i] || ""))}
                                       onChange={(val) => {
                                         const newInputs = [...taskInputs];
                                         newInputs[i] = val;
