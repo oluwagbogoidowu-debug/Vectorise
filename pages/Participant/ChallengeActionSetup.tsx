@@ -85,7 +85,12 @@ const ChallengeActionSetup: React.FC = () => {
   });
 
   const [connectedSprint, setConnectedSprint] = useState<Sprint | null>(null);
-  const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
+  const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>(() => {
+    if (location.state?.enrollment) {
+      return [location.state.enrollment];
+    }
+    return [];
+  });
   const [selectedActions, setSelectedActions] = useState<string[]>([]);
   const [customGoalInput, setCustomGoalInput] = useState<string>('');
   const [isSetting, setIsSetting] = useState(false);
@@ -105,7 +110,13 @@ const ChallengeActionSetup: React.FC = () => {
   const [customDurationInput, setCustomDurationInput] = useState<string>('');
 
   // Workflow view mode: 'setup' -> 'preview' -> 'active'
-  const [viewMode, setViewMode] = useState<'setup' | 'preview' | 'active'>('setup');
+  const isRequestedActive = Boolean(
+    location.state?.viewMode === 'active' || 
+    location.state?.continueChallenge === true ||
+    location.state?.enrollment?.status === 'active'
+  );
+  const [viewMode, setViewMode] = useState<'setup' | 'preview' | 'active'>(isRequestedActive ? 'active' : 'setup');
+  const [userManuallyChoseSetup, setUserManuallyChoseSetup] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentDay, setCurrentDay] = useState<number>(1);
   const [showCompleteModal, setShowCompleteModal] = useState<boolean>(false);
@@ -114,10 +125,18 @@ const ChallengeActionSetup: React.FC = () => {
   // Total days calculation: Repetition uses selectedDuration; Sequential automatically spins days from selectedActions.length
   const totalDays = useMemo(() => {
     if (isRepetition) {
-      return selectedDuration > 0 ? selectedDuration : 7;
+      return selectedDuration > 0 ? selectedDuration : (challenge?.duration || 7);
     }
-    return Math.max(1, selectedActions.length);
-  }, [isRepetition, selectedDuration, selectedActions.length]);
+    const actionsCount = selectedActions.length;
+    if (actionsCount > 0) return actionsCount;
+    if (Array.isArray(challenge?.actionRecommendations) && challenge.actionRecommendations.length > 0) {
+      return challenge.actionRecommendations.length;
+    }
+    if (challenge?.duration && challenge.duration > 0) {
+      return challenge.duration;
+    }
+    return 7;
+  }, [isRepetition, selectedDuration, selectedActions.length, challenge]);
 
   // Auto-resume active challenge where completion stopped
   useEffect(() => {
@@ -126,9 +145,10 @@ const ChallengeActionSetup: React.FC = () => {
 
     const savedActionsJson = localStorage.getItem(`vectorise_challenge_action_${challengeId}`);
     const savedDurationStr = localStorage.getItem(`vectorise_challenge_duration_${challengeId}`);
-    const matchingEnrollment = userEnrollments.find(e => e.sprint_id === challengeId);
+    const matchingEnrollment = userEnrollments.find(e => e.sprint_id === challengeId) || 
+      (location.state?.enrollment?.sprint_id === challengeId ? location.state.enrollment : undefined);
 
-    let loadedDuration = 7;
+    let loadedDuration = challenge?.duration || 7;
     if (savedDurationStr) {
       const parsedDur = parseInt(savedDurationStr, 10);
       if (!isNaN(parsedDur) && parsedDur > 0) {
@@ -159,40 +179,78 @@ const ChallengeActionSetup: React.FC = () => {
       actions = [(matchingEnrollment as any).firstActionInput];
     }
 
-    if (actions.length > 0) {
-      setSelectedActions(actions);
-      const completedProgress = matchingEnrollment?.progress || [];
-      const completedCount = completedProgress.filter(p => p.completed).length;
-      const targetDays = isRepetition ? loadedDuration : (actions.length || 1);
-
-      if (completedCount > 0 && completedCount < targetDays) {
-        setCurrentDay(completedCount + 1);
-        setViewMode('active');
-      } else if (matchingEnrollment?.status === 'active') {
-        const nextDay = Math.min(completedCount + 1, targetDays);
-        setCurrentDay(nextDay);
-        setViewMode('active');
-      } else if (completedCount >= targetDays) {
-        setCurrentDay(targetDays);
-        setViewMode('active');
-      } else {
-        setViewMode('preview');
+    // If still no actions loaded, resolve from challenge recommendations or daily content
+    if (actions.length === 0) {
+      if (Array.isArray(challenge?.actionRecommendations) && challenge.actionRecommendations.length > 0) {
+        actions = challenge.actionRecommendations;
+      } else if (Array.isArray(challenge?.challengeData?.actionRecommendations) && challenge.challengeData.actionRecommendations.length > 0) {
+        actions = challenge.challengeData.actionRecommendations;
+      } else if (Array.isArray(challenge?.dailyContent) && challenge.dailyContent.length > 0) {
+        actions = challenge.dailyContent.map(d => d.taskPrompt || d.lessonText || `Day ${d.day} Milestone`);
+      } else if (challenge?.challengeData?.whatToDo) {
+        actions = [challenge.challengeData.whatToDo];
       }
     }
-  }, [challenge?.id, id, userEnrollments, isRepetition]);
+
+    if (actions.length > 0) {
+      setSelectedActions(actions);
+    }
+
+    const completedProgress = matchingEnrollment?.progress || [];
+    const completedCount = completedProgress.filter((p: any) => p.completed).length;
+    const targetDays = isRepetition ? loadedDuration : (actions.length || loadedDuration || 1);
+
+    const isUserActive = isRequestedActive || 
+      matchingEnrollment?.status === 'active' || 
+      completedCount > 0 || 
+      Boolean(savedActionsJson);
+
+    if (isUserActive && !userManuallyChoseSetup) {
+      if (completedCount >= targetDays) {
+        setCurrentDay(targetDays);
+      } else {
+        const nextDay = Math.min(completedCount + 1, targetDays);
+        setCurrentDay(Math.max(1, nextDay));
+      }
+      setViewMode('active');
+    } else if (actions.length > 0 && !isUserActive && !userManuallyChoseSetup) {
+      setViewMode('preview');
+    }
+  }, [challenge?.id, id, userEnrollments, isRepetition, isRequestedActive, userManuallyChoseSetup]);
 
   // Load Challenge if not already passed in state
   useEffect(() => {
     let isMounted = true;
     const loadChallenge = async () => {
-      if (!id) return;
-      if (!challenge) {
+      let targetId = id;
+      if (!targetId) {
+        const activeEnrol = userEnrollments.find(e => {
+          if (e.status !== 'active' || e.completed_at) return false;
+          return e.sprint_id.startsWith('challenge_') || e.sprint_id.includes('challenge') || (e as any).contentType === 'challenge';
+        });
+        if (activeEnrol) {
+          targetId = activeEnrol.sprint_id;
+        }
+      }
+
+      if (!targetId && !challenge) {
+        try {
+          const allPublished = await sprintService.getPublishedSprints().catch(() => []);
+          const firstChallenge = allPublished.find(s => s.contentType === 'challenge' || Boolean(s.challengeData) || Boolean(s.challengeType));
+          if (firstChallenge && isMounted) {
+            setChallenge(firstChallenge);
+          }
+        } catch (e) {}
+        return;
+      }
+
+      if (targetId && !challenge) {
         setIsLoading(true);
         try {
-          let data = await sprintService.getSprintById(id);
+          let data = await sprintService.getSprintById(targetId);
           if (!data) {
             const allPublished = await sprintService.getPublishedSprints().catch(() => []);
-            data = allPublished.find(s => s.id === id) || null;
+            data = allPublished.find(s => s.id === targetId) || null;
           }
           if (isMounted && data) {
             setChallenge(data);
@@ -206,7 +264,7 @@ const ChallengeActionSetup: React.FC = () => {
     };
     loadChallenge();
     return () => { isMounted = false; };
-  }, [id, challenge]);
+  }, [id, challenge, userEnrollments]);
 
   // Load User Enrollments to pull connected sprint responses
   useEffect(() => {
@@ -370,9 +428,34 @@ const ChallengeActionSetup: React.FC = () => {
     }
   };
 
-  const currentActionText = isRepetition
-    ? (selectedActions[0] || 'Research the path you\'re considering.')
-    : (selectedActions[currentDay - 1] || selectedActions[0] || 'Research the path you\'re considering.');
+  const currentActionText = useMemo(() => {
+    if (selectedActions.length > 0) {
+      if (isRepetition) return selectedActions[0];
+      return selectedActions[currentDay - 1] || selectedActions[0];
+    }
+    if (Array.isArray(challenge?.actionRecommendations) && challenge.actionRecommendations.length > 0) {
+      if (isRepetition) return challenge.actionRecommendations[0];
+      return challenge.actionRecommendations[currentDay - 1] || challenge.actionRecommendations[0];
+    }
+    if (challenge?.dailyContent && challenge.dailyContent.length > 0) {
+      const dayData = challenge.dailyContent.find(d => d.day === currentDay) || challenge.dailyContent[0];
+      if (dayData?.taskPrompt) return dayData.taskPrompt;
+      if (dayData?.lessonText) return dayData.lessonText;
+    }
+    if (challenge?.challengeData?.whatToDo) {
+      return challenge.challengeData.whatToDo;
+    }
+    return "Research the path you're considering.";
+  }, [selectedActions, isRepetition, currentDay, challenge]);
+
+  if (isLoading && !challenge) {
+    return (
+      <div className="min-h-screen bg-[#FDFDFD] dark:bg-zinc-950 flex flex-col items-center justify-center p-6">
+        <div className="w-10 h-10 border-3 border-purple-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Challenge...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 flex flex-col font-sans">
@@ -765,6 +848,11 @@ const ChallengeActionSetup: React.FC = () => {
 
         {viewMode === 'active' && (
           <div className="bg-white dark:bg-zinc-900 border border-gray-150 dark:border-zinc-800 rounded-3xl p-6 sm:p-10 shadow-lg shadow-purple-950/5 text-center animate-fade-in">
+            <div className="flex items-center justify-center gap-1.5 text-purple-600 dark:text-purple-400 text-xs font-black uppercase tracking-wider mb-2">
+              <Trophy className="w-4 h-4" />
+              <span>{challengeTitle}</span>
+            </div>
+
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase tracking-wider mb-2">
               Today
             </div>
@@ -792,6 +880,22 @@ const ChallengeActionSetup: React.FC = () => {
               <CheckCircle2 className="w-4 h-4" />
               <span>Mark Complete</span>
             </button>
+
+            <div className="mt-6 pt-4 border-t border-gray-100 dark:border-zinc-800/80 flex items-center justify-between text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setUserManuallyChoseSetup(true);
+                  setViewMode('setup');
+                }}
+                className="text-gray-400 dark:text-zinc-500 hover:text-purple-600 dark:hover:text-purple-400 font-semibold transition-colors cursor-pointer"
+              >
+                Change Action or Duration
+              </button>
+              <span className="text-gray-400 dark:text-zinc-500 font-medium">
+                Day {currentDay} of {totalDays}
+              </span>
+            </div>
           </div>
         )}
       </main>
@@ -828,7 +932,7 @@ const ChallengeActionSetup: React.FC = () => {
                 setShowCompleteModal(false);
                 const challengeId = challenge?.id || id;
                 if (challengeId && user?.id) {
-                  const matchingEnrollment = userEnrollments.find(e => e.sprint_id === challengeId);
+                  const matchingEnrollment = userEnrollments.find(e => e.sprint_id === challengeId) || location.state?.enrollment;
                   if (matchingEnrollment) {
                     const newProgress = [...(matchingEnrollment.progress || [])];
                     const dayIdx = currentDay - 1;
@@ -843,6 +947,14 @@ const ChallengeActionSetup: React.FC = () => {
                       status: currentDay >= totalDays ? 'completed' : 'active',
                       completed_at: currentDay >= totalDays ? new Date().toISOString() : undefined
                     }).catch(err => console.error("Error updating challenge progress:", err));
+                  } else {
+                    await sprintService.enrollUser(user.id, challengeId, totalDays, {
+                      firstActionInput: currentActionText,
+                      taskInputs: isRepetition ? Array(totalDays).fill(currentActionText) : selectedActions,
+                      progress: [{ day: currentDay, completed: true, completedAt: new Date().toISOString() }],
+                      status: currentDay >= totalDays ? 'completed' : 'active',
+                      completed_at: currentDay >= totalDays ? new Date().toISOString() : undefined
+                    } as any).catch(err => console.error("Error enrolling user in challenge:", err));
                   }
                 }
 
@@ -850,7 +962,7 @@ const ChallengeActionSetup: React.FC = () => {
                   setCurrentDay(prev => prev + 1);
                 } else {
                   toast.success("Challenge completed successfully!");
-                  navigate(`/explore`, { replace: true });
+                  navigate(`/my-sprints`, { replace: true });
                 }
               }}
               className="w-full py-3.5 bg-gray-950 dark:bg-zinc-800 text-white dark:text-zinc-100 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-800 transition-colors shadow-lg active:scale-95 cursor-pointer"

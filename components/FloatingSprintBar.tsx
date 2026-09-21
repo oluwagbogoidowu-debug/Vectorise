@@ -41,14 +41,33 @@ export const FloatingSprintBar: React.FC = () => {
 
       for (const enrol of activeList) {
         try {
+          const isIdChallenge = enrol.sprint_id.startsWith('challenge_') || enrol.sprint_id.includes('challenge') || (enrol as any).contentType === 'challenge';
           const sprintData = await sprintService.getSprintById(enrol.sprint_id);
           if (sprintData) {
-            const isChall = sprintData.contentType === 'challenge' || Boolean(sprintData.challengeData) || Boolean(sprintData.challengeCategory) || Boolean((sprintData as any).challengeType);
+            const isChall = isIdChallenge || sprintData.contentType === 'challenge' || Boolean(sprintData.challengeData) || Boolean(sprintData.challengeCategory) || Boolean((sprintData as any).challengeType);
             if (isChall && !foundChallenge) {
               foundChallenge = { enrollment: enrol, sprint: sprintData };
             } else if (!isChall && !foundSprint) {
               foundSprint = enrol;
             }
+          } else if (isIdChallenge && !foundChallenge) {
+            const placeholderSprint: Sprint = {
+              id: enrol.sprint_id,
+              coachId: 'coach_default',
+              title: (enrol as any).sprintTitle || 'Active Challenge',
+              subtitle: 'Active Challenge',
+              description: 'Active Challenge',
+              contentType: 'challenge',
+              category: 'Exploration',
+              coverImageUrl: '',
+              duration: (enrol as any).duration || 7,
+              price: 0,
+              currency: 'NGN',
+              published: true,
+              approvalStatus: 'approved',
+              dailyContent: []
+            };
+            foundChallenge = { enrollment: enrol, sprint: placeholderSprint };
           } else if (!foundSprint) {
             foundSprint = enrol;
           }
@@ -86,7 +105,8 @@ export const FloatingSprintBar: React.FC = () => {
     if (
       path.startsWith('/participant/sprint') ||
       path.startsWith('/sprint') ||
-      path.startsWith('/coach/sprint')
+      path.startsWith('/coach/sprint') ||
+      path.startsWith('/challenge')
     ) {
       return true;
     }
@@ -168,7 +188,12 @@ export const FloatingSprintBar: React.FC = () => {
         }
       });
     } else {
-      navigate('/challenge');
+      navigate('/challenge', {
+        state: {
+          viewMode: 'active',
+          continueChallenge: true
+        }
+      });
     }
   };
 
