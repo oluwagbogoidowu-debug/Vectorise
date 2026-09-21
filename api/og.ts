@@ -1,4 +1,4 @@
-import { db } from './lib/firebaseAdmin';
+import { db } from './lib/firebaseAdmin.js';
 import type { Request, Response } from 'express';
 
 export default async function handler(req: Request, res: Response) {
@@ -62,12 +62,40 @@ export default async function handler(req: Request, res: Response) {
     const baseUrl = `${protocol}://${host}`;
     const url = `${baseUrl}${urlPath}`;
 
-    // Read base index.html
-    const indexHtmlRes = await fetch(`${baseUrl}/index.html`);
-    if (!indexHtmlRes.ok) {
-      throw new Error(`Failed to fetch base index.html: ${indexHtmlRes.statusText}`);
+    // Read base index.html with fallback
+    let rawHtml = '';
+    try {
+      const indexHtmlRes = await fetch(`${baseUrl}/index.html`);
+      if (indexHtmlRes.ok) {
+        rawHtml = await indexHtmlRes.text();
+      }
+    } catch {
+      // ignore fetch errors
     }
-    const rawHtml = await indexHtmlRes.text();
+
+    if (!rawHtml) {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const candidatePaths = [
+          path.join(process.cwd(), 'dist', 'index.html'),
+          path.join(process.cwd(), 'index.html'),
+          path.resolve('index.html')
+        ];
+        for (const p of candidatePaths) {
+          if (fs.existsSync(p)) {
+            rawHtml = fs.readFileSync(p, 'utf8');
+            break;
+          }
+        }
+      } catch {
+        // ignore fs errors
+      }
+    }
+
+    if (!rawHtml) {
+      rawHtml = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Vectorise</title></head><body><div id="root"></div></body></html>`;
+    }
 
     const ogTags = `
     <!-- Dynamic OG Tags -->
@@ -87,7 +115,9 @@ export default async function handler(req: Request, res: Response) {
     `;
 
     // Inject the tags into the <head>
-    const htmlWithOg = rawHtml.replace('</title>', `</title>\n${ogTags}`);
+    const htmlWithOg = rawHtml.includes('</title>') 
+      ? rawHtml.replace('</title>', `</title>\n${ogTags}`)
+      : rawHtml.replace('</head>', `${ogTags}\n</head>`);
 
     res.setHeader('Content-Type', 'text/html');
     res.status(200).send(htmlWithOg);

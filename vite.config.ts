@@ -14,6 +14,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: true
+    host: true,
+    hmr: false,
+    watch: {
+      ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/*.log']
+    }
   }
 });

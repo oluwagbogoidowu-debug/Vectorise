@@ -6,7 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import puppeteer from 'puppeteer';
 import { pushNotificationManager } from './services/pushNotificationManager';
-import { db, isFirebaseAdminAvailable } from './api/lib/firebaseAdmin';
+import { db, isFirebaseAdminAvailable } from './api/lib/firebaseAdmin.js';
 
 import provisionPartner from './api/admin/provision-partner';
 import deleteUserAdmin from './api/admin/delete-user';
@@ -424,7 +424,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   let vite: any;
   if (process.env.NODE_ENV !== 'production') {
     vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        hmr: false,
+        watch: {
+          ignored: ['**/dist/**', '**/node_modules/**', '**/.git/**', '**/*.log']
+        }
+      },
       appType: 'spa',
     });
   }

@@ -1,4 +1,4 @@
-import admin, { db } from './lib/firebaseAdmin';
+import admin, { db } from './lib/firebaseAdmin.js';
 import type { Request, Response } from 'express';
 import crypto from 'crypto';
 

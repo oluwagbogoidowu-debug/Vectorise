@@ -1,4 +1,4 @@
-import admin, { db, isFirebaseAdminAvailable } from '../api/lib/firebaseAdmin';
+import admin, { db, isFirebaseAdminAvailable } from '../api/lib/firebaseAdmin.js';
 import { Participant, UserNotificationState, ParticipantSprint, Sprint, Notification } from '../types';
 
 const processingNotifications = new Set<string>();
