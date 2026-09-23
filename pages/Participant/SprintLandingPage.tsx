@@ -654,7 +654,7 @@ const SprintLandingPage: React.FC = () => {
                            sprint.category === 'Core Platform Sprint' || 
                            sprint.category === 'Growth Fundamentals';
 
-    const displayDescription = sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.";
+    const displayDescription = (sprint.description || sprint.subtitle || "This sprint is designed to help you build a solid foundation for your growth journey.").trim();
     const displayCoachName = isFoundational ? 'Vectorise' : (fetchedCoach?.name || 'Vectorise');
     const displayCoachImage = isFoundational ? 'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd' : (fetchedCoach?.profileImageUrl || assetService.URLS.DEFAULT_COACH_PROFILE);
 
@@ -671,7 +671,7 @@ const SprintLandingPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-[#F8F9FA] min-h-screen font-sans text-[13px] pb-24 selection:bg-primary/10 relative">
+        <div className={`bg-[#F8F9FA] min-h-screen font-sans text-[13px] ${enrollmentStatus === 'none' && !showCommitmentSheet ? 'pb-20 sm:pb-24' : 'pb-8 sm:pb-12'} selection:bg-primary/10 relative`}>
             {/* NAVIGATION HEADER - Full Width */}
             {isOnboardingPath ? (
                 <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
@@ -797,16 +797,16 @@ const SprintLandingPage: React.FC = () => {
             </div>
 
             {/* TWO-COLUMN CONTENT LAYOUT */}
-            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-12 pb-24">
+            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
                     <div className={enrollmentStatus === 'none' ? "lg:col-span-12 max-w-3xl mx-auto w-full" : "lg:col-span-8"}>
                         {/* MAIN CONTENT */}
-                        <div className="space-y-8">
+                        <div className="space-y-6">
                             {(displayDescription || hasDynamicContent) && (
-                                <section className="animate-fade-in py-2">
+                                <section className="animate-fade-in py-1">
                                     <SectionHeading>Sprint Overview</SectionHeading>
                                     
-                                    <div className="space-y-8 mt-6">
+                                    <div className="space-y-6 mt-4">
                                         {displayDescription && !hasDynamicContent && (
                                             <div className="text-base md:text-lg text-gray-600 font-medium leading-[1.6]">
                                                 <FormattedText text={displayDescription} />
@@ -818,7 +818,7 @@ const SprintLandingPage: React.FC = () => {
                                             .map((section, index) => (
                                                 <div key={index} className="animate-fade-in pt-6 first:pt-0 border-t first:border-0 border-gray-100">
                                                     {section.id !== 'overview' && <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">{section.title}</h3>}
-                                                    <DynamicSectionRenderer section={section} />
+                                                    <DynamicSectionRenderer section={{ ...section, body: section.body.trim() }} />
                                                 </div>
                                             ))
                                         }
