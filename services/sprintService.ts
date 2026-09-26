@@ -1,6 +1,6 @@
 
 import { db } from './firebase';
-import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion, writeBatch } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, writeBatch } from 'firebase/firestore';
 import { ParticipantSprint, ParticipantSprintRun, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track, InteractionUser } from '../types';
 import { sanitizeData, safeJSONStringify, userService } from './userService';
 import { ensureSeedBlogsInFirestore } from './blogService';
@@ -2153,14 +2153,56 @@ export const sprintService = {
         return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
     },
 
-    deleteEnrollment: async (enrollmentId: string) => {
+    deleteEnrollment: async (enrollmentId: string, explicitUserId?: string, explicitSprintId?: string) => {
         try {
-            const { deleteDoc } = await import('firebase/firestore');
-            const parts = enrollmentId.split('_');
-            const userId = parts[1];
-            await deleteDoc(doc(db, 'users', userId, 'enrollments', enrollmentId));
+            let userId = explicitUserId;
+            let sprintId = explicitSprintId;
+
+            if (!userId && enrollmentId.startsWith('enrollment_')) {
+                const parts = enrollmentId.split('_');
+                userId = parts[1];
+                if (!sprintId && parts.length >= 3) {
+                    sprintId = parts.slice(2).join('_');
+                }
+            }
+
+            if (userId) {
+                // Delete from user's enrollments subcollection (both 'enrollments' and 'enrollment')
+                await deleteDoc(doc(db, 'users', userId, 'enrollments', enrollmentId)).catch(() => {});
+                await deleteDoc(doc(db, 'users', userId, 'enrollment', enrollmentId)).catch(() => {});
+
+                // If sprintId is known, remove from enrolledSprintIds and check currentSprintId/activeSprintId
+                if (sprintId) {
+                    const userRef = doc(db, 'users', userId);
+                    const userSnap = await getDoc(userRef).catch(() => null);
+                    if (userSnap && userSnap.exists()) {
+                        const userData = userSnap.data();
+                        const updatePayload: any = {
+                            enrolledSprintIds: arrayRemove(sprintId)
+                        };
+                        if (userData?.currentSprintId === sprintId) {
+                            updatePayload.currentSprintId = deleteField();
+                        }
+                        if (userData?.activeSprintId === sprintId) {
+                            updatePayload.activeSprintId = deleteField();
+                        }
+                        await updateDoc(userRef, updatePayload).catch(err => {
+                            console.warn("[sprintService] Failed to clean up user document fields on enrollment deletion:", err);
+                        });
+                    }
+                }
+            } else {
+                // Fallback if userId was not known
+                const parts = enrollmentId.split('_');
+                if (parts.length > 1) {
+                    await deleteDoc(doc(db, 'users', parts[1], 'enrollments', enrollmentId)).catch(() => {});
+                }
+            }
+            // Clear memory cache so all admin queries get fresh data
+            cachedAllEnrollments = null;
         } catch (e) {
             console.error("Delete enrollment failed:", e);
+            throw e;
         }
     },
 

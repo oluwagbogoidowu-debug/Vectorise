@@ -4,7 +4,7 @@ import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint, Referral, UserRole } from '../../types';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
-import { ArrowLeft, Calendar, Mail, Phone, Smartphone, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins } from 'lucide-react';
+import { ArrowLeft, Calendar, Mail, Phone, Smartphone, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins, X, AlertTriangle } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
@@ -20,6 +20,8 @@ export default function AdminUserDetail() {
     const navigate = useNavigate();
     const [user, setUser] = useState<Participant | null>(null);
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
+    const [enrollmentToCancel, setEnrollmentToCancel] = useState<ParticipantSprint | null>(null);
+    const [isCancellingEnrollment, setIsCancellingEnrollment] = useState(false);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [referrals, setReferrals] = useState<Referral[]>([]);
     const [lastNotificationReceivedAt, setLastNotificationReceivedAt] = useState<string | null>(null);
@@ -651,6 +653,46 @@ export default function AdminUserDetail() {
 
     const getSprintTitle = (sprintId: string) => {
         return sprints.find(s => s.id === sprintId)?.title || 'Unknown Sprint';
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && enrollmentToCancel && !isCancellingEnrollment) {
+                setEnrollmentToCancel(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [enrollmentToCancel, isCancellingEnrollment]);
+
+    const handleConfirmCancelEnrollment = async () => {
+        if (!enrollmentToCancel || !userId) return;
+        setIsCancellingEnrollment(true);
+        try {
+            const sprintTitle = getSprintTitle(enrollmentToCancel.sprint_id);
+            await sprintService.deleteEnrollment(enrollmentToCancel.id, userId, enrollmentToCancel.sprint_id);
+            
+            // Remove from local enrollments list
+            setEnrollments(prev => prev.filter(e => e.id !== enrollmentToCancel.id));
+            
+            // Update user enrolledSprintIds in local state
+            setUser(prev => {
+                if (!prev) return null;
+                const updatedEnrolled = (prev.enrolledSprintIds || []).filter(id => id !== enrollmentToCancel.sprint_id);
+                return {
+                    ...prev,
+                    enrolledSprintIds: updatedEnrolled
+                };
+            });
+
+            userService.queueNotification('success', `Enrollment for "${sprintTitle}" cancelled and removed.`, { duration: 4000 });
+            setEnrollmentToCancel(null);
+        } catch (error) {
+            console.error("Failed to cancel sprint enrollment:", error);
+            userService.queueNotification('error', 'Failed to cancel sprint enrollment. Please try again.', { duration: 4000 });
+        } finally {
+            setIsCancellingEnrollment(false);
+        }
     };
 
     return (
@@ -1390,9 +1432,20 @@ export default function AdminUserDetail() {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-2xl font-black text-gray-900 leading-none">{Math.round(completionRate)}%</p>
-                                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Completion</p>
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <p className="text-2xl font-black text-gray-900 leading-none">{Math.round(completionRate)}%</p>
+                                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Completion</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEnrollmentToCancel(enrollment)}
+                                                    className="h-9 w-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-rose-600 bg-white hover:bg-rose-50 border border-gray-200/80 hover:border-rose-200 transition-all shadow-sm hover:shadow group ml-1"
+                                                    title="Cancel and remove enrollment"
+                                                    aria-label="Cancel enrollment"
+                                                >
+                                                    <X className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                                </button>
                                             </div>
                                         </div>
 
@@ -1435,7 +1488,113 @@ export default function AdminUserDetail() {
                     </div>
                 </div>
 
+                {/* Cancellation Confirmation Pop-up Modal */}
+                {enrollmentToCancel && (
+                    <div 
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                        role="dialog"
+                        aria-modal="true"
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget && !isCancellingEnrollment) {
+                                setEnrollmentToCancel(null);
+                            }
+                        }}
+                    >
+                        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl max-w-md w-full p-6 md:p-8 overflow-hidden relative transform animate-in zoom-in-95 duration-200">
+                            {/* Close button */}
+                            <button
+                                type="button"
+                                onClick={() => !isCancellingEnrollment && setEnrollmentToCancel(null)}
+                                disabled={isCancellingEnrollment}
+                                className="absolute top-5 right-5 h-9 w-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                                aria-label="Close dialog"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
 
+                            {/* Header: Alert Icon & Title */}
+                            <div className="flex items-center gap-3.5 mb-4">
+                                <div className="h-12 w-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100 shadow-inner flex-shrink-0">
+                                    <AlertTriangle className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-gray-900 tracking-tight">Cancel Sprint Enrollment?</h3>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Confirm Irreversible Action</p>
+                                </div>
+                            </div>
+
+                            {/* Message */}
+                            <p className="text-xs text-gray-600 leading-relaxed mb-5">
+                                Are you sure you want to cancel and delete this sprint enrollment for{' '}
+                                <span className="font-bold text-gray-900">{user?.name || user?.email || 'this user'}</span>?
+                            </p>
+
+                            {/* Sprint Info Card */}
+                            <div className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 mb-5 space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sprint Title</span>
+                                    <span className="text-xs font-black text-gray-900 max-w-[200px] truncate text-right">
+                                        {getSprintTitle(enrollmentToCancel.sprint_id)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Enrollment Status</span>
+                                    <span className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-md ${
+                                        enrollmentToCancel.status === 'active' 
+                                            ? 'bg-primary text-white' 
+                                            : 'bg-gray-200 text-gray-700'
+                                    }`}>
+                                        {enrollmentToCancel.status}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Enrolled Date</span>
+                                    <span className="text-xs font-semibold text-gray-700">
+                                        {enrollmentToCancel.started_at ? format(parseISO(enrollmentToCancel.started_at), 'MMM d, yyyy') : 'N/A'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Warning Note */}
+                            <div className="bg-rose-50/70 rounded-2xl p-3.5 border border-rose-100 mb-6 flex items-start gap-2.5">
+                                <span className="text-base leading-none mt-0.5">⚠️</span>
+                                <p className="text-[11px] text-rose-700 font-medium leading-relaxed">
+                                    This will permanently delete the enrollment in the database and remove it from the user's dashboard and active progress.
+                                </p>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setEnrollmentToCancel(null)}
+                                    disabled={isCancellingEnrollment}
+                                    className="w-full py-3 px-4 rounded-xl border border-gray-200 text-xs font-black text-gray-600 hover:bg-gray-50 transition-colors uppercase tracking-wider disabled:opacity-50"
+                                >
+                                    Keep Enrollment
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmCancelEnrollment}
+                                    disabled={isCancellingEnrollment}
+                                    className="w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black transition-colors uppercase tracking-wider shadow-lg shadow-rose-600/25 flex items-center justify-center gap-2 disabled:opacity-60"
+                                >
+                                    {isCancellingEnrollment ? (
+                                        <>
+                                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>Cancelling...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <X className="w-3.5 h-3.5" />
+                                            <span>Yes, Cancel</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div>
