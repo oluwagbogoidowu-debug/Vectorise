@@ -15,6 +15,31 @@ import { metadataService, SystemMetadataField } from '../../services/metadataSer
 
 const METADATA_PAGE_SIZE = 4;
 
+const safeFormatDate = (raw: any, fmt: string = 'MMM d, yyyy', fallback: string = 'N/A'): string => {
+    if (!raw) return fallback;
+    try {
+        let date: Date;
+        if (typeof raw?.toDate === 'function') {
+            date = raw.toDate();
+        } else if (raw instanceof Date) {
+            date = raw;
+        } else if (typeof raw === 'number') {
+            date = new Date(raw);
+        } else if (typeof raw === 'string') {
+            const parsed = parseISO(raw);
+            date = isNaN(parsed.getTime()) ? new Date(raw) : parsed;
+        } else if (raw?.seconds) {
+            date = new Date(raw.seconds * 1000);
+        } else {
+            date = new Date(raw);
+        }
+        if (isNaN(date.getTime())) return fallback;
+        return format(date, fmt);
+    } catch {
+        return fallback;
+    }
+};
+
 export default function AdminUserDetail() {
     const { userId } = useParams<{ userId: string }>();
     const navigate = useNavigate();
@@ -550,107 +575,6 @@ export default function AdminUserDetail() {
         });
     }, [user, enrollments, referrals, streakStats]);
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-light">
-                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        );
-    }
-
-    if (!user) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-light p-6 text-center">
-                <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-                <h2 className="text-2xl font-black text-gray-900 italic">User not found.</h2>
-                <button 
-                    onClick={() => navigate('/admin/dashboard')}
-                    className="mt-6 px-6 py-3 bg-primary text-white font-black rounded-2xl shadow-lg hover:scale-105 transition-transform"
-                >
-                    Back to Dashboard
-                </button>
-            </div>
-        );
-    }
-
-    const activeEnrollment = enrollments.find(e => e.status === 'active');
-    const sortedEnrollments = [...enrollments].sort((a, b) => 
-        new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
-    );
-    
-    const lastCompletedEnrollment = enrollments
-        .filter(e => e.status === 'completed')
-        .sort((a, b) => {
-            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
-            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : 0;
-            return dateB - dateA;
-        })[0];
-
-    // Inactivity logic
-    let inactivityWarning = null;
-    
-    // Check if they are inactive based on: "In the whole system a user is inactive once it's a day after the last submission of the last task."
-    const completedTimestamps = enrollments.flatMap(e => 
-        (e.progress || [])
-            .filter(p => p.completed && p.completedAt)
-            .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
-    ).filter(t => t > 0 && !isNaN(t));
-
-    let lastSubmissionTime: number | null = null;
-    if (completedTimestamps.length > 0) {
-        lastSubmissionTime = Math.max(...completedTimestamps);
-    }
-
-    let isInactiveSystem = false;
-    const oneDay = 24 * 60 * 60 * 1000;
-
-    if (lastSubmissionTime !== null) {
-        if (Date.now() - lastSubmissionTime >= oneDay) {
-            isInactiveSystem = true;
-            const daysInactive = Math.floor((Date.now() - lastSubmissionTime) / oneDay);
-            inactivityWarning = `Inactive (${daysInactive} day${daysInactive > 1 ? 's' : ''} since last task submission)`;
-        }
-    } else {
-        // No submissions at all. Let's check start or join time.
-        const startDates = enrollments.map(e => new Date(e.started_at).getTime()).filter(t => !isNaN(t));
-        if (startDates.length > 0) {
-            const earliestStart = Math.min(...startDates);
-            if (Date.now() - earliestStart >= oneDay) {
-                isInactiveSystem = true;
-                inactivityWarning = `Inactive (No task submitted within a day of starting first sprint)`;
-            }
-        } else if (user.createdAt) {
-            const joinedAt = new Date(user.createdAt).getTime();
-            if (!isNaN(joinedAt) && (Date.now() - joinedAt >= oneDay)) {
-                isInactiveSystem = true;
-                inactivityWarning = `Inactive (No task submitted within a day of joining)`;
-            }
-        }
-    }
-
-    // Checking "No progress when they didn't proceed with a new sprint the next day after they finished the first"
-    const completedSprints = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
-    let isNoProgress = false;
-    if (completedSprints.length > 0) {
-        const sortedCompleted = [...completedSprints].sort((a, b) => {
-            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : new Date(a.started_at).getTime();
-            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : new Date(b.started_at).getTime();
-            return dateA - dateB;
-        });
-        const firstFinished = sortedCompleted[0];
-        const finishTime = firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
-
-        if (finishTime !== null && !isNaN(finishTime)) {
-            const otherSprints = enrollments.filter(e => e.id !== firstFinished.id);
-            const hasProceeded = otherSprints.length > 0;
-            const timeSinceFinish = Date.now() - finishTime;
-            if (!hasProceeded && timeSinceFinish >= oneDay) {
-                isNoProgress = true;
-                inactivityWarning = `No Progress: Pending New Sprint (Finished first sprint but didn't start another the next day)`;
-            }
-        }
-    }
-
     const getSprintTitle = (sprintId: string) => {
         return sprints.find(s => s.id === sprintId)?.title || 'Unknown Sprint';
     };
@@ -694,6 +618,107 @@ export default function AdminUserDetail() {
             setIsCancellingEnrollment(false);
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-light">
+                <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-light p-6 text-center">
+                <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+                <h2 className="text-2xl font-black text-gray-900 italic">User not found.</h2>
+                <button 
+                    onClick={() => navigate('/admin/dashboard')}
+                    className="mt-6 px-6 py-3 bg-primary text-white font-black rounded-2xl shadow-lg hover:scale-105 transition-transform"
+                >
+                    Back to Dashboard
+                </button>
+            </div>
+        );
+    }
+
+    const activeEnrollment = enrollments.find(e => e.status === 'active');
+    const sortedEnrollments = [...enrollments].sort((a, b) => 
+        new Date(b.started_at || 0).getTime() - new Date(a.started_at || 0).getTime()
+    );
+    
+    const lastCompletedEnrollment = enrollments
+        .filter(e => e.status === 'completed')
+        .sort((a, b) => {
+            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+            return dateB - dateA;
+        })[0];
+
+    // Inactivity logic
+    let inactivityWarning = null;
+    
+    // Check if they are inactive based on: "In the whole system a user is inactive once it's a day after the last submission of the last task."
+    const completedTimestamps = enrollments.flatMap(e => 
+        (e.progress || [])
+            .filter(p => p.completed && p.completedAt)
+            .map(p => p.completedAt ? new Date(p.completedAt).getTime() : 0)
+    ).filter(t => t > 0 && !isNaN(t));
+
+    let lastSubmissionTime: number | null = null;
+    if (completedTimestamps.length > 0) {
+        lastSubmissionTime = Math.max(...completedTimestamps);
+    }
+
+    let isInactiveSystem = false;
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    if (lastSubmissionTime !== null) {
+        if (Date.now() - lastSubmissionTime >= oneDay) {
+            isInactiveSystem = true;
+            const daysInactive = Math.floor((Date.now() - lastSubmissionTime) / oneDay);
+            inactivityWarning = `Inactive (${daysInactive} day${daysInactive > 1 ? 's' : ''} since last task submission)`;
+        }
+    } else {
+        // No submissions at all. Let's check start or join time.
+        const startDates = enrollments.map(e => new Date(e.started_at || 0).getTime()).filter(t => !isNaN(t) && t > 0);
+        if (startDates.length > 0) {
+            const earliestStart = Math.min(...startDates);
+            if (Date.now() - earliestStart >= oneDay) {
+                isInactiveSystem = true;
+                inactivityWarning = `Inactive (No task submitted within a day of starting first sprint)`;
+            }
+        } else if (user.createdAt) {
+            const joinedAt = new Date(user.createdAt).getTime();
+            if (!isNaN(joinedAt) && (Date.now() - joinedAt >= oneDay)) {
+                isInactiveSystem = true;
+                inactivityWarning = `Inactive (No task submitted within a day of joining)`;
+            }
+        }
+    }
+
+    // Checking "No progress when they didn't proceed with a new sprint the next day after they finished the first"
+    const completedSprints = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
+    let isNoProgress = false;
+    if (completedSprints.length > 0) {
+        const sortedCompleted = [...completedSprints].sort((a, b) => {
+            const dateA = a.completed_at ? new Date(a.completed_at).getTime() : new Date(a.started_at || 0).getTime();
+            const dateB = b.completed_at ? new Date(b.completed_at).getTime() : new Date(b.started_at || 0).getTime();
+            return dateA - dateB;
+        });
+        const firstFinished = sortedCompleted[0];
+        const finishTime = firstFinished.completed_at ? new Date(firstFinished.completed_at).getTime() : null;
+
+        if (finishTime !== null && !isNaN(finishTime)) {
+            const otherSprints = enrollments.filter(e => e.id !== firstFinished.id);
+            const hasProceeded = otherSprints.length > 0;
+            const timeSinceFinish = Date.now() - finishTime;
+            if (!hasProceeded && timeSinceFinish >= oneDay) {
+                isNoProgress = true;
+                inactivityWarning = `No Progress: Pending New Sprint (Finished first sprint but didn't start another the next day)`;
+            }
+        }
+    }
 
     return (
         <div className="min-h-screen bg-white pb-20">
@@ -943,23 +968,19 @@ export default function AdminUserDetail() {
                                 <div>
                                     <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Joined Vectorise</p>
                                     <p className="text-xs font-bold text-gray-900">
-                                        {user.createdAt ? format(parseISO(user.createdAt), 'MMMM d, yyyy') : 'N/A'}
+                                        {safeFormatDate(user.createdAt, 'MMMM d, yyyy')}
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Last Login</p>
                                     <p className="text-xs font-bold text-gray-900">
-                                        {user.lastLoginAt 
-                                            ? format(parseISO(user.lastLoginAt), 'MMM d, h:mm a')
-                                            : 'N/A'}
+                                        {safeFormatDate(user.lastLoginAt, 'MMM d, h:mm a')}
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Last Activity</p>
                                     <p className="text-xs font-bold text-gray-900">
-                                        {enrollments[0]?.last_activity_at 
-                                            ? format(parseISO(enrollments[0].last_activity_at), 'MMM d, h:mm a')
-                                            : 'No recent activity'}
+                                        {safeFormatDate(enrollments[0]?.last_activity_at, 'MMM d, h:mm a', 'No recent activity')}
                                     </p>
                                 </div>
                             </div>
@@ -1043,7 +1064,7 @@ export default function AdminUserDetail() {
                                                     <span>{badge.title}</span>
                                                 </p>
                                                 <p className="text-[8px] font-bold text-gray-400 uppercase mt-0.5">
-                                                    {badge.claimedAt ? format(parseISO(badge.claimedAt), 'MMM d, yyyy') : 'N/A'}
+                                                    {safeFormatDate(badge.claimedAt, 'MMM d, yyyy')}
                                                 </p>
                                             </div>
                                             <div className="text-right flex-shrink-0">
@@ -1079,7 +1100,7 @@ export default function AdminUserDetail() {
                                                 <div className="min-w-0">
                                                     <p className="font-bold text-gray-800 truncate leading-none mb-1">{ref.refereeName}</p>
                                                     <p className="text-[7px] font-black text-gray-400 uppercase tracking-wide">
-                                                        {ref.timestamp ? format(parseISO(ref.timestamp), 'MMM d, yyyy') : 'JOINED'}
+                                                        {safeFormatDate(ref.timestamp, 'MMM d, yyyy', 'JOINED')}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1400,7 +1421,10 @@ export default function AdminUserDetail() {
                     <div className="space-y-6">
                         {sortedEnrollments.length > 0 ? (
                             sortedEnrollments.map((enrollment) => {
-                                const actualCompletionRate = (enrollment.progress.filter(p => p.completed).length / enrollment.progress.length) * 100;
+                                const progressList = Array.isArray(enrollment.progress) ? enrollment.progress : [];
+                                const actualCompletionRate = progressList.length > 0
+                                    ? (progressList.filter(p => p.completed).length / progressList.length) * 100
+                                    : 0;
                                 const isCurrent = enrollment.status === 'active';
                                 const completionRate = (isNoProgress && isCurrent) ? 0 : actualCompletionRate;
                                 
@@ -1428,7 +1452,7 @@ export default function AdminUserDetail() {
                                                         )}
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                                                        Started {format(parseISO(enrollment.started_at), 'MMM d, yyyy')}
+                                                        Started {safeFormatDate(enrollment.started_at, 'MMM d, yyyy')}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1457,9 +1481,7 @@ export default function AdminUserDetail() {
                                             <div className="bg-white/50 p-3 rounded-2xl border border-gray-100/50">
                                                 <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Activity</p>
                                                 <p className="text-xs font-black text-gray-700">
-                                                    {enrollment.last_activity_at 
-                                                        ? format(parseISO(enrollment.last_activity_at), 'MMM d')
-                                                        : 'N/A'}
+                                                    {safeFormatDate(enrollment.last_activity_at, 'MMM d')}
                                                 </p>
                                             </div>
                                             <div className="col-span-2">
@@ -1467,7 +1489,7 @@ export default function AdminUserDetail() {
                                                     {(isNoProgress && isCurrent) ? 'Daily Progress (Suspended: No Sprint)' : 'Daily Progress'}
                                                 </p>
                                                 <div className="flex gap-1">
-                                                    {enrollment.progress.map((p, i) => (
+                                                    {progressList.map((p, i) => (
                                                         <div 
                                                             key={i}
                                                             className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
@@ -1550,7 +1572,7 @@ export default function AdminUserDetail() {
                                 <div className="flex items-center justify-between">
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Enrolled Date</span>
                                     <span className="text-xs font-semibold text-gray-700">
-                                        {enrollmentToCancel.started_at ? format(parseISO(enrollmentToCancel.started_at), 'MMM d, yyyy') : 'N/A'}
+                                        {safeFormatDate(enrollmentToCancel.started_at, 'MMM d, yyyy')}
                                     </span>
                                 </div>
                             </div>

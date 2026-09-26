@@ -18,6 +18,7 @@ import { localNotificationScheduler } from './services/localNotificationSchedule
 import { appInstallTrackingService } from './services/appInstallTrackingService';
 import OfflineBanner from './components/OfflineBanner';
 import FloatingSprintBar from './components/FloatingSprintBar';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
   const { user, activeRole, loading, logout } = useAuth();
@@ -213,9 +214,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
 

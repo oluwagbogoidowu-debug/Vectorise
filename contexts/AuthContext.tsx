@@ -68,6 +68,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsDeferred(false);
   };
 
+  // Safety fallback: Ensure auth loading spinner does not block rendering forever if network/Firebase is slow
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Token Keep-Alive & Auto-Refresh mechanism to prevent sudden logout after 1 hour of inactivity
   useEffect(() => {
     const keepTokenAlive = async () => {
