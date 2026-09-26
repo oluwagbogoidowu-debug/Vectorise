@@ -38,6 +38,8 @@ const SignUpPage: React.FC = () => {
     prefilledEmail, 
     prefilledFirstName,
     prefilledLastName,
+    prefilledPhone,
+    phone: propPhone,
     fromPayment, 
     targetSprintId: targetSprintIdProp = savedSprint,
     sprintId: sprintIdProp,
@@ -55,6 +57,7 @@ const SignUpPage: React.FC = () => {
 
   const [firstName, setFirstName] = useState(prefilledFirstName || '');
   const [lastName, setLastName] = useState(prefilledLastName || '');
+  const [phone, setPhone] = useState(prefilledPhone || propPhone || '');
   const [email, setEmail] = useState(prefilledEmail || '');
   const [password, setPassword] = useState('');
   const [regError, setRegError] = useState('');
@@ -178,6 +181,8 @@ const SignUpPage: React.FC = () => {
           id: firebaseUser.uid,
           name: firebaseUser.displayName || `${firstName || 'Rise'} ${lastName || 'Seeker'}`,
           email: firebaseUser.email || email.trim().toLowerCase(),
+          phone: phone ? phone.trim() : (firebaseUser.phoneNumber || ''),
+          phoneNumber: phone ? phone.trim() : (firebaseUser.phoneNumber || ''),
           role: isCoachRegistration ? UserRole.COACH : UserRole.PARTICIPANT,
           profileImageUrl: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${nameParts[0]}+${nameParts[1] || ''}&background=0E7850&color=fff`,
           persona: 'Seeker',
@@ -225,7 +230,8 @@ const SignUpPage: React.FC = () => {
     if (prefilledEmail) setEmail(prefilledEmail);
     if (prefilledFirstName) setFirstName(prefilledFirstName);
     if (prefilledLastName) setLastName(prefilledLastName);
-  }, [prefilledEmail, prefilledFirstName, prefilledLastName]);
+    if (prefilledPhone || propPhone) setPhone(prefilledPhone || propPhone);
+  }, [prefilledEmail, prefilledFirstName, prefilledLastName, prefilledPhone, propPhone]);
 
   useEffect(() => {
     const handleExistingUserRedirect = async () => {
@@ -331,6 +337,8 @@ const SignUpPage: React.FC = () => {
         id: firebaseUser.uid,
         name: `${firstName} ${lastName}`,
         email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        phoneNumber: phone.trim(),
         role: isPartnerApplication ? UserRole.PARTNER : UserRole.PARTICIPANT,
         profileImageUrl: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=0E7850&color=fff`,
         persona: persona || (isPartnerApplication ? 'Growth Partner' : (isCoachRegistration ? 'Coach' : 'Seeker')),
@@ -619,6 +627,16 @@ const SignUpPage: React.FC = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all focus:ring-4 focus:ring-primary/5" 
                       placeholder="Email Address" 
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="block text-[8px] font-black text-gray-300 uppercase tracking-widest ml-1">Mobile Number (WhatsApp)</label>
+                    <input 
+                      type="tel" 
+                      value={phone} 
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-50 rounded-xl outline-none font-bold text-sm transition-all focus:ring-4 focus:ring-primary/5" 
+                      placeholder="Mobile Number (preferably WhatsApp)" 
                     />
                 </div>
                 <div className="space-y-1">

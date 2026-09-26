@@ -57,6 +57,10 @@ const AdminCoachDetail: React.FC = () => {
                 <p className="font-semibold">{coach.email}</p>
               </div>
               <div>
+                <p className="text-sm text-gray-500">Phone</p>
+                <p className="font-semibold font-mono">{(coach as any).phone || (coach as any).phoneNumber || 'No phone provided'}</p>
+              </div>
+              <div>
                 <p className="text-sm text-gray-500">Bio</p>
                 <p className="font-semibold">{coach.bio || 'No bio provided'}</p>
               </div>

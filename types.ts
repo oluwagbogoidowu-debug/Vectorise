@@ -493,6 +493,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  phoneNumber?: string;
   role: UserRole;
   profileImageUrl: string;
   roleDefinitionId?: string;

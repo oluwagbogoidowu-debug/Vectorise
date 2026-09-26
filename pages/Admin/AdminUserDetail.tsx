@@ -4,7 +4,7 @@ import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { Participant, ParticipantSprint, Sprint, Referral, UserRole } from '../../types';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
-import { ArrowLeft, Calendar, Mail, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins } from 'lucide-react';
+import { ArrowLeft, Calendar, Mail, Phone, Smartphone, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
@@ -126,6 +126,28 @@ export default function AdminUserDetail() {
         (currentMetadataPage + 1) * METADATA_PAGE_SIZE
     );
     const capturedMetadataCount = userMetadataList.filter(item => item.isCaptured).length;
+
+    const userPhone = useMemo(() => {
+        if (!user) return null;
+        const u = user as any;
+        const raw = u.phone || 
+                    u.phoneNumber || 
+                    u.metadata?.phone || 
+                    u.metadata?.phoneNumber || 
+                    u.metadata?.mobile || 
+                    u.metadata?.whatsapp || 
+                    u.identificationData?.phone?.value || 
+                    u.identificationData?.phoneNumber?.value || 
+                    u.onboardingAnswers?.phone || 
+                    u.onboardingAnswers?.phoneNumber || 
+                    u.onboardingAnswers?.['Mobile Number (preferably WhatsApp)'] || 
+                    u.onboardingAnswers?.['Mobile Number'] || 
+                    u.onboardingAnswers?.['phone_number'];
+        if (typeof raw === 'string' && raw.trim()) {
+            return raw.trim();
+        }
+        return null;
+    }, [user]);
 
 
 
@@ -674,7 +696,7 @@ export default function AdminUserDetail() {
                 {/* Profile Card Section (A bit smaller like participant design) */}
                 <div>
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Participant Identity</h3>
-                    <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[280px] hover:border-[#0E7850]/20 transition-all duration-300">
+                    <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[300px] max-w-full hover:border-[#0E7850]/20 transition-all duration-300">
                         <div className="flex items-center gap-4">
                             <ArchetypeAvatar 
                                 archetypeId={user.archetype} 
@@ -682,9 +704,33 @@ export default function AdminUserDetail() {
                                 size="lg" 
                                 isVerified={user.emailVerifiedConfirmed || user.emailVerifiedOverride}
                             />
-                            <div className="min-w-0">
-                                <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1">{user.name}</h2>
-                                <p className="text-[10px] font-bold text-gray-400 truncate tracking-wide leading-none">{user.email}</p>
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1.5">{user.name}</h2>
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                                        <p className="text-[10px] font-bold text-gray-500 truncate tracking-wide leading-none">{user.email}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <Phone className="w-3 h-3 text-[#0E7850] shrink-0" />
+                                        {userPhone ? (
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-black text-gray-800 tracking-wide font-mono leading-none">{userPhone}</span>
+                                                <a 
+                                                    href={`https://wa.me/${userPhone.replace(/[^0-9]/g, '')}`} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-[#0E7850] border border-emerald-200/60 rounded text-[7.5px] font-black uppercase tracking-wider transition-colors"
+                                                    title="Message via WhatsApp"
+                                                >
+                                                    WhatsApp ↗
+                                                </a>
+                                            </div>
+                                        ) : (
+                                            <span className="text-[9.5px] font-medium text-gray-300 italic">No phone received</span>
+                                        )}
+                                    </div>
+                                </div>
                                 <p className="text-[9px] font-black text-[#0E7850] uppercase mt-2 bg-emerald-50/50 border border-emerald-100/50 px-2 py-0.5 rounded-md inline-block tracking-wider leading-none">
                                     @{user.occupation || user.persona || 'Student/Graduate'}
                                 </p>
@@ -832,6 +878,24 @@ export default function AdminUserDetail() {
                                         <p className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border inline-block ${statusInfo.colorClass}`}>
                                             {statusInfo.label}
                                         </p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Phone Number (Sign Up)</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs font-bold text-gray-900 font-mono">
+                                            {userPhone || 'Not provided'}
+                                        </p>
+                                        {userPhone && (
+                                            <a 
+                                                href={`https://wa.me/${userPhone.replace(/[^0-9]/g, '')}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-[7.5px] font-black text-[#0E7850] bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded hover:bg-emerald-100 transition-colors uppercase tracking-wider"
+                                            >
+                                                Chat WhatsApp ↗
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                                 <div>
@@ -1055,6 +1119,28 @@ export default function AdminUserDetail() {
                                 )}
 
                                 <div className="pt-2 border-t border-gray-50 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Number</p>
+                                            <p className="text-[10px] font-bold text-gray-800 font-mono mt-0.5">
+                                                {userPhone || 'Not provided'}
+                                            </p>
+                                        </div>
+                                        {userPhone ? (
+                                            <a 
+                                                href={`https://wa.me/${userPhone.replace(/[^0-9]/g, '')}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100 transition-colors"
+                                            >
+                                                Chat ↗
+                                            </a>
+                                        ) : (
+                                            <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border bg-gray-50 text-gray-400 border-gray-100">
+                                                None
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">WhatsApp Link</p>

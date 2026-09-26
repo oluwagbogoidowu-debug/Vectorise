@@ -147,8 +147,22 @@ export default function AdminUsers() {
                 : 0;
             const tasksCompleted = isNoProgress ? 0 : actualTasksCompleted;
 
+            const rawPhone = (user as any).phone || 
+                             (user as any).phoneNumber || 
+                             (user as any).metadata?.phone || 
+                             (user as any).metadata?.phoneNumber || 
+                             (user as any).metadata?.mobile || 
+                             (user as any).identificationData?.phone?.value || 
+                             (user as any).identificationData?.phoneNumber?.value || 
+                             (user as any).onboardingAnswers?.phone || 
+                             (user as any).onboardingAnswers?.phoneNumber || 
+                             (user as any).onboardingAnswers?.['Mobile Number (preferably WhatsApp)'] || 
+                             (user as any).onboardingAnswers?.['phone_number'];
+            const phone = (typeof rawPhone === 'string' && rawPhone.trim()) ? rawPhone.trim() : null;
+
             return {
                 ...user,
+                phone,
                 activeEnrollment,
                 sprintTitle: isNoProgress ? 'No active sprint' : (sprint?.title || 'No active sprint'),
                 completionRate: rate,
@@ -165,7 +179,8 @@ export default function AdminUsers() {
 
         const filtered = mapped.filter(u => {
             const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                  u.email.toLowerCase().includes(searchTerm.toLowerCase());
+                                  u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                  (u.phone && u.phone.includes(searchTerm));
             if (!matchesSearch) return false;
 
             if (roleFilter === 'active') {
@@ -224,10 +239,11 @@ export default function AdminUsers() {
     const handleExportCSV = () => {
         const listToExport = userStats.length > 0 ? userStats : participants;
         const csvRows = [
-            ['Name', 'Email'].join(','),
+            ['Name', 'Email', 'Phone'].join(','),
             ...listToExport.map(u => [
                 `"${(u.name || '').replace(/"/g, '""')}"`,
-                `"${(u.email || '').replace(/"/g, '""')}"`
+                `"${(u.email || '').replace(/"/g, '""')}"`,
+                `"${(u.phone || '').replace(/"/g, '""')}"`
             ].join(','))
         ];
         const csvString = csvRows.join('\n');
@@ -235,7 +251,7 @@ export default function AdminUsers() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `user_emails_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.setAttribute('download', `user_directory_${new Date().toISOString().slice(0, 10)}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -262,7 +278,7 @@ export default function AdminUsers() {
                     <div className="relative flex-1 md:flex-initial">
                         <input 
                             type="text" 
-                            placeholder="Search by name or email..." 
+                            placeholder="Search by name, email, or phone..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full md:w-80 pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
@@ -386,6 +402,12 @@ export default function AdminUsers() {
                                                 </span>
                                             </div>
                                             <p className="text-[10px] font-bold text-gray-400">{user.email}</p>
+                                            {user.phone && (
+                                                <p className="text-[9px] font-semibold text-gray-600 font-mono flex items-center gap-1 mt-0.5">
+                                                    <span className="text-[9px] text-[#0E7850]">📞</span>
+                                                    <span>{user.phone}</span>
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 </td>
@@ -499,6 +521,12 @@ export default function AdminUsers() {
                                     </span>
                                 </div>
                                 <p className="text-[10px] font-bold text-gray-400 truncate">{user.email}</p>
+                                {user.phone && (
+                                    <p className="text-[9px] font-semibold text-gray-600 font-mono flex items-center gap-1 mt-0.5">
+                                        <span className="text-[9px] text-[#0E7850]">📞</span>
+                                        <span>{user.phone}</span>
+                                    </p>
+                                )}
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
