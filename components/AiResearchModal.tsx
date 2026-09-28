@@ -7,10 +7,16 @@ export interface AiResearchModalProps {
   onClose: () => void;
   sprintTitle?: string;
   sprintKey?: string;
+  sprintDescription?: string;
+  sprintOutcomes?: string[];
+  category?: string;
+  totalMoves?: number;
+  dailyContent?: any[];
   moveDay: number;
   stepIndex: number;
   stepPrompt?: string;
   footnote?: string;
+  askAiGuidance?: string;
   userAnswer?: string;
   onSaveToNote?: (noteText: string) => void;
   onLoadingChange?: (loading: boolean) => void;
@@ -21,10 +27,16 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   onClose,
   sprintTitle = 'Sprint',
   sprintKey = 'default',
+  sprintDescription = '',
+  sprintOutcomes = [],
+  category = '',
+  totalMoves,
+  dailyContent = [],
   moveDay,
   stepIndex,
   stepPrompt = '',
   footnote = '',
+  askAiGuidance = '',
   userAnswer = '',
   onSaveToNote,
   onLoadingChange,
@@ -98,10 +110,16 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
         },
         body: JSON.stringify({
           topic: sprintTitle,
+          sprintDescription,
+          sprintOutcomes,
+          category,
+          totalMoves,
+          dailyContent,
           moveDay,
           stepIndex,
           stepPrompt,
           footnote,
+          askAiGuidance,
           userAnswer,
           preset: !isCustom ? presetOrPrompt : undefined,
           prompt: isCustom ? promptToSend : undefined,

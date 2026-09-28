@@ -4393,6 +4393,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         onClose={handleCloseAiResearch}
         sprintTitle={sprint?.title || "Sprint"}
         sprintKey={sprint?.id || previewSprintId || 'default'}
+        sprintDescription={sprint?.description || sprint?.subtitle}
+        sprintOutcomes={sprint?.outcomes}
+        category={sprint?.category}
+        totalMoves={sprint?.duration || sprint?.dailyContent?.length || 1}
+        dailyContent={sprint?.dailyContent}
         moveDay={viewingDay}
         stepIndex={aiResearchStepIndex}
         stepPrompt={
@@ -4401,6 +4406,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             : (dayContent?.taskPrompt || dayContent?.taskPrompts?.[0] || "")
         }
         footnote={dayContent?.taskFootnotes?.[aiResearchStepIndex]}
+        askAiGuidance={
+          typeof dayContent?.taskAskAis?.[aiResearchStepIndex] === 'string'
+            ? dayContent?.taskAskAis?.[aiResearchStepIndex]
+            : typeof dayContent?.taskAskAi?.[aiResearchStepIndex] === 'string'
+            ? dayContent?.taskAskAi?.[aiResearchStepIndex]
+            : undefined
+        }
         userAnswer={taskInputs[aiResearchStepIndex]}
         onSaveToNote={(noteText) => {
           if (aiResearchStepIndex === expressNoteStepIndex) {

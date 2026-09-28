@@ -2661,6 +2661,11 @@ export const CoachParticipants: React.FC = () => {
                 onClose={handleCloseAiResearch}
                 sprintTitle={viewingSubmission?.enrollment.sprint?.title || "Sprint"}
                 sprintKey={viewingSubmission?.enrollment.sprint_id || viewingSubmission?.enrollment.sprint?.id || 'default'}
+                sprintDescription={viewingSubmission?.enrollment.sprint?.description || viewingSubmission?.enrollment.sprint?.subtitle}
+                sprintOutcomes={viewingSubmission?.enrollment.sprint?.outcomes}
+                category={viewingSubmission?.enrollment.sprint?.category}
+                totalMoves={viewingSubmission?.enrollment.sprint?.duration || viewingSubmission?.enrollment.sprint?.dailyContent?.length || 1}
+                dailyContent={viewingSubmission?.enrollment.sprint?.dailyContent}
                 moveDay={viewingSubmission?.day || 1}
                 stepIndex={aiResearchStepIndex}
                 stepPrompt={
@@ -2669,6 +2674,13 @@ export const CoachParticipants: React.FC = () => {
                         : (activeDayContent?.taskPrompt || activeDayContent?.taskPrompts?.[0] || "")
                 }
                 footnote={activeDayContent?.taskFootnotes?.[aiResearchStepIndex]}
+                askAiGuidance={
+                    typeof activeDayContent?.taskAskAis?.[aiResearchStepIndex] === 'string'
+                        ? activeDayContent?.taskAskAis?.[aiResearchStepIndex]
+                        : typeof activeDayContent?.taskAskAi?.[aiResearchStepIndex] === 'string'
+                        ? activeDayContent?.taskAskAi?.[aiResearchStepIndex]
+                        : undefined
+                }
                 userAnswer={(() => {
                     const prog = viewingSubmission?.enrollment.progress?.find(p => Number(p.day) === Number(viewingSubmission?.day));
                     if (!prog) return '';
