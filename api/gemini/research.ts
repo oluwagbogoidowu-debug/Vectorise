@@ -56,12 +56,18 @@ Research Objective / Query:
 ${queryText}
   `.trim();
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: fullPrompt,
-      config: {
-        systemInstruction: `You are an elite research assistant and high-performance strategy advisor embedded in Vectorise, a personal growth sprint platform.
+  const modelsToTry = ["gemini-3.1-flash-lite", "gemini-3.8-flash"];
+  let research = "";
+  let lastError: any = null;
+
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`[API Gemini Research] Attempting generation with model: ${modelName}`);
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: fullPrompt,
+        config: {
+          systemInstruction: `You are an elite research assistant and high-performance strategy advisor embedded in Vectorise, a personal growth sprint platform.
 Your mission is to conduct high-fidelity, evidence-grounded, and intensely practical research on action steps that users and coaches are working on.
 
 Style & Formatting:
@@ -69,18 +75,28 @@ Style & Formatting:
 - Provide clear, actionable frameworks, operational tactics, and relevant mental models.
 - Avoid generic filler, platitudes, or long winded introductions. Dive straight into high-value insights.
 - End with a punchy "🔑 Key Takeaway" summarizing the single highest-leverage move.`,
-      },
-    });
+        },
+      });
 
-    const research = response.text || "No research output returned by Gemini.";
-    return res.status(200).json({
-      success: true,
-      research,
-    });
-  } catch (error: any) {
-    console.error("[API Gemini Research] Error:", error);
-    return res.status(500).json({
-      error: error?.message || "Failed to generate research with Gemini AI.",
-    });
+      research = response.text || "";
+      if (research) {
+        console.log(`[API Gemini Research] Successfully generated research using ${modelName}`);
+        return res.status(200).json({
+          success: true,
+          research,
+          modelUsed: modelName
+        });
+      }
+    } catch (error: any) {
+      console.warn(`[API Gemini Research] Model ${modelName} failed/overloaded:`, error?.message || error);
+      lastError = error;
+    }
   }
+
+  // If all models failed, propagate the error response
+  console.error("[API Gemini Research] All configured models failed.", lastError);
+  return res.status(503).json({
+    success: false,
+    error: lastError?.message || "All Gemini models are currently experiencing high demand. Please try again in a few moments.",
+  });
 }

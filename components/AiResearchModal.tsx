@@ -154,13 +154,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
               <span className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-purple-700 dark:text-purple-400">
                 AI / Research
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200/50">
-                Gemini 3.8 Flash
-              </span>
             </div>
-            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[280px] sm:max-w-md">
-              {sprintTitle} • Move {moveDay} • Action Step {stepIndex + 1}
-            </span>
           </div>
         </div>
 
