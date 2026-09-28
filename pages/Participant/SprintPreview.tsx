@@ -546,13 +546,10 @@ const SprintPreview: React.FC = () => {
     }, [user, loading, sprintId, navigate, location.pathname, isSubmittingAuth, sprint, previewDay, completedDays, allDayInputs, day1Content]);
 
     const handleCompletePreviewDay = async () => {
-        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview') || location.pathname.startsWith('/sprint/preview') || (user as any)?.role === 'coach' || user?.role === UserRole.COACH;
-        const isFlowMode = sprint?.previewMode === 'flow';
+        const isCoachPreview = location.pathname.startsWith('/coach') || (user as any)?.role === 'coach' || user?.role === UserRole.COACH || (user as any)?.isCoach || (user as any)?.accountType === 'coach';
 
-        // VECTORISE MODE RULE:
-        // When unauthenticated user reaches Move 1 ending, prompt signup/login via bottom modal bar.
-        // Sound of completion does NOT ring. It clearly does NOT complete the action yet.
-        if (!user && !isCoachPreview && !isFlowMode && previewDay >= 1) {
+        // When unauthenticated user (not yet signed up) reaches Move 1 completion, strictly bring up the bottom sign up modal bar to continue
+        if (!user && !isCoachPreview && previewDay >= 1) {
             const sId = sprint?.id || sprintId;
             const effectiveInputs = getEffectiveTaskInputs();
             const nextAllInputs = { ...allDayInputs, [previewDay]: effectiveInputs };
