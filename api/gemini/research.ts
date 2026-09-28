@@ -35,14 +35,14 @@ export default async function geminiResearchHandler(req: Request, res: Response)
 
   // Construct a tailored, high-value prompt based on preset or user query
   let queryText = prompt?.trim() || "";
-  if (preset === "deep_dive") {
-    queryText = `Conduct an in-depth research breakdown and strategic analysis on this action step. Explain the underlying psychological, scientific, or practical principles, why it works, and how to maximize results.`;
+  if (preset === "explain_this") {
+    queryText = `Conduct an in-depth breakdown and strategic explanation of this action step. Focus on the core concepts, psychological principles, or leverage points, and explain how to apply them directly.`;
   } else if (preset === "examples") {
-    queryText = `Provide 3 compelling real-world case studies or practical scenarios demonstrating how top performers, innovators, or leaders successfully execute on this action step.`;
-  } else if (preset === "action_plan") {
-    queryText = `Formulate a clear, friction-free 3-phase execution checklist and tactical timeline to complete this action step with maximum momentum.`;
-  } else if (preset === "pitfalls") {
-    queryText = `Identify the top 3 hidden pitfalls, common mistakes, or cognitive biases people encounter when tackling this action step, and provide counter-strategies for each.`;
+    queryText = `Provide 3 compelling real-world case studies, best practices, or practical scenarios demonstrating how top performers and leaders successfully execute on this action step.`;
+  } else if (preset === "research_this") {
+    queryText = `Provide high-value strategic research, actionable execution frameworks, and evidence-grounded insights to fully master this action step.`;
+  } else if (preset === "improve_my_answer") {
+    queryText = `Analyze my current input or reflection and suggest 3 high-impact refinements, concrete improvements, or strategic extensions to take my draft execution to the next level.`;
   } else if (!queryText) {
     queryText = `Provide strategic research, actionable execution frameworks, and relevant insights to master this action step.`;
   }

@@ -292,11 +292,11 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
         <button
           type="button"
           disabled={isLoading}
-          onClick={() => handleRunResearch('deep_dive')}
+          onClick={() => handleRunResearch('explain_this')}
           className="px-3.5 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-purple-800 dark:text-purple-300 text-xs font-bold border border-purple-200/70 dark:border-purple-800/40 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
         >
           <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-          <span>Deep Dive Analysis</span>
+          <span>Explain this</span>
         </button>
 
         <button
@@ -306,27 +306,27 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
           className="px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-200/70 dark:border-emerald-800/40 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
         >
           <Lightbulb className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Real-World Examples</span>
+          <span>Give me examples</span>
         </button>
 
         <button
           type="button"
           disabled={isLoading}
-          onClick={() => handleRunResearch('action_plan')}
+          onClick={() => handleRunResearch('research_this')}
           className="px-3.5 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-800 dark:text-blue-300 text-xs font-bold border border-blue-200/70 dark:border-blue-800/40 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
         >
           <Compass className="w-3.5 h-3.5 text-blue-600" />
-          <span>Action Plan Checklist</span>
+          <span>Research this</span>
         </button>
 
         <button
           type="button"
           disabled={isLoading}
-          onClick={() => handleRunResearch('pitfalls')}
+          onClick={() => handleRunResearch('improve_my_answer')}
           className="px-3.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold border border-amber-200/70 dark:border-amber-800/40 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
         >
           <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-          <span>Pitfalls & Solutions</span>
+          <span>Improve my answer</span>
         </button>
       </div>
 
@@ -433,13 +433,10 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
             <div className="w-16 h-16 rounded-3xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-100 dark:border-purple-800/40 shadow-xs">
               <Sparkles className="w-8 h-8" />
             </div>
-            <div className="max-w-md mx-auto space-y-1">
+            <div className="max-w-md mx-auto">
               <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-zinc-100">
-                Action Step AI Research
+                What do you need help with?
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                Tap any research framework above or type your specific question below. Gemini AI will analyze the step and deliver grounded, high-impact guidance.
-              </p>
             </div>
           </div>
         )}
@@ -459,7 +456,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
               type="text"
               value={customQuery}
               onChange={(e) => setCustomQuery(e.target.value)}
-              placeholder="Ask Gemini to research this step, explore ideas, or provide customized advice..."
+              placeholder="Ask anything about this step..."
               disabled={isLoading}
               className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl text-xs sm:text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
             />
