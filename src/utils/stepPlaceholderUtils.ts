@@ -2023,8 +2023,17 @@ export function serializeStepVersions(versions: string[]): string {
   return versions.join('|||');
 }
 
-export function getStepVersionValue(rawField?: string | null, versionIdx: number = 0, fallbackDefault: string = ''): string {
-  if (!rawField) return fallbackDefault;
+export function getStepVersionValue(rawField?: any, versionIdx: number = 0, fallbackDefault: string = ''): string {
+  if (rawField === undefined || rawField === null) return fallbackDefault;
+  if (Array.isArray(rawField)) {
+    if (rawField.length > 0 && Array.isArray(rawField[0])) {
+      return JSON.stringify(rawField[versionIdx] || rawField[0] || []);
+    }
+    return JSON.stringify(rawField);
+  }
+  if (typeof rawField !== 'string') {
+    return String(rawField);
+  }
   const trimmed = rawField.trim();
   if (!trimmed) return fallbackDefault;
 

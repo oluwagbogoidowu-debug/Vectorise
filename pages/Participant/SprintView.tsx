@@ -42,6 +42,7 @@ import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
 import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
+import AiResearchModal from "../../components/AiResearchModal";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
 import { userIdentificationService } from "../../services/userIdentificationService";
@@ -1641,11 +1642,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
   const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
-  // Express Note State
+  // Express Note State - available for every user in action step card
   const [isExpressNoteOpen, setIsExpressNoteOpen] = useState(false);
   const [expressNoteStepIndex, setExpressNoteStepIndex] = useState(0);
   const [expressNoteText, setExpressNoteText] = useState("");
   const [expressNoteSaved, setExpressNoteSaved] = useState(false);
+
+  // AI / Research State - full bleed research using Gemini AI
+  const [isAiResearchOpen, setIsAiResearchOpen] = useState(false);
+  const [aiResearchStepIndex, setAiResearchStepIndex] = useState(0);
 
   const isCoachRole = Boolean(user?.role === UserRole.COACH || (user as any)?.role === 'COACH' || (user as any)?.role === 'coach' || (user as any)?.isCoach || (user as any)?.accountType === 'coach');
   const isCoachConnected = Boolean(
@@ -1656,7 +1661,17 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     (enrollment as any)?.coach_id || 
     (enrollment as any)?.coach
   );
-  const canAccessExpressNote = Boolean(isCoachRole || isCoachConnected || isPreview);
+  // Action step card with note icon and AI research icon enabled for every user
+  const canAccessExpressNote = true;
+
+  const handleOpenAiResearch = (stepIdx: number) => {
+    setAiResearchStepIndex(stepIdx);
+    setIsAiResearchOpen(true);
+  };
+
+  const handleCloseAiResearch = () => {
+    setIsAiResearchOpen(false);
+  };
 
   const handleOpenExpressNote = (stepIdx: number) => {
     setExpressNoteStepIndex(stepIdx);
@@ -4370,6 +4385,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           </div>
         </div>
       )}
+
+      {/* AI Research Full Bleed Modal using Gemini AI */}
+      <AiResearchModal
+        isOpen={isAiResearchOpen}
+        onClose={handleCloseAiResearch}
+        sprintTitle={sprint?.title || "Sprint"}
+        sprintKey={sprint?.id || previewSprintId || 'default'}
+        moveDay={viewingDay}
+        stepIndex={aiResearchStepIndex}
+        stepPrompt={
+          Array.isArray(dayContent?.taskPrompts) && dayContent.taskPrompts.length > 1
+            ? dayContent.taskPrompts[aiResearchStepIndex]
+            : (dayContent?.taskPrompt || dayContent?.taskPrompts?.[0] || "")
+        }
+        footnote={dayContent?.taskFootnotes?.[aiResearchStepIndex]}
+        userAnswer={taskInputs[aiResearchStepIndex]}
+        onSaveToNote={(noteText) => {
+          if (aiResearchStepIndex === expressNoteStepIndex) {
+            setExpressNoteText(noteText);
+          }
+        }}
+      />
     </>
   );
 
@@ -5614,16 +5651,41 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           !!dayProgress?.completed || stepCompleted;
                                         return (
                                           <div className="flex items-center gap-2">
-                                            {canAccessExpressNote && (
-                                              <button
-                                                type="button"
-                                                onClick={() => handleOpenExpressNote(i)}
-                                                className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                                title="Express Note"
-                                              >
-                                                <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-                                              </button>
-                                            )}
+                                            <button
+
+                                              type="button"
+
+                                              onClick={() => handleOpenExpressNote(i)}
+
+                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                              title="Note"
+
+                                              aria-label="Note"
+
+                                            >
+
+                                              <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                            </button>
+
+                                            <button
+
+                                              type="button"
+
+                                              onClick={() => handleOpenAiResearch(i)}
+
+                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                              title="Ai/ research icon"
+
+                                              aria-label="Ai/ research icon"
+
+                                            >
+
+                                              <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                            </button>
                                             <button
                                               type="button"
                                               onClick={() =>
@@ -5643,16 +5705,41 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           if (viewingDay < (sprint?.duration || 0)) {
                                             return (
                                               <div className="flex items-center gap-2">
-                                                {canAccessExpressNote && (
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleOpenExpressNote(i)}
-                                                    className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                                    title="Express Note"
-                                                  >
-                                                    <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-                                                  </button>
-                                                )}
+                                                <button
+
+                                                  type="button"
+
+                                                  onClick={() => handleOpenExpressNote(i)}
+
+                                                  className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                                  title="Note"
+
+                                                  aria-label="Note"
+
+                                                >
+
+                                                  <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                                </button>
+
+                                                <button
+
+                                                  type="button"
+
+                                                  onClick={() => handleOpenAiResearch(i)}
+
+                                                  className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                                  title="Ai/ research icon"
+
+                                                  aria-label="Ai/ research icon"
+
+                                                >
+
+                                                  <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                                </button>
                                                 <button
                                                   type="button"
                                                   onClick={() => {
@@ -5670,16 +5757,41 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           } else {
                                             return (
                                               <div className="flex items-center gap-2">
-                                                {canAccessExpressNote && (
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleOpenExpressNote(i)}
-                                                    className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                                    title="Express Note"
-                                                  >
-                                                    <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-                                                  </button>
-                                                )}
+                                                <button
+
+                                                  type="button"
+
+                                                  onClick={() => handleOpenExpressNote(i)}
+
+                                                  className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                                  title="Note"
+
+                                                  aria-label="Note"
+
+                                                >
+
+                                                  <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                                </button>
+
+                                                <button
+
+                                                  type="button"
+
+                                                  onClick={() => handleOpenAiResearch(i)}
+
+                                                  className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                                  title="Ai/ research icon"
+
+                                                  aria-label="Ai/ research icon"
+
+                                                >
+
+                                                  <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                                </button>
                                                 <div className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'px-6 py-2.5 text-xs font-bold'} text-emerald-600 dark:text-emerald-400 font-bold`}>
                                                   Move Complete
                                                 </div>
@@ -5689,16 +5801,41 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         } else {
                                           return (
                                             <div className="flex items-center gap-2">
-                                              {canAccessExpressNote && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleOpenExpressNote(i)}
-                                                  className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                                  title="Express Note"
-                                                >
-                                                  <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-                                                </button>
-                                              )}
+                                              <button
+
+                                                type="button"
+
+                                                onClick={() => handleOpenExpressNote(i)}
+
+                                                className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                                title="Note"
+
+                                                aria-label="Note"
+
+                                              >
+
+                                                <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                              </button>
+
+                                              <button
+
+                                                type="button"
+
+                                                onClick={() => handleOpenAiResearch(i)}
+
+                                                className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+
+                                                title="Ai/ research icon"
+
+                                                aria-label="Ai/ research icon"
+
+                                              >
+
+                                                <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+
+                                              </button>
                                               <button
                                                 type="button"
                                                 onClick={handleFinishDay}
@@ -6342,16 +6479,24 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </button>
 
                             <div className="flex-1 flex items-center gap-2">
-                              {canAccessExpressNote && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenExpressNote(0)}
-                                  className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                  title="Express Note"
-                                >
-                                  <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenExpressNote(0)}
+                                className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                title="Note"
+                                aria-label="Note"
+                              >
+                                <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAiResearch(0)}
+                                className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                title="Ai/ research icon"
+                                aria-label="Ai/ research icon"
+                              >
+                                <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                              </button>
                               {!dayProgress?.completed ? (
                                 <button
                                   type="button"

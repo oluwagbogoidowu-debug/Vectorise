@@ -9,7 +9,7 @@ import { userService } from '../../services/userService';
 import { chatService } from '../../services/chatService';
 import { notificationService } from '../../services/notificationService';
 import { db } from '../../services/firebase';
-import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
+import { doc, getDoc, getDocs, collection, onSnapshot } from 'firebase/firestore';
 import { 
     parseStepVersions, 
     formatInterpolatedText, 
@@ -26,11 +26,12 @@ import {
 } from '../../src/utils/stepPlaceholderUtils';
 import FormattedText from '../../components/FormattedText';
 import { ArrangePollOptions } from '../../src/components/ArrangePollOptions';
+import AiResearchModal from '../../components/AiResearchModal';
 import { 
     Flame, Sparkles, BookOpen, Trophy, Eye, Heart, MessageSquare, 
     ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, Search, Filter, Calendar, Clock, 
     Share2, UserCheck, CheckCircle2, Award, Download, ExternalLink,
-    Send, Trash2, X, RefreshCw
+    Send, Trash2, X, RefreshCw, StickyNote, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -67,6 +68,50 @@ export const CoachParticipants: React.FC = () => {
     const actionStepsScrollRef = useRef<HTMLDivElement>(null);
     const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
 
+    // Express Note & AI Research State
+    const [isExpressNoteOpen, setIsExpressNoteOpen] = useState(false);
+    const [expressNoteStepIndex, setExpressNoteStepIndex] = useState(0);
+    const [expressNoteText, setExpressNoteText] = useState("");
+    const [expressNoteSaved, setExpressNoteSaved] = useState(false);
+
+    const [isAiResearchOpen, setIsAiResearchOpen] = useState(false);
+    const [aiResearchStepIndex, setAiResearchStepIndex] = useState(0);
+
+    const handleOpenExpressNote = (stepIdx: number) => {
+        setExpressNoteStepIndex(stepIdx);
+        const sprintKey = viewingSubmission?.enrollment.sprint_id || viewingSubmission?.enrollment.sprint?.id || 'default';
+        const day = viewingSubmission?.day || 1;
+        const storageKey = `express_note_${sprintKey}_day_${day}_step_${stepIdx}`;
+        const saved = localStorage.getItem(storageKey) || "";
+        setExpressNoteText(saved);
+        setExpressNoteSaved(false);
+        setIsExpressNoteOpen(true);
+    };
+
+    const handleSaveExpressNote = () => {
+        const sprintKey = viewingSubmission?.enrollment.sprint_id || viewingSubmission?.enrollment.sprint?.id || 'default';
+        const day = viewingSubmission?.day || 1;
+        const storageKey = `express_note_${sprintKey}_day_${day}_step_${expressNoteStepIndex}`;
+        localStorage.setItem(storageKey, expressNoteText);
+        setExpressNoteSaved(true);
+        setTimeout(() => {
+            setExpressNoteSaved(false);
+        }, 2000);
+    };
+
+    const handleCloseExpressNote = () => {
+        setIsExpressNoteOpen(false);
+    };
+
+    const handleOpenAiResearch = (stepIdx: number) => {
+        setAiResearchStepIndex(stepIdx);
+        setIsAiResearchOpen(true);
+    };
+
+    const handleCloseAiResearch = () => {
+        setIsAiResearchOpen(false);
+    };
+
     // Helper functions for dynamic step reconstruction matching SprintView
     const parseAnswerValues = (val: any, srcType: string): string[] => {
         if (val === undefined || val === null) return [];
@@ -99,7 +144,7 @@ export const CoachParticipants: React.FC = () => {
             if (trimmed.includes(' | ')) {
                 return trimmed.split(' | ').map(s => s.trim()).filter(Boolean);
             }
-            if (srcType === 'tags' || srcType.includes('tags') || trimmed.includes(',')) {
+            if (srcType === 'tags' || srcType.includes('tags')) {
                 return trimmed.split(',').map(s => s.trim().replace(/^["']+|["']+$/g, '')).filter(Boolean);
             }
             return [trimmed];
@@ -114,6 +159,84 @@ export const CoachParticipants: React.FC = () => {
             return Object.values(val).map((s: any) => String(s).trim()).filter(Boolean);
         }
         return [String(val).trim()];
+    };
+
+    const extractAnswersForDay = (
+        prog: any,
+        dayCont: any
+    ): string[] => {
+        if (!prog) return [];
+
+        const parseList = (val: any): string[] => {
+            if (!val) return [];
+            if (Array.isArray(val)) {
+                return val.map((v: any) => typeof v === 'object' && v !== null ? JSON.stringify(v) : (v !== undefined && v !== null ? String(v) : ''));
+            }
+            if (typeof val === 'object' && val !== null) {
+                const keys = Object.keys(val).sort((a, b) => Number(a) - Number(b));
+                if (keys.length > 0) {
+                    const maxKey = Math.max(...keys.map(k => Number(k)).filter(n => !isNaN(n)), -1);
+                    if (maxKey >= 0) {
+                        const result: string[] = [];
+                        for (let i = 0; i <= maxKey; i++) {
+                            const item = val[i] ?? val[String(i)];
+                            result.push(typeof item === 'object' && item !== null ? JSON.stringify(item) : (item !== undefined && item !== null ? String(item) : ''));
+                        }
+                        return result;
+                    }
+                }
+                return Object.values(val).map((v: any) => typeof v === 'object' && v !== null ? JSON.stringify(v) : (v !== undefined && v !== null ? String(v) : ''));
+            }
+            if (typeof val === 'string') {
+                const trimmed = val.trim();
+                if (!trimmed) return [];
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (Array.isArray(parsed)) {
+                            return parsed.map((v: any) => typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v));
+                        }
+                    } catch (e) {}
+                }
+                if (trimmed.includes(' | ')) {
+                    return trimmed.split(' | ');
+                }
+                return [trimmed];
+            }
+            return [];
+        };
+
+        const fromAnswers = parseList(prog.answers);
+        const fromTaskInputs = parseList(prog.taskInputs);
+        const fromAnswersMap = parseList(prog.answersMap);
+        const fromResponses = parseList(prog.responses || (prog as any).userAnswers);
+        const fromSubmission = parseList(prog.submission);
+
+        const numSteps = Math.max(
+            Array.isArray(dayCont?.taskPrompts) ? dayCont.taskPrompts.length : 0,
+            Array.isArray(dayCont?.taskInputTypes) ? dayCont.taskInputTypes.length : 0,
+            Array.isArray(dayCont?.taskPollOptions) ? dayCont.taskPollOptions.length : 0,
+            fromAnswers.length,
+            fromTaskInputs.length,
+            fromAnswersMap.length,
+            fromResponses.length,
+            fromSubmission.length,
+            1
+        );
+
+        const merged: string[] = [];
+        for (let i = 0; i < numSteps; i++) {
+            const val = 
+                (fromAnswers[i] && fromAnswers[i].trim() !== '') ? fromAnswers[i] :
+                (fromTaskInputs[i] && fromTaskInputs[i].trim() !== '') ? fromTaskInputs[i] :
+                (fromAnswersMap[i] && fromAnswersMap[i].trim() !== '') ? fromAnswersMap[i] :
+                (fromResponses[i] && fromResponses[i].trim() !== '') ? fromResponses[i] :
+                (fromSubmission[i] && fromSubmission[i].trim() !== '') ? fromSubmission[i] :
+                '';
+            merged.push(val);
+        }
+
+        return merged;
     };
 
     const getLinkedTagsForStep = (
@@ -135,28 +258,12 @@ export const CoachParticipants: React.FC = () => {
             }
             const prog = progressList?.find((p: any) => Number(p.day) === targetDay);
             if (!prog) return undefined;
-            if (Array.isArray(prog.answers) && prog.answers[targetStep] !== undefined && prog.answers[targetStep] !== null && String(prog.answers[targetStep]).trim() !== '') {
-                return prog.answers[targetStep];
-            }
-            if (Array.isArray(prog.taskInputs) && prog.taskInputs[targetStep] !== undefined && prog.taskInputs[targetStep] !== null && String(prog.taskInputs[targetStep]).trim() !== '') {
-                return prog.taskInputs[targetStep];
-            }
-            if (prog.answers && typeof prog.answers === 'object') {
-                const val = prog.answers[targetStep] ?? prog.answers[String(targetStep)];
-                if (val !== undefined && val !== null && String(val).trim() !== '') return val;
-            }
-            if (typeof prog.answers === 'string') {
-                try {
-                    const parsed = JSON.parse(prog.answers);
-                    if (Array.isArray(parsed) && parsed[targetStep] !== undefined) return parsed[targetStep];
-                } catch (e) {
-                    const parts = prog.answers.split(' | ');
-                    if (parts[targetStep] !== undefined) return parts[targetStep];
-                }
-            }
-            if (typeof prog.submission === 'string' && prog.submission.trim()) {
-                const parts = prog.submission.split(' | ');
-                if (parts[targetStep] !== undefined) return parts[targetStep];
+            const targetDC = targetDay === Number(dayContent?.day || 1)
+                ? dayContent
+                : (Array.isArray(dailyContent) ? dailyContent.find((dc: any) => Number(dc.day) === targetDay) : undefined);
+            const dayAnswers = extractAnswersForDay(prog, targetDC);
+            if (dayAnswers[targetStep] !== undefined && dayAnswers[targetStep] !== null && String(dayAnswers[targetStep]).trim() !== '') {
+                return dayAnswers[targetStep];
             }
             return undefined;
         };
@@ -495,30 +602,56 @@ export const CoachParticipants: React.FC = () => {
             setActiveDayContent(existingContent);
         }
 
+        let unsubscribeEnrollment: (() => void) | null = null;
+
         const fetchDayAndEnrollment = async () => {
             setIsDayContentLoading(true);
             try {
-                // 1. Fetch live fresh enrollment data if available to avoid stale progress cache
+                // 1. Fetch live fresh enrollment data and subscribe in real-time to avoid stale progress cache
                 const userId = viewingSubmission.enrollment.user_id;
                 const enrollId = viewingSubmission.enrollment.id;
                 if (userId && enrollId) {
                     try {
                         const enrollRef = doc(db, 'users', userId, 'enrollments', enrollId);
-                        const enrollSnap = await getDoc(enrollRef);
-                        if (enrollSnap.exists() && isMounted) {
-                            const freshData = enrollSnap.data() as ParticipantSprint;
-                            setViewingSubmission(prev => {
-                                if (!prev || prev.enrollment.id !== enrollId) return prev;
-                                return {
-                                    ...prev,
-                                    enrollment: {
-                                        ...prev.enrollment,
-                                        ...freshData,
-                                        progress: Array.isArray(freshData.progress) ? freshData.progress : prev.enrollment.progress
-                                    }
-                                };
-                            });
-                        }
+                        unsubscribeEnrollment = onSnapshot(enrollRef, (enrollSnap) => {
+                            if (enrollSnap.exists() && isMounted) {
+                                const freshData = enrollSnap.data() as ParticipantSprint;
+                                setViewingSubmission(prev => {
+                                    if (!prev || prev.enrollment.id !== enrollId) return prev;
+                                    return {
+                                        ...prev,
+                                        enrollment: {
+                                            ...prev.enrollment,
+                                            ...freshData,
+                                            progress: Array.isArray(freshData.progress) && freshData.progress.length > 0 
+                                                ? freshData.progress 
+                                                : prev.enrollment.progress
+                                        }
+                                    };
+                                });
+                            }
+                        }, async () => {
+                            // Fallback single-fetch if snapshot fails
+                            try {
+                                const snapSing = await getDoc(doc(db, 'users', userId, 'enrollment', enrollId));
+                                if (snapSing.exists() && isMounted) {
+                                    const freshData = snapSing.data() as ParticipantSprint;
+                                    setViewingSubmission(prev => {
+                                        if (!prev || prev.enrollment.id !== enrollId) return prev;
+                                        return {
+                                            ...prev,
+                                            enrollment: {
+                                                ...prev.enrollment,
+                                                ...freshData,
+                                                progress: Array.isArray(freshData.progress) && freshData.progress.length > 0
+                                                    ? freshData.progress
+                                                    : prev.enrollment.progress
+                                            }
+                                        };
+                                    });
+                                }
+                            } catch (e) {}
+                        });
                     } catch (e) {}
                 }
 
@@ -560,6 +693,9 @@ export const CoachParticipants: React.FC = () => {
 
         return () => {
             isMounted = false;
+            if (unsubscribeEnrollment) {
+                unsubscribeEnrollment();
+            }
         };
     }, [viewingSubmission?.enrollment.id, viewingSubmission?.enrollment.sprint_id, viewingSubmission?.enrollment.sprint?.id, viewingSubmission?.day]);
 
@@ -859,7 +995,19 @@ export const CoachParticipants: React.FC = () => {
                         {/* 2. Today's Moves (Participant's Submitted Responses - Sideways Swipe Cards) */}
                         <div className="space-y-4">
                             {(() => {
-                                const progressObj = viewingSubmission.enrollment.progress.find(p => Number(p.day) === Number(viewingSubmission.day));
+                                let progressObj = viewingSubmission.enrollment.progress.find(p => Number(p.day) === Number(viewingSubmission.day));
+                                if (!progressObj || (!progressObj.completed && (!progressObj.answers || progressObj.answers.length === 0) && !progressObj.submission)) {
+                                    const pastRuns = (viewingSubmission.enrollment as any).pastRuns;
+                                    if (Array.isArray(pastRuns)) {
+                                        for (let r = pastRuns.length - 1; r >= 0; r--) {
+                                            const pastProg = pastRuns[r]?.progress?.find((p: any) => Number(p.day) === Number(viewingSubmission.day));
+                                            if (pastProg && (pastProg.completed || (Array.isArray(pastProg.answers) && pastProg.answers.length > 0) || pastProg.submission)) {
+                                                progressObj = pastProg;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
                                 const sub = progressObj?.submission;
                                 const contentData = activeDayContent || viewingSubmission.enrollment.sprint.dailyContent?.find(c => Number(c.day) === Number(viewingSubmission.day));
                                 const sprintDailyContent = viewingSubmission.enrollment.sprint.dailyContent;
@@ -874,47 +1022,8 @@ export const CoachParticipants: React.FC = () => {
                                     candidatePrompts = (progressObj as any).taskPrompts;
                                 }
 
-                                // Robust answers normalization across all possible storage shapes
-                                let answers: string[] = [];
-                                const rawAnswersField = (progressObj as any)?.answers;
-                                const rawTaskInputsField = (progressObj as any)?.taskInputs;
-                                
-                                if (Array.isArray(rawAnswersField)) {
-                                    answers = rawAnswersField.map((a: any) => typeof a === 'object' && a !== null ? JSON.stringify(a) : (a !== undefined && a !== null ? String(a) : ''));
-                                } else if (Array.isArray(rawTaskInputsField)) {
-                                    answers = rawTaskInputsField.map((a: any) => typeof a === 'object' && a !== null ? JSON.stringify(a) : (a !== undefined && a !== null ? String(a) : ''));
-                                } else if (typeof rawAnswersField === 'string' && rawAnswersField.trim()) {
-                                    const trimmed = rawAnswersField.trim();
-                                    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-                                        try {
-                                            const parsed = JSON.parse(trimmed);
-                                            if (Array.isArray(parsed)) {
-                                                answers = parsed.map((a: any) => typeof a === 'object' && a !== null ? JSON.stringify(a) : String(a));
-                                            }
-                                        } catch (e) {
-                                            answers = [trimmed];
-                                        }
-                                    } else if (trimmed.includes(' | ')) {
-                                        answers = trimmed.split(' | ');
-                                    } else {
-                                        answers = [trimmed];
-                                    }
-                                } else if (rawAnswersField && typeof rawAnswersField === 'object') {
-                                    const keys = Object.keys(rawAnswersField).sort((a, b) => Number(a) - Number(b));
-                                    if (keys.length > 0) {
-                                        answers = keys.map(k => {
-                                            const val = rawAnswersField[k];
-                                            return typeof val === 'object' && val !== null ? JSON.stringify(val) : (val !== undefined && val !== null ? String(val) : '');
-                                        });
-                                    }
-                                } else if (typeof sub === 'string' && sub.trim()) {
-                                    if (sub.includes(' | ')) {
-                                        answers = sub.split(' | ');
-                                    } else {
-                                        answers = [sub.trim()];
-                                    }
-                                }
-
+                                // Robust answers normalization across all possible storage shapes using extractAnswersForDay
+                                const answers: string[] = extractAnswersForDay(progressObj, contentData);
                                 const totalCount = Math.max(answers.length, candidatePrompts.length, 1);
 
                                 if (!progressObj?.completed && answers.length === 0 && !sub) {
@@ -1085,163 +1194,267 @@ export const CoachParticipants: React.FC = () => {
                                             const effectiveInputType = getStepInputType(contentData, idx, answers, sprintDailyContent, progressList);
                                             const rawPollOptionsStr = getStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
                                             
+                                            // Extract custom options cleanly from sprint configuration without mangling comma-containing choices
                                             let parsedCustomOptions: string[] = [];
-                                            if (rawPollOptionsStr) {
-                                                if (typeof rawPollOptionsStr === 'string') {
-                                                    try {
-                                                        const parsed = JSON.parse(rawPollOptionsStr);
-                                                        if (Array.isArray(parsed)) {
-                                                            parsedCustomOptions = parsed.map((s: any) => String(s).trim()).filter(Boolean);
-                                                        } else if (typeof parsed === 'string' && parsed.trim()) {
-                                                            parsedCustomOptions = [parsed.trim()];
-                                                        }
-                                                    } catch (e) {
+                                            const optsSource = rawPollOptionsStr || contentData?.taskPollOptions?.[idx] || (contentData as any)?.pollOptions?.[idx] || (contentData as any)?.taskInputChoices?.[idx];
+
+                                            if (optsSource) {
+                                                if (typeof optsSource === 'string') {
+                                                    const trimmed = optsSource.trim();
+                                                    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
                                                         try {
-                                                            const rawFallback: any = contentData?.taskPollOptions?.[idx];
-                                                            if (typeof rawFallback === 'string') {
-                                                                const parsed = JSON.parse(rawFallback);
-                                                                if (Array.isArray(parsed)) {
-                                                                    parsedCustomOptions = parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                                                            const parsed = JSON.parse(trimmed);
+                                                            if (Array.isArray(parsed)) {
+                                                                parsedCustomOptions = parsed.map((s: any) => typeof s === 'string' ? s.trim() : String(s)).filter(Boolean);
+                                                            }
+                                                        } catch (e) {}
+                                                    }
+                                                    if (parsedCustomOptions.length === 0) {
+                                                        if (trimmed.includes('|||')) {
+                                                            const versions = parseStepVersions(trimmed);
+                                                            const chosen = versions[stepVerIdx] || versions[0];
+                                                            if (chosen) {
+                                                                try {
+                                                                    const parsed = JSON.parse(chosen);
+                                                                    if (Array.isArray(parsed)) parsedCustomOptions = parsed.map(s => String(s).trim()).filter(Boolean);
+                                                                } catch (e) {
+                                                                    parsedCustomOptions = chosen.split('\n').map(s => s.trim()).filter(Boolean);
                                                                 }
-                                                            } else if (Array.isArray(rawFallback)) {
-                                                                parsedCustomOptions = rawFallback.map((s: any) => String(s).trim()).filter(Boolean);
                                                             }
-                                                        } catch (err) {}
-                                                        if (parsedCustomOptions.length === 0 && rawPollOptionsStr && rawPollOptionsStr !== '[]') {
-                                                            if (rawPollOptionsStr.includes(',') && !rawPollOptionsStr.startsWith('[') && !rawPollOptionsStr.startsWith('{')) {
-                                                                parsedCustomOptions = rawPollOptionsStr.split(',').map((s: string) => s.trim()).filter(Boolean);
-                                                            } else if (!rawPollOptionsStr.startsWith('[') && !rawPollOptionsStr.startsWith('{')) {
-                                                                parsedCustomOptions = [rawPollOptionsStr.trim()];
-                                                            }
+                                                        } else if (trimmed.includes('\n')) {
+                                                            parsedCustomOptions = trimmed.split('\n').map(s => s.trim()).filter(Boolean);
+                                                        } else if (trimmed.includes(',') && !trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+                                                            parsedCustomOptions = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+                                                        } else if (trimmed && trimmed !== '[]') {
+                                                            parsedCustomOptions = [trimmed];
                                                         }
                                                     }
-                                                } else if (Array.isArray(rawPollOptionsStr)) {
-                                                    parsedCustomOptions = (rawPollOptionsStr as any[]).map((s: any) => String(s).trim()).filter(Boolean);
+                                                } else if (Array.isArray(optsSource)) {
+                                                    parsedCustomOptions = optsSource.map((s: any) => typeof s === 'string' ? s.trim() : String(s)).filter(Boolean);
                                                 }
                                             }
 
-                                            let rawAnswer = answers[idx];
-                                            if ((rawAnswer === undefined || rawAnswer === null || String(rawAnswer).trim() === '') && idx === 0 && sub) {
-                                                rawAnswer = sub;
+                                            if (parsedCustomOptions.length === 0) {
+                                                const allFallback = getAllStepPollOptions(contentData, idx, answers, sprintDailyContent, progressList);
+                                                if (allFallback.length > 0) {
+                                                    parsedCustomOptions.push(...allFallback);
+                                                }
                                             }
-                                            if ((rawAnswer === undefined || rawAnswer === null || String(rawAnswer).trim() === '') && Array.isArray((progressObj as any)?.taskInputs) && (progressObj as any).taskInputs[idx]) {
-                                                rawAnswer = (progressObj as any).taskInputs[idx];
+
+                                            const pAny = progressObj as any;
+                                            let rawAnswer = answers[idx];
+                                            if (rawAnswer === undefined || rawAnswer === null || String(rawAnswer).trim() === '') {
+                                                if (Array.isArray(pAny?.taskInputs) && pAny.taskInputs[idx] !== undefined && String(pAny.taskInputs[idx]).trim() !== '') {
+                                                    rawAnswer = pAny.taskInputs[idx];
+                                                } else if (Array.isArray(pAny?.answers) && pAny.answers[idx] !== undefined && String(pAny.answers[idx]).trim() !== '') {
+                                                    rawAnswer = pAny.answers[idx];
+                                                } else if (pAny?.answersMap && (pAny.answersMap[idx] || pAny.answersMap[String(idx)] || pAny.answersMap[`step${idx + 1}`] || pAny.answersMap[`Step ${idx + 1}`] || pAny.answersMap[String(idx + 1)])) {
+                                                    rawAnswer = pAny.answersMap[idx] || pAny.answersMap[String(idx)] || pAny.answersMap[`step${idx + 1}`] || pAny.answersMap[`Step ${idx + 1}`] || pAny.answersMap[String(idx + 1)];
+                                                } else if (Array.isArray(pAny?.responses) && pAny.responses[idx]) {
+                                                    rawAnswer = pAny.responses[idx];
+                                                } else if (Array.isArray(pAny?.userAnswers) && pAny.userAnswers[idx]) {
+                                                    rawAnswer = pAny.userAnswers[idx];
+                                                } else if (typeof sub === 'string' && sub.trim()) {
+                                                    const subParts = sub.includes(' | ') ? sub.split(' | ') : [sub];
+                                                    if (subParts[idx] !== undefined && String(subParts[idx]).trim() !== '') {
+                                                        rawAnswer = subParts[idx];
+                                                    } else if (subParts.length === 1 && renderedSteps.length === 1) {
+                                                        rawAnswer = subParts[0];
+                                                    }
+                                                }
                                             }
 
                                             const answerVal = rawAnswer !== undefined && rawAnswer !== null ? (typeof rawAnswer === 'object' ? JSON.stringify(rawAnswer) : String(rawAnswer)) : '';
                                             const isDualMode = Boolean((contentData as any)?.taskInputChoices?.[idx] && (contentData as any)?.taskInputChoices[idx].length > 0) || effectiveInputType === 'dual';
 
-                                            // Parse selected choices for polls / tags / dual robustly
-                                            let selectedPollChoices: string[] = [];
-                                            if (Array.isArray(rawAnswer)) {
-                                                selectedPollChoices = rawAnswer.map((s: any) => String(s).trim()).filter(Boolean);
-                                            } else if (rawAnswer !== undefined && rawAnswer !== null) {
-                                                if (typeof rawAnswer === 'object') {
-                                                    const obj: any = rawAnswer;
-                                                    if (obj.choice) selectedPollChoices = [String(obj.choice).trim()];
-                                                    else if (Array.isArray(obj.choices)) selectedPollChoices = obj.choices.map((s: any) => String(s).trim()).filter(Boolean);
-                                                    else if (Array.isArray(obj.selectedChoices)) selectedPollChoices = obj.selectedChoices.map((s: any) => String(s).trim()).filter(Boolean);
-                                                    else if (obj.selected) selectedPollChoices = [String(obj.selected).trim()];
-                                                    else if (obj.answer) selectedPollChoices = [String(obj.answer).trim()];
-                                                    else if (obj.value) selectedPollChoices = [String(obj.value).trim()];
-                                                    else {
-                                                        selectedPollChoices = Object.values(obj).map((s: any) => String(s).trim()).filter(Boolean);
-                                                    }
-                                                } else {
-                                                    const strVal = String(rawAnswer).trim();
-                                                    if (strVal) {
-                                                        if (strVal.startsWith('[') && strVal.endsWith(']')) {
-                                                            try {
-                                                                const parsed = JSON.parse(strVal);
-                                                                if (Array.isArray(parsed)) {
-                                                                    selectedPollChoices = parsed.map((s: any) => String(s).trim()).filter(Boolean);
-                                                                } else if (typeof parsed === 'string') {
-                                                                    selectedPollChoices = [parsed.trim()];
-                                                                }
-                                                            } catch (e) {
-                                                                selectedPollChoices = strVal.slice(1, -1).split(',').map(s => s.replace(/^["']+|["']+$/g, '').trim()).filter(Boolean);
-                                                            }
-                                                        } else if (strVal.startsWith('{') && strVal.endsWith('}')) {
-                                                            try {
-                                                                const parsed = JSON.parse(strVal);
-                                                                if (parsed.choice) selectedPollChoices = [String(parsed.choice).trim()];
-                                                                else if (Array.isArray(parsed.choices)) selectedPollChoices = parsed.choices.map((s: any) => String(s).trim()).filter(Boolean);
-                                                                else if (Array.isArray(parsed.selectedChoices)) selectedPollChoices = parsed.selectedChoices.map((s: any) => String(s).trim()).filter(Boolean);
-                                                                else if (parsed.selected) selectedPollChoices = [String(parsed.selected).trim()];
-                                                                else if (parsed.answer) selectedPollChoices = [String(parsed.answer).trim()];
-                                                                else if (parsed.value) selectedPollChoices = [String(parsed.value).trim()];
-                                                                else selectedPollChoices = Object.values(parsed).map((s: any) => String(s).trim()).filter(Boolean);
-                                                            } catch (e) {
-                                                                selectedPollChoices = [strVal];
-                                                            }
-                                                        } else if (strVal.startsWith('"') && strVal.endsWith('"')) {
-                                                            try {
-                                                                const parsed = JSON.parse(strVal);
-                                                                if (typeof parsed === 'string') selectedPollChoices = [parsed.trim()];
-                                                                else selectedPollChoices = [strVal.slice(1, -1).trim()];
-                                                            } catch (e) {
-                                                                selectedPollChoices = [strVal.slice(1, -1).trim()];
-                                                            }
-                                                        } else if (effectiveInputType === 'tags' || effectiveInputType === 'poll') {
-                                                            if (strVal.includes(',') && !parsedCustomOptions.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase())) {
-                                                                selectedPollChoices = strVal.split(',').map(s => s.trim()).filter(Boolean);
-                                                            } else if (strVal.includes('|') && !parsedCustomOptions.some(opt => opt.trim().toLowerCase() === strVal.toLowerCase())) {
-                                                                selectedPollChoices = strVal.split('|').map(s => s.trim()).filter(Boolean);
-                                                            } else {
-                                                                selectedPollChoices = [strVal];
-                                                            }
-                                                        } else {
-                                                            selectedPollChoices = [strVal];
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            const isMultiSelect = Boolean(contentData?.taskPollMultiSelect?.[idx]);
+                                            const isArrange = Boolean(contentData?.taskPollArrange?.[idx]);
+                                            const isMultiText = isMultiTextStep(idx, contentData);
 
+                                            // Merge with linked tags from previous steps
                                             const linkedTags = getLinkedTagsForStep(idx, contentData, answers, sprintDailyContent, progressList);
-                                            const effectivePollOptions = Array.from(new Set([...linkedTags, ...parsedCustomOptions]))
+                                            const rawMergedOptions = Array.from(new Set([...linkedTags, ...parsedCustomOptions]))
                                                 .filter(Boolean)
                                                 .filter(opt => {
                                                     const trimmed = String(opt).trim();
                                                     return trimmed !== '[' && trimmed !== ']' && trimmed !== '"' && trimmed !== ',' && trimmed !== '[]';
                                                 });
-                                            
-                                            // Fallback: If no configured options exist, show the student's selections as the choices
-                                            if (effectivePollOptions.length === 0 && selectedPollChoices.length > 0) {
-                                                effectivePollOptions.push(...selectedPollChoices);
+
+                                            // Interpolate dynamic placeholders in poll options (e.g. {Step 1})
+                                            const effectivePollOptions = rawMergedOptions.map(opt => {
+                                                try {
+                                                    return formatInterpolatedText(opt, contentData, answers, sprintDailyContent, progressList);
+                                                } catch (e) {
+                                                    return opt;
+                                                }
+                                            }).filter(Boolean);
+
+                                            // Parse selected choices for polls / tags / dual robustly
+                                            let selectedPollChoices: string[] = [];
+                                            const addChoice = (c: any) => {
+                                                if (c === undefined || c === null) return;
+                                                if (typeof c === 'string') {
+                                                    const trimmed = c.trim();
+                                                    if (!trimmed) return;
+                                                    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                                                        try {
+                                                            const parsed = JSON.parse(trimmed);
+                                                            if (Array.isArray(parsed)) {
+                                                                parsed.forEach(addChoice);
+                                                                return;
+                                                            }
+                                                        } catch (e) {
+                                                            trimmed.slice(1, -1).split(',').forEach(s => addChoice(s.replace(/^["'`]+|["'`]+$/g, '')));
+                                                            return;
+                                                        }
+                                                    }
+                                                    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                                                        try {
+                                                            const parsed = JSON.parse(trimmed);
+                                                            if (parsed && typeof parsed === 'object') {
+                                                                if (parsed.choice) addChoice(parsed.choice);
+                                                                else if (Array.isArray(parsed.choices)) parsed.choices.forEach(addChoice);
+                                                                else if (Array.isArray(parsed.selectedChoices)) parsed.selectedChoices.forEach(addChoice);
+                                                                else if (parsed.selected !== undefined) addChoice(parsed.selected);
+                                                                else if (parsed.answer !== undefined) addChoice(parsed.answer);
+                                                                else if (parsed.value !== undefined) addChoice(parsed.value);
+                                                                else if (parsed.text !== undefined) addChoice(parsed.text);
+                                                                else Object.values(parsed).forEach(addChoice);
+                                                                return;
+                                                            }
+                                                        } catch (e) {}
+                                                    }
+                                                    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+                                                        try {
+                                                            const parsed = JSON.parse(trimmed);
+                                                            if (typeof parsed === 'string') {
+                                                                addChoice(parsed);
+                                                                return;
+                                                            }
+                                                        } catch (e) {}
+                                                        addChoice(trimmed.slice(1, -1));
+                                                        return;
+                                                    }
+                                                    if (isMultiSelect) {
+                                                        if (trimmed.includes(' | ')) {
+                                                            trimmed.split(' | ').forEach(addChoice);
+                                                            return;
+                                                        }
+                                                        if (trimmed.includes(',') && !effectivePollOptions.some(opt => opt.trim().toLowerCase() === trimmed.toLowerCase())) {
+                                                            trimmed.split(',').forEach(addChoice);
+                                                            return;
+                                                        }
+                                                    }
+                                                    selectedPollChoices.push(trimmed);
+                                                } else if (Array.isArray(c)) {
+                                                    c.forEach(addChoice);
+                                                } else if (typeof c === 'object') {
+                                                    if (c.choice) addChoice(c.choice);
+                                                    else if (Array.isArray(c.choices)) c.choices.forEach(addChoice);
+                                                    else if (Array.isArray(c.selectedChoices)) c.selectedChoices.forEach(addChoice);
+                                                    else if (c.selected !== undefined) addChoice(c.selected);
+                                                    else if (c.answer !== undefined) addChoice(c.answer);
+                                                    else if (c.value !== undefined) addChoice(c.value);
+                                                    else if (c.text !== undefined) addChoice(c.text);
+                                                    else Object.values(c).forEach(addChoice);
+                                                } else if (typeof c === 'number') {
+                                                    selectedPollChoices.push(String(c));
+                                                }
+                                            };
+
+                                            addChoice(rawAnswer);
+
+                                            // Fallback answer detection: If selected choices are empty, scan participant answers for match with effectivePollOptions
+                                            if (selectedPollChoices.length === 0) {
+                                                const candidateSources = [
+                                                    pAny?.answers?.[idx],
+                                                    pAny?.taskInputs?.[idx],
+                                                    pAny?.answersMap?.[idx],
+                                                    pAny?.answersMap?.[String(idx)],
+                                                    pAny?.answersMap?.[`step${idx + 1}`],
+                                                    pAny?.answersMap?.[String(idx + 1)],
+                                                    pAny?.submission
+                                                ];
+                                                for (const cand of candidateSources) {
+                                                    if (cand !== undefined && cand !== null && String(cand).trim() !== '') {
+                                                        addChoice(cand);
+                                                        if (selectedPollChoices.length > 0) break;
+                                                    }
+                                                }
+
+                                                // If still empty, check if any answer anywhere in answers array matches an option in effectivePollOptions
+                                                if (selectedPollChoices.length === 0 && effectivePollOptions.length > 0) {
+                                                    const allRawAns = Array.isArray(answers) ? answers : [];
+                                                    for (const a of allRawAns) {
+                                                        if (a && typeof a === 'string') {
+                                                            const cleanA = a.trim().toLowerCase();
+                                                            if (effectivePollOptions.some(o => o.trim().toLowerCase() === cleanA)) {
+                                                                addChoice(a);
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
 
-                                            const isMultiSelect = Boolean(contentData?.taskPollMultiSelect?.[idx]);
-                                            const isArrange = Boolean(contentData?.taskPollArrange?.[idx]);
-                                            const isMultiText = isMultiTextStep(idx, contentData);
+                                            selectedPollChoices = Array.from(new Set(selectedPollChoices)).filter(Boolean);
 
                                             // Helper to verify if an option was selected by student (supporting exact text, unquoted, index numbers, letter codes A/B/C)
                                             const isOptionSelected = (opt: string, optIndex: number, selections: string[]): boolean => {
                                                 if (!selections || selections.length === 0 || !opt) return false;
                                                 const cleanOpt = String(opt).trim().toLowerCase();
-                                                const unquotedOpt = cleanOpt.replace(/^["']+|["']+$/g, '').trim();
+                                                const unquotedOpt = cleanOpt.replace(/^["'`]+|["'`]+$/g, '').trim();
                                                 const optLetter = String.fromCharCode(65 + optIndex).toLowerCase();
                                                 const optNum0 = String(optIndex);
                                                 const optNum1 = String(optIndex + 1);
-                                                const strippedOpt = unquotedOpt.replace(/^(?:[a-z]|\d+)[.):\-\s]+\s*/i, '').trim();
+
+                                                const normalizePunctuation = (str: string) => {
+                                                    return str
+                                                        .replace(/&amp;/g, '&')
+                                                        .replace(/&quot;/g, '"')
+                                                        .replace(/&#39;/g, "'")
+                                                        .replace(/[\u2018\u2019]/g, "'")
+                                                        .replace(/[\u201C\u201D]/g, '"')
+                                                        .replace(/[\s\u00a0]+/g, ' ')
+                                                        .replace(/[*_~`]/g, '')
+                                                        .trim();
+                                                };
+
+                                                const normOpt = normalizePunctuation(unquotedOpt);
+                                                const strippedOpt = normOpt
+                                                    .replace(/^(?:option|op|choice|poll)?\s*(?:[a-z]|\d+)[.):\-\s]+\s*/i, '')
+                                                    .trim();
 
                                                 return selections.some(s => {
                                                     if (s === undefined || s === null) return false;
                                                     const cleanS = String(s).trim().toLowerCase();
-                                                    const unquotedS = cleanS.replace(/^["']+|["']+$/g, '').trim();
+                                                    const unquotedS = cleanS.replace(/^["'`]+|["'`]+$/g, '').trim();
                                                     if (!cleanS && !unquotedS) return false;
 
+                                                    const normS = normalizePunctuation(unquotedS);
+                                                    const strippedS = normS
+                                                        .replace(/^(?:option|op|choice|poll)?\s*(?:[a-z]|\d+)[.):\-\s]+\s*/i, '')
+                                                        .trim();
+
                                                     // 1. Direct equality
-                                                    if (cleanS === cleanOpt || unquotedS === unquotedOpt || cleanS === unquotedOpt || unquotedS === cleanOpt) return true;
+                                                    if (cleanS === cleanOpt || unquotedS === unquotedOpt || normS === normOpt) return true;
+                                                    if (strippedS && (strippedS === strippedOpt || strippedS === normOpt || normS === strippedOpt)) return true;
 
                                                     // 2. Letter match ('a', 'b', 'option a', '(a)', '[a]', 'a.', 'a)')
                                                     if (
                                                         unquotedS === optLetter ||
+                                                        normS === optLetter ||
                                                         unquotedS === `option ${optLetter}` ||
+                                                        unquotedS === `choice ${optLetter}` ||
+                                                        unquotedS === `op ${optLetter}` ||
+                                                        unquotedS === `op${optLetter}` ||
+                                                        unquotedS === `poll ${optLetter}` ||
                                                         unquotedS === `(${optLetter})` ||
                                                         unquotedS === `[${optLetter}]` ||
                                                         unquotedS === `${optLetter}.` ||
                                                         unquotedS === `${optLetter})` ||
-                                                        unquotedS === `${optLetter}:`
+                                                        unquotedS === `${optLetter}:` ||
+                                                        unquotedS === `${optLetter}-`
                                                     ) {
                                                         return true;
                                                     }
@@ -1252,38 +1465,35 @@ export const CoachParticipants: React.FC = () => {
                                                         unquotedS === optNum1 ||
                                                         unquotedS === `option ${optNum1}` ||
                                                         unquotedS === `option ${optNum0}` ||
+                                                        unquotedS === `choice ${optNum1}` ||
+                                                        unquotedS === `choice ${optNum0}` ||
+                                                        unquotedS === `op ${optNum1}` ||
+                                                        unquotedS === `op${optNum1}` ||
+                                                        unquotedS === `poll ${optNum1}` ||
+                                                        unquotedS === `poll${optNum1}` ||
                                                         unquotedS === `(${optNum1})` ||
                                                         unquotedS === `[${optNum1}]` ||
-                                                        unquotedS === `${optNum1}.`
+                                                        unquotedS === `${optNum1}.` ||
+                                                        unquotedS === `${optNum1})` ||
+                                                        unquotedS === `${optNum1}:`
                                                     ) {
                                                         return true;
                                                     }
 
                                                     // 4. Prefix match (e.g. "A. Option Text" vs "Option Text")
-                                                    const strippedS = unquotedS.replace(/^(?:[a-z]|\d+)[.):\-\s]+\s*/i, '').trim();
-                                                    if (strippedS && (strippedS === unquotedOpt || strippedS === strippedOpt)) {
-                                                        return true;
-                                                    }
-                                                    if (strippedOpt && (unquotedS === strippedOpt || strippedS === strippedOpt)) {
-                                                        return true;
-                                                    }
+                                                    if (strippedS && (strippedS === normOpt || strippedS === strippedOpt)) return true;
+                                                    if (strippedOpt && (normS === strippedOpt || strippedS === strippedOpt)) return true;
 
-                                                    // 5. Containment match if sufficiently long
-                                                    if (unquotedS.length >= 3 && unquotedOpt.length >= 3) {
-                                                        if (unquotedOpt === unquotedS || unquotedOpt.includes(unquotedS) || unquotedS.includes(unquotedOpt)) {
-                                                            return true;
-                                                        }
-                                                    }
+                                                    // 5. Interpolated matching (e.g. raw placeholder vs resolved value)
+                                                    try {
+                                                        const interpS = normalizePunctuation(formatInterpolatedText(unquotedS, contentData, answers, sprintDailyContent, progressList).toLowerCase());
+                                                        if (interpS && (interpS === normOpt || interpS === strippedOpt)) return true;
+                                                    } catch (e) {}
 
-                                                    // 6. Path / version code match (e.g. s is "1.1" and opt is "1.1 Option Title" or vice versa)
-                                                    if (
-                                                        unquotedOpt.startsWith(`${unquotedS} `) ||
-                                                        unquotedOpt.startsWith(`${unquotedS}.`) ||
-                                                        unquotedOpt.startsWith(`${unquotedS}:`) ||
-                                                        unquotedOpt.startsWith(`${unquotedS}-`) ||
-                                                        unquotedS.startsWith(`${unquotedOpt} `) ||
-                                                        unquotedS.startsWith(`${unquotedOpt}.`)
-                                                    ) {
+                                                    // 6. Alphanumeric only match
+                                                    const noPunctS = normS.replace(/[^a-z0-9]/gi, '');
+                                                    const noPunctOpt = normOpt.replace(/[^a-z0-9]/gi, '');
+                                                    if (noPunctS && noPunctOpt && noPunctS === noPunctOpt) {
                                                         return true;
                                                     }
 
@@ -1291,22 +1501,66 @@ export const CoachParticipants: React.FC = () => {
                                                 });
                                             };
 
+                                            // Fallback: If no configured options exist, show the student's selections as the choices
+                                            if (effectivePollOptions.length === 0 && selectedPollChoices.length > 0) {
+                                                effectivePollOptions.push(...selectedPollChoices);
+                                            } else if (selectedPollChoices.length > 0) {
+                                                // Guarantee that every choice picked by the participant is present in effectivePollOptions
+                                                selectedPollChoices.forEach((sel) => {
+                                                    const matchesAny = effectivePollOptions.some((opt, optIdx) => isOptionSelected(opt, optIdx, [sel]));
+                                                    if (!matchesAny && !effectivePollOptions.some(opt => opt.trim().toLowerCase() === sel.trim().toLowerCase())) {
+                                                        effectivePollOptions.push(sel);
+                                                    }
+                                                });
+                                            }
+
+                                            const isPollStep = effectiveInputType === "poll" ||
+                                                isStepOrSubStepPoll(contentData?.taskInputTypes?.[idx]) ||
+                                                Boolean(contentData?.taskPollOptions?.[idx]) ||
+                                                Boolean((contentData as any)?.pollOptions?.[idx]) ||
+                                                Boolean((contentData as any)?.taskInputChoices?.[idx]) ||
+                                                (effectivePollOptions.length > 0 && effectiveInputType !== 'tags');
+
                                             return (
                                                 <div 
                                                     key={idx} 
                                                     className="snap-center shrink-0 w-full sm:w-[580px] md:w-[640px] max-w-[92vw] p-6 sm:p-7 bg-white rounded-3xl border border-gray-100 shadow-sm relative group text-left space-y-5 flex flex-col justify-between"
                                                 >
                                                     {/* Step Header */}
-                                                    <div className="flex items-center justify-between">
+                                                    <div className="flex items-center justify-between gap-3">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2.5 h-2.5 rounded-full bg-[#0E7850]"></div>
                                                             <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gray-500">
                                                                 Action Step {order}
                                                             </span>
                                                         </div>
-                                                        <span className="px-3 py-1 bg-white text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 shadow-sm">
-                                                            {effectiveInputType.toUpperCase()}
-                                                        </span>
+                                                        <div className="flex items-center gap-2">
+                                                            {/* Note Icon */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenExpressNote(idx)}
+                                                                className="p-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center transition-all"
+                                                                title="Note"
+                                                                aria-label="Note"
+                                                            >
+                                                                <StickyNote className="w-3.5 h-3.5" />
+                                                            </button>
+
+                                                            {/* AI / Research Icon */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenAiResearch(idx)}
+                                                                className="p-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center transition-all"
+                                                                title="Ai/ research icon"
+                                                                aria-label="Ai/ research icon"
+                                                            >
+                                                                <Sparkles className="w-3.5 h-3.5" />
+                                                            </button>
+
+                                                            <span className="px-3 py-1 bg-white text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 shadow-sm">
+                                                                {(isPollStep && effectiveInputType !== 'tags' && effectiveInputType !== 'mark' && effectiveInputType !== 'note' ? 'POLL' : effectiveInputType).toUpperCase()}
+                                                            </span>
+                                                        </div>
                                                     </div>
 
                                                     {/* Prompt with High-Contrast Typography */}
@@ -1351,8 +1605,33 @@ export const CoachParticipants: React.FC = () => {
 
                                                     {/* Exact Interactive Render of Student's Response State (SprintView Parity) */}
                                                     <div className="pt-2">
-                                                        {effectiveInputType === "poll" ? (
+                                                        {(effectiveInputType === "poll" || (isPollStep && effectiveInputType !== 'tags' && effectiveInputType !== 'mark' && effectiveInputType !== 'note')) ? (
                                                             <div className="space-y-3">
+                                                                {/* Prominent Participant Selection Banner */}
+                                                                {selectedPollChoices.length > 0 && (
+                                                                    <div className="p-3.5 bg-emerald-50/90 border border-emerald-200/80 rounded-2xl flex items-center justify-between gap-3 flex-wrap shadow-xs">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className="w-5 h-5 rounded-full bg-[#0E7850] text-white flex items-center justify-center shrink-0">
+                                                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                            </div>
+                                                                            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-950">
+                                                                                Participant Selected:
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap gap-1.5">
+                                                                            {selectedPollChoices.map((choice, cIdx) => (
+                                                                                <span
+                                                                                    key={cIdx}
+                                                                                    className="px-3 py-1 bg-[#0E7850] text-white font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5"
+                                                                                >
+                                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
+                                                                                    <span>{choice}</span>
+                                                                                </span>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
                                                                 {(() => {
                                                                     if (isArrange) {
                                                                         return (
@@ -1369,7 +1648,7 @@ export const CoachParticipants: React.FC = () => {
                                                                         if (isMultiSelect) {
                                                                             return (
                                                                                 <>
-                                                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-3 flex items-center gap-2">
+                                                                                    <p className="text-[10px] font-black uppercase text-[#0E7850] tracking-widest pl-1 mb-3 flex items-center gap-2">
                                                                                         <span>☑️ Select one or more:</span>
                                                                                     </p>
                                                                                     <div className="flex flex-wrap gap-2 w-full">
@@ -1382,11 +1661,11 @@ export const CoachParticipants: React.FC = () => {
                                                                                                         key={optIndex}
                                                                                                         className={`px-3 py-1.5 text-[9px] rounded-full font-black uppercase tracking-widest transition-all border ${
                                                                                                             isSel
-                                                                                                                ? "bg-primary text-white border-primary shadow-md"
+                                                                                                                ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md ring-2 ring-emerald-400/40"
                                                                                                                 : "bg-gray-50 border-gray-100 text-gray-400"
                                                                                                         }`}
                                                                                                     >
-                                                                                                        {opt}
+                                                                                                        {isSel ? `✓ ${opt}` : opt}
                                                                                                     </div>
                                                                                                 );
                                                                                             })}
@@ -1406,11 +1685,11 @@ export const CoachParticipants: React.FC = () => {
                                                                                                 key={optIndex}
                                                                                                 className={`px-3 py-1.5 text-[9px] rounded-full font-black uppercase tracking-widest transition-all border ${
                                                                                                     isSel
-                                                                                                        ? "bg-primary text-white border-primary shadow-md"
+                                                                                                        ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md ring-2 ring-emerald-400/40"
                                                                                                         : "bg-gray-50 border-gray-100 text-gray-400"
                                                                                                 }`}
                                                                                             >
-                                                                                                {opt}
+                                                                                                {isSel ? `✓ ${opt}` : opt}
                                                                                             </div>
                                                                                         );
                                                                                     })}
@@ -1421,7 +1700,7 @@ export const CoachParticipants: React.FC = () => {
                                                                     if (isMultiSelect) {
                                                                         return (
                                                                             <>
-                                                                                <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-3 flex items-center gap-2">
+                                                                                <p className="text-[10px] font-black uppercase text-[#0E7850] tracking-widest pl-1 mb-3 flex items-center gap-2">
                                                                                     <span>☑️ Select one or more:</span>
                                                                                 </p>
                                                                                 <div className="space-y-3 w-full">
@@ -1432,23 +1711,23 @@ export const CoachParticipants: React.FC = () => {
                                                                                             return (
                                                                                                 <div
                                                                                                     key={optIndex}
-                                                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${
+                                                                                                    className={`w-full py-3.5 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${
                                                                                                         isSel
-                                                                                                            ? "bg-primary/10 border-primary text-primary"
-                                                                                                            : "bg-white border-primary/10 text-gray-700"
+                                                                                                            ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-1 ring-emerald-500/30 shadow-xs"
+                                                                                                            : "bg-white border-gray-200 text-gray-700"
                                                                                                     }`}
                                                                                                 >
-                                                                                                    <span>
+                                                                                                    <span className={isSel ? "text-emerald-950 font-black" : "text-gray-700 font-bold"}>
                                                                                                         {String.fromCharCode(65 + optIndex)}. {opt}
                                                                                                     </span>
                                                                                                     <div
-                                                                                                        className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                                                                                                            isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"
+                                                                                                        className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                                                                                            isSel ? "border-emerald-600 bg-[#0E7850] text-white shadow-xs" : "border-gray-300 bg-white"
                                                                                                         }`}
                                                                                                     >
                                                                                                         {isSel && (
                                                                                                             <svg
-                                                                                                                className="w-2.5 h-2.5 text-white animate-fade-in"
+                                                                                                                className="w-3 h-3 text-white animate-fade-in"
                                                                                                                 fill="none"
                                                                                                                 stroke="currentColor"
                                                                                                                 strokeWidth={4}
@@ -1479,17 +1758,27 @@ export const CoachParticipants: React.FC = () => {
                                                                                     return (
                                                                                         <div
                                                                                             key={optIndex}
-                                                                                            className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${
+                                                                                            className={`w-full py-3.5 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${
                                                                                                 isSel
-                                                                                                    ? "bg-primary/10 border-primary text-primary"
-                                                                                                    : "bg-white border-primary/10 text-gray-700"
+                                                                                                    ? "bg-emerald-50 border-emerald-500 text-emerald-950 ring-1 ring-emerald-500/30 shadow-xs"
+                                                                                                    : "bg-white border-gray-200 text-gray-700"
                                                                                             }`}
                                                                                         >
-                                                                                            <span>
-                                                                                                {String.fromCharCode(65 + optIndex)}. {opt}
-                                                                                            </span>
+                                                                                            <div className="flex items-center gap-3">
+                                                                                                <div
+                                                                                                    className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                                                                                                        isSel ? "border-emerald-600 bg-[#0E7850]" : "border-gray-300 bg-white"
+                                                                                                    }`}
+                                                                                                >
+                                                                                                    {isSel && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                                                                </div>
+                                                                                                <span className={isSel ? "text-emerald-950 font-black" : "text-gray-700 font-bold"}>
+                                                                                                    {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                                                </span>
+                                                                                            </div>
                                                                                             {isSel && (
-                                                                                                <span className="px-2 py-0.5 bg-primary text-white text-[10px] font-black uppercase tracking-wider rounded-md">
+                                                                                                <span className="px-2.5 py-1 bg-[#0E7850] text-white text-[10px] font-black uppercase tracking-wider rounded-lg shadow-xs flex items-center gap-1">
+                                                                                                    <CheckCircle2 className="w-3 h-3" />
                                                                                                     Selected
                                                                                                 </span>
                                                                                             )}
@@ -2307,6 +2596,90 @@ export const CoachParticipants: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Express Note Full Bleed Modal */}
+            {isExpressNoteOpen && (
+                <div className="fixed inset-0 z-[250] bg-white dark:bg-zinc-950 flex flex-col p-6 sm:p-12 md:p-16 animate-fade-in text-left">
+                    {/* Top Bar */}
+                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4">
+                        <div className="flex flex-col">
+                            <span className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-gray-400 dark:text-gray-500">
+                                Express Note
+                            </span>
+                            <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mt-0.5">
+                                {viewingSubmission?.enrollment.sprint?.title || "Sprint"} • Move {viewingSubmission?.day || 1} • Step {expressNoteStepIndex + 1}
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleCloseExpressNote}
+                            className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-500 dark:text-gray-300 transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+                            title="Close Express Note"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {/* Full Bleed Note Text Area */}
+                    <div className="flex-1 flex flex-col relative w-full max-w-5xl mx-auto py-2">
+                        <textarea
+                            value={expressNoteText}
+                            onChange={(e) => setExpressNoteText(e.target.value)}
+                            placeholder="Write your quick thoughts, coaching notes, or step reflections here..."
+                            autoFocus
+                            className="flex-1 w-full bg-transparent resize-none outline-none border-none text-gray-900 dark:text-zinc-100 text-lg sm:text-xl md:text-2xl leading-relaxed placeholder-gray-300 dark:placeholder-zinc-700 focus:ring-0"
+                        />
+                    </div>
+
+                    {/* Fixed Save Icon at bottom right of the screen */}
+                    <div className="fixed bottom-6 sm:bottom-10 right-6 sm:right-10 z-[260] flex items-center gap-3">
+                        {expressNoteSaved && (
+                            <span className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest px-3.5 py-1.5 rounded-full shadow-lg animate-fade-in">
+                                Saved!
+                            </span>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleSaveExpressNote}
+                            className="p-4 sm:p-5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer border border-white/20"
+                            title="Save Note"
+                        >
+                            {expressNoteSaved ? (
+                                <CheckCircle2 className="w-6 h-6 text-white" />
+                            ) : (
+                                <Save className="w-6 h-6 text-white" />
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Research Full Bleed Modal using Gemini AI */}
+            <AiResearchModal
+                isOpen={isAiResearchOpen}
+                onClose={handleCloseAiResearch}
+                sprintTitle={viewingSubmission?.enrollment.sprint?.title || "Sprint"}
+                sprintKey={viewingSubmission?.enrollment.sprint_id || viewingSubmission?.enrollment.sprint?.id || 'default'}
+                moveDay={viewingSubmission?.day || 1}
+                stepIndex={aiResearchStepIndex}
+                stepPrompt={
+                    Array.isArray(activeDayContent?.taskPrompts) && activeDayContent.taskPrompts.length > 1
+                        ? activeDayContent.taskPrompts[aiResearchStepIndex]
+                        : (activeDayContent?.taskPrompt || activeDayContent?.taskPrompts?.[0] || "")
+                }
+                footnote={activeDayContent?.taskFootnotes?.[aiResearchStepIndex]}
+                userAnswer={(() => {
+                    const prog = viewingSubmission?.enrollment.progress?.find(p => Number(p.day) === Number(viewingSubmission?.day));
+                    if (!prog) return '';
+                    const ans = Array.isArray(prog.answers) ? prog.answers[aiResearchStepIndex] : '';
+                    return typeof ans === 'string' ? ans : JSON.stringify(ans || '');
+                })()}
+                onSaveToNote={(noteText) => {
+                    if (aiResearchStepIndex === expressNoteStepIndex) {
+                        setExpressNoteText(noteText);
+                    }
+                }}
+            />
         </div>
     );
 };
