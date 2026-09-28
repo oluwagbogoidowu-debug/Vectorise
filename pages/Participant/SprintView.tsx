@@ -1651,6 +1651,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   // AI / Research State - full bleed research using Gemini AI
   const [isAiResearchOpen, setIsAiResearchOpen] = useState(false);
   const [aiResearchStepIndex, setAiResearchStepIndex] = useState(0);
+  const [isAiResearchLoading, setIsAiResearchLoading] = useState(false);
 
   const isCoachRole = Boolean(user?.role === UserRole.COACH || (user as any)?.role === 'COACH' || (user as any)?.role === 'coach' || (user as any)?.isCoach || (user as any)?.accountType === 'coach');
   const isCoachConnected = Boolean(
@@ -4406,6 +4407,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             setExpressNoteText(noteText);
           }
         }}
+        onLoadingChange={setIsAiResearchLoading}
       />
     </>
   );
@@ -5670,21 +5672,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             </button>
 
                                             <button
-
                                               type="button"
-
                                               onClick={() => handleOpenAiResearch(i)}
-
-                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-
+                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
                                               title="Ai/ research icon"
-
                                               aria-label="Ai/ research icon"
-
                                             >
-
-                                              <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-
+                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
                                             </button>
                                             <button
                                               type="button"
@@ -5724,22 +5718,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 </button>
 
                                                 <button
-
-                                                  type="button"
-
-                                                  onClick={() => handleOpenAiResearch(i)}
-
-                                                  className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-
-                                                  title="Ai/ research icon"
-
-                                                  aria-label="Ai/ research icon"
-
-                                                >
-
-                                                  <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-
-                                                </button>
+                                              type="button"
+                                              onClick={() => handleOpenAiResearch(i)}
+                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                              title="Ai/ research icon"
+                                              aria-label="Ai/ research icon"
+                                            >
+                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
+                                            </button>
                                                 <button
                                                   type="button"
                                                   onClick={() => {
@@ -5776,22 +5762,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 </button>
 
                                                 <button
-
-                                                  type="button"
-
-                                                  onClick={() => handleOpenAiResearch(i)}
-
-                                                  className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-
-                                                  title="Ai/ research icon"
-
-                                                  aria-label="Ai/ research icon"
-
-                                                >
-
-                                                  <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-
-                                                </button>
+                                              type="button"
+                                              onClick={() => handleOpenAiResearch(i)}
+                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                              title="Ai/ research icon"
+                                              aria-label="Ai/ research icon"
+                                            >
+                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
+                                            </button>
                                                 <div className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'px-6 py-2.5 text-xs font-bold'} text-emerald-600 dark:text-emerald-400 font-bold`}>
                                                   Move Complete
                                                 </div>
@@ -5820,22 +5798,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                               </button>
 
                                               <button
-
-                                                type="button"
-
-                                                onClick={() => handleOpenAiResearch(i)}
-
-                                                className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-
-                                                title="Ai/ research icon"
-
-                                                aria-label="Ai/ research icon"
-
-                                              >
-
-                                                <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-
-                                              </button>
+                                              type="button"
+                                              onClick={() => handleOpenAiResearch(i)}
+                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                              title="Ai/ research icon"
+                                              aria-label="Ai/ research icon"
+                                            >
+                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
+                                            </button>
                                               <button
                                                 type="button"
                                                 onClick={handleFinishDay}
@@ -6491,11 +6461,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <button
                                 type="button"
                                 onClick={() => handleOpenAiResearch(0)}
-                                className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all ${isAiResearchLoading && aiResearchStepIndex === 0 ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
                                 title="Ai/ research icon"
                                 aria-label="Ai/ research icon"
                               >
-                                <Sparkles className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                                <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === 0 ? "animate-spin" : ""}`} />
                               </button>
                               {!dayProgress?.completed ? (
                                 <button

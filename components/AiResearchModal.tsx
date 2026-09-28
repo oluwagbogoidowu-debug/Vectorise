@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Sparkles, Copy, Check, StickyNote, RotateCcw, Send, Loader2, BookOpen, Lightbulb, Compass, AlertCircle } from 'lucide-react';
+import { X, Sparkles, Copy, Check, StickyNote, RotateCcw, Send, Loader2, BookOpen, Lightbulb, Compass, AlertCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
 import FormattedText from './FormattedText';
 
 export interface AiResearchModalProps {
@@ -13,6 +13,7 @@ export interface AiResearchModalProps {
   footnote?: string;
   userAnswer?: string;
   onSaveToNote?: (noteText: string) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 export const AiResearchModal: React.FC<AiResearchModalProps> = ({
@@ -26,6 +27,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   footnote = '',
   userAnswer = '',
   onSaveToNote,
+  onLoadingChange,
 }) => {
   const [researchText, setResearchText] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -34,6 +36,9 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [savedToNote, setSavedToNote] = useState<boolean>(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const [feedbackState, setFeedbackState] = useState<'up' | 'down' | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState<string>('');
 
   const storageKey = `ai_research_${sprintKey}_day_${moveDay}_step_${stepIndex}`;
 
@@ -54,8 +59,26 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       } catch (e) {
         setResearchText('');
       }
+
+      // Load cached rating feedback
+      try {
+        const cachedFeedback = localStorage.getItem(`ai_feedback_${sprintKey}_day_${moveDay}_step_${stepIndex}`);
+        setFeedbackState(cachedFeedback as 'up' | 'down' | null);
+        const cachedComment = localStorage.getItem(`ai_feedback_comment_${sprintKey}_day_${moveDay}_step_${stepIndex}`) || '';
+        setFeedbackComment(cachedComment);
+      } catch (e) {
+        setFeedbackState(null);
+        setFeedbackComment('');
+      }
     }
-  }, [isOpen, storageKey]);
+  }, [isOpen, storageKey, sprintKey, moveDay, stepIndex]);
+
+  // Cleanup loading state on close or unmount
+  useEffect(() => {
+    return () => {
+      onLoadingChange?.(false);
+    };
+  }, [onLoadingChange]);
 
   if (!isOpen) return null;
 
@@ -64,6 +87,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     if (isCustom && !promptToSend) return;
 
     setIsLoading(true);
+    onLoadingChange?.(true);
     setError(null);
 
     try {
@@ -106,6 +130,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       setError(err?.message || 'Unable to connect to Gemini AI. Please try again.');
     } finally {
       setIsLoading(false);
+      onLoadingChange?.(false);
     }
   };
 
@@ -132,6 +157,45 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     } catch (e) {
       console.error('Failed to save to note:', e);
     }
+  };
+
+  const handleSaveFeedback = async (rating: 'up' | 'down') => {
+    setFeedbackState(rating);
+    try {
+      localStorage.setItem(`ai_feedback_${sprintKey}_day_${moveDay}_step_${stepIndex}`, rating);
+      fetch('/api/gemini/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sprintKey,
+          moveDay,
+          stepIndex,
+          stepPrompt,
+          rating,
+          researchText,
+          comment: rating === 'down' ? feedbackComment : '',
+        }),
+      }).catch(err => console.warn('Background rating sync warning:', err));
+    } catch (e) {}
+  };
+
+  const saveFeedbackComment = (comment: string) => {
+    try {
+      localStorage.setItem(`ai_feedback_comment_${sprintKey}_day_${moveDay}_step_${stepIndex}`, comment);
+      fetch('/api/gemini/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sprintKey,
+          moveDay,
+          stepIndex,
+          stepPrompt,
+          rating: 'down',
+          researchText,
+          comment,
+        }),
+      }).catch(err => console.warn('Background rating comment sync warning:', err));
+    } catch (e) {}
   };
 
   const handleClear = () => {
@@ -305,6 +369,64 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
             <div className="bg-gray-50/50 dark:bg-zinc-900/30 p-6 sm:p-8 rounded-3xl border border-gray-100 dark:border-zinc-800 text-gray-800 dark:text-zinc-200">
               <FormattedText text={researchText} className="text-sm sm:text-base leading-relaxed" />
             </div>
+
+            {/* Thumbs Up / Thumbs Down Feedback Mechanism */}
+            <div className="p-5 bg-purple-50/40 dark:bg-purple-950/10 rounded-3xl border border-purple-100/50 dark:border-purple-900/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs sm:text-sm font-black text-gray-900 dark:text-zinc-100 uppercase tracking-wider">
+                  Was this research helpful?
+                </h4>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Your rating directly helps fine-tune our personal growth models.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSaveFeedback('up')}
+                  className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold ${
+                    feedbackState === 'up'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800/80 shadow-xs'
+                      : 'bg-white hover:bg-gray-50 text-gray-600 border-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:border-zinc-800 dark:text-zinc-300'
+                  }`}
+                  title="Thumbs Up - Helpful"
+                >
+                  <ThumbsUp className={`w-4 h-4 ${feedbackState === 'up' ? 'fill-emerald-600 dark:fill-emerald-400' : ''}`} />
+                  <span>Helpful</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveFeedback('down')}
+                  className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold ${
+                    feedbackState === 'down'
+                      ? 'bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-800/80 shadow-xs'
+                      : 'bg-white hover:bg-gray-50 text-gray-600 border-gray-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:border-zinc-800 dark:text-zinc-300'
+                  }`}
+                  title="Thumbs Down - Unhelpful"
+                >
+                  <ThumbsDown className={`w-4 h-4 ${feedbackState === 'down' ? 'fill-rose-600 dark:fill-rose-400' : ''}`} />
+                  <span>Unhelpful</span>
+                </button>
+              </div>
+            </div>
+
+            {feedbackState === 'down' && (
+              <div className="p-5 bg-gray-50 dark:bg-zinc-900/60 rounded-3xl border border-gray-100 dark:border-zinc-800 space-y-3 animate-fade-in">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-700 dark:text-zinc-300">
+                  What could be improved? (Optional)
+                </label>
+                <textarea
+                  value={feedbackComment}
+                  onChange={(e) => {
+                    setFeedbackComment(e.target.value);
+                    saveFeedbackComment(e.target.value);
+                  }}
+                  placeholder="Too generic, lacked actionable steps, not enough examples, wrong context, etc..."
+                  className="w-full p-3 bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-xs sm:text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                  rows={2}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div className="my-auto py-16 flex flex-col items-center justify-center text-center space-y-4 text-gray-400">

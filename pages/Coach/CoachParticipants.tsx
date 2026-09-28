@@ -76,6 +76,7 @@ export const CoachParticipants: React.FC = () => {
 
     const [isAiResearchOpen, setIsAiResearchOpen] = useState(false);
     const [aiResearchStepIndex, setAiResearchStepIndex] = useState(0);
+    const [isAiResearchLoading, setIsAiResearchLoading] = useState(false);
 
     const handleOpenExpressNote = (stepIdx: number) => {
         setExpressNoteStepIndex(stepIdx);
@@ -1550,11 +1551,11 @@ export const CoachParticipants: React.FC = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleOpenAiResearch(idx)}
-                                                                className="p-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center transition-all"
+                                                                className={`p-1.5 rounded-xl ${isAiResearchLoading && aiResearchStepIndex === idx ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center transition-all`}
                                                                 title="Ai/ research icon"
                                                                 aria-label="Ai/ research icon"
                                                             >
-                                                                <Sparkles className="w-3.5 h-3.5" />
+                                                                <Sparkles className={`w-3.5 h-3.5 ${isAiResearchLoading && aiResearchStepIndex === idx ? "animate-spin" : ""}`} />
                                                             </button>
 
                                                             <span className="px-3 py-1 bg-white text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 shadow-sm">
@@ -2679,6 +2680,7 @@ export const CoachParticipants: React.FC = () => {
                         setExpressNoteText(noteText);
                     }
                 }}
+                onLoadingChange={setIsAiResearchLoading}
             />
         </div>
     );
