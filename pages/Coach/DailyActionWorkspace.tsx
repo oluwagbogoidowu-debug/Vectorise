@@ -476,6 +476,14 @@ export default function DailyActionWorkspace({
     updateFieldForDay(dayNum, 'taskFootnotes', footnotes);
   };
 
+  const handleTaskAskAiChange = (dayNum: number, index: number, value: string | null) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const askAis = [...(dayContent.taskAskAis || [])];
+    while (askAis.length <= index) askAis.push(null as any);
+    askAis[index] = value as any;
+    updateFieldForDay(dayNum, 'taskAskAis', askAis);
+  };
+
   const handleTaskFillChange = (dayNum: number, index: number, value: string | null) => {
     const dayContent = getDailyContentForDay(dayNum);
     const fills = [...(dayContent.taskFills || [])];
@@ -1751,6 +1759,21 @@ export default function DailyActionWorkspace({
                           type="button"
                           onClick={() => {
                             setSelectedDay(dayNum);
+                            const currentAskAi = dayContent.taskAskAis?.[activeIdx];
+                            if (currentAskAi === undefined || currentAskAi === null) {
+                              handleTaskAskAiChange(dayNum, activeIdx, '');
+                            }
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskAskAis?.[activeIdx] !== undefined && dayContent.taskAskAis?.[activeIdx] !== null) ? 'bg-purple-50 text-purple-600 border-purple-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
+                        >
+                          <Sparkles size={11} className={dayContent.taskAskAis?.[activeIdx] ? 'text-purple-600' : ''} />
+                          <span>Ask AI</span>
+                        </button>
+
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setSelectedDay(dayNum);
                             const currentVideo = dayContent.taskVideos?.[activeIdx];
                             if (currentVideo === undefined || currentVideo === null) {
                               handleTaskVideoChange(dayNum, activeIdx, { url: '', start: '', end: '' });
@@ -2208,6 +2231,40 @@ export default function DailyActionWorkspace({
                           rows={2} 
                           className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-medium text-sm"} 
                           placeholder="Add a footnote..." 
+                        />
+                      </div>
+                    )}
+
+                    {/* Task Ask AI edit input */}
+                    {dayContent.taskAskAis?.[activeIdx] !== undefined && dayContent.taskAskAis?.[activeIdx] !== null && (
+                      <div className="mt-2 animate-fade-in border border-purple-100 rounded-2xl p-3 bg-purple-50/10">
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[9px] font-black text-purple-600 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                            <Sparkles size={11} className="text-purple-600" /> Task Ask AI (Optional Guidance / Context)
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  handleTaskAskAiChange(dayNum, activeIdx, null as any);
+                              }}
+                              className="text-gray-300 hover:text-red-500 transition-colors"
+                              title="Remove Ask AI from this step"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        <textarea 
+                          value={typeof dayContent.taskAskAis[activeIdx] === 'string' ? dayContent.taskAskAis[activeIdx] : ''} 
+                          onChange={e => {
+                            setSelectedDay(dayNum);
+                            handleTaskAskAiChange(dayNum, activeIdx, e.target.value);
+                          }} 
+                          rows={2} 
+                          className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-purple-100 bg-purple-50/20 text-gray-750 font-medium text-sm"} 
+                          placeholder="Add custom context/guidance for Ask AI, or leave empty for default AI..." 
                         />
                       </div>
                     )}

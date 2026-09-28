@@ -163,38 +163,12 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     setFeedbackState(rating);
     try {
       localStorage.setItem(`ai_feedback_${sprintKey}_day_${moveDay}_step_${stepIndex}`, rating);
-      fetch('/api/gemini/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sprintKey,
-          moveDay,
-          stepIndex,
-          stepPrompt,
-          rating,
-          researchText,
-          comment: rating === 'down' ? feedbackComment : '',
-        }),
-      }).catch(err => console.warn('Background rating sync warning:', err));
     } catch (e) {}
   };
 
   const saveFeedbackComment = (comment: string) => {
     try {
       localStorage.setItem(`ai_feedback_comment_${sprintKey}_day_${moveDay}_step_${stepIndex}`, comment);
-      fetch('/api/gemini/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sprintKey,
-          moveDay,
-          stepIndex,
-          stepPrompt,
-          rating: 'down',
-          researchText,
-          comment,
-        }),
-      }).catch(err => console.warn('Background rating comment sync warning:', err));
     } catch (e) {}
   };
 

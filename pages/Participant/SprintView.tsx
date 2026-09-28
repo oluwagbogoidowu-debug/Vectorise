@@ -4851,35 +4851,60 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               )}
                               {(() => {
                                 const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[i], i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
-                                if (!resolvedHint) return null;
+                                const isAskAiEnabled = Boolean(
+                                  (dayContent?.taskAskAis?.[i] !== undefined && dayContent?.taskAskAis?.[i] !== null) ||
+                                  (dayContent?.taskAskAi?.[i] !== undefined && dayContent?.taskAskAi?.[i] !== null)
+                                );
+                                if (!resolvedHint && !isAskAiEnabled) return null;
+
                                 return (
                                   <div className="mb-4">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setRevealedHints((prev) => ({
-                                          ...prev,
-                                          [i]: !prev[i],
-                                        }))
-                                      }
-                                      className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-2 py-1 rounded-md text-[10px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
-                                    >
-                                      <svg
-                                        className={`${isFullBleed ? 'w-3.5 h-3.5' : 'w-3 h-3'} transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={3}
-                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                      </svg>
-                                      <span>Hint</span>
-                                    </button>
-                                    {revealedHints[i] && (
+                                    <div className="flex items-center justify-between gap-3 w-full">
+                                      {resolvedHint ? (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setRevealedHints((prev) => ({
+                                              ...prev,
+                                              [i]: !prev[i],
+                                            }))
+                                          }
+                                          className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-2 py-1 rounded-md text-[10px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                        >
+                                          <svg
+                                            className={`${isFullBleed ? 'w-3.5 h-3.5' : 'w-3 h-3'} transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={3}
+                                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                          </svg>
+                                          <span>Hint</span>
+                                        </button>
+                                      ) : (
+                                        <div />
+                                      )}
+
+                                      {/* Ask AI Text Button - Only if coach configured Ask AI for this step */}
+                                      {isAskAiEnabled && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenAiResearch(i)}
+                                          className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-all cursor-pointer active:scale-95 ml-auto px-2.5 py-1 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/50 bg-white/80 dark:bg-zinc-900/80 shadow-xs"
+                                          title="Ask AI"
+                                        >
+                                          <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                                          <span>Ask AI</span>
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {resolvedHint && revealedHints[i] && (
                                       <div className={`mt-3 ${isFullBleed ? 'p-4 rounded-xl text-xs font-medium' : 'p-3 rounded-lg text-xs font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                         <FormattedText
                                           className="text-xs font-medium italic text-amber-900/90"
@@ -5652,45 +5677,27 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         const isValid =
                                           !!dayProgress?.completed || stepCompleted;
                                         return (
-                                          <div className="flex items-center gap-2">
-                                            <button
-
-                                              type="button"
-
-                                              onClick={() => handleOpenExpressNote(i)}
-
-                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-
-                                              title="Note"
-
-                                              aria-label="Note"
-
-                                            >
-
-                                              <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-
-                                            </button>
-
-                                            <button
-                                              type="button"
-                                              onClick={() => handleOpenAiResearch(i)}
-                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                              title="Ai/ research icon"
-                                              aria-label="Ai/ research icon"
-                                            >
-                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(getNextVisibleStepIndex(i)); }
-                                              }
-                                              disabled={!isValid}
-                                              className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
-                                            >
-                                              Next
-                                            </button>
-                                          </div>
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenExpressNote(i)}
+                                                className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
+                                                title="Note"
+                                                aria-label="Note"
+                                              >
+                                                <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  { saveParticipantInputImmediately(taskInputs); setActiveTaskIndex(getNextVisibleStepIndex(i)); }
+                                                }
+                                                disabled={!isValid}
+                                                className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-black' : 'px-6 py-2.5 rounded-xl text-xs font-bold'} transition-all ${isValid ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                              >
+                                                Next
+                                              </button>
+                                            </div>
                                         );
                                       })()
                                     ) : (
@@ -5717,15 +5724,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                                                 </button>
 
-                                                <button
-                                              type="button"
-                                              onClick={() => handleOpenAiResearch(i)}
-                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                              title="Ai/ research icon"
-                                              aria-label="Ai/ research icon"
-                                            >
-                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
-                                            </button>
                                                 <button
                                                   type="button"
                                                   onClick={() => {
@@ -5758,18 +5756,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 >
 
                                                   <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-
                                                 </button>
-
-                                                <button
-                                              type="button"
-                                              onClick={() => handleOpenAiResearch(i)}
-                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                              title="Ai/ research icon"
-                                              aria-label="Ai/ research icon"
-                                            >
-                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
-                                            </button>
                                                 <div className={`${activeFullBleed ? 'px-8 sm:px-10 py-3.5 sm:py-4 text-sm sm:text-base font-black' : 'px-6 py-2.5 text-xs font-bold'} text-emerald-600 dark:text-emerald-400 font-bold`}>
                                                   Move Complete
                                                 </div>
@@ -5780,32 +5767,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           return (
                                             <div className="flex items-center gap-2">
                                               <button
-
                                                 type="button"
-
                                                 onClick={() => handleOpenExpressNote(i)}
-
                                                 className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-
                                                 title="Note"
-
                                                 aria-label="Note"
-
                                               >
-
                                                 <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-
                                               </button>
-
-                                              <button
-                                              type="button"
-                                              onClick={() => handleOpenAiResearch(i)}
-                                              className={`${activeFullBleed ? "p-3.5 sm:p-4 rounded-2xl" : "p-2.5 rounded-xl"} transition-all ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                              title="Ai/ research icon"
-                                              aria-label="Ai/ research icon"
-                                            >
-                                              <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === i ? "animate-spin" : ""}`} />
-                                            </button>
                                               <button
                                                 type="button"
                                                 onClick={handleFinishDay}
@@ -5933,35 +5902,60 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         })()}
                         {(() => {
                           const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[0], 0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
-                          if (!resolvedHint) return null;
+                          const isAskAiEnabled = Boolean(
+                            (dayContent?.taskAskAis?.[0] !== undefined && dayContent?.taskAskAis?.[0] !== null) ||
+                            (dayContent?.taskAskAi?.[0] !== undefined && dayContent?.taskAskAi?.[0] !== null)
+                          );
+                          if (!resolvedHint && !isAskAiEnabled) return null;
+
                           return (
                             <div className="mb-4">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setRevealedHints((prev) => ({
-                                    ...prev,
-                                    0: !prev[0],
-                                  }))
-                                }
-                                className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-1.5 py-0.5 rounded text-[8px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
-                              >
-                                <svg
-                                  className={`${isFullBleed ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'} transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={3}
-                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                  />
-                                </svg>
-                                <span>Hint</span>
-                              </button>
-                              {revealedHints[0] && (
+                              <div className="flex items-center justify-between gap-3 w-full">
+                                {resolvedHint ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRevealedHints((prev) => ({
+                                        ...prev,
+                                        0: !prev[0],
+                                      }))
+                                    }
+                                    className={`flex items-center gap-1.5 ${isFullBleed ? 'px-3 py-1.5 rounded-lg text-xs font-black' : 'px-1.5 py-0.5 rounded text-[8px] font-extrabold'} uppercase tracking-widest transition-all ${revealedHints[0] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                  >
+                                    <svg
+                                      className={`${isFullBleed ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'} transition-transform duration-300 ${revealedHints[0] ? "rotate-180" : ""}`}
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={3}
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                    <span>Hint</span>
+                                  </button>
+                                ) : (
+                                  <div />
+                                )}
+
+                                {/* Ask AI Text Button - Only if coach configured Ask AI for this step */}
+                                {isAskAiEnabled && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenAiResearch(0)}
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-all cursor-pointer active:scale-95 ml-auto px-2.5 py-1 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/50 bg-white/80 dark:bg-zinc-900/80 shadow-xs"
+                                    title="Ask AI"
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                                    <span>Ask AI</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {resolvedHint && revealedHints[0] && (
                                 <div className={`mt-3 ${isFullBleed ? 'p-4 rounded-xl text-xs font-medium' : 'p-2.5 rounded-lg text-xs font-medium'} bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}>
                                   <FormattedText className="text-xs font-medium italic text-amber-900/90" text={resolvedHint} />
                                 </div>
@@ -6457,15 +6451,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 aria-label="Note"
                               >
                                 <StickyNote className={activeFullBleed ? "w-5 h-5" : "w-4 h-4"} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAiResearch(0)}
-                                className={`${activeFullBleed ? 'p-3.5 sm:p-4 rounded-2xl' : 'p-2.5 rounded-xl'} transition-all ${isAiResearchLoading && aiResearchStepIndex === 0 ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0`}
-                                title="Ai/ research icon"
-                                aria-label="Ai/ research icon"
-                              >
-                                <Sparkles className={`${activeFullBleed ? "w-5 h-5" : "w-4 h-4"} ${isAiResearchLoading && aiResearchStepIndex === 0 ? "animate-spin" : ""}`} />
                               </button>
                               {!dayProgress?.completed ? (
                                 <button

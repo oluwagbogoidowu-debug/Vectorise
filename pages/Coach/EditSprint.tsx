@@ -928,6 +928,12 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskFootnotes
       : [];
 
+    const safeAskAis = Array.isArray((content as any).taskAskAis)
+      ? (content as any).taskAskAis
+      : Array.isArray((content as any).taskAskAi)
+      ? (content as any).taskAskAi
+      : [];
+
     const safeFills = Array.isArray((content as any).taskFills)
       ? (content as any).taskFills
       : [];
@@ -1001,6 +1007,7 @@ const EditSprint: React.FC = () => {
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
+        taskAskAis: safeAskAis,
         taskFills: safeFills,
         taskVideos: safeVideos,
         taskPollMultiSelect: safePollMultiSelect,
@@ -1166,6 +1173,40 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskFootnotes: currentFootnotes,
+          });
+        }
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTaskAskAiChange = (index: number, value: string) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+        
+        const currentAskAis = existingContentIndex >= 0 
+            ? [...(updatedDailyContent[existingContentIndex].taskAskAis || [])]
+            : [];
+        
+        while (currentAskAis.length <= index) {
+            currentAskAis.push(null as any);
+        }
+        currentAskAis[index] = value;
+        
+        if (existingContentIndex >= 0) {
+          updatedDailyContent[existingContentIndex] = { 
+              ...updatedDailyContent[existingContentIndex], 
+              taskAskAis: currentAskAis,
+          };
+        } else {
+          updatedDailyContent.push({
+            day: selectedDay,
+            lessonText: '',
+            taskPrompt: '',
+            taskPrompts: ['', '', ''],
+            taskAskAis: currentAskAis,
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -4416,6 +4457,31 @@ const EditSprint: React.FC = () => {
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
+                                                                const currentAskAi = currentContent.taskAskAis?.[index];
+                                                                if (currentAskAi === undefined || currentAskAi === null) {
+                                                                    handleTaskAskAiChange(index, '');
+                                                                }
+                                                            }}
+                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskAskAis?.[index] !== undefined && currentContent.taskAskAis?.[index] !== null) ? 'bg-purple-50 text-purple-600 border border-purple-200' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50/50'}`}
+                                                            title="Ask AI Option: Enable Ask AI assistance for participants on this action step with optional custom context."
+                                                        >
+                                                            {(currentContent.taskAskAis?.[index] !== undefined && currentContent.taskAskAis?.[index] !== null) ? (
+                                                                <>
+                                                                    <span className="text-[10px] text-purple-500 mr-0.5">●</span>
+                                                                    <Sparkles size={12} className="text-purple-600" />
+                                                                    <span>Ask AI</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus size={14} />
+                                                                    <span>Ask AI</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
                                                                 const currentVideo = currentContent.taskVideos?.[index];
                                                                 if (currentVideo === undefined || currentVideo === null) {
                                                                     handleTaskVideoChange(index, { url: '', start: '', end: '' });
@@ -4721,6 +4787,34 @@ const EditSprint: React.FC = () => {
                                                         rows={2} 
                                                         className={footnoteInputClasses} 
                                                         placeholder="Add a footnote to show just below the question..." 
+                                                    />
+                                                </div>
+                                            )}
+                                            {(currentContent.taskAskAis?.[index] !== undefined && currentContent.taskAskAis?.[index] !== null) && (
+                                                <div className="mt-2 animate-fade-in">
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <label className="text-[9px] font-black text-purple-600 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                                                            <Sparkles size={12} className="text-purple-600" /> Ask AI (Optional Context / Guidance)
+                                                        </label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const newAskAis = [...(currentContent.taskAskAis || [])];
+                                                                newAskAis[index] = null as any;
+                                                                handleContentChange('taskAskAis', newAskAis);
+                                                            }}
+                                                            className="text-gray-300 hover:text-red-500 transition-colors"
+                                                            title="Remove Ask AI from this step"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                    <textarea 
+                                                        value={typeof currentContent.taskAskAis[index] === 'string' ? currentContent.taskAskAis[index] : ''} 
+                                                        onChange={e => handleTaskAskAiChange(index, e.target.value)} 
+                                                        rows={2} 
+                                                        className={`${baseInputClasses} p-4 py-3 border border-purple-200/80 bg-purple-50/20 text-black`} 
+                                                        placeholder="Add custom context/instructions for Ask AI on this step, or leave blank for default guidance..." 
                                                     />
                                                 </div>
                                             )}

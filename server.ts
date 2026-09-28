@@ -19,7 +19,6 @@ import subscribeHandler from './api/subscribe';
 import sendHandler from './api/send';
 import ogHandler from './api/og';
 import geminiResearchHandler from './api/gemini/research';
-import geminiFeedbackHandler from './api/gemini/feedback';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,7 +43,6 @@ async function startServer() {
   app.post('/api/send', sendHandler);
   app.get('/api/og', ogHandler);
   app.post('/api/gemini/research', geminiResearchHandler);
-  app.post('/api/gemini/feedback', geminiFeedbackHandler);
 
   // Dynamic Sitemap XML handler
   app.get('/sitemap.xml', async (req: any, res: any) => {
