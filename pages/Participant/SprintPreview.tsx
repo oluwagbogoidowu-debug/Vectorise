@@ -21,7 +21,7 @@ import { userService, safeJSONStringify } from '../../services/userService';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { X, Eye, EyeOff, Mail } from 'lucide-react';
 
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
@@ -2439,40 +2439,75 @@ const SprintPreview: React.FC = () => {
 
                         {bottomModalStep === 1 && (
                             <div className="text-center animate-fade-in">
-                                <div className="w-16 h-16 bg-[#0E7850]/10 rounded-full flex items-center justify-center mx-auto mb-6 text-[#0E7850]">
-                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#0E7850] border border-emerald-100/80 shadow-xs">
+                                    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
-                                <h3 className="text-lg md:text-xl font-black text-gray-900 tracking-tight mb-3">
-                                    You’ve completed Move {previewDay} of your sprint.
+                                <h3 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight mb-2 leading-tight">
+                                    You’ve completed this Move.
                                 </h3>
-                                <p className="text-gray-500 font-semibold text-sm leading-relaxed mb-8">
-                                    Create an account to save your progress.
+                                <p className="text-gray-500 font-semibold text-sm leading-relaxed mb-6">
+                                    Create an account to continue to the next.
                                 </p>
                                 
-                                <div className="space-y-4">
+                                <div className="space-y-3.5">
+                                    {/* Sign up with Google */}
                                     <button 
+                                        type="button"
+                                        onClick={handleGoogleSignIn}
+                                        disabled={isSubmittingAuth}
+                                        className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white hover:bg-gray-50 text-gray-800 rounded-2xl font-bold text-sm border border-gray-200 shadow-xs hover:shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                                    >
+                                        <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
+                                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                            <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.08H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.92l2.85-2.22.81-.6z"/>
+                                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 6.16l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                        </svg>
+                                        <span>Sign up with Google</span>
+                                    </button>
+
+                                    {/* or --- divider */}
+                                    <div className="relative flex py-1 items-center">
+                                        <div className="flex-grow border-t border-gray-200"></div>
+                                        <span className="flex-shrink mx-3 text-xs font-semibold text-gray-400 lowercase">or</span>
+                                        <div className="flex-grow border-t border-gray-200"></div>
+                                    </div>
+
+                                    {/* Sign up with email */}
+                                    <button 
+                                        type="button"
                                         onClick={() => {
                                             setBottomModalStep(2);
                                             setAuthMode('signup');
+                                            setAuthError('');
                                         }}
-                                        className="w-full py-4 bg-[#0E7850] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-[#0b5d3e] transition-colors shadow-lg active:scale-95 cursor-pointer"
+                                        className="w-full py-3.5 px-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl font-bold text-sm shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                                     >
-                                        Sign up to continue
+                                        <Mail className="w-4 h-4" />
+                                        <span>Sign up with email</span>
                                     </button>
+
+                                    {/* Already have an account? Log in */}
+                                    <div className="pt-2">
+                                        <button 
+                                            type="button"
+                                            onClick={() => {
+                                                setBottomModalStep(2);
+                                                setAuthMode('login');
+                                                setAuthError('');
+                                            }}
+                                            className="text-xs font-semibold text-gray-600 hover:text-[#0E7850] transition-colors py-1 cursor-pointer"
+                                        >
+                                            Already have an account? <span className="text-[#0E7850] font-extrabold hover:underline">Log in</span>
+                                        </button>
+                                    </div>
+
                                     <button 
-                                        onClick={() => {
-                                            setBottomModalStep(2);
-                                            setAuthMode('login');
-                                        }}
-                                        className="text-[11px] font-extrabold text-[#0E7850] hover:text-[#0b5d3e] hover:underline transition-colors block mx-auto py-1 cursor-pointer"
-                                    >
-                                        Already have an account Login to proceed
-                                    </button>
-                                    <button 
+                                        type="button"
                                         onClick={() => setShowLockModal(false)}
-                                        className="w-full py-2 text-gray-400 rounded-2xl font-bold uppercase tracking-widest text-[9px] hover:text-gray-500 transition-colors cursor-pointer"
+                                        className="w-full py-2 text-gray-400 rounded-xl font-semibold text-xs hover:text-gray-600 transition-colors cursor-pointer"
                                     >
                                         Cancel
                                     </button>
@@ -2482,7 +2517,16 @@ const SprintPreview: React.FC = () => {
 
                         {bottomModalStep === 2 && (
                             <div className="animate-fade-in text-center">
-                                <form onSubmit={authMode === 'signup' ? handleSignUpSubmit : handleLoginSubmit} className="space-y-4 text-left">
+                                <div className="mb-4 text-left">
+                                    <h4 className="text-lg font-black text-gray-900 tracking-tight">
+                                        {authMode === 'signup' ? 'Sign up with email' : 'Log in to your account'}
+                                    </h4>
+                                    <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                        {authMode === 'signup' ? 'Enter your details to save your progress and continue.' : 'Welcome back! Enter your credentials to proceed.'}
+                                    </p>
+                                </div>
+
+                                <form onSubmit={authMode === 'signup' ? handleSignUpSubmit : handleLoginSubmit} className="space-y-3.5 text-left">
                                     {authMode === 'signup' && (
                                         <>
                                             <div className="grid grid-cols-2 gap-3">
@@ -2604,19 +2648,19 @@ const SprintPreview: React.FC = () => {
                                     Google
                                 </button>
 
-                                <div className="mt-6 flex flex-col items-center gap-3">
+                                <div className="mt-5 flex flex-col items-center gap-2.5">
                                     {authMode === 'signup' ? (
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                        <p className="text-[10px] font-bold text-gray-500">
                                             Already have an account?{" "}
                                             <button 
                                                 onClick={() => { setAuthMode('login'); setAuthError(''); }} 
                                                 className="text-primary hover:underline font-extrabold cursor-pointer"
                                             >
-                                                Log in
+                                                Login instead.
                                             </button>
                                         </p>
                                     ) : (
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                                        <p className="text-[10px] font-bold text-gray-500">
                                             Don't have an account?{" "}
                                             <button 
                                                 onClick={() => { setAuthMode('signup'); setAuthError(''); }} 
@@ -2633,9 +2677,9 @@ const SprintPreview: React.FC = () => {
                                             setBottomModalStep(1);
                                             setAuthError('');
                                         }}
-                                        className="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors cursor-pointer"
+                                        className="text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors cursor-pointer py-1"
                                     >
-                                        Back
+                                        &larr; Back
                                     </button>
                                 </div>
                             </div>
