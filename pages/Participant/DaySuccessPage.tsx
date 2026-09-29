@@ -44,37 +44,21 @@ const DaySuccessPage: React.FC = () => {
     }
   }, [resolvedEnrollmentId, user, location.state]);
 
+  const isCoachPreview = ((user as any)?.role === 'coach' || (user as any)?.role === 'admin' || user?.role === UserRole.COACH || user?.role === UserRole.ADMIN) && Boolean(location.state?.isPreview || location.state?.returnToPreviewUrl);
+
   const handleExit = () => {
-    const isPreview = Boolean(location.state?.isPreview || location.state?.returnToPreviewUrl);
     const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
     const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
     const nextDay = completedDay + 1;
 
-    if (isPreview) {
+    if (isCoachPreview) {
       if (sprintId) {
         try {
           sessionStorage.removeItem(`vectorise_preview_enrollment_${sprintId}`);
         } catch (e) {}
       }
-      const isCoachOrAdmin = (user as any)?.role === 'coach' || (user as any)?.role === 'admin' || user?.role === UserRole.COACH || user?.role === UserRole.ADMIN;
-      if (isCoachOrAdmin) {
-        navigate(returnToPreviewUrl ? returnToPreviewUrl : '/coach-dashboard', { replace: true, state: { resetPreview: true } });
-      } else if (returnToPreviewUrl) {
-        navigate(returnToPreviewUrl, { replace: true, state: { resetPreview: true } });
-      } else if (sprintId) {
-        navigate(`/coach/sprint/preview/${sprintId}`, { replace: true, state: { resetPreview: true } });
-      } else {
-        navigate(-1);
-      }
-      return;
-    }
-
-    if (user && enrollmentId) {
-      navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
-        replace: true,
-        state: { targetDay: nextDay }
-      });
+      navigate(returnToPreviewUrl ? returnToPreviewUrl : '/coach-dashboard', { replace: true, state: { resetPreview: true } });
       return;
     }
 
@@ -83,7 +67,10 @@ const DaySuccessPage: React.FC = () => {
         replace: true,
         state: { targetDay: nextDay }
       });
-    } else if (user) {
+      return;
+    }
+
+    if (user) {
       navigate('/participant-dashboard', { replace: true });
     } else {
       navigate('/');
@@ -189,13 +176,12 @@ const DaySuccessPage: React.FC = () => {
 
   const handleStepUp = () => {
     triggerHaptic(hapticPatterns.light);
-    const isPreview = Boolean(location.state?.isPreview || location.state?.returnToPreviewUrl);
     const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
     const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
     const nextDay = completedDay + 1;
 
-    if (isPreview) {
+    if (isCoachPreview) {
       const sprintDuration = location.state?.sprint?.duration || location.state?.enrollment?.progress?.length || 7;
       if (completedDay >= sprintDuration) {
         if (sprintId) {
@@ -204,12 +190,7 @@ const DaySuccessPage: React.FC = () => {
           } catch (e) {}
         }
         toast.success("Sprint Preview Completed!");
-        const isCoachOrAdmin = (user as any)?.role === 'coach' || (user as any)?.role === 'admin' || (user as any)?.role === UserRole.COACH || (user as any)?.role === UserRole.ADMIN;
-        if (isCoachOrAdmin) {
-          navigate(returnToPreviewUrl ? returnToPreviewUrl : '/coach-dashboard', { replace: true, state: { resetPreview: true } });
-        } else {
-          navigate('/explore', { replace: true });
-        }
+        navigate(returnToPreviewUrl ? returnToPreviewUrl : '/coach-dashboard', { replace: true, state: { resetPreview: true } });
         return;
       }
 
@@ -227,8 +208,8 @@ const DaySuccessPage: React.FC = () => {
       return;
     }
 
-    // For authenticated users: ALWAYS route to the real SprintView!
-    if (user && enrollmentId) {
+    // For authenticated users: ALWAYS route to the real normal SprintView!
+    if (enrollmentId) {
       navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
         replace: true,
         state: {
@@ -239,7 +220,7 @@ const DaySuccessPage: React.FC = () => {
     }
 
     if (user) {
-      sprintService.getUserEnrollments(user.id).then(enrollments => {
+      sprintService.getUserEnrollments(user.id).then(async (enrollments) => {
         const found = sprintId ? enrollments.find(e => e.sprint_id === sprintId) : enrollments[0];
         if (found) {
           navigate(`/participant/sprint/${found.id}?day=${nextDay}`, { 
@@ -248,6 +229,16 @@ const DaySuccessPage: React.FC = () => {
               targetDay: nextDay 
             }
           });
+        } else if (sprintId) {
+          try {
+            const newEnr = await sprintService.enrollUser(user.id, sprintId, 7);
+            navigate(`/participant/sprint/${newEnr.id}?day=${nextDay}`, { 
+              replace: true,
+              state: { targetDay: nextDay }
+            });
+          } catch (e) {
+            navigate('/participant-dashboard', { replace: true });
+          }
         } else {
           navigate('/participant-dashboard', { replace: true });
         }
@@ -257,16 +248,7 @@ const DaySuccessPage: React.FC = () => {
       return;
     }
 
-    if (enrollmentId) {
-      navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
-        replace: true,
-        state: {
-          targetDay: nextDay
-        }
-      });
-    } else {
-      handleExit();
-    }
+    handleExit();
   };
 
   const handleRemindMeTomorrow = async () => {
@@ -474,7 +456,7 @@ const DaySuccessPage: React.FC = () => {
             Move {completedDay} is complete!
           </span>
         </div>
-        {Boolean(location.state?.isPreview || location.state?.returnToPreviewUrl) && (
+        {isCoachPreview && (
           <button
             type="button"
             onClick={handleExit}

@@ -421,11 +421,10 @@ const SprintPreview: React.FC = () => {
     const previewStepsContainerRef = useRef<HTMLDivElement>(null);
     const isScrollingInternal = useRef(false);
 
-    // Auto-redirect already logged-in users so they never see the preview again (unless in preview routes)
+    // Auto-redirect already logged-in users so they get the normal sprint view
     useEffect(() => {
-        const isCoachPreview = location.pathname.startsWith('/coach/sprint/preview');
-        const isPublicPreview = location.pathname.startsWith('/sprint/preview');
-        if (isCoachPreview || isPublicPreview || sprint?.previewMode === 'flow') return;
+        const isCoachPreview = location.pathname.startsWith('/coach') || (user as any)?.role === 'coach' || user?.role === UserRole.COACH;
+        if (isCoachPreview || sprint?.previewMode === 'flow') return;
         if (isNavigatingToSuccessRef.current || isSubmittingAuth) return;
         
         if (!loading && user) {
@@ -501,6 +500,8 @@ const SprintPreview: React.FC = () => {
                                 sprint: targetSprint,
                                 enrollmentId: enrollment?.id,
                                 taskInputs: effectiveInputs,
+                                isPreview: false,
+                                returnToPreviewUrl: undefined,
                                 redirectToDaySuccess: true
                             }, 
                             replace: true 
@@ -518,6 +519,8 @@ const SprintPreview: React.FC = () => {
                                 sprintId: targetSprintId,
                                 sprint: targetSprint,
                                 taskInputs: effectiveInputs,
+                                isPreview: false,
+                                returnToPreviewUrl: undefined,
                                 redirectToDaySuccess: true
                             }, 
                             replace: true 
@@ -527,13 +530,21 @@ const SprintPreview: React.FC = () => {
                 }
             }
 
-            // User is logged in with no pending inputs: check their enrollments
+            // User is signed in: route to normal sprint view
+            const targetSprintId = sprint?.id || sprintId;
             sprintService.getUserEnrollments(user.id)
-                .then(enrollments => {
+                .then(async (enrollments) => {
                     if (isNavigatingToSuccessRef.current) return;
-                    const enrolled = enrollments.find(e => e.sprint_id === sprintId);
+                    const enrolled = enrollments.find(e => e.sprint_id === targetSprintId);
                     if (enrolled) {
                         navigate(`/participant/sprint/${enrolled.id}`, { replace: true });
+                    } else if (targetSprintId) {
+                        try {
+                            const newEnrollment = await sprintService.enrollUser(user.id, targetSprintId, sprint?.duration || 7);
+                            navigate(`/participant/sprint/${newEnrollment.id}`, { replace: true });
+                        } catch (e) {
+                            navigate('/explore', { replace: true });
+                        }
                     } else {
                         navigate('/explore', { replace: true });
                     }
@@ -813,6 +824,8 @@ const SprintPreview: React.FC = () => {
                         sprint: targetSprint,
                         enrollmentId: enrollment?.id,
                         taskInputs: effectiveInputs,
+                        isPreview: false,
+                        returnToPreviewUrl: undefined,
                         redirectToDaySuccess: true
                     },
                     replace: true
@@ -935,7 +948,9 @@ const SprintPreview: React.FC = () => {
                 enrollmentId,
                 sprintId: targetSprint?.id || targetSprintId,
                 sprint: targetSprint,
-                taskInputs: effectiveInputs
+                taskInputs: effectiveInputs,
+                isPreview: false,
+                returnToPreviewUrl: undefined
             };
 
             toast.success("Account created successfully!");
@@ -1017,6 +1032,8 @@ const SprintPreview: React.FC = () => {
                     sprintId: targetSprint.id,
                     sprint: targetSprint,
                     taskInputs: effectiveInputs,
+                    isPreview: false,
+                    returnToPreviewUrl: undefined,
                     redirectToDaySuccess: true
                 };
 
