@@ -1057,112 +1057,47 @@ export const CoachParticipants: React.FC = () => {
                                     return { idx, order: visibleStepCounter };
                                 }).filter((item): item is { idx: number; order: number } => item !== null);
 
-                                return (
+                                 return (
                                     <div className="space-y-4">
-                                        {/* Action Steps Header & Sideways Controls */}
-                                        <div className="flex items-center justify-between gap-4 px-1">
+                                        {/* Action Steps Header with Smart Setup-style 1 2 3 4 5 Step Selector */}
+                                        <div className="flex items-center justify-between gap-3 px-1 pb-2 border-b border-gray-100">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-[#0E7850]"></div>
-                                                <h3 className="text-xs font-black uppercase tracking-[0.25em] text-gray-500">
+                                                <div className="w-2.5 h-2.5 rounded-full bg-[#0E7850]"></div>
+                                                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-600">
                                                     Action Steps
                                                 </h3>
-                                                {renderedSteps.length > 0 && (
-                                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-[#0E7850] border border-emerald-100">
-                                                        {renderedSteps.length} {renderedSteps.length === 1 ? 'Step' : 'Steps'}
-                                                    </span>
-                                                )}
                                             </div>
 
+                                            {/* 1 2 3 4 5 Step Selector Buttons */}
                                             {renderedSteps.length > 1 && (
-                                                <div className="flex items-center gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const nextIdx = Math.max(0, activeStepIndex - 1);
-                                                            setActiveStepIndex(nextIdx);
-                                                            if (actionStepsScrollRef.current) {
-                                                                const child = actionStepsScrollRef.current.children[nextIdx] as HTMLElement;
-                                                                if (child) {
-                                                                    child.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                                                                }
-                                                            }
-                                                        }}
-                                                        disabled={activeStepIndex === 0}
-                                                        className="p-1.5 rounded-xl bg-white border border-gray-100 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer active:scale-95 transition-all"
-                                                        title="Previous step"
-                                                    >
-                                                        <ChevronLeft className="w-4 h-4" />
-                                                    </button>
-                                                    <span className="text-xs font-black text-gray-500 min-w-[3.5rem] text-center">
-                                                        {activeStepIndex + 1} / {renderedSteps.length}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const nextIdx = Math.min(renderedSteps.length - 1, activeStepIndex + 1);
-                                                            setActiveStepIndex(nextIdx);
-                                                            if (actionStepsScrollRef.current) {
-                                                                const child = actionStepsScrollRef.current.children[nextIdx] as HTMLElement;
-                                                                if (child) {
-                                                                    child.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                                                                }
-                                                            }
-                                                        }}
-                                                        disabled={activeStepIndex >= renderedSteps.length - 1}
-                                                        className="p-1.5 rounded-xl bg-white border border-gray-100 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer active:scale-95 transition-all"
-                                                        title="Next step"
-                                                    >
-                                                        <ChevronRight className="w-4 h-4" />
-                                                    </button>
+                                                <div className="flex items-center gap-1.5 bg-gray-50 p-1 border border-gray-150 rounded-xl">
+                                                    {renderedSteps.map((step, sIdx) => {
+                                                        const isCurrentActiveStep = activeStepIndex === sIdx;
+                                                        return (
+                                                            <button
+                                                                key={step.idx}
+                                                                type="button"
+                                                                onClick={() => setActiveStepIndex(sIdx)}
+                                                                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-black transition-all select-none cursor-pointer ${
+                                                                    isCurrentActiveStep
+                                                                        ? 'bg-[#0E7850] text-white shadow-xs scale-105'
+                                                                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200/60'
+                                                                }`}
+                                                                title={`Action Step ${step.order}`}
+                                                            >
+                                                                {step.order}
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
 
-                                        {/* Step Navigation Quick-jump Pills */}
-                                        {renderedSteps.length > 1 && (
-                                            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar px-1">
-                                                {renderedSteps.map((step, sIdx) => (
-                                                    <button
-                                                        key={step.idx}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setActiveStepIndex(sIdx);
-                                                            if (actionStepsScrollRef.current) {
-                                                                const child = actionStepsScrollRef.current.children[sIdx] as HTMLElement;
-                                                                if (child) {
-                                                                    child.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                                                                }
-                                                            }
-                                                        }}
-                                                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
-                                                            activeStepIndex === sIdx
-                                                                ? 'bg-[#0E7850] text-white shadow-sm shadow-[#0E7850]/20 scale-[1.02]'
-                                                                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-100'
-                                                        }`}
-                                                    >
-                                                        Step {step.order}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Horizontal Swipeable / Sideways Cards Track */}
-                                        <div 
-                                            ref={actionStepsScrollRef}
-                                            onScroll={(e) => {
-                                                const el = e.currentTarget;
-                                                const scrollLeft = el.scrollLeft;
-                                                const firstChild = el.firstElementChild as HTMLElement | null;
-                                                const cardWidth = firstChild ? firstChild.offsetWidth + 16 : 340;
-                                                const newIdx = Math.round(scrollLeft / cardWidth);
-                                                if (newIdx >= 0 && newIdx < renderedSteps.length && newIdx !== activeStepIndex) {
-                                                    setActiveStepIndex(newIdx);
-                                                }
-                                            }}
-                                            className="flex gap-4 sm:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 pt-1 px-1 -mx-1 no-scrollbar"
-                                            style={{ WebkitOverflowScrolling: 'touch' }}
-                                        >
-                                            {renderedSteps.map(({ idx, order }) => {
+                                        {/* Active Step Card Display */}
+                                        {(() => {
+                                            const activeStep = renderedSteps[activeStepIndex] || renderedSteps[0];
+                                            if (!activeStep) return null;
+                                            const { idx, order } = activeStep;
                                             const stepVerIdx = resolveStepVersionIndex(idx, contentData, answers, sprintDailyContent, progressList);
                                             const rawPrompt = candidatePrompts[idx] || (idx === 0 && contentData?.taskPrompt ? contentData.taskPrompt : `Move ${viewingSubmission.day} Question ${idx + 1}`);
                                             const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
@@ -1525,7 +1460,7 @@ export const CoachParticipants: React.FC = () => {
                                             return (
                                                 <div 
                                                     key={idx} 
-                                                    className="snap-center shrink-0 w-full sm:w-[580px] md:w-[640px] max-w-[92vw] p-6 sm:p-7 bg-white rounded-3xl border border-gray-100 shadow-sm relative group text-left space-y-5 flex flex-col justify-between"
+                                                    className="w-full p-6 sm:p-7 bg-white rounded-3xl border border-gray-100 shadow-sm relative group text-left space-y-5 flex flex-col justify-between animate-fade-in"
                                                 >
                                                     {/* Step Header */}
                                                     <div className="flex items-center justify-between gap-3">
@@ -1896,15 +1831,7 @@ export const CoachParticipants: React.FC = () => {
                                                     </div>
                                                 </div>
                                             );
-                                        })}
-                                        </div>
-
-                                        {renderedSteps.length > 1 && (
-                                            <div className="flex items-center justify-between text-[11px] text-gray-400 font-semibold px-2">
-                                                <span>👈 Swipe sideways to view all action steps 👉</span>
-                                                <span>Step {activeStepIndex + 1} of {renderedSteps.length}</span>
-                                            </div>
-                                        )}
+                                        })()}
 
                                         {/* Move Completion Summary and Bridge Note (Matching SprintView) */}
                                         {progressObj?.completed && (
