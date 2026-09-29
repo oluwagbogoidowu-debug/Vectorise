@@ -1460,45 +1460,8 @@ export const CoachParticipants: React.FC = () => {
                                             return (
                                                 <div 
                                                     key={idx} 
-                                                    className="w-full p-6 sm:p-7 bg-white rounded-3xl border border-gray-100 shadow-sm relative group text-left space-y-5 flex flex-col justify-between animate-fade-in"
+                                                    className="w-full text-left space-y-4 animate-fade-in pt-1"
                                                 >
-                                                    {/* Step Header */}
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-2.5 h-2.5 rounded-full bg-[#0E7850]"></div>
-                                                            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gray-500">
-                                                                Action Step {order}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {/* Note Icon */}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleOpenExpressNote(idx)}
-                                                                className="p-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center transition-all"
-                                                                title="Note"
-                                                                aria-label="Note"
-                                                            >
-                                                                <StickyNote className="w-3.5 h-3.5" />
-                                                            </button>
-
-                                                            {/* AI / Research Icon */}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleOpenAiResearch(idx)}
-                                                                className={`p-1.5 rounded-xl ${isAiResearchLoading && aiResearchStepIndex === idx ? "animate-pulse bg-purple-200 ring-2 ring-purple-400 text-purple-900" : "bg-purple-50 hover:bg-purple-100 text-purple-700"} border border-purple-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center transition-all`}
-                                                                title="Ai/ research icon"
-                                                                aria-label="Ai/ research icon"
-                                                            >
-                                                                <Sparkles className={`w-3.5 h-3.5 ${isAiResearchLoading && aiResearchStepIndex === idx ? "animate-spin" : ""}`} />
-                                                            </button>
-
-                                                            <span className="px-3 py-1 bg-white text-[#0E7850] text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 shadow-sm">
-                                                                {(isPollStep && effectiveInputType !== 'tags' && effectiveInputType !== 'mark' && effectiveInputType !== 'note' ? 'POLL' : effectiveInputType).toUpperCase()}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
                                                     {/* Prompt with High-Contrast Typography */}
                                                     <div className="text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed">
                                                         <FormattedText text={formattedPrompt} />
