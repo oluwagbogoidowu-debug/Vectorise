@@ -133,8 +133,6 @@ export const RiseBlog: React.FC = () => {
 
   const [dbSprints, setDbSprints] = useState<Sprint[]>([]);
   const [coaches, setCoaches] = useState<Coach[]>([]);
-  const [sprintBlogLinks, setSprintBlogLinks] = useState<any[]>([]);
-  const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Big Card Slider State (3 posts)
@@ -177,31 +175,12 @@ export const RiseBlog: React.FC = () => {
     });
   }, []);
 
-  // Subscribe to sprint blog links and user enrollments
-  useEffect(() => {
-    const unsubscribeLinks = sprintService.subscribeToSprintBlogLinks((links) => {
-      setSprintBlogLinks(links);
-    });
-
-    let unsubscribeEnrollments = () => {};
-    if (user?.id) {
-      unsubscribeEnrollments = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
-        setUserEnrollments(enrollments);
-      });
-    }
-
-    return () => {
-      unsubscribeLinks();
-      unsubscribeEnrollments();
-    };
-  }, [user?.id]);
-
   // Subscribe to published sprints (blogs)
   useEffect(() => {
     blogService.ensureSeedBlogsInFirestore().catch(() => {});
     const unsubscribe = sprintService.subscribeToPublishedSprints((sprints) => {
       const approvedBlogs = sprints.filter(
-        s => s.contentType === 'blog' && s.approvalStatus === 'approved'
+        s => (s.contentType === 'blog' || s.subcategory === 'riseblog') && (s.approvalStatus === 'approved' || s.published === true)
       );
       setDbSprints(approvedBlogs);
       setIsLoading(false);
@@ -288,25 +267,10 @@ export const RiseBlog: React.FC = () => {
     });
   }, [dbSprints, coaches]);
 
-  // Derive visible blog posts based on participant enrolled links
+  // All approved RiseBlog posts appear for everyone without restriction
   const visiblePosts = useMemo(() => {
-    const isStaff = user?.role === UserRole.ADMIN || user?.role === UserRole.COACH;
-    if (isStaff) {
-      return posts;
-    }
-
-    const enrolledSprintIds = new Set(userEnrollments.map(e => e.sprint_id));
-    const linkedBlogIds = new Set(
-      sprintBlogLinks
-        .filter(link => enrolledSprintIds.has(link.sourceSprintId))
-        .map(link => link.targetBlogId)
-    );
-
-    return posts.filter(post => {
-      // Allow if it's explicitly linked to an enrolled sprint
-      return linkedBlogIds.has(post.id);
-    });
-  }, [posts, user, userEnrollments, sprintBlogLinks]);
+    return posts;
+  }, [posts]);
 
   // Filtered posts
   const filteredPosts = useMemo(() => {
@@ -411,17 +375,8 @@ export const RiseBlog: React.FC = () => {
       }
     }
 
-    if (!rawPost) return null;
-
-    // Strict linking check for participants
-    const isStaff = user?.role === UserRole.ADMIN || user?.role === UserRole.COACH;
-    if (!isStaff) {
-      const isLinked = visiblePosts.some(p => p.id === rawPost.id);
-      if (!isLinked) return null;
-    }
-
     return rawPost;
-  }, [postId, audienceSlug, blogSlug, posts, visiblePosts, user]);
+  }, [postId, audienceSlug, blogSlug, posts]);
 
   // Active reading and milestone progress state for current article
   const endMarkerRef = useRef<HTMLDivElement | null>(null);

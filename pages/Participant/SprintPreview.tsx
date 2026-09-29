@@ -372,7 +372,7 @@ const SprintPreview: React.FC = () => {
     }, [taskInputs, previewDay, sprint?.id, sprintId]);
 
     const isDayCompleted = completedDays.includes(previewDay);
-    const [showSignupModal, setShowSignupModal] = useState(false);
+    const isCoachPreview = location.pathname.startsWith('/coach') || (user as any)?.role === 'coach' || user?.role === UserRole.COACH || (user as any)?.isCoach || (user as any)?.accountType === 'coach';
     const [showLockModal, setShowLockModal] = useState(false);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
@@ -1577,11 +1577,22 @@ const SprintPreview: React.FC = () => {
         }
     }, [activeTaskIndex, day1Content, taskInputs, sprint?.dailyContent, user]);
 
+    if (isNavigatingToSuccessRef.current || isSubmittingAuth || (user && !isCoachPreview)) {
+        return (
+            <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-[#FAFAFA] p-6 text-center animate-fade-in">
+                <div className="w-10 h-10 border-3 border-[#0E7850] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-500">
+                    {isNavigatingToSuccessRef.current || isSubmittingAuth ? 'Completing Move 1...' : 'Loading Move...'}
+                </p>
+            </div>
+        );
+    }
+
     if (loadingSprint && !sprint) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
+            <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-[#FAFAFA] p-4 text-center">
                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Sprint Preview...</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading Move 1...</p>
             </div>
         );
     }
@@ -2704,36 +2715,6 @@ const SprintPreview: React.FC = () => {
 
                     </div>
                 </>,
-                document.body
-            )}
-
-            {showSignupModal && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 max-w-sm w-full text-center relative overflow-hidden animate-slide-up border border-gray-100">
-                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 text-primary">
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Unlock Full Sprint</h3>
-                        <p className="text-gray-500 font-medium mb-8 text-sm">Sign up to save your progress and continue with the next daily action steps.</p>
-                        
-                        <div className="space-y-3">
-                            <button 
-                                onClick={() => navigate('/signup', { state: { prefilledEmail, targetSprintId: sprintId, sprintId: sprintId, sprint: sprint } })}
-                                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-primary/90 transition-colors shadow-lg active:scale-95"
-                            >
-                                Sign Up to Continue
-                            </button>
-                            <button 
-                                onClick={() => setShowSignupModal(false)}
-                                className="w-full py-4 text-gray-500 rounded-2xl font-black uppercase tracking-widest text-[9px] hover:bg-gray-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>,
                 document.body
             )}
 
