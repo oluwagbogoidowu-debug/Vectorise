@@ -59,6 +59,26 @@ export const NextSprintRecommendation: React.FC = () => {
     const [userEnrollments, setUserEnrollments] = useState<any[]>([]);
     const [hasUnclaimedMilestone, setHasUnclaimedMilestone] = useState(false);
     const [isBlinkingKebab, setIsBlinkingKebab] = useState(false);
+    const [hasSeenKebab, setHasSeenKebab] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('vectorise_next_sprint_kebab_seen') === 'true';
+        } catch (e) {
+            return false;
+        }
+    });
+
+    const handleToggleKebabMenu = () => {
+        setIsKebabMenuOpen((prev) => !prev);
+        if (!hasSeenKebab) {
+            setHasSeenKebab(true);
+            try {
+                localStorage.setItem('vectorise_next_sprint_kebab_seen', 'true');
+            } catch (e) {}
+        }
+        if (isBlinkingKebab) {
+            setIsBlinkingKebab(false);
+        }
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -612,13 +632,13 @@ export const NextSprintRecommendation: React.FC = () => {
                     <div className="relative" ref={kebabMenuRef}>
                     <button
                         type="button"
-                        onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                        onClick={handleToggleKebabMenu}
                         className={`p-2.5 bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl shadow-sm text-gray-700 dark:text-gray-200 hover:text-gray-950 dark:hover:text-white active:scale-95 transition-all cursor-pointer flex items-center justify-center relative ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
                         title="Options"
                     >
                         <MoreVertical className="w-5 h-5" />
-                        {(hasUnclaimedMilestone || isBlinkingKebab) && (
-                            <span className={`absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 ${isBlinkingKebab ? 'animate-kebab-blink' : ''}`} />
+                        {(!hasSeenKebab || hasUnclaimedMilestone || isBlinkingKebab) && (
+                            <span className={`absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 ${isBlinkingKebab ? 'animate-kebab-blink' : 'animate-pulse'}`} />
                         )}
                     </button>
 
