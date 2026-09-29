@@ -266,26 +266,6 @@ const DiscoverSprints: React.FC = () => {
                     </div>
                 )}
 
-                {/* PROFILE SETUP PROMPT */}
-                {user && user.role === UserRole.PARTICIPANT && (!(user as Participant).growthAreas?.length || !(user as Participant).risePathway) && (
-                    <div className="mb-12 p-6 bg-primary/5 border border-primary/10 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                                <Sparkles className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-black text-gray-900 dark:text-white leading-tight">Complete your profile setup</p>
-                                <p className="text-[10px] text-gray-500 dark:text-zinc-400 font-medium">Earn coins to start your first sprint</p>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={() => navigate('/profile')}
-                            className="px-6 py-3 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
-                        >
-                            Setup Profile &rarr;
-                        </button>
-                    </div>
-                )}
 
                 {/* SECTION 3: THE FUTURE TRACK */}
                 <section className="mb-20">
