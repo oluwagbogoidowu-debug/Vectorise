@@ -682,6 +682,54 @@ export const deduplicateSprintsById = (sprints: Sprint[]): Sprint[] => {
     return Array.from(map.values());
 };
 
+export const getReviewDeduplicationKey = (r: Partial<Review>): string => {
+    if (!r) return '';
+    const sId = (r.sprintId || '').trim();
+    if (r.participantId && r.participantId.trim()) {
+        return `s_${sId}_p_${r.participantId.trim().toLowerCase()}`;
+    }
+    const name = (r.userName || '').trim().toLowerCase();
+    const comment = (r.comment || '').trim().toLowerCase();
+    const rating = Number(r.rating) || 5;
+    if (name || comment) {
+        return `s_${sId}_u_${name}_r_${rating}_c_${comment.slice(0, 100)}`;
+    }
+    return r.id || `r_${Math.random()}`;
+};
+
+export const deduplicateReviews = (reviews: Review[]): Review[] => {
+    if (!Array.isArray(reviews) || reviews.length === 0) return [];
+    const map = new Map<string, Review>();
+    
+    const sorted = [...reviews].sort((a, b) => {
+        const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return tB - tA;
+    });
+
+    for (const rev of sorted) {
+        if (!rev) continue;
+        const key = getReviewDeduplicationKey(rev);
+        if (!key) continue;
+        if (!map.has(key)) {
+            map.set(key, rev);
+        } else {
+            const existing = map.get(key)!;
+            const existingCommentLen = (existing.comment || '').trim().length;
+            const newCommentLen = (rev.comment || '').trim().length;
+            if (newCommentLen > existingCommentLen || (!existing.userAvatar && rev.userAvatar)) {
+                map.set(key, rev);
+            }
+        }
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+        const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return tB - tA;
+    });
+};
+
 export const sprintService = {
     incrementLinkClick: async (referralCode: string, sprintId?: string | null) => {
         try {
@@ -1555,7 +1603,7 @@ export const sprintService = {
         try {
             if (!sprintId) throw new Error("sprintId is required for review");
             const ratingNum = Math.min(5, Math.max(1, Number(review.rating) || 5));
-            const reviewId = review.id || `rev_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            const reviewId = review.id || (review.participantId ? `${sprintId}_${review.participantId}` : `rev_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
             
             const reviewData: Review = {
                 id: reviewId,
@@ -1600,11 +1648,10 @@ export const sprintService = {
             // 4. Update the Sprint documents with real-time calculated average rating and reviews count
             try {
                 const allReviews = await sprintService.getReviewsForSprint(sprintId);
-                const hasExisting = allReviews.some(r => r.id === reviewId);
-                const combinedList = hasExisting ? allReviews : [reviewData, ...allReviews];
+                const combinedList = deduplicateReviews([reviewData, ...allReviews]);
                 const count = combinedList.length;
                 const sum = combinedList.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
-                const avgRating = Number((sum / count).toFixed(1));
+                const avgRating = count > 0 ? Number((sum / count).toFixed(1)) : 5;
 
                 const statsUpdate = {
                     rating: avgRating,
@@ -1640,9 +1687,9 @@ export const sprintService = {
             try {
                 const cacheKey = `vectorise_reviews_${sprintId}`;
                 const existing = JSON.parse(localStorage.getItem(cacheKey) || '[]');
-                const filtered = Array.isArray(existing) ? existing.filter((r: any) => r.id !== reviewId) : [];
+                const filtered = Array.isArray(existing) ? existing.filter((r: any) => r.id !== reviewId && r.participantId !== review.participantId) : [];
                 filtered.unshift(reviewData);
-                localStorage.setItem(cacheKey, JSON.stringify(filtered));
+                localStorage.setItem(cacheKey, JSON.stringify(deduplicateReviews(filtered)));
             } catch (e) {}
 
             return reviewId;
@@ -1654,7 +1701,7 @@ export const sprintService = {
 
     getReviewsForSprint: async (sprintId: string): Promise<Review[]> => {
         if (!sprintId) return [];
-        const reviewsMap = new Map<string, Review>();
+        const rawReviews: Review[] = [];
         try {
             // 1. Root reviews collection
             try {
@@ -1662,7 +1709,7 @@ export const sprintService = {
                 const q = query(rootCol, where("sprintId", "==", sprintId));
                 const rootSnap = await getDocs(q);
                 rootSnap.docs.forEach(d => {
-                    reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    rawReviews.push({ ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
                 });
             } catch (e) {}
 
@@ -1672,7 +1719,7 @@ export const sprintService = {
                     const subCol = collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'reviews');
                     const snap = await getDocs(subCol);
                     snap.docs.forEach(d => {
-                        reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                        rawReviews.push({ ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
                     });
                 } catch (e) {}
             }
@@ -1682,7 +1729,7 @@ export const sprintService = {
                 const flatCol = collection(db, EXPERIENCES_COLLECTION, sprintId, 'reviews');
                 const snap = await getDocs(flatCol);
                 snap.docs.forEach(d => {
-                    reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    rawReviews.push({ ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
                 });
             } catch (e) {}
 
@@ -1691,31 +1738,27 @@ export const sprintService = {
                 const legCol = collection(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'reviews');
                 const snap = await getDocs(legCol);
                 snap.docs.forEach(d => {
-                    reviewsMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    rawReviews.push({ ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
                 });
             } catch (e) {}
 
             // 5. Local cache fallback if empty
-            if (reviewsMap.size === 0) {
+            if (rawReviews.length === 0) {
                 try {
                     const cacheKey = `vectorise_reviews_${sprintId}`;
                     const cached = JSON.parse(localStorage.getItem(cacheKey) || '[]');
                     if (Array.isArray(cached)) {
                         cached.forEach((r: any) => {
-                            if (r && r.id) reviewsMap.set(r.id, r);
+                            if (r && (r.id || r.participantId)) rawReviews.push(r);
                         });
                     }
                 } catch (e) {}
             }
 
-            return Array.from(reviewsMap.values()).sort((a, b) => {
-                const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                return tB - tA;
-            });
+            return deduplicateReviews(rawReviews);
         } catch (err) {
             console.warn(`[getReviewsForSprint] Error fetching reviews for ${sprintId}:`, err);
-            return Array.from(reviewsMap.values());
+            return deduplicateReviews(rawReviews);
         }
     },
 
@@ -1734,17 +1777,16 @@ export const sprintService = {
             const cached = JSON.parse(localStorage.getItem(cacheKey) || '[]');
             if (Array.isArray(cached) && cached.length > 0) {
                 cached.forEach((r: any) => {
-                    if (r && r.id) reviewMap.set(r.id, r);
+                    if (r) {
+                        const k = getReviewDeduplicationKey(r);
+                        if (k) reviewMap.set(k, r);
+                    }
                 });
             }
         } catch (e) {}
 
         const emitAll = () => {
-            const list = Array.from(reviewMap.values()).sort((a, b) => {
-                const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                return tB - tA;
-            });
+            const list = deduplicateReviews(Array.from(reviewMap.values()));
             callback(list);
         };
 
@@ -1758,14 +1800,17 @@ export const sprintService = {
             const unsubRoot = onSnapshot(q, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     const data = { ...sanitizeData(change.doc.data()), id: change.doc.id, sprintId } as Review;
+                    const key = getReviewDeduplicationKey(data);
                     if (change.type === 'removed') {
-                        reviewMap.delete(change.doc.id);
+                        reviewMap.delete(key);
                     } else {
-                        reviewMap.set(change.doc.id, data);
+                        reviewMap.set(key, data);
                     }
                 });
                 snapshot.docs.forEach((d) => {
-                    reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    const data = { ...sanitizeData(d.data()), id: d.id, sprintId } as Review;
+                    const key = getReviewDeduplicationKey(data);
+                    reviewMap.set(key, data);
                 });
                 emitAll();
             }, (err) => {
@@ -1782,7 +1827,9 @@ export const sprintService = {
                 const subCol = collection(db, EXPERIENCES_COLLECTION, cat, 'items', sprintId, 'reviews');
                 const unsubCat = onSnapshot(subCol, (snapshot) => {
                     snapshot.docs.forEach((d) => {
-                        reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                        const data = { ...sanitizeData(d.data()), id: d.id, sprintId } as Review;
+                        const key = getReviewDeduplicationKey(data);
+                        reviewMap.set(key, data);
                     });
                     emitAll();
                 }, () => {});
@@ -1795,7 +1842,9 @@ export const sprintService = {
             const flatCol = collection(db, EXPERIENCES_COLLECTION, sprintId, 'reviews');
             const unsubFlat = onSnapshot(flatCol, (snapshot) => {
                 snapshot.docs.forEach((d) => {
-                    reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    const data = { ...sanitizeData(d.data()), id: d.id, sprintId } as Review;
+                    const key = getReviewDeduplicationKey(data);
+                    reviewMap.set(key, data);
                 });
                 emitAll();
             }, () => {});
@@ -1807,7 +1856,9 @@ export const sprintService = {
             const legCol = collection(db, LEGACY_SPRINTS_COLLECTION, sprintId, 'reviews');
             const unsubLeg = onSnapshot(legCol, (snapshot) => {
                 snapshot.docs.forEach((d) => {
-                    reviewMap.set(d.id, { ...sanitizeData(d.data()), id: d.id, sprintId } as Review);
+                    const data = { ...sanitizeData(d.data()), id: d.id, sprintId } as Review;
+                    const key = getReviewDeduplicationKey(data);
+                    reviewMap.set(key, data);
                 });
                 emitAll();
             }, () => {});
@@ -1844,20 +1895,19 @@ export const sprintService = {
                 const cached = JSON.parse(localStorage.getItem(cacheKey) || '[]');
                 if (Array.isArray(cached)) {
                     cached.forEach((r: any) => {
-                        if (r && r.id) reviewsMap.set(r.id, r);
+                        if (r) {
+                            const k = getReviewDeduplicationKey(r);
+                            if (k) reviewsMap.set(k, r);
+                        }
                     });
                 }
             } catch (e) {}
         });
 
         const emitAll = () => {
-            const all = Array.from(reviewsMap.values())
-                .filter(r => targetSprintIdSet.has(r.sprintId))
-                .sort((a, b) => {
-                    const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-                    const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-                    return tB - tA;
-                });
+            const all = deduplicateReviews(
+                Array.from(reviewsMap.values()).filter(r => targetSprintIdSet.has(r.sprintId))
+            );
             callback(all);
         };
 
@@ -1873,7 +1923,8 @@ export const sprintService = {
                 const unsub = onSnapshot(qRoot, (snapshot) => {
                     snapshot.docs.forEach((doc) => {
                         const data = { ...sanitizeData(doc.data()), id: doc.id } as Review;
-                        reviewsMap.set(doc.id, data);
+                        const key = getReviewDeduplicationKey(data);
+                        reviewsMap.set(key, data);
                     });
                     emitAll();
                 }, (err) => {
@@ -1893,7 +1944,8 @@ export const sprintService = {
                     const unsub = onSnapshot(subCol, (snapshot) => {
                         snapshot.docs.forEach((doc) => {
                             const data = { ...sanitizeData(doc.data()), id: doc.id, sprintId } as Review;
-                            reviewsMap.set(doc.id, data);
+                            const key = getReviewDeduplicationKey(data);
+                            reviewsMap.set(key, data);
                         });
                         emitAll();
                     }, () => {});
@@ -1995,17 +2047,21 @@ export const sprintService = {
             currency?: string,
             source?: PaymentSource, 
             referral?: string | null,
-            firstActionInput?: string, taskInputs?: string[]
+            firstActionInput?: string, 
+            taskInputs?: string[],
+            completed?: boolean
         }
     ) => {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
         const enrollmentRef = doc(db, 'users', userId, 'enrollments', enrollmentId);
         const existing = await getDoc(enrollmentRef);
 
-        const hasInputs = !!(
-            (commercial?.taskInputs && commercial.taskInputs.some(a => a && String(a).trim().length > 0)) ||
-            (commercial?.firstActionInput && commercial.firstActionInput.trim().length > 0)
-        );
+        const rawInputs = commercial?.taskInputs || (commercial?.firstActionInput ? [commercial.firstActionInput] : []);
+        const cleanInputs: string[] = Array.isArray(rawInputs) 
+            ? rawInputs.map(a => a !== undefined && a !== null ? (typeof a === 'object' ? JSON.stringify(a) : String(a)) : '') 
+            : [];
+        const hasInputs = cleanInputs.some(a => a && a.trim().length > 0) || !!(commercial?.firstActionInput && commercial.firstActionInput.trim().length > 0) || !!commercial?.completed;
+        const primarySubmission = cleanInputs.find(a => a && a.trim().length > 0) || commercial?.firstActionInput || cleanInputs[0] || "";
         const now = new Date().toISOString();
         
         if (existing.exists()) {
@@ -2035,8 +2091,8 @@ export const sprintService = {
                     day: i + 1,
                     completed: (i === 0 && hasInputs) ? true : false,
                     completedAt: (i === 0 && hasInputs) ? now : undefined,
-                    answers: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs : (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
-                    submission: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs[0] || "" : (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
+                    answers: (i === 0 && cleanInputs.length > 0) ? cleanInputs : [],
+                    submission: (i === 0 && primarySubmission) ? primarySubmission : ""
                 }));
 
                 const updatedData: Partial<ParticipantSprint> = {
@@ -2061,22 +2117,26 @@ export const sprintService = {
                 return { ...existingData, ...updatedData } as ParticipantSprint;
             }
 
-            if (hasInputs && existingData.progress && existingData.progress[0]) {
+            if (existingData.progress && existingData.progress[0]) {
                 const updatedProgress = [...existingData.progress];
-                if (!updatedProgress[0].completed || commercial?.taskInputs) {
-                    updatedProgress[0] = {
-                        ...updatedProgress[0],
-                        completed: true,
-                        completedAt: updatedProgress[0].completedAt || now,
-                        answers: commercial?.taskInputs || (commercial?.firstActionInput ? [commercial.firstActionInput] : updatedProgress[0].answers),
-                        submission: commercial?.taskInputs?.[0] || commercial?.firstActionInput || updatedProgress[0].submission || ""
-                    };
-                    await updateDoc(enrollmentRef, {
-                        progress: updatedProgress,
-                        last_activity_at: now
-                    });
-                    existingData.progress = updatedProgress;
-                }
+                const existingAnswers = Array.isArray(updatedProgress[0].answers) ? updatedProgress[0].answers : [];
+                const existingSubmission = updatedProgress[0].submission || "";
+                const mergedAnswers = cleanInputs.length > 0 ? cleanInputs : existingAnswers;
+                const mergedSubmission = primarySubmission || existingSubmission || (mergedAnswers[0] || "");
+                const shouldMarkCompleted = hasInputs || updatedProgress[0].completed;
+                
+                updatedProgress[0] = {
+                    ...updatedProgress[0],
+                    completed: shouldMarkCompleted,
+                    completedAt: updatedProgress[0].completedAt || (shouldMarkCompleted ? now : undefined),
+                    answers: mergedAnswers,
+                    submission: mergedSubmission
+                };
+                await updateDoc(enrollmentRef, {
+                    progress: updatedProgress,
+                    last_activity_at: now
+                });
+                existingData.progress = updatedProgress;
             }
             try {
                 const userRef = doc(db, 'users', userId);
@@ -2115,8 +2175,8 @@ export const sprintService = {
                 day: i + 1,
                 completed: (i === 0 && hasInputs) ? true : false,
                 completedAt: (i === 0 && hasInputs) ? now : undefined,
-                answers: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs : (i === 0 && commercial?.firstActionInput) ? [commercial.firstActionInput] : [],
-                submission: (i === 0 && commercial?.taskInputs) ? commercial.taskInputs[0] || "" : (i === 0 && commercial?.firstActionInput) ? commercial.firstActionInput : ""
+                answers: (i === 0 && cleanInputs.length > 0) ? cleanInputs : [],
+                submission: (i === 0 && primarySubmission) ? primarySubmission : ""
             }))
         };
 

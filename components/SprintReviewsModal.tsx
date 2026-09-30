@@ -19,7 +19,7 @@ import {
     Flame
 } from 'lucide-react';
 import { Sprint, Review, InteractionUser } from '../types';
-import { sprintService } from '../services/sprintService';
+import { sprintService, deduplicateReviews } from '../services/sprintService';
 
 interface SprintReviewsModalProps {
     isOpen: boolean;
@@ -106,7 +106,7 @@ const SprintReviewsModal: React.FC<SprintReviewsModalProps> = ({
             };
         } else {
             const unsubReviews = sprintService.subscribeToSprintReviews(sprint.id, (data) => {
-                setReviews(data);
+                setReviews(deduplicateReviews(data));
                 setIsLoading(false);
             });
 
@@ -118,7 +118,8 @@ const SprintReviewsModal: React.FC<SprintReviewsModalProps> = ({
 
     // Compute standard review stats
     const stats = useMemo(() => {
-        if (!reviews || reviews.length === 0) {
+        const unique = deduplicateReviews(reviews);
+        if (!unique || unique.length === 0) {
             return {
                 avg: 0,
                 count: 0,
@@ -126,12 +127,12 @@ const SprintReviewsModal: React.FC<SprintReviewsModalProps> = ({
             };
         }
 
-        const count = reviews.length;
-        const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+        const count = unique.length;
+        const sum = unique.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
         const avg = Number((sum / count).toFixed(1));
 
         const dist: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-        reviews.forEach(r => {
+        unique.forEach(r => {
             const score = Math.min(5, Math.max(1, Math.round(Number(r.rating) || 5)));
             dist[score] = (dist[score] || 0) + 1;
         });
@@ -145,7 +146,8 @@ const SprintReviewsModal: React.FC<SprintReviewsModalProps> = ({
 
     // Filter and sort standard reviews
     const filteredReviews = useMemo(() => {
-        return reviews
+        const unique = deduplicateReviews(reviews);
+        return unique
             .filter((r) => {
                 if (selectedStarFilter !== 'all') {
                     const score = Math.min(5, Math.max(1, Math.round(Number(r.rating) || 5)));
@@ -167,7 +169,7 @@ const SprintReviewsModal: React.FC<SprintReviewsModalProps> = ({
             });
     }, [reviews, selectedStarFilter, searchQuery, sortBy]);
 
-    // RiseBlog combined & filtered interactions list
+    // RiseBlog combined & filtered interactions list (deduplicated by userId + interactionType)
     const filteredInteractions = useMemo(() => {
         if (!isRiseBlog) return [];
 
@@ -192,7 +194,16 @@ const SprintReviewsModal: React.FC<SprintReviewsModalProps> = ({
             );
         }
 
-        return list.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+        // Deduplicate interactions
+        const interMap = new Map<string, InteractionUser & { interactionType: 'read' | 'view' | 'like' }>();
+        list.forEach(item => {
+            const key = `${item.userId || item.userEmail || item.userName}_${item.interactionType}`;
+            if (!interMap.has(key)) {
+                interMap.set(key, item);
+            }
+        });
+
+        return Array.from(interMap.values()).sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
     }, [isRiseBlog, interactions, selectedTab, searchQuery]);
 
     // Read completion rate calculation

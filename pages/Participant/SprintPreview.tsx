@@ -695,20 +695,30 @@ const SprintPreview: React.FC = () => {
     // Continuously store sprint preview inputs locally before login so page reloads maintain state
     useEffect(() => {
         if (!sprint || user) return;
-        const hasSomeInput = taskInputs.some(val => val && String(val).trim().length > 0);
-        if (!hasSomeInput) return;
+        const sId = sprint.id || sprintId;
+        const updatedAllInputs = { ...allDayInputs, [previewDay]: taskInputs };
+        
+        if (sId) {
+            try {
+                localStorage.setItem(`preview_all_inputs_${sId}`, JSON.stringify(updatedAllInputs));
+            } catch (e) {}
+        }
 
-        const pendingObj = {
-            sprintId: sprint.id,
-            pricingType: sprint.pricingType || 'cash',
-            firstActionInput: taskInputs[0] || "",
-            taskInputs: taskInputs,
-            activeTaskIndex: activeTaskIndex,
-            prefilledEmail: prefilledEmail || '',
-            updatedAt: new Date().toISOString()
-        };
-        localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
-    }, [sprint, taskInputs, activeTaskIndex, user, prefilledEmail]);
+        const hasSomeInput = taskInputs.some(val => val && String(val).trim().length > 0);
+        if (hasSomeInput && sId) {
+            const pendingObj = {
+                sprintId: sId,
+                pricingType: sprint.pricingType || 'cash',
+                firstActionInput: taskInputs.find(t => t && t.trim().length > 0) || taskInputs[0] || "",
+                taskInputs: taskInputs,
+                allDayInputs: updatedAllInputs,
+                activeTaskIndex: activeTaskIndex,
+                prefilledEmail: prefilledEmail || '',
+                updatedAt: new Date().toISOString()
+            };
+            localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+        }
+    }, [sprint, sprintId, taskInputs, activeTaskIndex, user, prefilledEmail, previewDay, allDayInputs]);
 
     useEffect(() => {
         if (!showLockModal) {
@@ -718,9 +728,44 @@ const SprintPreview: React.FC = () => {
         }
     }, [showLockModal]);
 
-    // Helper to get effective task inputs from state or localStorage
+    // Helper to get effective task inputs from state, allDayInputs, and localStorage
     const getEffectiveTaskInputs = () => {
         let inputs = [...taskInputs];
+        const sId = sprint?.id || sprintId;
+
+        // 1. Check allDayInputs state
+        if (allDayInputs) {
+            const candidate = allDayInputs[previewDay] || allDayInputs[1];
+            if (Array.isArray(candidate) && candidate.length > 0) {
+                const maxLen = Math.max(inputs.length, candidate.length);
+                const merged: string[] = [];
+                for (let i = 0; i < maxLen; i++) {
+                    merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (candidate[i] || "");
+                }
+                inputs = merged;
+            }
+        }
+
+        // 2. Check localStorage preview_all_inputs
+        if (sId) {
+            try {
+                const storedInputs = localStorage.getItem(`preview_all_inputs_${sId}`);
+                if (storedInputs) {
+                    const parsed = JSON.parse(storedInputs);
+                    const candidate = parsed?.[previewDay] || parsed?.[1];
+                    if (Array.isArray(candidate) && candidate.length > 0) {
+                        const maxLen = Math.max(inputs.length, candidate.length);
+                        const merged: string[] = [];
+                        for (let i = 0; i < maxLen; i++) {
+                            merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (candidate[i] || "");
+                        }
+                        inputs = merged;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // 3. Check localStorage pending_first_action
         const raw = localStorage.getItem('pending_first_action');
         if (raw) {
             try {
@@ -732,11 +777,45 @@ const SprintPreview: React.FC = () => {
                         merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.taskInputs[i] || "");
                     }
                     inputs = merged;
+                } else if (parsed?.allDayInputs?.[1] && Array.isArray(parsed.allDayInputs[1])) {
+                    const maxLen = Math.max(inputs.length, parsed.allDayInputs[1].length);
+                    const merged: string[] = [];
+                    for (let i = 0; i < maxLen; i++) {
+                        merged[i] = (inputs[i] && String(inputs[i]).trim().length > 0) ? inputs[i] : (parsed.allDayInputs[1][i] || "");
+                    }
+                    inputs = merged;
                 } else if (parsed?.firstActionInput && (!inputs[0] || String(inputs[0]).trim().length === 0)) {
                     inputs[0] = parsed.firstActionInput;
                 }
             } catch(e) {}
         }
+
+        // 4. Fill in default taskFills or completed marks for empty steps if configured
+        const stepPrompts = day1Content?.taskPrompts?.filter((p: any) => p && String(p).trim()) || (day1Content?.taskPrompt ? [day1Content.taskPrompt] : []);
+        const numSteps = stepPrompts.length;
+        if (inputs.length < numSteps) {
+            const extended = [...inputs];
+            while (extended.length < numSteps) extended.push("");
+            inputs = extended;
+        }
+
+        for (let i = 0; i < numSteps; i++) {
+            if (!inputs[i] || String(inputs[i]).trim().length === 0) {
+                const stepType = getStepInputType(day1Content, i, inputs, sprint?.dailyContent);
+                if (day1Content?.taskFills?.[i]) {
+                    try {
+                        inputs[i] = formatInterpolatedText(day1Content.taskFills[i] || '', day1Content, inputs, sprint?.dailyContent, undefined, user);
+                    } catch (e) {
+                        inputs[i] = day1Content.taskFills[i] || '';
+                    }
+                } else if (stepType === "mark") {
+                    inputs[i] = "Completed";
+                } else if (stepType === "note") {
+                    inputs[i] = "Informational Step Completed";
+                }
+            }
+        }
+
         return inputs;
     };
 
@@ -746,6 +825,22 @@ const SprintPreview: React.FC = () => {
         setAuthError('');
         isNavigatingToSuccessRef.current = true;
         try {
+            const effectiveInputs = getEffectiveTaskInputs();
+            const sId = sprint?.id || sprintId;
+            if (sId) {
+                const pendingObj = {
+                    sprintId: sId,
+                    pricingType: sprint?.pricingType || 'cash',
+                    firstActionInput: effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "",
+                    taskInputs: effectiveInputs,
+                    allDayInputs: { ...allDayInputs, [previewDay]: effectiveInputs },
+                    activeTaskIndex: activeTaskIndex,
+                    prefilledEmail: prefilledEmail || '',
+                    updatedAt: new Date().toISOString()
+                };
+                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+            }
+
             const res = await signInWithPopup(auth, provider);
             const firebaseUser = res.user;
             toast.success("Connected with Google successfully!");
@@ -783,8 +878,7 @@ const SprintPreview: React.FC = () => {
             }
 
             if (targetSprint) {
-                const effectiveInputs = getEffectiveTaskInputs();
-                const firstInput = effectiveInputs[0] || "";
+                const firstInput = effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "";
                 // Auto enroll and complete Day 1 in database
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
@@ -809,8 +903,7 @@ const SprintPreview: React.FC = () => {
                     });
                 }
                 if (enrollment && enrollment.id) {
-                    console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
-                    localStorage.removeItem('pending_first_action');
+                    console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id);
                     localStorage.removeItem('vectorise_last_sprint');
                 }
                 const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
@@ -824,6 +917,7 @@ const SprintPreview: React.FC = () => {
                         sprint: targetSprint,
                         enrollmentId: enrollment?.id,
                         taskInputs: effectiveInputs,
+                        answers: effectiveInputs,
                         isPreview: false,
                         returnToPreviewUrl: undefined,
                         redirectToDaySuccess: true
@@ -860,6 +954,22 @@ const SprintPreview: React.FC = () => {
         isNavigatingToSuccessRef.current = true;
 
         try {
+            const effectiveInputs = getEffectiveTaskInputs();
+            const sId = sprint?.id || sprintId;
+            if (sId) {
+                const pendingObj = {
+                    sprintId: sId,
+                    pricingType: sprint?.pricingType || 'cash',
+                    firstActionInput: effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "",
+                    taskInputs: effectiveInputs,
+                    allDayInputs: { ...allDayInputs, [previewDay]: effectiveInputs },
+                    activeTaskIndex: activeTaskIndex,
+                    prefilledEmail: authEmail.trim().toLowerCase(),
+                    updatedAt: new Date().toISOString()
+                };
+                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+            }
+
             resetVerificationDeferral();
             const userCredential = await createUserWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
             const firebaseUser = userCredential.user;
@@ -904,10 +1014,8 @@ const SprintPreview: React.FC = () => {
             let enrollmentId = "";
             const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
             let day1BridgeNote = d1Content?.bridgeNote;
-            let effectiveInputs: string[] = [];
             if (targetSprint) {
-                effectiveInputs = getEffectiveTaskInputs();
-                const firstInput = effectiveInputs[0] || "";
+                const firstInput = effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "";
                 // Auto enroll and complete Day 1 in database
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
@@ -934,8 +1042,7 @@ const SprintPreview: React.FC = () => {
                 enrollmentId = enrollment?.id || "";
                 setCreatedEnrollmentId(enrollmentId);
                 if (enrollment && enrollment.id) {
-                    console.log("[SprintPreview:EmailSignUp] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
-                    localStorage.removeItem('pending_first_action');
+                    console.log("[SprintPreview:EmailSignUp] Confirmed target enrollment created/updated:", enrollment.id);
                     localStorage.removeItem('vectorise_last_sprint');
                 }
             }
@@ -949,6 +1056,7 @@ const SprintPreview: React.FC = () => {
                 sprintId: targetSprint?.id || targetSprintId,
                 sprint: targetSprint,
                 taskInputs: effectiveInputs,
+                answers: effectiveInputs,
                 isPreview: false,
                 returnToPreviewUrl: undefined
             };
@@ -979,6 +1087,22 @@ const SprintPreview: React.FC = () => {
         isNavigatingToSuccessRef.current = true;
 
         try {
+            const effectiveInputs = getEffectiveTaskInputs();
+            const sId = sprint?.id || sprintId;
+            if (sId) {
+                const pendingObj = {
+                    sprintId: sId,
+                    pricingType: sprint?.pricingType || 'cash',
+                    firstActionInput: effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "",
+                    taskInputs: effectiveInputs,
+                    allDayInputs: { ...allDayInputs, [previewDay]: effectiveInputs },
+                    activeTaskIndex: activeTaskIndex,
+                    prefilledEmail: authEmail.trim().toLowerCase(),
+                    updatedAt: new Date().toISOString()
+                };
+                localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+            }
+
             const userCredential = await signInWithEmailAndPassword(auth, authEmail.trim().toLowerCase(), authPassword);
             const firebaseUser = userCredential.user;
             toast.success("Logged in successfully!");
@@ -990,8 +1114,7 @@ const SprintPreview: React.FC = () => {
             }
 
             if (targetSprint) {
-                const effectiveInputs = getEffectiveTaskInputs();
-                const firstInput = effectiveInputs[0] || "";
+                const firstInput = effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "";
                 // Auto enroll and complete Day 1 in database
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
@@ -1017,8 +1140,7 @@ const SprintPreview: React.FC = () => {
                 }
                 setCreatedEnrollmentId(enrollment.id);
                 if (enrollment && enrollment.id) {
-                    console.log("[SprintPreview:EmailLogin] Confirmed target enrollment created/updated:", enrollment.id, "Removing pending_first_action");
-                    localStorage.removeItem('pending_first_action');
+                    console.log("[SprintPreview:EmailLogin] Confirmed target enrollment created/updated:", enrollment.id);
                     localStorage.removeItem('vectorise_last_sprint');
                 }
 
@@ -1032,6 +1154,7 @@ const SprintPreview: React.FC = () => {
                     sprintId: targetSprint.id,
                     sprint: targetSprint,
                     taskInputs: effectiveInputs,
+                    answers: effectiveInputs,
                     isPreview: false,
                     returnToPreviewUrl: undefined,
                     redirectToDaySuccess: true

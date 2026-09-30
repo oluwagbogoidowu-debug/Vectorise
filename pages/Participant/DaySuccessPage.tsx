@@ -3,6 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
+import { userService } from '../../services/userService';
+import { db } from '../../services/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Sparkles, Bell, Check, Award, Tag, Mail, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,6 +32,107 @@ const DaySuccessPage: React.FC = () => {
       sprintAnalyticsService.trackMove1Success(sId, user?.id);
     }
   }, [completedDay, location.state?.sprintId, location.state?.sprint?.id, user?.id]);
+
+  // Guaranteed persistence for Move 1 inputs across all sign-up pathways
+  useEffect(() => {
+    if (!user || completedDay !== 1) return;
+    const isCoachPreview = ((user as any)?.role === 'coach' || (user as any)?.role === 'admin' || user?.role === UserRole.COACH || user?.role === UserRole.ADMIN) && Boolean(location.state?.isPreview || location.state?.returnToPreviewUrl);
+    if (isCoachPreview) return;
+
+    const targetSprintId = location.state?.sprintId || location.state?.sprint?.id || (user as any)?.enrolledSprintIds?.[0];
+    if (!targetSprintId) return;
+
+    const ensureMove1Saved = async () => {
+      try {
+        let inputsToSave: string[] = [];
+        if (Array.isArray(location.state?.taskInputs) && location.state.taskInputs.length > 0) {
+          inputsToSave = location.state.taskInputs;
+        } else if (Array.isArray(location.state?.answers) && location.state.answers.length > 0) {
+          inputsToSave = location.state.answers;
+        }
+
+        if (inputsToSave.length === 0) {
+          try {
+            const rawPending = localStorage.getItem('pending_first_action');
+            if (rawPending) {
+              const parsed = JSON.parse(rawPending);
+              if (parsed?.taskInputs && Array.isArray(parsed.taskInputs) && parsed.taskInputs.length > 0) {
+                inputsToSave = parsed.taskInputs;
+              } else if (parsed?.allDayInputs?.[1] && Array.isArray(parsed.allDayInputs[1])) {
+                inputsToSave = parsed.allDayInputs[1];
+              } else if (parsed?.firstActionInput) {
+                inputsToSave = [parsed.firstActionInput];
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (inputsToSave.length === 0) {
+          try {
+            const rawStored = localStorage.getItem(`preview_all_inputs_${targetSprintId}`);
+            if (rawStored) {
+              const parsed = JSON.parse(rawStored);
+              if (parsed?.[1] && Array.isArray(parsed[1])) {
+                inputsToSave = parsed[1];
+              }
+            }
+          } catch (e) {}
+        }
+
+        const enrollments = await sprintService.getUserEnrollments(user.id);
+        let enrollment = enrollments.find(e => e.sprint_id === targetSprintId);
+
+        const primarySubmission = inputsToSave.find(a => a && String(a).trim().length > 0) || inputsToSave[0] || "";
+        const now = new Date().toISOString();
+
+        if (!enrollment) {
+          enrollment = await sprintService.enrollUser(user.id, targetSprintId, location.state?.sprint?.duration || 7, {
+            firstActionInput: primarySubmission,
+            taskInputs: inputsToSave,
+            completed: true
+          } as any);
+        }
+
+        if (enrollment) {
+          setResolvedEnrollmentId(enrollment.id);
+          const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
+          const snap = await getDoc(enrollmentRef);
+          if (snap.exists()) {
+            const data: any = snap.data();
+            const currentProgress = Array.isArray(data?.progress) ? data.progress : [];
+            const move1 = currentProgress[0] || { day: 1 };
+            const existingAnswers = Array.isArray(move1.answers) ? move1.answers : [];
+            const needsUpdate = !move1.completed || existingAnswers.length === 0 || existingAnswers.every((a: any) => !a || String(a).trim().length === 0);
+
+            if (needsUpdate && inputsToSave.length > 0) {
+              const updatedProgress = [...currentProgress];
+              updatedProgress[0] = {
+                ...move1,
+                day: 1,
+                completed: true,
+                completedAt: move1.completedAt || now,
+                answers: inputsToSave,
+                taskInputs: inputsToSave,
+                submission: primarySubmission || move1.submission || inputsToSave[0] || ""
+              };
+              await updateDoc(enrollmentRef, {
+                progress: updatedProgress,
+                last_activity_at: now
+              });
+              console.log("[DaySuccessPage] Successfully enforced Move 1 answers persistence to Firestore");
+            }
+          }
+          await userService.addUserEnrollment(user.id, targetSprintId).catch(() => {});
+          localStorage.removeItem('pending_first_action');
+          localStorage.removeItem('vectorise_last_sprint');
+        }
+      } catch (err) {
+        console.error("[DaySuccessPage] Error ensuring Move 1 saved:", err);
+      }
+    };
+
+    ensureMove1Saved();
+  }, [user, completedDay, location.state]);
 
   useEffect(() => {
     if (!resolvedEnrollmentId && user) {

@@ -2921,20 +2921,53 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
     let loaded: string[] = Array(promptsLength).fill("");
 
-    if (dayProgress?.answers && Array.isArray(dayProgress.answers)) {
+    if (dayProgress?.answers && Array.isArray(dayProgress.answers) && dayProgress.answers.some(a => a && String(a).trim().length > 0)) {
       loaded = Array.from({ length: promptsLength }, (_, idx) => dayProgress.answers?.[idx] || "");
-    } else if (dayProgress?.submission) {
+    } else if (dayProgress?.submission && String(dayProgress.submission).trim().length > 0) {
       const parts = dayProgress.submission.split(" | ");
       loaded = Array.from({ length: promptsLength }, (_, idx) => parts[idx] || "");
     } else {
-      const pendingRaw = localStorage.getItem('pending_first_action');
-      if (viewingDay === 1 && pendingRaw) {
-        try {
-          const pending = JSON.parse(pendingRaw);
-          if (pending && pending.sprintId === sprint.id && pending.firstActionInput) {
-            loaded = Array.from({ length: promptsLength }, (_, idx) => idx === 0 ? pending.firstActionInput : "");
+      let candidateInputs: string[] = [];
+      if (viewingDay === 1) {
+        if (Array.isArray(location.state?.taskInputs) && location.state.taskInputs.length > 0) {
+          candidateInputs = location.state.taskInputs;
+        } else if (Array.isArray(location.state?.answers) && location.state.answers.length > 0) {
+          candidateInputs = location.state.answers;
+        }
+
+        if (candidateInputs.length === 0) {
+          const pendingRaw = localStorage.getItem('pending_first_action');
+          if (pendingRaw) {
+            try {
+              const pending = JSON.parse(pendingRaw);
+              if (pending && (pending.sprintId === sprint.id || !pending.sprintId)) {
+                if (Array.isArray(pending.taskInputs) && pending.taskInputs.length > 0) {
+                  candidateInputs = pending.taskInputs;
+                } else if (Array.isArray(pending.allDayInputs?.[1]) && pending.allDayInputs[1].length > 0) {
+                  candidateInputs = pending.allDayInputs[1];
+                } else if (pending.firstActionInput) {
+                  candidateInputs = [pending.firstActionInput];
+                }
+              }
+            } catch (err) {}
           }
-        } catch (err) {}
+        }
+
+        if (candidateInputs.length === 0) {
+          try {
+            const rawStored = localStorage.getItem(`preview_all_inputs_${sprint.id}`);
+            if (rawStored) {
+              const parsed = JSON.parse(rawStored);
+              if (Array.isArray(parsed?.[1]) && parsed[1].length > 0) {
+                candidateInputs = parsed[1];
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (candidateInputs.length > 0) {
+        loaded = Array.from({ length: promptsLength }, (_, idx) => candidateInputs[idx] || "");
       }
     }
 
