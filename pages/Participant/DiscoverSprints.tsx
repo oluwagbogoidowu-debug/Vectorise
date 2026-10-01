@@ -138,18 +138,92 @@ const DiscoverSprints: React.FC = () => {
 
     const topRecommendedSprint = level1Items[0]?.sprint;
 
+    // Find challenge strictly connected through the admin orchestrator / linking to previous or current sprint
     const activeChallenge = useMemo(() => {
-        if (!topRecommendedSprint) {
-            return publishedChallenges[0] || null;
+        if (!publishedChallenges || publishedChallenges.length === 0) return null;
+
+        // 1. Collect all connected/relevant sprint IDs and titles for current and previous sprints
+        const relevantSprintIds = new Set<string>();
+        const relevantSprintTitles = new Set<string>();
+
+        // Current sprints: Top recommended / Level 1 sprints on explore
+        if (topRecommendedSprint) {
+            relevantSprintIds.add(topRecommendedSprint.id);
+            if (topRecommendedSprint.title) relevantSprintTitles.add(topRecommendedSprint.title.trim().toLowerCase());
         }
-        const matching = publishedChallenges.find(
-            c => c.recommendedAfterSprintId === topRecommendedSprint.id || 
-                 c.challengeData?.recommendedAfterSprintId === topRecommendedSprint.id ||
-                 (c.recommendedAfterSprintTitle && topRecommendedSprint.title && 
-                  c.recommendedAfterSprintTitle.toLowerCase() === topRecommendedSprint.title.toLowerCase())
-        );
-        return matching || publishedChallenges[0] || null;
-    }, [topRecommendedSprint, publishedChallenges]);
+        level1Items.forEach(item => {
+            if (item.sprint?.id) {
+                relevantSprintIds.add(item.sprint.id);
+                if (item.sprint.title) relevantSprintTitles.add(item.sprint.title.trim().toLowerCase());
+            }
+        });
+
+        // User's active or enrolled sprints (current/previous)
+        userEnrollments.forEach(enr => {
+            if (enr.sprint_id) {
+                relevantSprintIds.add(enr.sprint_id);
+                const sObj = allSprints.find(s => s.id === enr.sprint_id);
+                if (sObj?.title) relevantSprintTitles.add(sObj.title.trim().toLowerCase());
+            }
+        });
+
+        const userEnrolledIds = (user as any)?.enrolledSprintIds;
+        if (userEnrolledIds && Array.isArray(userEnrolledIds)) {
+            userEnrolledIds.forEach((sid: string) => {
+                if (sid) {
+                    relevantSprintIds.add(sid);
+                    const sObj = allSprints.find(s => s.id === sid);
+                    if (sObj?.title) relevantSprintTitles.add(sObj.title.trim().toLowerCase());
+                }
+            });
+        }
+
+        if (relevantSprintIds.size === 0 && relevantSprintTitles.size === 0) {
+            return null;
+        }
+
+        // 2. Find a published challenge that is connected via Admin Orchestrator links OR direct recommendation configuration
+        for (const challenge of publishedChallenges) {
+            const cId = challenge.id;
+            const targetRecId = challenge.recommendedAfterSprintId || challenge.challengeData?.recommendedAfterSprintId;
+            const targetRecTitle = (challenge.recommendedAfterSprintTitle || challenge.challengeData?.recommendedAfterSprintTitle || '').trim().toLowerCase();
+
+            // Direct link on challenge
+            if (targetRecId && relevantSprintIds.has(targetRecId)) {
+                return challenge;
+            }
+            if (targetRecTitle && relevantSprintTitles.has(targetRecTitle)) {
+                return challenge;
+            }
+
+            // Connection in sprintLinks (Admin Orchestrator sprint linking)
+            if (Array.isArray(sprintLinks) && sprintLinks.length > 0) {
+                const isLinkedThroughOrchestrator = sprintLinks.some(link => {
+                    const srcId = link.sourceSprintId || link.fromSprintId || link.sprintId;
+                    const tgtId = link.targetSprintId || link.toSprintId || link.targetId;
+                    const srcTitle = (link.sourceSprintTitle || link.fromSprintTitle || '').trim().toLowerCase();
+                    const tgtTitle = (link.targetSprintTitle || link.toSprintTitle || '').trim().toLowerCase();
+
+                    // Connected as target of a previous/current sprint
+                    if (tgtId === cId && (relevantSprintIds.has(srcId) || (srcTitle && relevantSprintTitles.has(srcTitle)))) {
+                        return true;
+                    }
+                    // Connected as source to a previous/current sprint
+                    if (srcId === cId && (relevantSprintIds.has(tgtId) || (tgtTitle && relevantSprintTitles.has(tgtTitle)))) {
+                        return true;
+                    }
+                    return false;
+                });
+
+                if (isLinkedThroughOrchestrator) {
+                    return challenge;
+                }
+            }
+        }
+
+        // If not connected to previous or current sprint, do not show in explore page
+        return null;
+    }, [topRecommendedSprint, level1Items, userEnrollments, (user as any)?.enrolledSprintIds, allSprints, publishedChallenges, sprintLinks]);
 
     if (isLoading) {
         return (
@@ -206,7 +280,7 @@ const DiscoverSprints: React.FC = () => {
                                         level={1}
                                         isInactive={false}
                                     />
-                                    {index === 0 && (
+                                    {index === 0 && activeChallenge && (
                                         <div className="py-2">
                                             <ChallengeCard 
                                                 challenge={activeChallenge}
