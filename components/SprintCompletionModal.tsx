@@ -4,10 +4,6 @@ import { Sparkles, ArrowRight, X, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { sprintService } from '../services/sprintService';
-import { shineService } from '../services/shineService';
-import { userService } from '../services/userService';
-import { MILESTONES, computeMilestoneStats, calculateMilestoneStatValue } from '../services/milestoneConstants';
-import { toast } from 'sonner';
 import { Participant } from '../types';
 
 interface SprintCompletionModalProps {
@@ -30,37 +26,11 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     const { user } = useAuth();
     const [rating, setRating] = useState<number>(0);
     const [outcome, setOutcome] = useState<string>('');
-    const [unclaimedMilestones, setUnclaimedMilestones] = useState<any[]>([]);
-    const [isClaimingIndex, setIsClaimingIndex] = useState<number | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             setRating(0);
             setOutcome('');
-
-            // Load unclaimed milestones
-            if (user) {
-                const loadMilestones = async () => {
-                    try {
-                        const enrollments = await sprintService.getUserEnrollments(user.id);
-                        const reflections = await shineService.getPostsByUserId(user.id).catch(() => []);
-                        const referralsCount = (user as any)?.referralsCount || 0;
-
-                        const stats = computeMilestoneStats(enrollments, reflections, referralsCount);
-                        const claimed = (user as Participant).claimedMilestoneIds || [];
-
-                        const unclaimed = MILESTONES.filter(m => {
-                            const val = calculateMilestoneStatValue(m.id, stats);
-                            return val >= m.targetValue && !claimed.includes(m.id);
-                        });
-
-                        setUnclaimedMilestones(unclaimed);
-                    } catch (err) {
-                        console.error("Error loading milestones:", err);
-                    }
-                };
-                loadMilestones();
-            }
 
             // High intensity celebration effect
             const duration = 4 * 1000;
@@ -95,21 +65,6 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
             return () => clearInterval(interval);
         }
     }, [isOpen, user]);
-
-    const handleClaimMilestone = async (milestone: any, index: number) => {
-        if (!user || isClaimingIndex !== null) return;
-        setIsClaimingIndex(index);
-        try {
-            await userService.claimMilestone(user.id, milestone.id, milestone.points);
-            toast.success(`Claimed! +${milestone.points} Growth Coins added to your wallet.`);
-            setUnclaimedMilestones(prev => prev.filter((_, idx) => idx !== index));
-        } catch (err) {
-            console.error("Failed to claim milestone:", err);
-            toast.error("Failed to claim milestone. Please try again.");
-        } finally {
-            setIsClaimingIndex(null);
-        }
-    };
 
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
@@ -185,40 +140,6 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                             {sprintTitle}
                         </p>
                     </div>
-
-                    {/* Milestone Unlocked Card (if any unclaimed milestone) */}
-                    {unclaimedMilestones.length > 0 && (
-                        <div className="w-full bg-[#FFFBEB] border border-amber-200/80 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4 relative overflow-hidden mb-4">
-                            <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 text-lg">
-                                    {unclaimedMilestones[0].icon || '🏆'}
-                                </div>
-                                <div className="text-left min-w-0">
-                                    <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest leading-none">
-                                        Milestone Unlocked
-                                    </p>
-                                    <p className="text-xs sm:text-sm font-black text-amber-950 tracking-tight mt-1 truncate">
-                                        {unclaimedMilestones[0].description || unclaimedMilestones[0].title}
-                                    </p>
-                                    <p className="text-[10px] font-bold text-amber-700 tracking-tight mt-0.5">
-                                        Reward: +{unclaimedMilestones[0].points} Growth Coins
-                                    </p>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => handleClaimMilestone(unclaimedMilestones[0], 0)}
-                                disabled={isClaimingIndex === 0}
-                                className="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-sm shrink-0 cursor-pointer disabled:opacity-50 flex items-center gap-1"
-                            >
-                                {isClaimingIndex === 0 ? (
-                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                    <span>Claim</span>
-                                )}
-                            </button>
-                        </div>
-                    )}
 
                     {/* Interactive Ratings & Reflection Section */}
                     <AnimatePresence mode="wait">

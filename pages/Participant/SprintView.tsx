@@ -3104,15 +3104,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           setIsCompletionModalOpen(true);
         }
       }
-      
-      const triggerMilestone = async () => {
-        try {
-          await userService.claimMilestone(user.id, "first_leap", 10, true);
-        } catch (err) {
-          console.error("Auto claim first leap milestone failed:", err);
-        }
-      };
-      triggerMilestone();
     }
   }, [enrollment, user, location.state, hasTriggeredAutoClaim]);
 

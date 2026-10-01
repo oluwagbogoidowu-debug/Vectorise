@@ -1399,32 +1399,34 @@ const ParticipantDashboard: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-                    {/* Your Next Sprint / Begin Your First Sprint Card */}
+                    {/* Continue Your Rise Card */}
                     <Link to="/explore" className="py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] bg-[#0E7850] text-white shadow-lg col-span-1 min-h-[76px] md:min-h-[88px]">
                         <div className="relative z-10 min-w-0 text-left">
                             <p className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight text-white leading-tight">
-                                {hasCompletedFirstSprint ? (
-                                    <>Your Next Sprint</>
-                                ) : (
-                                    <>Begin Your First Sprint</>
-                                )}
+                                Continue Your Rise
                             </p>
                         </div>
                         <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
                     </Link>
                     
-                    {/* Keep/Start Rising Card */}
-                    <div className="bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
-                        <div className="relative z-10 min-w-0 text-left">
-                            <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 dark:text-white uppercase tracking-tight leading-tight">
-                                {hasCompletedFirstSprint ? (
-                                    <>Keep Rising</>
-                                ) : (
-                                    <>Start Rising</>
-                                )}
-                            </p>
+                    {/* Return to your sprint Card */}
+                    {mainTask && mainTask.enrollment ? (
+                        <Link to={`/participant/sprint/${mainTask.enrollment.id}`} className="bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px] hover:border-[#0E7850]/40">
+                            <div className="relative z-10 min-w-0 text-left">
+                                <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 dark:text-white uppercase tracking-tight leading-tight">
+                                    Return to your sprint
+                                </p>
+                            </div>
+                        </Link>
+                    ) : (
+                        <div className="bg-white dark:bg-[#1c1c1e] border border-gray-100 dark:border-zinc-800/80 py-3.5 px-4 md:py-4 md:px-5 rounded-[1.3rem] shadow-sm flex flex-col justify-center relative overflow-hidden transition-transform active:scale-[0.98] col-span-1 min-h-[76px] md:min-h-[88px]">
+                            <div className="relative z-10 min-w-0 text-left">
+                                <p className="text-sm sm:text-base md:text-lg font-black text-gray-950 dark:text-white uppercase tracking-tight leading-tight">
+                                    Return to your sprint
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 

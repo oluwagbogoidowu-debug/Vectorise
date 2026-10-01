@@ -57,7 +57,7 @@ export const NextSprintRecommendation: React.FC = () => {
     );
     const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<any | null>(null);
     const [userEnrollments, setUserEnrollments] = useState<any[]>([]);
-    const [hasUnclaimedMilestone, setHasUnclaimedMilestone] = useState(false);
+    const [unclaimedMilestones, setUnclaimedMilestones] = useState<any[]>([]);
     const [hasSeenKebab, setHasSeenKebab] = useState<boolean>(() => {
         try {
             return localStorage.getItem('vectorise_next_sprint_kebab_seen') === 'true';
@@ -99,7 +99,10 @@ export const NextSprintRecommendation: React.FC = () => {
     };
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setUnclaimedMilestones([]);
+            return;
+        }
         const checkMilestones = async () => {
             try {
                 const enrollments = userEnrollments.length > 0 ? userEnrollments : await sprintService.getUserEnrollments(user.id);
@@ -111,7 +114,7 @@ export const NextSprintRecommendation: React.FC = () => {
                     const val = calculateMilestoneStatValue(m.id, stats);
                     return val >= m.targetValue && !claimed.includes(m.id);
                 });
-                setHasUnclaimedMilestone(unclaimed.length > 0);
+                setUnclaimedMilestones(unclaimed);
             } catch (e) {
                 console.error("Error checking milestones in NextSprint:", e);
             }
@@ -592,8 +595,8 @@ export const NextSprintRecommendation: React.FC = () => {
                         title="Options"
                     >
                         <MoreVertical className="w-5 h-5" />
-                        {showFirstTimeKebabDot && (
-                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 animate-kebab-blink pointer-events-none" />
+                        {(unclaimedMilestones.length > 0 || showFirstTimeKebabDot) && (
+                            <span className={`absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 ${showFirstTimeKebabDot && unclaimedMilestones.length === 0 ? 'animate-kebab-blink' : 'animate-pulse'} pointer-events-none`} />
                         )}
                     </button>
 

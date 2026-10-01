@@ -41,16 +41,18 @@ export default async function geminiResearchHandler(req: Request, res: Response)
 
   // Construct a tailored, high-value prompt based on preset or user query
   let queryText = prompt?.trim() || "";
+  const isResearchMode = preset === "research_this" || queryText.toLowerCase().includes("research");
+
   if (preset === "explain_this") {
-    queryText = `Conduct an in-depth breakdown and strategic explanation of this action step. Ground your breakdown in the overall sprint trajectory and explain how it directly serves the sprint outcome.`;
+    queryText = `Explain this action step or concept clearly in the context of this sprint. Explain why it matters and how to approach it.`;
   } else if (preset === "examples") {
-    queryText = `Provide 3 compelling real-world case studies, best practices, or concrete execution models showing how top performers master this action step within this specific sprint domain.`;
+    queryText = `Give relevant, high-quality, practical examples showing how to successfully execute this action step in this domain.`;
   } else if (preset === "research_this") {
-    queryText = `Provide high-value strategic research, actionable execution frameworks, and evidence-grounded insights to master this action step in the context of the whole sprint.`;
+    queryText = `Actually perform web research on this action step topic. Search current, relevant information from multiple credible sources, synthesize findings, identify useful patterns, examples, roles, opportunities, or insights relevant to completing this action step, and cite the sources used. Do NOT teach how to research; deliver the actual researched findings.`;
   } else if (preset === "improve_my_answer") {
-    queryText = `Analyze my current input or reflection and suggest 3 high-impact refinements or strategic extensions to elevate my draft execution.`;
+    queryText = `Review and improve my current answer/reflection without replacing my own thinking. Suggest sharp refinements, strategic extensions, and improvements.`;
   } else if (!queryText) {
-    queryText = `Provide strategic guidance, actionable execution frameworks, and relevant insights to master this action step.`;
+    queryText = `Help me complete this current action step with actionable guidance and insights.`;
   }
 
   // Build comprehensive sprint curriculum from Move 1 to the end
@@ -64,7 +66,6 @@ export default async function geminiResearchHandler(req: Request, res: Response)
       .map((dc) => {
         const dayNum = Number(dc.day) || 1;
         const rawLesson = (dc.lessonText || "").trim();
-        // Remove excessive markdown artifacts or keep concise
         const lessonSnippet = rawLesson ? rawLesson.slice(0, 1200) : "(No lesson text provided)";
         
         let stepsFormatted = "";
@@ -94,7 +95,7 @@ export default async function geminiResearchHandler(req: Request, res: Response)
 
   const fullPrompt = `
 ========================================
-SPRINT OVERVIEW & ARCHITECTURE
+SPRINT CONTEXT
 ========================================
 Sprint Title: ${topic || "Sprint"}
 Category: ${category || "Performance & Growth"}
@@ -108,50 +109,82 @@ FULL SPRINT CURRICULUM (MOVE 1 TO END)
 ${curriculumText || `Move ${moveDay || 1}: ${stepPrompt || ""}`}
 
 ========================================
-CURRENT PARTICIPANT CONTEXT & FOCUS
+CURRENT ACTION STEP DETAILS
 ========================================
 Active Move: Move ${moveDay || 1}
 Active Action Step: Step ${(Number(stepIndex) || 0) + 1} ("${stepPrompt || ""}")
 ${footnote ? `Step Footnote / Context: "${footnote}"\n` : ""}
 ${askAiGuidance ? `Coach's Special Guidance for this step: "${askAiGuidance}"\n` : ""}
-${userAnswer ? `Participant's Current Input / Reflection: "${userAnswer}"\n` : ""}
+${userAnswer ? `Participant's Current Input / Draft: "${userAnswer}"\n` : ""}
 
 ========================================
-USER QUESTION / RESEARCH OBJECTIVE
+REQUESTED OBJECTIVE / QUERY
 ========================================
 ${queryText}
   `.trim();
 
-  const modelsToTry = ["gemini-3.1-flash-lite", "gemini-3.8-flash"];
+  const systemInstruction = `You are the VectoRise Research Assistant.
+
+Your job is to help the user complete the current action step.
+
+When the user selects "Research this", actually research the topic using web search/Google Search grounding. Do NOT teach the user how to research it.
+- Search current, relevant information from multiple credible sources.
+- Analyze and synthesize the findings.
+- Identify useful patterns, examples, roles, opportunities, or insights relevant to the action step.
+- Cite the sources used.
+- Clearly distinguish facts from your interpretation.
+- Keep the response concise and focused on helping the user move forward.
+
+Only explain how to conduct the research if the user explicitly asks.
+
+Modes:
+- Explain this: Explain the action or concept.
+- Give me examples: Give relevant examples.
+- Research this: Actually perform web research and report findings with sources.
+- Improve my answer: Review and improve the user's response without replacing their thinking.
+
+Do not invent information or sources.
+Structure output in crisp, clean Markdown with headings and bullet points.`;
+
+  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
   let research = "";
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {
     try {
-      console.log(`[API Gemini Research] Generating context-grounded response with: ${modelName}`);
+      console.log(`[API Gemini Research] Generating research assistant response with: ${modelName}, isResearchMode: ${isResearchMode}`);
+      const config: any = {
+        systemInstruction,
+      };
+
+      if (isResearchMode) {
+        config.tools = [{ googleSearch: {} }];
+      }
+
       const response = await ai.models.generateContent({
         model: modelName,
         contents: fullPrompt,
-        config: {
-          systemInstruction: `You are the master AI sprint mentor embedded in Vectorise.
-
-CRITICAL DIRECTIVE - COMPLETE SPRINT CONTEXT UNDERSTANDING:
-You have been provided with the complete curriculum and lesson content of this entire sprint from Move 1 through to the final move.
-Before answering:
-1. Deeply understand the holistic arc, philosophy, specific terms, and methodologies of this sprint.
-2. Ground every answer directly in the sprint's unique framework — reference how prior moves build up to this step, and how mastering this step leads toward the upcoming moves and final sprint outcomes.
-3. If the coach provided custom step guidance or footnotes, strictly integrate and align with that coach's intent.
-4. Avoid generic, boilerplate self-help advice. Make your response hyper-specific, practical, and highly attuned to this exact sprint context.
-
-Style & Formatting:
-- Write in clean, structured Markdown with clear section headers (##, ###), bullet points, and bold concepts.
-- Provide concrete tactical blueprints, real-world examples, and actionable mental models.
-- Avoid fluff, pleasantries, or preamble. Dive straight into high-leverage insight.
-- Conclude with a punchy "🔑 Key Takeaway" that captures the single most important action for this step in relation to the entire sprint.`,
-        },
+        config,
       });
 
       research = response.text || "";
+      
+      // Append grounding citations if provided by Google Search and not already in text
+      const searchChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+      if (searchChunks && Array.isArray(searchChunks) && searchChunks.length > 0 && isResearchMode) {
+        const webSources = searchChunks
+          .map((chunk: any) => chunk.web)
+          .filter((w: any) => w && (w.uri || w.title));
+        
+        if (webSources.length > 0 && !research.toLowerCase().includes("sources") && !research.toLowerCase().includes("references")) {
+          const formattedSources = webSources
+            .slice(0, 5)
+            .map((s: any, idx: number) => `- [${s.title || s.uri}](${s.uri})`)
+            .join("\n");
+          research += `\n\n### Sources\n${formattedSources}`;
+        }
+      }
+
       if (research) {
         console.log(`[API Gemini Research] Successfully generated research using ${modelName}`);
         return res.status(200).json({
