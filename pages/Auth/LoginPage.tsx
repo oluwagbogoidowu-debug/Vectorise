@@ -130,82 +130,8 @@ const LoginPage: React.FC = () => {
               }
 
               if (effectiveTargetSprintId && (latestPendingObj || location.state?.targetSprintId || location.state?.sprintId)) {
-                  try {
-                      const sprint = await sprintService.getSprintById(effectiveTargetSprintId);
-                      if (sprint) {
-                          const enrollments = await sprintService.getUserEnrollments(user.id);
-                          const existing = enrollments.find(e => e.sprint_id === effectiveTargetSprintId);
-                          let enrollmentId = existing?.id;
-
-                          const effectiveInputs = latestPendingObj?.taskInputs || (latestPendingObj?.firstActionInput ? [latestPendingObj.firstActionInput] : []);
-                          const firstInput = effectiveInputs[0] || latestPendingObj?.firstActionInput || "";
-
-                          if (!existing) {
-                              const enrollment = await sprintService.enrollUser(user.id, effectiveTargetSprintId, sprint.duration, {
-                                  firstActionInput: firstInput,
-                                  taskInputs: effectiveInputs
-                              });
-                              enrollmentId = enrollment?.id;
-
-                              if (enrollment && enrollment.progress && enrollment.progress[0]) {
-                                  const updatedProgress = [...enrollment.progress];
-                                  updatedProgress[0] = {
-                                      ...updatedProgress[0],
-                                      completed: true,
-                                      completedAt: new Date().toISOString(),
-                                      answers: effectiveInputs,
-                                      submission: firstInput
-                                  };
-                                  const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
-                                  await updateDoc(enrollmentRef, { 
-                                      progress: updatedProgress,
-                                      last_activity_at: new Date().toISOString()
-                                  });
-                              }
-                          } else if (effectiveInputs.length > 0) {
-                              if (existing.progress && existing.progress[0]) {
-                                  const updatedProgress = [...existing.progress];
-                                  updatedProgress[0] = {
-                                      ...updatedProgress[0],
-                                      completed: true,
-                                      completedAt: new Date().toISOString(),
-                                      answers: effectiveInputs,
-                                      submission: firstInput
-                                  };
-                                  const enrollmentRef = doc(db, "users", user.id, "enrollments", existing.id);
-                                  await updateDoc(enrollmentRef, { 
-                                      progress: updatedProgress,
-                                      last_activity_at: new Date().toISOString()
-                                  });
-                              }
-                          }
-
-                          await userService.addUserEnrollment(user.id, effectiveTargetSprintId);
-
-                          if (enrollmentId) {
-                              console.log("[LoginPage] Confirmed enrollment created/updated:", enrollmentId, "Removing pending_first_action");
-                              localStorage.removeItem('pending_first_action');
-                              localStorage.removeItem('vectorise_last_sprint');
-                          }
-
-                          const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
-                          const daySuccessState = {
-                              redirectToDaySuccess: true,
-                              day: 1,
-                              coinsUnlocked: 10,
-                              bridgeNote: d1Content?.bridgeNote,
-                              sprintId: effectiveTargetSprintId,
-                              sprint: sprint,
-                              enrollmentId: enrollmentId,
-                              taskInputs: effectiveInputs
-                          };
-
-                          navigate('/participant/day-success', { state: daySuccessState, replace: true });
-                          return;
-                      }
-                  } catch (e) {
-                      console.error("Error fulfilling pending sprint on LoginPage:", e);
-                  }
+                  navigate('/dashboard', { replace: true });
+                  return;
               }
 
               // Role Redirections

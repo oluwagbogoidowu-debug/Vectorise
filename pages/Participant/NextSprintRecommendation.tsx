@@ -58,7 +58,6 @@ export const NextSprintRecommendation: React.FC = () => {
     const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<any | null>(null);
     const [userEnrollments, setUserEnrollments] = useState<any[]>([]);
     const [hasUnclaimedMilestone, setHasUnclaimedMilestone] = useState(false);
-    const [isBlinkingKebab, setIsBlinkingKebab] = useState(false);
     const [hasSeenKebab, setHasSeenKebab] = useState<boolean>(() => {
         try {
             return localStorage.getItem('vectorise_next_sprint_kebab_seen') === 'true';
@@ -66,17 +65,36 @@ export const NextSprintRecommendation: React.FC = () => {
             return false;
         }
     });
+    const [showFirstTimeKebabDot, setShowFirstTimeKebabDot] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('vectorise_next_sprint_kebab_seen') !== 'true';
+        } catch (e) {
+            return false;
+        }
+    });
+
+    // Blink 3 times when someone visits Next Sprint page for the first time, then remove red dot permanently
+    useEffect(() => {
+        if (showFirstTimeKebabDot) {
+            const timer = setTimeout(() => {
+                setShowFirstTimeKebabDot(false);
+                setHasSeenKebab(true);
+                try {
+                    localStorage.setItem('vectorise_next_sprint_kebab_seen', 'true');
+                } catch (e) {}
+            }, 2400); // 3 blinks (800ms * 3 = 2400ms)
+            return () => clearTimeout(timer);
+        }
+    }, [showFirstTimeKebabDot]);
 
     const handleToggleKebabMenu = () => {
         setIsKebabMenuOpen((prev) => !prev);
-        if (!hasSeenKebab) {
+        if (showFirstTimeKebabDot || !hasSeenKebab) {
+            setShowFirstTimeKebabDot(false);
             setHasSeenKebab(true);
             try {
                 localStorage.setItem('vectorise_next_sprint_kebab_seen', 'true');
             } catch (e) {}
-        }
-        if (isBlinkingKebab) {
-            setIsBlinkingKebab(false);
         }
     };
 
@@ -104,10 +122,6 @@ export const NextSprintRecommendation: React.FC = () => {
     const handleClosePaymentModal = () => {
         if (isProcessingPayment) return;
         setIsPaymentModalOpen(false);
-        setIsBlinkingKebab(true);
-        setTimeout(() => {
-            setIsBlinkingKebab(false);
-        }, 2400);
     };
 
     // Subscribe to user enrollments to track active in-progress sprint
@@ -155,65 +169,6 @@ export const NextSprintRecommendation: React.FC = () => {
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
         return () => observer.disconnect();
     }, []);
-
-    // Failsafe: Automatically fulfill and save any pending preview action when landing on dashboard
-    useEffect(() => {
-        if (!user) return;
-        const pendingRaw = localStorage.getItem('pending_first_action');
-        if (!pendingRaw) return;
-        try {
-            const pending = JSON.parse(pendingRaw);
-            if (pending && pending.sprintId) {
-                sprintService.getSprintById(pending.sprintId).then(async (targetSprint) => {
-                    if (targetSprint) {
-                        const effectiveInputs = pending.taskInputs || (pending.firstActionInput ? [pending.firstActionInput] : []);
-                        const firstInput = effectiveInputs[0] || pending.firstActionInput || "";
-                        const enrollment = await sprintService.enrollUser(user.id, targetSprint.id, targetSprint.duration, {
-                            firstActionInput: firstInput,
-                            taskInputs: effectiveInputs
-                        } as any);
-
-                        await userService.addUserEnrollment(user.id, targetSprint.id);
-
-                        if (enrollment && enrollment.progress && enrollment.progress[0]) {
-                            const updatedProgress = [...enrollment.progress];
-                            updatedProgress[0] = {
-                                ...updatedProgress[0],
-                                completed: true,
-                                completedAt: new Date().toISOString(),
-                                answers: effectiveInputs,
-                                submission: firstInput
-                            };
-                            const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
-                            await updateDoc(enrollmentRef, { 
-                                progress: updatedProgress,
-                                last_activity_at: new Date().toISOString()
-                            });
-                        }
-                        console.log("[NextSprintRecommendation] Auto-fulfilled pending preview action and saved to database for sprint:", targetSprint.id);
-                        localStorage.removeItem('pending_first_action');
-                        localStorage.removeItem('vectorise_last_sprint');
-                        const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
-                        navigate('/participant/day-success', {
-                            replace: true,
-                            state: {
-                                day: 1,
-                                coinsUnlocked: 10,
-                                bridgeNote: d1Content?.bridgeNote,
-                                sprintId: targetSprint.id,
-                                sprint: targetSprint,
-                                enrollmentId: enrollment?.id,
-                                taskInputs: effectiveInputs,
-                                redirectToDaySuccess: true
-                            }
-                        });
-                    }
-                }).catch(err => console.error("Error auto-fulfilling pending action on dashboard:", err));
-            }
-        } catch (e) {
-            console.error("Error reading pending action in NextSprintRecommendation:", e);
-        }
-    }, [user, navigate]);
 
     const toggleDarkMode = () => {
         const nextVal = !isDarkMode;
@@ -637,8 +592,8 @@ export const NextSprintRecommendation: React.FC = () => {
                         title="Options"
                     >
                         <MoreVertical className="w-5 h-5" />
-                        {(!hasSeenKebab || hasUnclaimedMilestone || isBlinkingKebab) && (
-                            <span className={`absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 ${isBlinkingKebab ? 'animate-kebab-blink' : 'animate-pulse'}`} />
+                        {showFirstTimeKebabDot && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 animate-kebab-blink pointer-events-none" />
                         )}
                     </button>
 
