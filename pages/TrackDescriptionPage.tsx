@@ -60,13 +60,13 @@ const CoachStoryCard: React.FC<{ story: TrackStory }> = ({ story }) => {
             </div>
 
             {/* Story Title & Expandable Content */}
-            <div className="space-y-2 pt-1 border-t border-gray-50">
+            <div className="space-y-2.5 pt-1 border-t border-gray-50">
                 <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-snug">
                     {story.title}
                 </h3>
 
                 <div className="relative">
-                    <p className={`text-xs sm:text-sm text-gray-600 font-medium leading-relaxed whitespace-pre-wrap transition-all duration-300 ${
+                    <p className={`text-sm sm:text-base text-gray-600 font-medium leading-[1.65] whitespace-pre-wrap transition-all duration-300 ${
                         !isExpanded ? 'line-clamp-3' : ''
                     }`}>
                         {story.content}
@@ -77,7 +77,7 @@ const CoachStoryCard: React.FC<{ story: TrackStory }> = ({ story }) => {
                     <button
                         type="button"
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="flex items-center gap-1.5 text-[10px] font-black text-primary uppercase tracking-widest hover:opacity-75 transition-opacity pt-1 cursor-pointer"
+                        className="flex items-center gap-1.5 text-[10px] font-black text-primary uppercase tracking-widest hover:opacity-75 transition-opacity pt-1.5 cursor-pointer"
                     >
                         {isExpanded ? (
                             <><Minus className="w-3 h-3" /> See Less</>
