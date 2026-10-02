@@ -6,7 +6,7 @@ import { trackService } from '../services/trackService';
 import { sprintService } from '../services/sprintService';
 import { userService } from '../services/userService';
 import { analyticsTracker } from '../services/analyticsTracker';
-import { Track, Sprint } from '../types';
+import { Track, Sprint, TrackStory } from '../types';
 import Button from '../components/Button';
 import FormattedText from '../components/FormattedText';
 import DynamicSectionRenderer from '../components/DynamicSectionRenderer';
@@ -23,6 +23,73 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
 );
 
 const fallbackImage = 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1350&q=80';
+
+const CoachStoryCard: React.FC<{ story: TrackStory }> = ({ story }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const authorName = story.authorName || story.name || 'Vectorise Coach';
+    const authorHeadline = story.authorHeadline || story.headline || 'Certified Clarity & Performance Coach';
+    const authorAvatar = story.authorAvatar || story.avatar || story.avatarUrl || '';
+
+    return (
+        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden p-6 sm:p-7 space-y-4 hover:shadow-md transition-all">
+            {/* Author Profile Header */}
+            <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl overflow-hidden bg-emerald-50 border border-emerald-100/80 flex items-center justify-center shrink-0 text-emerald-800 font-black text-xs shadow-inner">
+                    {authorAvatar ? (
+                        <img 
+                            src={authorAvatar} 
+                            alt={authorName} 
+                            className="w-full h-full object-cover" 
+                            onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                            }}
+                        />
+                    ) : (
+                        <span>{authorName.substring(0, 2).toUpperCase()}</span>
+                    )}
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h4 className="text-sm sm:text-base font-black text-gray-900 leading-tight truncate">
+                        {authorName}
+                    </h4>
+                    <p className="text-[11px] font-bold text-gray-400 truncate mt-0.5">
+                        {authorHeadline}
+                    </p>
+                </div>
+            </div>
+
+            {/* Story Title & Expandable Content */}
+            <div className="space-y-2 pt-1 border-t border-gray-50">
+                <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-snug">
+                    {story.title}
+                </h3>
+
+                <div className="relative">
+                    <p className={`text-xs sm:text-sm text-gray-600 font-medium leading-relaxed whitespace-pre-wrap transition-all duration-300 ${
+                        !isExpanded ? 'line-clamp-3' : ''
+                    }`}>
+                        {story.content}
+                    </p>
+                </div>
+
+                {story.content && story.content.length > 120 && (
+                    <button
+                        type="button"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="flex items-center gap-1.5 text-[10px] font-black text-primary uppercase tracking-widest hover:opacity-75 transition-opacity pt-1 cursor-pointer"
+                    >
+                        {isExpanded ? (
+                            <><Minus className="w-3 h-3" /> See Less</>
+                        ) : (
+                            <><Plus className="w-3 h-3" /> See More</>
+                        )}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const SprintViewCard: React.FC<{ sprint: Sprint }> = ({ sprint }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -236,21 +303,22 @@ const TrackDescriptionPage: React.FC = () => {
         return Math.max(0, Math.round(totalPrice * (1 - discount / 100)));
     }, [totalPrice, track]);
 
-    const defaultStories = useMemo(() => [
+    const defaultStories: TrackStory[] = useMemo(() => [
         {
             id: 's1',
+            authorName: "Coach Alex Rivera",
+            authorHeadline: "Lead Clarity & Execution Coach",
+            authorAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
             title: "From scattered to hyper-focused",
-            content: "Taking each sprint in sequence turned overwhelming goals into daily, bite-sized momentum."
+            content: "When I started my journey, I tried taking on five initiatives at once and ended up exhausted. Taking each sprint in connected sequence transformed my thinking. Daily bite-sized moves create compound clarity that lasts far beyond the sprint."
         },
         {
             id: 's2',
+            authorName: "Marcus Vance",
+            authorHeadline: "Performance Strategist",
+            authorAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
             title: "The power of connected sprints",
-            content: "Completing this track felt like building real muscle. Each day built on the last, and the rerun feature cemented the habits."
-        },
-        {
-            id: 's3',
-            title: "Breakthrough in 3 weeks",
-            content: "I finally stopped second-guessing my decisions and started executing every morning with confidence."
+            content: "Completing this track felt like building real cognitive muscle. Each move reinforced the previous day's breakthrough, and the structured rerun access cemented habits that normally take months to build."
         }
     ], []);
 
@@ -481,25 +549,13 @@ const TrackDescriptionPage: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* STORIES FROM THE JOURNEY */}
+                            {/* STORIES FROM COACH'S JOURNEY */}
                             {effectiveStories.length > 0 && (
-                                <section className="space-y-4 pt-2">
-                                    <SectionHeading>Stories from the Journey</SectionHeading>
-                                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 pt-1 snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
+                                <section className="space-y-6 pt-2">
+                                    <SectionHeading>Stories from Coach's Journey</SectionHeading>
+                                    <div className="space-y-4">
                                         {effectiveStories.map((story, idx) => (
-                                            <div 
-                                                key={story.id || idx}
-                                                className="w-[82vw] sm:w-[320px] shrink-0 snap-start bg-white rounded-[2rem] p-6 sm:p-7 border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col justify-between space-y-3"
-                                            >
-                                                <div className="space-y-2">
-                                                    <h4 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-snug">
-                                                        {story.title}
-                                                    </h4>
-                                                    <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed">
-                                                        {story.content}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            <CoachStoryCard key={story.id || idx} story={story} />
                                         ))}
                                     </div>
                                 </section>

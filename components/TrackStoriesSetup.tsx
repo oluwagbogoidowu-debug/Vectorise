@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, BookOpen, Sparkles } from 'lucide-react';
+import { Plus, Trash2, BookOpen, Sparkles, User, Image as ImageIcon } from 'lucide-react';
 import { TrackStory } from '../types';
 
 interface TrackStoriesSetupProps {
@@ -11,18 +11,25 @@ export const TrackStoriesSetup: React.FC<TrackStoriesSetupProps> = ({ stories = 
   const handleAddStory = () => {
     const newStory: TrackStory = {
       id: `story_${Date.now()}`,
+      authorName: '',
+      authorHeadline: '',
+      authorAvatar: '',
       title: '',
       content: ''
     };
     onChange([...stories, newStory]);
   };
 
-  const handleUpdateStory = (index: number, field: 'title' | 'content', value: string) => {
+  const handleUpdateStory = (index: number, field: keyof TrackStory, value: string) => {
     const updated = [...stories];
     updated[index] = {
       ...updated[index],
       [field]: value
     };
+    // Sync alias fields for compatibility
+    if (field === 'authorName') updated[index].name = value;
+    if (field === 'authorHeadline') updated[index].headline = value;
+    if (field === 'authorAvatar') updated[index].avatar = value;
     onChange(updated);
   };
 
@@ -37,14 +44,14 @@ export const TrackStoriesSetup: React.FC<TrackStoriesSetupProps> = ({ stories = 
         <div>
           <div className="flex items-center gap-2">
             <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">
-              Stories from the Journey
+              Stories from Coach's Journey
             </h4>
             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[9px] font-black uppercase rounded-full">
               {stories.length} {stories.length === 1 ? 'Story' : 'Stories'}
             </span>
           </div>
           <p className="text-[11px] text-gray-400 font-bold mt-0.5">
-            Add short, inspiring journey stories displayed as swipeable cards on the track page.
+            Add coach stories with author profile details and expandable writeups for the track description page.
           </p>
         </div>
 
@@ -62,7 +69,7 @@ export const TrackStoriesSetup: React.FC<TrackStoriesSetupProps> = ({ stories = 
       {stories.length === 0 ? (
         <div className="py-8 px-4 text-center border-2 border-dashed border-gray-100 rounded-3xl space-y-3">
           <BookOpen className="w-8 h-8 text-gray-300 mx-auto" />
-          <p className="text-xs text-gray-400 font-medium">No stories added yet. Click + to create a story card.</p>
+          <p className="text-xs text-gray-400 font-medium">No coach stories added yet. Click + to create a story card.</p>
           <button
             type="button"
             onClick={handleAddStory}
@@ -72,53 +79,119 @@ export const TrackStoriesSetup: React.FC<TrackStoriesSetupProps> = ({ stories = 
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {stories.map((story, index) => (
-            <div
-              key={story.id || index}
-              className="p-5 sm:p-6 bg-gray-50/70 rounded-3xl border border-gray-100 space-y-3 relative group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                  Story #{index + 1}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveStory(index)}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                  title="Delete Story"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+        <div className="space-y-6">
+          {stories.map((story, index) => {
+            const authorName = story.authorName || story.name || '';
+            const authorHeadline = story.authorHeadline || story.headline || '';
+            const authorAvatar = story.authorAvatar || story.avatar || story.avatarUrl || '';
 
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
-                  Story Title
-                </label>
-                <input
-                  type="text"
-                  value={story.title}
-                  onChange={(e) => handleUpdateStory(index, 'title', e.target.value)}
-                  placeholder="e.g. From scattered to hyper-focused"
-                  className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
-                />
-              </div>
+            return (
+              <div
+                key={story.id || index}
+                className="p-6 sm:p-7 bg-gray-50/70 rounded-3xl border border-gray-100 space-y-4 relative group"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-gray-200/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center overflow-hidden shrink-0 text-emerald-800 font-black text-xs">
+                      {authorAvatar ? (
+                        <img src={authorAvatar} alt={authorName || "Coach"} className="w-full h-full object-cover" />
+                      ) : (
+                        authorName ? authorName.substring(0, 2).toUpperCase() : <User className="w-5 h-5 text-emerald-700" />
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest block">
+                        Story #{index + 1}
+                      </span>
+                      <p className="text-xs font-bold text-gray-800 truncate max-w-[200px]">
+                        {authorName || "Unnamed Coach"}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveStory(index)}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                    title="Delete Story"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
 
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
-                  Story Content
-                </label>
-                <textarea
-                  value={story.content}
-                  onChange={(e) => handleUpdateStory(index, 'content', e.target.value)}
-                  placeholder="Share a short writeup or perspective from taking the track..."
-                  rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-xs font-medium text-gray-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none placeholder:text-gray-300 leading-relaxed"
-                />
+                {/* Author Details: Name, Headline & Avatar */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+                      Coach Name
+                    </label>
+                    <input
+                      type="text"
+                      value={authorName}
+                      onChange={(e) => handleUpdateStory(index, 'authorName', e.target.value)}
+                      placeholder="e.g. Coach Alex Rivera"
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+                      Coach Headline
+                    </label>
+                    <input
+                      type="text"
+                      value={authorHeadline}
+                      onChange={(e) => handleUpdateStory(index, 'authorHeadline', e.target.value)}
+                      placeholder="e.g. Lead Clarity Coach"
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+                      Avatar URL
+                    </label>
+                    <input
+                      type="url"
+                      value={authorAvatar}
+                      onChange={(e) => handleUpdateStory(index, 'authorAvatar', e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                    />
+                  </div>
+                </div>
+
+                {/* Story Title & Content */}
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+                      Story Title
+                    </label>
+                    <input
+                      type="text"
+                      value={story.title}
+                      onChange={(e) => handleUpdateStory(index, 'title', e.target.value)}
+                      placeholder="e.g. Overcoming the Mid-Career Fog"
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-900 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-gray-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+                      Story Content
+                    </label>
+                    <textarea
+                      value={story.content}
+                      onChange={(e) => handleUpdateStory(index, 'content', e.target.value)}
+                      placeholder="Share the coach's perspective, struggle, transformation, or lesson from this journey..."
+                      rows={3}
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-100 rounded-xl text-xs font-medium text-gray-800 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none placeholder:text-gray-300 leading-relaxed"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="pt-2">
             <button

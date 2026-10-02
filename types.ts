@@ -805,6 +805,13 @@ export interface TrackStarterQuestion {
 
 export interface TrackStory {
   id?: string;
+  authorName?: string;
+  name?: string;
+  authorHeadline?: string;
+  headline?: string;
+  authorAvatar?: string;
+  avatarUrl?: string;
+  avatar?: string;
   title: string;
   content: string;
 }
