@@ -26,11 +26,13 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     const { user } = useAuth();
     const [rating, setRating] = useState<number>(0);
     const [outcome, setOutcome] = useState<string>('');
+    const [showReviewSection, setShowReviewSection] = useState<boolean>(false);
 
     useEffect(() => {
         if (isOpen) {
             setRating(0);
             setOutcome('');
+            setShowReviewSection(false);
 
             // High intensity celebration effect
             const duration = 4 * 1000;
@@ -142,86 +144,100 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                     </div>
 
                     {/* Interactive Ratings & Reflection Section */}
-                    <AnimatePresence mode="wait">
-                        {rating === 0 ? (
-                            <motion.div
-                                key="rating-prompt"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.2 }}
-                                className="my-2 space-y-4 bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-left"
+                    {!showReviewSection ? (
+                        <div className="my-3 text-left">
+                            <button
+                                type="button"
+                                onClick={() => setShowReviewSection(true)}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-[#0E7850] transition-colors py-1 cursor-pointer group"
                             >
-                                <div>
-                                    <p className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3">
-                                        How would you rate this sprint?
-                                    </p>
-                                    <div className="flex justify-between gap-2">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <button
-                                                key={star}
-                                                type="button"
-                                                onClick={() => setRating(star)}
-                                                className="flex-1 py-3.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-white text-gray-400 hover:bg-amber-50 hover:text-amber-400 hover:scale-105 border border-gray-100 shadow-sm active:scale-95 group"
-                                            >
-                                                <Star className="w-5 h-5 text-gray-300 group-hover:text-amber-400 group-hover:fill-amber-400 transition-colors" />
-                                            </button>
-                                        ))}
+                                <span className="underline underline-offset-4 decoration-gray-300 group-hover:decoration-[#0E7850]">
+                                    Give review about this sprint.
+                                </span>
+                            </button>
+                        </div>
+                    ) : (
+                        <AnimatePresence mode="wait">
+                            {rating === 0 ? (
+                                <motion.div
+                                    key="rating-prompt"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="my-2 space-y-4 bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-left"
+                                >
+                                    <div>
+                                        <p className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3">
+                                            How would you rate this sprint?
+                                        </p>
+                                        <div className="flex justify-between gap-2">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <button
+                                                    key={star}
+                                                    type="button"
+                                                    onClick={() => setRating(star)}
+                                                    className="flex-1 py-3.5 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-white text-gray-400 hover:bg-amber-50 hover:text-amber-400 hover:scale-105 border border-gray-100 shadow-sm active:scale-95 group"
+                                                >
+                                                    <Star className="w-5 h-5 text-gray-300 group-hover:text-amber-400 group-hover:fill-amber-400 transition-colors" />
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="feedback-prompt"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -8 }}
-                                transition={{ duration: 0.2 }}
-                                className="my-2 space-y-3 bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-left"
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <button
-                                                key={star}
-                                                type="button"
-                                                onClick={() => setRating(star)}
-                                                className="p-1 cursor-pointer transition-transform hover:scale-110"
-                                            >
-                                                <Star 
-                                                    className={`w-4 h-4 ${
-                                                        star <= rating 
-                                                            ? 'fill-amber-400 text-amber-400' 
-                                                            : 'text-gray-300'
-                                                    }`} 
-                                                />
-                                            </button>
-                                        ))}
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="feedback-prompt"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="my-2 space-y-3 bg-gray-50/80 p-5 rounded-[2rem] border border-gray-100 text-left"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <button
+                                                    key={star}
+                                                    type="button"
+                                                    onClick={() => setRating(star)}
+                                                    className="p-1 cursor-pointer transition-transform hover:scale-110"
+                                                >
+                                                    <Star 
+                                                        className={`w-4 h-4 ${
+                                                            star <= rating 
+                                                                ? 'fill-amber-400 text-amber-400' 
+                                                                : 'text-gray-300'
+                                                        }`} 
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <span className="text-[10px] font-bold text-gray-400 tracking-wide uppercase">
+                                            {rating} of 5 Stars
+                                        </span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-gray-400 tracking-wide uppercase">
-                                        {rating} of 5 Stars
-                                    </span>
-                                </div>
 
-                                <div className="pt-1">
-                                    <h4 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight leading-snug">
-                                        Want to share what this sprint helped you with?
-                                    </h4>
-                                    <p className="text-[11px] text-gray-500 font-medium mt-0.5">
-                                        Your response helps us improve the experience.
-                                    </p>
-                                </div>
+                                    <div className="pt-1">
+                                        <h4 className="text-xs sm:text-sm font-black text-gray-900 tracking-tight leading-snug">
+                                            Want to share what this sprint helped you with?
+                                        </h4>
+                                        <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                                            Your response helps us improve the experience.
+                                        </p>
+                                    </div>
 
-                                <textarea
-                                    value={outcome}
-                                    onChange={(e) => setOutcome(e.target.value)}
-                                    placeholder="Share your experience..."
-                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:ring-2 focus:ring-[#0E7850] focus:border-[#0E7850] outline-none transition-all resize-none h-24 text-gray-800 placeholder:text-gray-400"
-                                    autoFocus
-                                />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                    <textarea
+                                        value={outcome}
+                                        onChange={(e) => setOutcome(e.target.value)}
+                                        placeholder="Share your experience..."
+                                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:ring-2 focus:ring-[#0E7850] focus:border-[#0E7850] outline-none transition-all resize-none h-24 text-gray-800 placeholder:text-gray-400"
+                                        autoFocus
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    )}
                 </div>
 
                 {/* Footer CTAs */}

@@ -876,10 +876,10 @@ export const CoachParticipants: React.FC = () => {
                                 type="button"
                                 onClick={() => setViewingSubmission(null)}
                                 className="p-3 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center gap-2 text-xs font-black uppercase tracking-wider"
-                                title="Back to Participant Tracker"
+                                title="Back to Participants"
                             >
                                 <ArrowLeft className="w-4 h-4" />
-                                <span>Tracker</span>
+                                <span>Participants</span>
                             </button>
                             <div>
                                 <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
@@ -1942,41 +1942,29 @@ export const CoachParticipants: React.FC = () => {
             ) : (
                 /* 2. MAIN PARTICIPANTS & EXPERIENCES DASHBOARD */
                 <>
-                    {/* Header */}
-                    <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
-                        <div>
-                            <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2">
-                                Participant & Experience Tracker
-                            </h1>
-                            <p className="text-gray-500 font-medium">
-                                Real-time engagement, views, likes, and submission tracking across your programs.
-                            </p>
-                        </div>
-
-                        {/* Search & Program Filter */}
-                        <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
-                            <div className="relative min-w-[200px]">
-                                <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
-                                <input 
-                                    type="text"
-                                    placeholder="Search title, student..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none shadow-sm h-11"
-                                />
-                            </div>
-
-                            {/* Program Filter */}
-                            <CustomSelect 
-                                value={selectedProgramId}
-                                onChange={(val) => setSelectedProgramId(String(val))}
-                                options={[
-                                    { value: 'all', label: 'All Programs' },
-                                    ...allExperiences.map(s => ({ value: s.id, label: s.title }))
-                                ]}
-                                className="min-w-[160px]"
+                    {/* Search & Program Filter */}
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center justify-end mb-8">
+                        <div className="relative min-w-[200px]">
+                            <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                            <input 
+                                type="text"
+                                placeholder="Search title, student..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all outline-none shadow-sm h-11"
                             />
                         </div>
+
+                        {/* Program Filter */}
+                        <CustomSelect 
+                            value={selectedProgramId}
+                            onChange={(val) => setSelectedProgramId(String(val))}
+                            options={[
+                                { value: 'all', label: 'All Programs' },
+                                ...allExperiences.map(s => ({ value: s.id, label: s.title }))
+                            ]}
+                            className="min-w-[160px]"
+                        />
                     </div>
 
                     {/* Experience Type Filter Switcher - As Requested: All experience, Ignite, Sprint, Challenge, Riseblog */}
