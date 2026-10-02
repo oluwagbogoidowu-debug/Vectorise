@@ -1312,7 +1312,7 @@ const CoachSprints: React.FC = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [orchestratedIds, setOrchestratedIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'rejected' | 'draft'>('all');
-  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite' | 'challenge'>('sprint');
+  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite' | 'challenge'>('ignite');
   const [isCreateTypeOpen, setIsCreateTypeOpen] = useState(false);
 
   useEffect(() => {
@@ -1675,47 +1675,9 @@ const CoachSprints: React.FC = () => {
               <div className="flex items-center justify-between gap-3 mb-8 w-full">
                                 
                 <div className="inline-flex bg-gray-100 p-1 rounded-2xl gap-0.5">
-                                
                     <button
                         type="button"
-                        onClick={() =>
-                                 {
-                            setActiveTab('sprint');
-                            setFilter('all');
-                        }}
-                        className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                            activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
-                        }`}
-                    >
-                                
-                        <Flame className="w-3 h-3" />
-                                
-                        <span>
-                                Sprint</span>
-                    </button>
-                                
-                    <button
-                        type="button"
-                        onClick={() =>
-                                 {
-                            setActiveTab('blog');
-                            setFilter('all');
-                        }}
-                        className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                            activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
-                        }`}
-                    >
-                                
-                        <BookOpen className="w-3 h-3" />
-                                
-                        <span>
-                                Riseblog</span>
-                    </button>
-                                
-                    <button
-                        type="button"
-                        onClick={() =>
-                                 {
+                        onClick={() => {
                             setActiveTab('ignite');
                             setFilter('all');
                         }}
@@ -1723,17 +1685,27 @@ const CoachSprints: React.FC = () => {
                             activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                         }`}
                     >
-                                
                         <Sparkles className="w-3 h-3" />
-                                
-                        <span>
-                                Ignite</span>
+                        <span>Ignite</span>
                     </button>
-                                
+
                     <button
                         type="button"
-                        onClick={() =>
-                                 {
+                        onClick={() => {
+                            setActiveTab('blog');
+                            setFilter('all');
+                        }}
+                        className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            activeTab === 'blog' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        <BookOpen className="w-3 h-3" />
+                        <span>Riseblog</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
                             setActiveTab('challenge');
                             setFilter('all');
                         }}
@@ -1741,13 +1713,23 @@ const CoachSprints: React.FC = () => {
                             activeTab === 'challenge' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                         }`}
                     >
-                                
                         <Trophy className="w-3 h-3" />
-                                
-                        <span>
-                                Challenge</span>
+                        <span>Challenge</span>
                     </button>
-                                
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setActiveTab('sprint');
+                            setFilter('all');
+                        }}
+                        className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        <Flame className="w-3 h-3" />
+                        <span>Sprint</span>
+                    </button>
                 </div>
                                 
                 {hasPermission('sprint:create') && (

@@ -434,7 +434,6 @@ const SprintPreview: React.FC = () => {
             const pendingRaw = localStorage.getItem('pending_first_action');
             
             if (hasInputs || pendingRaw) {
-                isNavigatingToSuccessRef.current = true;
                 const targetSprint = sprint;
                 const targetSprintId = sprint?.id || sprintId;
                 
@@ -461,10 +460,33 @@ const SprintPreview: React.FC = () => {
 
                     const firstInput = (localAllDayInputs[1] && localAllDayInputs[1][0]) || effectiveInputs[0] || "";
 
-                    sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
+                    const pendingObj = {
+                        sprintId: sId,
+                        pricingType: targetSprint?.pricingType || 'cash',
                         firstActionInput: firstInput,
-                        taskInputs: localAllDayInputs[1] || effectiveInputs
-                    } as any).then(async (enrollment) => {
+                        taskInputs: localAllDayInputs[1] || effectiveInputs,
+                        allDayInputs: localAllDayInputs,
+                        activeTaskIndex: activeTaskIndex,
+                        prefilledEmail: user.email || '',
+                        updatedAt: new Date().toISOString()
+                    };
+                    localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
+
+                    // Check if user has active enrollment before auto enrolling
+                    sprintService.getUserEnrollments(user.id).then(async (userEnrollments) => {
+                        const activeEnrollment = userEnrollments.find(e => e.status === 'active' && !e.completed_at);
+                        if (activeEnrollment) {
+                            // Let SprintConflictManager display the multi-sprint conflict modal
+                            setShowLockModal(false);
+                            return;
+                        }
+
+                        isNavigatingToSuccessRef.current = true;
+                        const enrollment = await sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
+                            firstActionInput: firstInput,
+                            taskInputs: localAllDayInputs[1] || effectiveInputs
+                        } as any);
+
                         if (enrollment && enrollment.progress) {
                             const updatedProgress = [...enrollment.progress];
                             localCompletedDays.forEach(cDay => {
@@ -507,24 +529,7 @@ const SprintPreview: React.FC = () => {
                             replace: true 
                         });
                     }).catch(err => {
-                        console.error("Auto enrollment & completion on login failed:", err);
-                        localStorage.removeItem('pending_first_action');
-                        setShowLockModal(false);
-                        const currentDayContent = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find((dc: any) => dc.day === previewDay) : undefined;
-                        navigate('/participant/day-success', { 
-                            state: { 
-                                day: previewDay, 
-                                coinsUnlocked: 10, 
-                                bridgeNote: currentDayContent?.bridgeNote || day1Content?.bridgeNote,
-                                sprintId: targetSprintId,
-                                sprint: targetSprint,
-                                taskInputs: effectiveInputs,
-                                isPreview: false,
-                                returnToPreviewUrl: undefined,
-                                redirectToDaySuccess: true
-                            }, 
-                            replace: true 
-                        });
+                        console.error("Auto enrollment check failed:", err);
                     });
                     return;
                 }
@@ -1111,6 +1116,16 @@ const SprintPreview: React.FC = () => {
             const targetSprintId = sprint?.id || sprintId;
             if (!targetSprint && targetSprintId) {
                 targetSprint = await sprintService.getSprintById(targetSprintId);
+            }
+
+            // Check if user has active enrollments
+            const userEnrollments = await sprintService.getUserEnrollments(firebaseUser.uid);
+            const activeEnrollment = userEnrollments.find(e => e.status === 'active' && !e.completed_at);
+            if (activeEnrollment) {
+                // There is a conflict (either different active sprint or same sprint active)
+                // Keep pending_first_action in localStorage, close lock modal, and let SprintConflictManager show the popup!
+                setShowLockModal(false);
+                return;
             }
 
             if (targetSprint) {

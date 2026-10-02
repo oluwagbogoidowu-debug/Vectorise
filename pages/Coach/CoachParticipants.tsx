@@ -818,7 +818,7 @@ export const CoachParticipants: React.FC = () => {
 
     // Non-Sprint Experiences Filtered
     const filteredNonSprintExperiences = useMemo(() => {
-        return allExperiences.filter(exp => {
+        const list = allExperiences.filter(exp => {
             const ct = String(exp.contentType || 'sprint').toLowerCase();
             
             let matchesType = false;
@@ -838,6 +838,20 @@ export const CoachParticipants: React.FC = () => {
                 exp.category?.toLowerCase().includes(searchTerm.toLowerCase());
 
             return matchesType && matchesSearch;
+        });
+
+        const typeRank: Record<string, number> = {
+            'ignite': 1,
+            'blog': 2,
+            'riseblog': 2,
+            'challenge': 3,
+            'sprint': 4
+        };
+
+        return list.sort((a, b) => {
+            const orderA = typeRank[String(a.contentType || '').toLowerCase()] || 99;
+            const orderB = typeRank[String(b.contentType || '').toLowerCase()] || 99;
+            return orderA - orderB;
         });
     }, [allExperiences, experienceTypeFilter, searchTerm]);
 
@@ -2006,8 +2020,8 @@ export const CoachParticipants: React.FC = () => {
                 /* 2. MAIN PARTICIPANTS & EXPERIENCES DASHBOARD */
                 <>
                     {/* Search & Program Filter */}
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center justify-end mb-8">
-                        <div className="relative min-w-[200px]">
+                    <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between mb-8">
+                        <div className="relative flex-1 min-w-[200px] max-w-md">
                             <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
                             <input 
                                 type="text"
@@ -2018,150 +2032,213 @@ export const CoachParticipants: React.FC = () => {
                             />
                         </div>
 
-                        {/* Setting Icon Trigger in front of All Programs with Kebab-style Overlay Dropdown */}
-                        <div className="relative" ref={experienceMenuRef}>
-                            <button
-                                type="button"
-                                onClick={() => setIsExperienceMenuOpen(!isExperienceMenuOpen)}
-                                className="h-11 w-11 flex items-center justify-center bg-white border border-gray-200 hover:border-gray-300 rounded-2xl text-gray-700 shadow-sm transition-all active:scale-95 cursor-pointer"
-                                title="Default Experience Type Filter"
-                                aria-label="Default Experience Type Filter"
-                            >
-                                {renderExperienceIcon(experienceTypeFilter)}
-                            </button>
+                        {/* Setting Icon & Program Filter on a straight line */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            {/* Setting Icon Trigger in front of All Programs with Kebab-style Overlay Dropdown */}
+                            <div className="relative" ref={experienceMenuRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsExperienceMenuOpen(!isExperienceMenuOpen)}
+                                    className="h-11 w-11 flex items-center justify-center bg-white border border-gray-200 hover:border-gray-300 rounded-2xl text-gray-700 shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
+                                    title="Default Experience Type Filter"
+                                    aria-label="Default Experience Type Filter"
+                                >
+                                    {renderExperienceIcon(experienceTypeFilter)}
+                                </button>
 
-                            {/* Overlay Dropdown like Kebab Style */}
-                            {isExperienceMenuOpen && (
-                                <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-gray-400 border-b border-gray-100 mb-1">
-                                        Default Experience Type
+                                {/* Overlay Dropdown like Kebab Style */}
+                                {isExperienceMenuOpen && (
+                                    <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                        <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-gray-400 border-b border-gray-100 mb-1">
+                                            Default Experience Type
+                                        </div>
+                                        {[
+                                            { value: 'all' as ExperienceTypeFilter, label: 'All experience', icon: <Settings className="w-4 h-4 text-gray-600" /> },
+                                            { value: 'ignite' as ExperienceTypeFilter, label: 'Ignite', icon: <Sparkles className="w-4 h-4 text-purple-600" /> },
+                                            { value: 'blog' as ExperienceTypeFilter, label: 'Riseblog', icon: <BookOpen className="w-4 h-4 text-blue-600" /> },
+                                            { value: 'challenge' as ExperienceTypeFilter, label: 'Challenge', icon: <Trophy className="w-4 h-4 text-amber-600" /> },
+                                            { value: 'sprint' as ExperienceTypeFilter, label: 'Sprint', icon: <Flame className="w-4 h-4 text-[#0E7850]" /> },
+                                        ].map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() => handleSetExperienceType(opt.value)}
+                                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                                    experienceTypeFilter === opt.value
+                                                        ? 'bg-gray-100 text-gray-950 font-black'
+                                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2.5">
+                                                    <span>{opt.icon}</span>
+                                                    <span>{opt.label}</span>
+                                                </div>
+                                                {experienceTypeFilter === opt.value && (
+                                                    <Check className="w-3.5 h-3.5 text-[#0E7850]" />
+                                                )}
+                                            </button>
+                                        ))}
                                     </div>
-                                    {[
-                                        { value: 'all' as ExperienceTypeFilter, label: 'All experience', icon: <Settings className="w-4 h-4 text-gray-600" /> },
-                                        { value: 'ignite' as ExperienceTypeFilter, label: 'Ignite', icon: <Sparkles className="w-4 h-4 text-purple-600" /> },
-                                        { value: 'sprint' as ExperienceTypeFilter, label: 'Sprint', icon: <Flame className="w-4 h-4 text-[#0E7850]" /> },
-                                        { value: 'challenge' as ExperienceTypeFilter, label: 'Challenge', icon: <Trophy className="w-4 h-4 text-amber-600" /> },
-                                        { value: 'blog' as ExperienceTypeFilter, label: 'Riseblog', icon: <BookOpen className="w-4 h-4 text-blue-600" /> },
-                                    ].map((opt) => (
-                                        <button
-                                            key={opt.value}
-                                            type="button"
-                                            onClick={() => handleSetExperienceType(opt.value)}
-                                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                                experienceTypeFilter === opt.value
-                                                    ? 'bg-gray-100 text-gray-950 font-black'
-                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-2.5">
-                                                <span>{opt.icon}</span>
-                                                <span>{opt.label}</span>
-                                            </div>
-                                            {experienceTypeFilter === opt.value && (
-                                                <Check className="w-3.5 h-3.5 text-[#0E7850]" />
-                                            )}
-                                        </button>
-                                    ))}
+                                )}
+                            </div>
+
+                            {/* Program Filter */}
+                            <CustomSelect 
+                                value={selectedProgramId}
+                                onChange={(val) => setSelectedProgramId(String(val))}
+                                options={[
+                                    { 
+                                        value: 'all', 
+                                        label: experienceTypeFilter === 'all' 
+                                            ? 'All Programs' 
+                                            : experienceTypeFilter === 'ignite' 
+                                                ? 'All Ignites' 
+                                                : experienceTypeFilter === 'sprint' 
+                                                    ? 'All Sprints' 
+                                                    : experienceTypeFilter === 'challenge' 
+                                                        ? 'All Challenges' 
+                                                        : 'All Riseblogs' 
+                                    },
+                                    ...filteredProgramsForSelect.map(s => ({ 
+                                        value: s.id, 
+                                        label: s.title || (s.contentType === 'ignite' ? s.igniteBody?.slice(0, 30) || 'Ignite' : 'Untitled') 
+                                    }))
+                                ]}
+                                className="min-w-[180px]"
+                            />
+                        </div>
+                    </div>
+
+                    {/* SECTION 1: NON-SPRINT EXPERIENCES (IGNITE, RISEBLOG, CHALLENGE) */}
+                    {(experienceTypeFilter === 'all' || experienceTypeFilter !== 'sprint') && (
+                        <div className="space-y-6 mb-12">
+                            {experienceTypeFilter === 'all' && (
+                                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                                    <div className="flex items-center gap-2">
+                                        <Sparkles className="w-5 h-5 text-purple-600" />
+                                        <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">
+                                            Experiences (Ignite, Riseblog, Challenge)
+                                        </h2>
+                                    </div>
                                 </div>
                             )}
+
+                            {filteredNonSprintExperiences.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {filteredNonSprintExperiences.map((exp) => {
+                                        const ct = String(exp.contentType || 'ignite').toLowerCase();
+                                        const isIgnite = ct === 'ignite';
+                                        const isBlog = ct === 'blog';
+                                        const isChallenge = ct === 'challenge';
+
+                                        return (
+                                            <div
+                                                key={exp.id}
+                                                onClick={() => setViewingExperienceTracker(exp)}
+                                                className="bg-white rounded-[2rem] border-2 border-gray-100 p-6 shadow-sm hover:border-[#0E7850]/30 hover:shadow-lg transition-all duration-300 flex flex-col justify-between cursor-pointer group"
+                                            >
+                                                <div className="space-y-4">
+                                                    {/* Top Badges */}
+                                                    <div className="flex items-center justify-between">
+                                                        <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 ${
+                                                            isIgnite ? 'bg-purple-50 text-purple-700 border border-purple-100' :
+                                                            isBlog ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                                                            'bg-amber-50 text-amber-700 border border-amber-100'
+                                                        }`}>
+                                                            {isIgnite && <Sparkles className="w-3 h-3" />}
+                                                            {isBlog && <BookOpen className="w-3 h-3" />}
+                                                            {isChallenge && <Trophy className="w-3 h-3" />}
+                                                            <span>{isIgnite ? 'Ignite' : isBlog ? 'Riseblog' : 'Challenge'}</span>
+                                                        </span>
+
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">
+                                                            {formatTimeAgo(exp.createdAt)}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Card Preview / Content Snippet */}
+                                                    {isIgnite && (
+                                                        <div 
+                                                            className="p-5 rounded-2xl text-white shadow-inner flex flex-col justify-between min-h-[120px]"
+                                                            style={{ backgroundColor: exp.igniteBgColor || '#6D28D9' }}
+                                                        >
+                                                            <p className="text-xs font-black leading-relaxed line-clamp-3">
+                                                                "{exp.igniteBody || exp.description || 'Sparks of daily inspiration'}"
+                                                            </p>
+                                                            {exp.igniteDate && (
+                                                                <span className="text-[9px] font-bold text-white/80 uppercase tracking-widest mt-2">
+                                                                    Scheduled: {exp.igniteDate}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {isBlog && (
+                                                        <div className="space-y-3">
+                                                            {exp.blogImage || exp.coverImageUrl ? (
+                                                                <div className="w-full h-32 rounded-2xl overflow-hidden bg-gray-900">
+                                                                    <img 
+                                                                        src={exp.blogImage || exp.coverImageUrl} 
+                                                                        alt="" 
+                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                                    />
+                                                                </div>
+                                                            ) : null}
+                                                            <h3 className="text-sm font-black text-gray-900 leading-snug line-clamp-2">
+                                                                {exp.title}
+                                                            </h3>
+                                                        </div>
+                                                    )}
+
+                                                    {isChallenge && (
+                                                        <div className="space-y-2">
+                                                            <h3 className="text-sm font-black text-gray-900 leading-snug">
+                                                                {exp.title}
+                                                            </h3>
+                                                            <p className="text-xs text-gray-500 font-medium line-clamp-2">
+                                                                {exp.challengeData?.whatToDo || exp.description || 'Action-driven habit challenge'}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Bottom Action & Live View/Like Counters */}
+                                                <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-1 text-gray-500 text-xs font-bold">
+                                                            <Eye className="w-3.5 h-3.5 text-gray-400" />
+                                                            <span>{exp.views || 0}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 text-rose-500 text-xs font-bold">
+                                                            <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
+                                                            <span>{exp.likes || 0}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                                        <span>View Accounts</span>
+                                                        <span>&rarr;</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                experienceTypeFilter !== 'all' && (
+                                    <div className="py-20 text-center flex flex-col items-center bg-white rounded-3xl border-2 border-dashed border-gray-100">
+                                        <Sparkles className="w-10 h-10 text-gray-300 mb-3" />
+                                        <h3 className="text-lg font-bold text-gray-800">No Experiences Found</h3>
+                                        <p className="text-gray-400 text-xs mt-1">Create an Ignite spark, Riseblog article, or Challenge to track viewer accounts.</p>
+                                    </div>
+                                )
+                            )}
                         </div>
+                    )}
 
-                        {/* Program Filter */}
-                        <CustomSelect 
-                            value={selectedProgramId}
-                            onChange={(val) => setSelectedProgramId(String(val))}
-                            options={[
-                                { 
-                                    value: 'all', 
-                                    label: experienceTypeFilter === 'all' 
-                                        ? 'All Programs' 
-                                        : experienceTypeFilter === 'ignite' 
-                                            ? 'All Ignites' 
-                                            : experienceTypeFilter === 'sprint' 
-                                                ? 'All Sprints' 
-                                                : experienceTypeFilter === 'challenge' 
-                                                    ? 'All Challenges' 
-                                                    : 'All Riseblogs' 
-                                },
-                                ...filteredProgramsForSelect.map(s => ({ 
-                                    value: s.id, 
-                                    label: s.title || (s.contentType === 'ignite' ? s.igniteBody?.slice(0, 30) || 'Ignite' : 'Untitled') 
-                                }))
-                            ]}
-                            className="min-w-[160px]"
-                        />
-                    </div>
-
-                    {/* Experience Type Filter Switcher - As Requested: All experience, Ignite, Sprint, Challenge, Riseblog */}
-                    <div className="mb-8 p-1.5 bg-gray-100 rounded-2xl inline-flex flex-wrap gap-1">
-                        <button
-                            type="button"
-                            onClick={() => handleSetExperienceType('all')}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                experienceTypeFilter === 'all'
-                                    ? 'bg-white text-gray-900 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
-                            }`}
-                        >
-                            <span>All experience</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleSetExperienceType('ignite')}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                experienceTypeFilter === 'ignite'
-                                    ? 'bg-white text-purple-700 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
-                            }`}
-                        >
-                            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                            <span>Ignite</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleSetExperienceType('sprint')}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                experienceTypeFilter === 'sprint'
-                                    ? 'bg-white text-primary shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
-                            }`}
-                        >
-                            <Flame className="w-3.5 h-3.5 text-primary" />
-                            <span>Sprint</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleSetExperienceType('challenge')}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                experienceTypeFilter === 'challenge'
-                                    ? 'bg-white text-amber-700 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
-                            }`}
-                        >
-                            <Trophy className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Challenge</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => handleSetExperienceType('blog')}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                                experienceTypeFilter === 'blog'
-                                    ? 'bg-white text-emerald-700 shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-900'
-                            }`}
-                        >
-                            <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Riseblog</span>
-                        </button>
-                    </div>
-
-                    {/* SECTION A: SPRINT PARTICIPANT CARDS (MAINTAIN CURRENT CARD DESIGN) */}
+                    {/* SECTION 2: SPRINT PARTICIPANT CARDS */}
                     {(experienceTypeFilter === 'all' || experienceTypeFilter === 'sprint') && (
-                        <div className="space-y-6 mb-12">
+                        <div className="space-y-6">
                             {experienceTypeFilter === 'all' && (
                                 <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                                     <div className="flex items-center gap-2">
@@ -2299,131 +2376,6 @@ export const CoachParticipants: React.FC = () => {
                                         <p className="text-gray-400 text-xs mt-1">Once students enroll in your sprints, they'll appear here.</p>
                                     </div>
                                 )
-                            )}
-                        </div>
-                    )}
-
-                    {/* SECTION B: NON-SPRINT EXPERIENCES (IGNITE, RISEBLOG, CHALLENGE) */}
-                    {(experienceTypeFilter === 'all' || experienceTypeFilter !== 'sprint') && (
-                        <div className="space-y-6">
-                            {experienceTypeFilter === 'all' && (
-                                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                                    <div className="flex items-center gap-2">
-                                        <Sparkles className="w-5 h-5 text-purple-600" />
-                                        <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">
-                                            Other Experiences (Ignite, Riseblog, Challenge)
-                                        </h2>
-                                    </div>
-                                </div>
-                            )}
-
-                            {filteredNonSprintExperiences.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {filteredNonSprintExperiences.map((exp) => {
-                                        const ct = String(exp.contentType || 'ignite').toLowerCase();
-                                        const isIgnite = ct === 'ignite';
-                                        const isBlog = ct === 'blog';
-                                        const isChallenge = ct === 'challenge';
-
-                                        return (
-                                            <div
-                                                key={exp.id}
-                                                onClick={() => setViewingExperienceTracker(exp)}
-                                                className="bg-white rounded-[2rem] border-2 border-gray-100 p-6 shadow-sm hover:border-[#0E7850]/30 hover:shadow-lg transition-all duration-300 flex flex-col justify-between cursor-pointer group"
-                                            >
-                                                <div className="space-y-4">
-                                                    {/* Top Badges */}
-                                                    <div className="flex items-center justify-between">
-                                                        <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 ${
-                                                            isIgnite ? 'bg-purple-50 text-purple-700 border border-purple-100' :
-                                                            isBlog ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                                                            'bg-amber-50 text-amber-700 border border-amber-100'
-                                                        }`}>
-                                                            {isIgnite && <Sparkles className="w-3 h-3" />}
-                                                            {isBlog && <BookOpen className="w-3 h-3" />}
-                                                            {isChallenge && <Trophy className="w-3 h-3" />}
-                                                            <span>{isIgnite ? 'Ignite' : isBlog ? 'Riseblog' : 'Challenge'}</span>
-                                                        </span>
-
-                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">
-                                                            {formatTimeAgo(exp.createdAt)}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Card Preview / Content Snippet */}
-                                                    {isIgnite && (
-                                                        <div 
-                                                            className="p-5 rounded-2xl text-white shadow-inner flex flex-col justify-between min-h-[120px]"
-                                                            style={{ backgroundColor: exp.igniteBgColor || '#6D28D9' }}
-                                                        >
-                                                            <p className="text-xs font-black leading-relaxed line-clamp-3">
-                                                                "{exp.igniteBody || exp.description || 'Sparks of daily inspiration'}"
-                                                            </p>
-                                                            {exp.igniteDate && (
-                                                                <span className="text-[9px] font-bold text-white/80 uppercase tracking-widest mt-2">
-                                                                    Scheduled: {exp.igniteDate}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    {isBlog && (
-                                                        <div className="space-y-3">
-                                                            {exp.blogImage || exp.coverImageUrl ? (
-                                                                <div className="w-full h-32 rounded-2xl overflow-hidden bg-gray-900">
-                                                                    <img 
-                                                                        src={exp.blogImage || exp.coverImageUrl} 
-                                                                        alt="" 
-                                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                                    />
-                                                                </div>
-                                                            ) : null}
-                                                            <h3 className="text-sm font-black text-gray-900 leading-snug line-clamp-2">
-                                                                {exp.title}
-                                                            </h3>
-                                                        </div>
-                                                    )}
-
-                                                    {isChallenge && (
-                                                        <div className="space-y-2">
-                                                            <h3 className="text-sm font-black text-gray-900 leading-snug">
-                                                                {exp.title}
-                                                            </h3>
-                                                            <p className="text-xs text-gray-500 font-medium line-clamp-2">
-                                                                {exp.challengeData?.whatToDo || exp.description || 'Action-driven habit challenge'}
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Bottom Action & Live View/Like Counters */}
-                                                <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex items-center gap-1 text-gray-500 text-xs font-bold">
-                                                            <Eye className="w-3.5 h-3.5 text-gray-400" />
-                                                            <span>{exp.views || 0}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1 text-rose-500 text-xs font-bold">
-                                                            <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-                                                            <span>{exp.likes || 0}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-wider flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                                        <span>View Accounts</span>
-                                                        <span>&rarr;</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="py-20 text-center flex flex-col items-center bg-white rounded-3xl border-2 border-dashed border-gray-100">
-                                    <Sparkles className="w-10 h-10 text-gray-300 mb-3" />
-                                    <h3 className="text-lg font-bold text-gray-800">No Experiences Found</h3>
-                                    <p className="text-gray-400 text-xs mt-1">Create an Ignite spark, Riseblog article, or Challenge to track viewer accounts.</p>
-                                </div>
                             )}
                         </div>
                     )}

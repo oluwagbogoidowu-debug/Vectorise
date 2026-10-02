@@ -18,6 +18,7 @@ import { localNotificationScheduler } from './services/localNotificationSchedule
 import { appInstallTrackingService } from './services/appInstallTrackingService';
 import OfflineBanner from './components/OfflineBanner';
 import FloatingSprintBar from './components/FloatingSprintBar';
+import SprintConflictManager from './components/SprintConflictManager';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
@@ -205,6 +206,7 @@ const AppContent: React.FC = () => {
       <DormancyPrompt />
       <PWAInstallPrompt deferredPrompt={deferredPrompt} />
       <FloatingSprintBar />
+      <SprintConflictManager />
 
 
     </div>
