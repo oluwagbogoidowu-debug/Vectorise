@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
-import { Sprint, Track, TrackStarterQuestion } from '../../types';
+import { Sprint, Track, TrackStarterQuestion, TrackStory } from '../../types';
 import Button from '../../components/Button';
 import { List, Plus, Trash2, Search, Package, Save, AlertTriangle, Copy, Check, Eye, Sparkles, ArrowUpDown, Layers } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import FormattingToolbar from '../../components/FormattingToolbar';
 import { adminCache } from './adminCache';
 import { getSprintCashPrice } from '../../utils/sprintUtils';
 import TrackStarterSetup from '../../components/TrackStarterSetup';
+import TrackStoriesSetup from '../../components/TrackStoriesSetup';
 import { ArrangeTrackSprints } from '../../components/ArrangeTrackSprints';
 
 const EditTrack: React.FC = () => {
@@ -50,6 +51,7 @@ const EditTrack: React.FC = () => {
         sprintIds: [] as string[],
         published: true,
         allowedReruns: 2,
+        stories: [] as TrackStory[],
         starterQuestion: {
             question: 'Where are you right now?',
             pollOptions: [],
@@ -75,6 +77,7 @@ const EditTrack: React.FC = () => {
                         sprintIds: track.sprintIds,
                         published: track.published,
                         allowedReruns: track.allowedReruns ?? 2,
+                        stories: track.stories || [],
                         starterQuestion: track.starterQuestion || {
                             question: 'Where are you right now?',
                             pollOptions: [],
@@ -157,7 +160,8 @@ const EditTrack: React.FC = () => {
             updatedAt: new Date().toISOString(),
             currency: selectedSprints[0]?.currency || 'NGN',
             starterQuestion: formData.starterQuestion,
-            allowedReruns: formData.allowedReruns
+            allowedReruns: formData.allowedReruns,
+            stories: formData.stories
         };
 
         try {
@@ -585,6 +589,12 @@ const EditTrack: React.FC = () => {
                             starterQuestion={formData.starterQuestion}
                             onChange={(sq) => setFormData(prev => ({ ...prev, starterQuestion: sq }))}
                             selectedSprints={selectedSprints}
+                        />
+
+                        {/* Stories from the Journey Setup */}
+                        <TrackStoriesSetup
+                            stories={formData.stories || []}
+                            onChange={(storiesList) => setFormData(prev => ({ ...prev, stories: storiesList }))}
                         />
                     </div>
 

@@ -803,6 +803,12 @@ export interface TrackStarterQuestion {
   isSet?: boolean;
 }
 
+export interface TrackStory {
+  id?: string;
+  title: string;
+  content: string;
+}
+
 export interface Track {
   id: string;
   title: string;
@@ -817,6 +823,7 @@ export interface Track {
   currency: string;
   starterQuestion?: TrackStarterQuestion;
   allowedReruns?: number;
+  stories?: TrackStory[];
 }
 
 export interface WalletTransaction {

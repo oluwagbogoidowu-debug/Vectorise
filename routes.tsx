@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { UserRole } from './types';
+import { sprintService } from './services/sprintService';
 import ParticipantLayout from './components/ParticipantLayout';
 import CoachLayout from './components/CoachLayout';
 
@@ -76,6 +77,7 @@ const RiseArchive = lazy(() => import('./pages/Participant/Profile/RiseArchive')
 
 const BuyCoins = lazy(() => import('./pages/Participant/BuyCoins'));
 const NextSprintRecommendation = lazy(() => import('./pages/Participant/NextSprintRecommendation'));
+const ActiveSprintPage = lazy(() => import('./pages/Participant/ActiveSprintPage'));
 const SprintPreview = lazy(() => import('./pages/Participant/SprintPreview'));
 const RiseBlog = lazy(() => import('./pages/Participant/RiseBlog'));
 
@@ -84,6 +86,34 @@ const PageLoader: React.FC = () => (
     <div className="w-8 h-8 border-3 border-[#0E7850] border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
+
+const ParticipantHome: React.FC = () => {
+  const { user } = useAuth();
+  const [hasActive, setHasActive] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (!user) {
+      setHasActive(false);
+      return;
+    }
+    const unsub = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
+      const active = enrollments.some(e => {
+        if (e.status !== 'active') return false;
+        if (e.completed_at) return false;
+        const allDaysCompleted = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p: any) => p.completed);
+        return !allDaysCompleted;
+      });
+      setHasActive(active);
+    });
+    return () => unsub();
+  }, [user]);
+
+  if (hasActive === null) {
+    return <PageLoader />;
+  }
+
+  return hasActive ? <ActiveSprintPage /> : <NextSprintRecommendation />;
+};
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -167,7 +197,7 @@ export const AppRoutes: React.FC = () => {
             {activeRole === UserRole.COACH && <Navigate to="/coach/dashboard" replace />}
             {activeRole === UserRole.ADMIN && <Navigate to="/admin/dashboard" replace />}
             {activeRole === UserRole.PARTNER && <Navigate to="/partner/dashboard" replace />}
-            {(activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && <NextSprintRecommendation />}
+            {(activeRole === UserRole.PARTICIPANT || activeRole === UserRole.PARTNER) && <ParticipantHome />}
           </ProtectedRoute>
         } />
         
@@ -206,6 +236,7 @@ export const AppRoutes: React.FC = () => {
            <Route path="/impact/rewards" element={<GrowthRewards />} />
            <Route path="/impact/badges" element={<Badges />} />
            <Route path="/buy-coins" element={<BuyCoins />} />
+           <Route path="/participant/active-sprint" element={<ActiveSprintPage />} />
            <Route path="/participant/next-sprint" element={<NextSprintRecommendation />} />
            <Route path="/participant/next-sprint/:sprintId" element={<NextSprintRecommendation />} />
            <Route path="/participant/recommendation" element={<NextSprintRecommendation />} />
@@ -231,6 +262,9 @@ export const AppRoutes: React.FC = () => {
         
         <Route path="/impact/success" element={<ReferralSuccess />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/payment/sprint/:sprintId" element={<SprintPayment />} />
+        <Route path="/payment/:sprintId" element={<SprintPayment />} />
+        <Route path="/payment" element={<SprintPayment />} />
         <Route path="/challenge/:id" element={<ChallengeActionSetup />} />
         <Route path="/challenge" element={<ChallengeActionSetup />} />
         <Route path="/sprint/:sprintId" element={<SprintLandingPage />} />

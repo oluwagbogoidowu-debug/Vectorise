@@ -1016,6 +1016,25 @@ const SprintPreview: React.FC = () => {
             };
             await userService.createUserDocument(firebaseUser.uid, newUser);
 
+            const isCashSprint = targetSprint?.pricingType === 'cash' || (targetSprint?.price && targetSprint.price > 0 && targetSprint.pricingType !== 'credits');
+
+            if (isCashSprint && targetSprint) {
+                // For cash sprints: preserve pending_first_action and redirect to payment page
+                toast.success("Account created! Complete payment to save your progress and continue.");
+                setShowLockModal(false);
+                navigate('/onboarding/sprint-payment', {
+                    state: {
+                        sprintId: targetSprint.id,
+                        sprint: targetSprint,
+                        fromPreview: true,
+                        prefilledEmail: authEmail.trim().toLowerCase(),
+                        taskInputs: effectiveInputs
+                    },
+                    replace: true
+                });
+                return;
+            }
+
             let enrollmentId = "";
             const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
             let day1BridgeNote = d1Content?.bridgeNote;

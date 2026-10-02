@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Compass, Sparkles, Zap, User, Settings, X, ChevronRight, Coins, TrendingUp, Award, Target } from 'lucide-react';
+import { Compass, Sparkles, Zap, User, Settings, X, ChevronRight, Coins, TrendingUp, Award, Target, Flame } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationService } from '../services/notificationService';
+import { sprintService } from '../services/sprintService';
 import LocalLogo from './LocalLogo';
 
 interface ParticipantDrawerMenuProps {
@@ -16,13 +17,28 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [hasUnread, setHasUnread] = useState(false);
+  const [hasActiveSprint, setHasActiveSprint] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    const unsubscribe = notificationService.subscribeToNotifications(user.id, (notifs) => {
+    const unsubscribeNotifs = notificationService.subscribeToNotifications(user.id, (notifs) => {
       setHasUnread(notifs.some(n => !n.isRead));
     });
-    return () => unsubscribe();
+
+    const unsubscribeEnrollments = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
+      const active = enrollments.some(e => {
+        if (e.status !== 'active') return false;
+        if (e.completed_at) return false;
+        const allDaysCompleted = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p) => p.completed);
+        return !allDaysCompleted;
+      });
+      setHasActiveSprint(active);
+    });
+
+    return () => {
+      unsubscribeNotifs();
+      unsubscribeEnrollments();
+    };
   }, [user]);
 
   // Lock body scroll when drawer is open
@@ -37,14 +53,17 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
     };
   }, [isOpen]);
 
+  const journeyItems = [
+    ...(hasActiveSprint ? [{ label: 'Active Sprint', path: '/participant/active-sprint', icon: Flame, badge: 'Active' }] : []),
+    { label: 'Your Next Sprint', path: '/participant/next-sprint', icon: Sparkles, badge: hasUnread ? 'New' : null },
+    { label: 'Explore Sprints', path: '/explore', icon: Compass, badge: null },
+    { label: 'My Sprints', path: '/my-sprints', icon: Zap, badge: null },
+  ];
+
   const navSections = [
     {
       title: 'My Journey',
-      items: [
-        { label: 'Your Next Sprint', path: '/participant/next-sprint', icon: Sparkles, badge: hasUnread ? 'New' : null },
-        { label: 'Explore Sprints', path: '/explore', icon: Compass, badge: null },
-        { label: 'My Sprints', path: '/my-sprints', icon: Zap, badge: null },
-      ]
+      items: journeyItems
     },
     {
       title: 'Your Rise',

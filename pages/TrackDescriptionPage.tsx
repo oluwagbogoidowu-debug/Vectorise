@@ -236,6 +236,31 @@ const TrackDescriptionPage: React.FC = () => {
         return Math.max(0, Math.round(totalPrice * (1 - discount / 100)));
     }, [totalPrice, track]);
 
+    const defaultStories = useMemo(() => [
+        {
+            id: 's1',
+            title: "From scattered to hyper-focused",
+            content: "Taking each sprint in sequence turned overwhelming goals into daily, bite-sized momentum."
+        },
+        {
+            id: 's2',
+            title: "The power of connected sprints",
+            content: "Completing this track felt like building real muscle. Each day built on the last, and the rerun feature cemented the habits."
+        },
+        {
+            id: 's3',
+            title: "Breakthrough in 3 weeks",
+            content: "I finally stopped second-guessing my decisions and started executing every morning with confidence."
+        }
+    ], []);
+
+    const effectiveStories = useMemo(() => {
+        if (track?.stories && track.stories.length > 0) {
+            return track.stories;
+        }
+        return defaultStories;
+    }, [track?.stories, defaultStories]);
+
     const handleJoinClick = async () => {
         if (!track) return;
         
@@ -455,6 +480,30 @@ const TrackDescriptionPage: React.FC = () => {
                                     ))}
                                 </div>
                             </section>
+
+                            {/* STORIES FROM THE JOURNEY */}
+                            {effectiveStories.length > 0 && (
+                                <section className="space-y-4 pt-2">
+                                    <SectionHeading>Stories from the Journey</SectionHeading>
+                                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 pt-1 snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
+                                        {effectiveStories.map((story, idx) => (
+                                            <div 
+                                                key={story.id || idx}
+                                                className="w-[82vw] sm:w-[320px] shrink-0 snap-start bg-white rounded-[2rem] p-6 sm:p-7 border border-gray-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col justify-between space-y-3"
+                                            >
+                                                <div className="space-y-2">
+                                                    <h4 className="text-base sm:text-lg font-black text-gray-900 tracking-tight leading-snug">
+                                                        {story.title}
+                                                    </h4>
+                                                    <p className="text-xs sm:text-sm text-gray-600 font-medium leading-relaxed">
+                                                        {story.content}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
                         </div>
                     </div>
 

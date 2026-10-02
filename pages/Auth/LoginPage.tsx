@@ -150,7 +150,7 @@ const LoginPage: React.FC = () => {
                   return;
               }
 
-              // Participant Redirection (with resume logic)
+              // Participant Redirection
               try {
                   const enrollments = await sprintService.getUserEnrollments(user.id);
 
@@ -159,29 +159,28 @@ const LoginPage: React.FC = () => {
                       return;
                   }
 
-                  // 2. Resume active journey
-                  const active = enrollments.find(e => e.status === 'active' && e.progress.some(p => !p.completed));
+                  // 2. If a sprint is active, show the active sprint page
+                  const active = enrollments.find(e => {
+                      if (e.status !== 'active') return false;
+                      if (e.completed_at) return false;
+                      const allDaysCompleted = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p) => p.completed);
+                      return !allDaysCompleted;
+                  });
+
                   if (active) {
-                      navigate(`/participant/sprint/${active.id}`, { replace: true });
+                      navigate('/participant/active-sprint', { replace: true });
                       return;
                   }
 
-                  // 3. Check for queued sprints
-                  const queued = enrollments.find(e => e.status === 'queued');
-                  if (queued) {
-                      navigate('/dashboard', { replace: true, state: { showNextSprintPopup: true } });
-                      return;
-                  }
-
-                  // 4. No active or queued sprints - go to explore
-                  navigate('/explore', { replace: true });
+                  // 3. If no active sprint, show your next sprint page as the homepage/first page
+                  navigate('/participant/next-sprint', { replace: true });
                   return;
               } catch (e) {
                   console.error("Redirect tracking error", e);
               }
 
               // Default fallback
-              navigate('/dashboard', { replace: true });
+              navigate('/participant/next-sprint', { replace: true });
           }
       };
       handleUserRedirect();

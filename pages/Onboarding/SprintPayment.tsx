@@ -1,414 +1,329 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { X, Lock, CheckCircle2, AlertTriangle, ShieldCheck, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import LocalLogo from '../../components/LocalLogo';
 import Button from '../../components/Button';
 import { paymentService } from '../../services/paymentService';
-import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Sprint, Track, Participant, GlobalOrchestrationSettings } from '../../types';
+import { Sprint, Track, Participant } from '../../types';
 import { getSprintCashPrice } from '../../utils/sprintUtils';
 
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, updateProfile } = useAuth();
-  
-  const [guestEmail, setGuestEmail] = useState('');
-  const [finalCommitment, setFinalCommitment] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  
-  const [showInsufficientModal, setShowInsufficientModal] = useState(false);
-  const [globalSettings, setGlobalSettings] = useState<GlobalOrchestrationSettings | null>(null);
+  const { user } = useAuth();
 
   const state = location.state || {};
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(state.sprint || null);
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(state.track || null);
   const sprintId = selectedSprint?.id || state.sprintId;
   const trackId = selectedTrack?.id || state.trackId;
-  
+
+  const [guestEmail, setGuestEmail] = useState(state.prefilledEmail || '');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [showEscapeConfirmModal, setShowEscapeConfirmModal] = useState(false);
   const [trackSprints, setTrackSprints] = useState<Sprint[]>([]);
 
+  // Load Sprint/Track data if missing
   useEffect(() => {
     const fetchData = async () => {
-      if (state.sprintId && !selectedSprint) {
-        const sprint = await sprintService.getSprintById(state.sprintId);
-        setSelectedSprint(sprint);
+      if (sprintId && !selectedSprint) {
+        const s = await sprintService.getSprintById(sprintId);
+        if (s) setSelectedSprint(s);
       }
-      if (state.trackId && !selectedTrack) {
-        const track = await trackService.getTrackById(state.trackId);
-        setSelectedTrack(track);
+      if (trackId && !selectedTrack) {
+        const t = await trackService.getTrackById(trackId);
+        if (t) setSelectedTrack(t);
       }
     };
     fetchData();
-  }, [state.sprintId, state.trackId]);
+  }, [sprintId, trackId, selectedSprint, selectedTrack]);
 
   useEffect(() => {
-    const checkExistingEnrollment = async () => {
-      if (user && sprintId) {
-        const enrollments = await sprintService.getUserEnrollments(user.id);
-        const existing = enrollments.find(e => e.sprint_id === sprintId);
-        if (existing) {
-          if (existing.status === 'active') {
-            navigate(`/participant/sprint/${existing.id}`, { replace: true });
-          } else if (existing.status === 'queued') {
-            navigate('/my-sprints', { replace: true });
-          }
-        }
-      }
-    };
-    checkExistingEnrollment();
-
     const loadTrackData = async () => {
-        if (selectedTrack) {
-            const sprintPromises = selectedTrack.sprintIds.map((id: string) => sprintService.getSprintById(id));
-            const data = await Promise.all(sprintPromises);
-            setTrackSprints(data.filter((s): s is Sprint => !!s));
-        }
+      if (selectedTrack) {
+        const sprintPromises = selectedTrack.sprintIds.map((id: string) => sprintService.getSprintById(id));
+        const data = await Promise.all(sprintPromises);
+        setTrackSprints(data.filter((s): s is Sprint => !!s));
+      }
     };
     loadTrackData();
-    
-    const loadSettings = async () => {
-      const settings = await sprintService.getGlobalOrchestrationSettings();
-      setGlobalSettings(settings);
-    };
-    loadSettings();
-    
-    if (state.prefilledEmail && !guestEmail) {
-      setGuestEmail(state.prefilledEmail);
-    }
-  }, [state.prefilledEmail, user, sprintId]);
+  }, [selectedTrack]);
 
   const isCreditSprint = selectedSprint?.pricingType === 'credits';
-  
+
   const getPrice = () => {
-      if (selectedTrack) {
-          const baseTotal = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
-          const reruns = selectedTrack.allowedReruns ?? 2;
-          const isDiscounted = reruns === 1 || reruns === 2;
-          const rerunCost = trackSprints.reduce((sum, s) => {
-              const basePrice = getSprintCashPrice(s);
-              const pricePerRerun = isDiscounted ? basePrice * 0.5 : basePrice;
-              return sum + (pricePerRerun * reruns);
-          }, 0);
-          const total = baseTotal + rerunCost;
-          return total * (1 - selectedTrack.discountPercentage / 100);
-      }
-      return isCreditSprint ? (selectedSprint?.pointCost ?? 0) : (selectedSprint?.price ?? 3000);
+    if (selectedTrack) {
+      const baseTotal = trackSprints.reduce((sum, s) => sum + getSprintCashPrice(s), 0);
+      const reruns = selectedTrack.allowedReruns ?? 2;
+      const isDiscounted = reruns === 1 || reruns === 2;
+      const rerunCost = trackSprints.reduce((sum, s) => {
+        const basePrice = getSprintCashPrice(s);
+        const pricePerRerun = isDiscounted ? basePrice * 0.5 : basePrice;
+        return sum + (pricePerRerun * reruns);
+      }, 0);
+      const total = baseTotal + rerunCost;
+      return total * (1 - selectedTrack.discountPercentage / 100);
+    }
+    return isCreditSprint ? (selectedSprint?.pointCost ?? 10) : (selectedSprint?.price ?? 3000);
   };
 
   const sprintPrice = getPrice();
-  const sprintTitle = selectedTrack?.title || selectedSprint?.title || "From Confusion to a Clear Path";
-
-  const userParticipant = user as Participant;
-  const userBalance = userParticipant?.walletBalance || 0;
-  const hasEnoughCredits = userBalance >= sprintPrice;
-
-  const isProfileIncomplete = userParticipant && !userService.isIdentitySet(userParticipant);
-
+  const sprintTitle = selectedTrack?.title || selectedSprint?.title || "Guided Sprint Journey";
+  const duration = selectedSprint?.duration || 7;
   const effectiveEmail = user?.email || guestEmail;
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail.trim());
 
-  const isFormValid = isEmailValid && (!!sprintId || !!trackId) && (isCreditSprint ? (!!user) : true);
-  const canPay = finalCommitment && isFormValid && !isProcessing;
+  // Check if user came from completing Move 1 in preview
+  const pendingRaw = localStorage.getItem('pending_first_action');
+  const hasPreviewProgress = Boolean(state.fromPreview || pendingRaw);
 
-  const handleCoinPayment = async () => {
-    if (!user || !selectedSprint) return;
-    
-    if (!hasEnoughCredits) {
-        setShowInsufficientModal(true);
-        return;
-    }
-
-    setIsProcessing(true);
-    setErrorMessage(null);
-    setValidationError(null);
-
-    try {
-      await userService.processWalletTransaction(user.id, {
-        amount: -sprintPrice,
-        type: 'purchase',
-        description: `Unlocked ${sprintTitle} via Credits`,
-        auditId: selectedSprint.id
-      });
-      
-      const enrollments = await sprintService.getUserEnrollments(user.id);
-      const hasActive = enrollments.some(e => e.status === 'active' && e.progress.some(p => !p.completed));
-      
-      if (hasActive) {
-          const currentQueue = userParticipant.savedSprintIds || [];
-          if (!currentQueue.includes(selectedSprint.id)) {
-              await userService.updateUserDocument(user.id, { savedSprintIds: [...currentQueue, selectedSprint.id] });
-              await updateProfile(sanitizeData({ savedSprintIds: [...currentQueue, selectedSprint.id] }));
-          }
-          navigate('/my-sprints', { replace: true });
-      } else {
-          const enrollment = await sprintService.enrollUser(user.id, selectedSprint.id, selectedSprint.duration, {
-              coachId: selectedSprint.coachId,
-              pricePaid: 0,
-              currency: selectedSprint.currency || 'NGN',
-              source: 'coin'
-          });
-          navigate(`/participant/sprint/${enrollment.id}`, { replace: true });
-      }
-    } catch (error: any) {
-      setErrorMessage("Credit redemption failed. Please try again later.");
-      setIsProcessing(false);
-    }
-  };
-
-  const startCashPayment = async () => {
+  const handlePayAndContinue = async () => {
     setValidationError(null);
     setErrorMessage(null);
 
     if (!effectiveEmail.trim()) {
-        setValidationError("Email address is required to proceed.");
-        return;
+      setValidationError("Email address is required to proceed.");
+      return;
     }
 
     if (!isEmailValid) {
-        setValidationError("Please enter a valid email address.");
-        return;
+      setValidationError("Please enter a valid email address.");
+      return;
     }
 
     if (!sprintId && !trackId) {
-        setValidationError("Program selection error. Please return to discovery.");
-        return;
+      setValidationError("Program selection error. Please return to discovery.");
+      return;
     }
-    
-    const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
 
+    const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
     setIsProcessing(true);
 
     const payload = {
-        userId: traceId,
-        email: effectiveEmail.toLowerCase().trim(),
-        sprintId: sprintId || undefined,
-        trackId: trackId || undefined,
-        amount: Number(sprintPrice),
-        currency: "NGN",
-        name: user?.name || 'Vectorise Guest'
+      userId: traceId,
+      email: effectiveEmail.toLowerCase().trim(),
+      sprintId: sprintId || undefined,
+      trackId: trackId || undefined,
+      amount: Number(sprintPrice),
+      currency: "NGN",
+      name: user?.name || (user as any)?.displayName || 'Vectorise Participant'
     };
 
     try {
-      if (!user) {
-          const existingUser = await userService.getUserByEmail(effectiveEmail);
-          if (existingUser) {
-              // Scenario 1 & 2: User has an account
-              const enrollments = await sprintService.getUserEnrollments(existingUser.id);
-              const existingEnrollment = enrollments.find(e => e.sprint_id === sprintId);
-              
-              if (existingEnrollment && (existingEnrollment.status === 'active' || existingEnrollment.status === 'queued')) {
-                  // Scenario 1: Active/Paid enrollment exists
-                  setErrorMessage("You are an active user with this sprint active. Log in to continue.");
-                  setTimeout(() => {
-                      navigate('/login', { 
-                          state: { 
-                              prefilledEmail: effectiveEmail, 
-                              targetSprintId: sprintId,
-                              authMessage: "You are an active user with this sprint active. Please log in to access it."
-                          } 
-                      });
-                  }, 2500);
-                  return;
-              }
-              // Scenario 2: Account exists but no active enrollment - proceed to payment
-          } else {
-              // Scenario 3: No account (first-time guest) -> It's completely free!
-              if (sprintId) {
-                  toast.success("Congratulations! Your first sprint is completely free!");
-                  navigate('/signup', {
-                      state: {
-                          fromPayment: true,
-                          targetSprintId: sprintId,
-                          prefilledEmail: effectiveEmail.toLowerCase().trim(),
-                          authMessage: "This is your first sprint—it's completely free! Create an account to start."
-                      },
-                      replace: true
-                  });
-                  setIsProcessing(false);
-                  return;
-              }
-          }
-      }
-
       const checkoutUrl = await paymentService.initializeFlutterwave(payload);
-      window.location.href = checkoutUrl;
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+      } else {
+        throw new Error("Unable to retrieve payment link. Please try again.");
+      }
     } catch (error: any) {
+      console.error("[SprintPayment] Checkout error:", error);
       setErrorMessage(error.message || "Unable to reach the payment gateway. Please try again.");
       setIsProcessing(false);
     }
   };
 
-  const handleHesitation = async () => {
-    const traceId = user?.id || `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
-    await paymentService.logPaymentAttempt({
-        user_id: traceId,
-        sprint_id: selectedSprint?.id || 'clarity-sprint',
-        amount: Number(sprintPrice),
-        currency: selectedSprint?.currency || 'NGN',
-        status: 'abandoned'
-    });
-    navigate('/onboarding/map', { state: sanitizeData({ ...state }) });
+  // Exit Sprint Confirmation Handlers
+  const handleConfirmExitSprint = () => {
+    localStorage.removeItem('pending_first_action');
+    localStorage.removeItem('vectorise_last_sprint');
+    setShowEscapeConfirmModal(false);
+    toast.info("Sprint cancelled. Previous progress discarded.");
+    navigate('/', { replace: true });
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#FAFAFA] flex flex-col items-center py-6 px-4 overflow-x-hidden selection:bg-primary/10 font-sans relative">
-      <div className="max-w-xl w-full animate-fade-in">
-        <div className="flex flex-col items-center mb-6">
-          <LocalLogo type="green" className="h-5 w-auto mb-4 opacity-40" />
-          <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
-             <div className="h-full bg-primary rounded-full transition-all duration-1000 w-[75%]" style={{ width: '75%' }}></div>
-          </div>
+    <div className="min-h-[100dvh] w-full bg-[#FAFAFA] dark:bg-[#121212] flex flex-col items-center justify-center py-8 px-4 sm:px-6 relative overflow-x-hidden selection:bg-[#0E7850]/10 font-sans">
+      
+      {/* SOFT ESCAPE 'X' BUTTON TOP RIGHT */}
+      <button
+        type="button"
+        onClick={() => setShowEscapeConfirmModal(true)}
+        className="fixed top-5 right-5 sm:top-8 sm:right-8 z-30 p-2.5 sm:p-3 text-gray-400 hover:text-gray-700 dark:hover:text-white bg-white/90 dark:bg-zinc-800/90 border border-gray-200/80 dark:border-zinc-700/80 rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer backdrop-blur-md"
+        title="Exit sprint"
+        aria-label="Exit sprint"
+      >
+        <X className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+      </button>
+
+      <div className="max-w-md w-full my-auto animate-fade-in">
+        
+        {/* BRAND LOGO */}
+        <div className="flex flex-col items-center mb-6 text-center">
+          <LocalLogo type="green" className="h-6 w-auto mb-3 opacity-90" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-[#0E7850] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 text-[9px] font-black uppercase tracking-widest rounded-full">
+            <Sparkles className="w-3 h-3" />
+            {hasPreviewProgress ? "Move 1 Completed" : "Payment Checkout"}
+          </span>
         </div>
 
-        <div className="bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden flex flex-col animate-slide-up">
-          <header className="p-6 md:p-8 text-center border-b border-gray-50">
-             <h1 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-none">{sprintTitle}</h1>
-             {selectedTrack && (
-                 <p className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-3">Track Bundle • {trackSprints.length} Sprints</p>
-             )}
+        {/* MAIN CARD CONTAINER */}
+        <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-zinc-800 overflow-hidden flex flex-col animate-slide-up">
+          
+          {/* HEADER SECTION */}
+          <header className="p-6 sm:p-8 text-center border-b border-gray-100 dark:border-zinc-800 bg-linear-to-b from-gray-50/50 to-transparent dark:from-zinc-800/30">
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight leading-snug">
+              To save your progress and continue the sprint.
+            </h1>
+            <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium mt-2 leading-relaxed">
+              Complete your one-time payment to unlock Day 2 through Day {duration} and save your Move 1 answers.
+            </p>
           </header>
-          <main className="p-6 md:p-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-               <section className="bg-gray-50 rounded-2xl p-6 border border-gray-100 text-center space-y-1 relative overflow-hidden">
-                  <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Investment</p>
-                  <h3 className="text-4xl font-black text-gray-900 tracking-tighter">{isCreditSprint ? '🪙' : '₦'}{sprintPrice.toLocaleString()}</h3>
-                  {!isCreditSprint && (
-                    <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mt-2">One-time payment for the {selectedTrack ? 'entire track' : `${selectedSprint?.duration || 5}-day sprint`}.</p>
-                  )}
-               </section>
-               <section className="space-y-3 pt-2">
-                  <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em]">{selectedTrack ? 'Sprints Unlocked' : "What's included"}</h2>
-                  <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-1.5">
-                    {selectedTrack ? (
-                        trackSprints.map((s, i) => (
-                            <p key={s.id}>✓ {i + 1}. {s.title}</p>
-                        ))
-                    ) : (
-                        <>
-                            <p>✓ {selectedSprint?.duration || 5}-Day Guided Clarity Journey</p>
-                            <p>✓ Daily Action System (15 minutes a day)</p>
-                            <p>✓ Coach Feedback During the Sprint</p>
-                        </>
-                    )}
-                  </div>
-               </section>
+
+          <main className="p-6 sm:p-8 space-y-6">
+            
+            {/* SPRINT CARD WITH AMOUNT */}
+            <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-3xl p-5 sm:p-6 border border-gray-200/80 dark:border-zinc-700/60 space-y-4">
+              
+              {/* Sprint Cover & Title */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-gray-200 dark:bg-zinc-700 shrink-0 shadow-inner">
+                  <img
+                    src={selectedSprint?.coverImageUrl || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=300&auto=format&fit=crop&q=80"}
+                    alt={sprintTitle}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-[#0E7850] dark:text-emerald-400">
+                    {duration}-Day Sprint
+                  </span>
+                  <h2 className="text-sm sm:text-base font-black text-gray-900 dark:text-white truncate leading-tight mt-0.5">
+                    {sprintTitle}
+                  </h2>
+                  <p className="text-[10px] text-gray-400 dark:text-zinc-400 font-bold mt-0.5">
+                    {(selectedSprint as any)?.coachName || (selectedSprint as any)?.coach?.name ? `Coach: ${(selectedSprint as any)?.coachName || (selectedSprint as any)?.coach?.name}` : "Official Vectorise Coach"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Move 1 Progress Indicator */}
+              {hasPreviewProgress && (
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/40 rounded-2xl text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-[#0E7850] dark:text-emerald-400 shrink-0" />
+                  <span className="text-[11px] leading-tight">Move 1 is completed and held securely in your account!</span>
+                </div>
+              )}
+
+              {/* Amount Display */}
+              <div className="pt-2 border-t border-gray-200/60 dark:border-zinc-700/60 flex items-baseline justify-between">
+                <div>
+                  <span className="text-[9px] font-black text-gray-400 dark:text-zinc-400 uppercase tracking-widest block">
+                    Total Amount
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-zinc-400 font-medium">
+                    One-time payment
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                    {isCreditSprint ? `🪙 ${sprintPrice}` : `₦${sprintPrice.toLocaleString()}`}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <section className="pt-6 border-t border-gray-50">
-               <h2 className="text-[8px] font-black text-gray-400 uppercase tracking-[0.3em] mb-4">What You’ll Walk Away With</h2>
-               <div className="text-[10px] md:text-xs font-bold text-gray-600 space-y-2">
-                 <p>✓ A clear direction to focus on next</p>
-                 <p>✓ A simple action plan for your next step</p>
-                 <p>✓ A decision you feel confident about</p>
-               </div>
-            </section>
-            
-            {!isCreditSprint && (
-               <section className="pt-4 border-t border-gray-50 space-y-3">
-                 <div className="max-w-sm mx-auto">
-                    <label className="block text-[7px] font-black text-gray-400 uppercase mb-1.5 ml-1">Email Address</label>
-                    <input 
-                      type="email" 
-                      value={user?.email || guestEmail} 
-                      onChange={(e) => {
-                          setGuestEmail(e.target.value);
-                          if (validationError) setValidationError(null);
-                      }} 
-                      readOnly={!!user}
-                      placeholder="your@email.com" 
-                      className={`w-full px-5 py-3.5 bg-gray-50 border rounded-xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${user ? 'cursor-not-allowed bg-gray-100' : 'border-gray-100'} ${validationError ? 'border-red-500 ring-2 ring-red-50' : ''}`} 
-                    />
-                    {validationError && (
-                        <p className="text-[8px] text-red-500 font-black uppercase mt-1.5 ml-1 animate-fade-in">{validationError}</p>
-                    )}
-                 </div>
-               </section>
+            {/* Email Input if not logged in */}
+            {!user && (
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-black text-gray-500 dark:text-zinc-400 uppercase tracking-wider ml-1">
+                  Your Account Email
+                </label>
+                <input
+                  type="email"
+                  value={guestEmail}
+                  onChange={(e) => {
+                    setGuestEmail(e.target.value);
+                    if (validationError) setValidationError(null);
+                  }}
+                  placeholder="name@example.com"
+                  className={`w-full px-4 py-3.5 bg-white dark:bg-zinc-800 border rounded-2xl text-xs font-bold text-gray-800 dark:text-white placeholder:text-gray-400 outline-none focus:ring-4 focus:ring-[#0E7850]/10 focus:border-[#0E7850] transition-all shadow-xs ${
+                    validationError ? 'border-red-500' : 'border-gray-200 dark:border-zinc-700'
+                  }`}
+                />
+                {validationError && (
+                  <p className="text-[10px] text-red-500 font-bold ml-1">{validationError}</p>
+                )}
+              </div>
             )}
 
-            <section className="pt-4 border-t border-gray-50 space-y-4">
-               <label className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/10 rounded-xl cursor-pointer active:scale-[0.98] transition-all group hover:bg-primary/10">
-                <input type="checkbox" checked={finalCommitment} onChange={(e) => setFinalCommitment(e.target.checked)} className="w-4 h-4 bg-white border-gray-200 rounded focus:ring-primary text-primary" />
-                <span className="text-[10px] font-black text-primary uppercase tracking-widest leading-tight">I commit to completing {selectedTrack ? 'all sprints in this track' : `this ${selectedSprint?.duration || 5}-day sprint`}.</span>
-              </label>
-              {errorMessage && <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-[9px] font-bold text-red-600 uppercase tracking-widest text-center animate-pulse">{errorMessage}</div>}
-            </section>
+            {/* Error Display */}
+            {errorMessage && (
+              <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40 rounded-2xl text-[11px] font-bold text-red-600 dark:text-red-400 text-center">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Security Guarantee Badge */}
+            <div className="flex items-center justify-center gap-2 text-[10px] text-gray-400 dark:text-zinc-400 font-bold uppercase tracking-wider">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#0E7850]" />
+              <span>Secured 256-Bit Encrypted Payment</span>
+            </div>
           </main>
-          <footer className="p-6 md:p-8 pt-3 bg-gray-50/50 border-t border-gray-50">
-             <div className="space-y-4">
-                <Button onClick={isCreditSprint ? handleCoinPayment : startCashPayment} disabled={!canPay} isLoading={isProcessing} className="w-full py-4 rounded-xl shadow-xl text-[11px] uppercase font-black">{isProcessing ? "Authorizing..." : isCreditSprint ? `Redeem ${sprintPrice} Credits` : selectedTrack ? "Pay & Unlock Track" : "Pay & Start Sprint"}</Button>
-                <div className="text-center">
-                  <button onClick={handleHesitation} className="text-[9px] font-black text-gray-400 hover:text-primary transition-colors underline underline-offset-4 decoration-gray-200 cursor-pointer">Not sure yet? See The Map</button>
-                </div>
-                <div className="text-center pt-2">
-                    <p className="text-[9px] font-bold text-gray-400">Trusted by young professionals seeking clarity.</p>
-                </div>
-             </div>
+
+          {/* FOOTER ACTION */}
+          <footer className="p-6 sm:p-8 pt-0">
+            <Button
+              type="button"
+              onClick={handlePayAndContinue}
+              isLoading={isProcessing}
+              className="w-full py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>{isProcessing ? "Redirecting..." : "Pay and Continue"}</span>
+            </Button>
           </footer>
         </div>
       </div>
 
-      {/* Insufficient Coins Modal */}
-      {showInsufficientModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in animate-duration-200">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl animate-scale-up relative">
-            <button 
-              onClick={() => setShowInsufficientModal(false)}
-              className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
-                🪙
-              </div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">One step left</h2>
-              
-              <div className="space-y-1 mb-8">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  {sprintPrice} coins needed • You have {userBalance}
-                </p>
-              </div>
+      {/* POP-UP MODAL: ESCAPE CONFIRMATION */}
+      {showEscapeConfirmModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-7 sm:p-9 max-w-sm w-full text-center relative overflow-hidden shadow-2xl border border-gray-100 dark:border-zinc-800 animate-slide-up">
+            <div className="w-14 h-14 bg-red-50 dark:bg-red-950/40 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
 
-              <div className="space-y-4">
-                <Button 
-                  onClick={() => navigate('/buy-coins', { state: { sprintId, trackId, sprint: selectedSprint, track: selectedTrack } })}
-                  className="w-full py-4 bg-primary text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
-                >
-                  Continue with {sprintPrice} coins
-                </Button>
+            <h3 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white tracking-tight mb-2">
+              Stop This Sprint?
+            </h3>
 
-                <p className="text-xs text-gray-500 font-medium leading-relaxed">
-                  Or{' '}
-                  <button 
-                    onClick={() => navigate('/impact')}
-                    className="text-primary font-bold hover:underline cursor-pointer hover:text-primary/90 transition-colors"
-                  >
-                    refer a friend
-                  </button>
-                  . Earn coins when they start.
-                </p>
+            <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium leading-relaxed mb-6">
+              Are you sure you want to stop this sprint all your previous progress will be lost?
+            </p>
 
-                {isProfileIncomplete && (
-                  <Button 
-                    variant="secondary"
-                    onClick={() => navigate('/profile')}
-                    className="w-full py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900"
-                  >
-                    Setup Your Profile
-                  </Button>
-                )}
-              </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmExitSprint}
+                className="flex-1 py-3.5 px-4 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-2xl font-black text-xs transition-all active:scale-95 cursor-pointer shadow-xs"
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEscapeConfirmModal(false)}
+                className="flex-1 py-3.5 px-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl font-black text-xs transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                No
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      `}</style>
     </div>
   );
 };

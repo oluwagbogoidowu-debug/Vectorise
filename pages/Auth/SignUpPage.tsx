@@ -506,6 +506,19 @@ const SignUpPage: React.FC = () => {
                           toast.success("Account created successfully!");
                           navigate('/participant/day-success', { state: daySuccessState, replace: true });
                           return;
+                      } else {
+                          // Cash-paid sprint: navigate to payment page to save progress and continue
+                          toast.success("Account created! Complete payment to save your progress and continue.");
+                          navigate('/onboarding/sprint-payment', {
+                              state: {
+                                  sprintId: targetSprintId,
+                                  sprint: sprint,
+                                  fromPreview: true,
+                                  prefilledEmail: firebaseUser.email || email.trim()
+                              },
+                              replace: true
+                          });
+                          return;
                       }
                   }
               } catch (enrollError) {
