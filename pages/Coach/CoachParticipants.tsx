@@ -31,7 +31,7 @@ import {
     Flame, Sparkles, BookOpen, Trophy, Eye, Heart, MessageSquare, 
     ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, Search, Filter, Calendar, Clock, 
     Share2, UserCheck, CheckCircle2, Circle, Check, Award, Download, ExternalLink,
-    Send, Trash2, X, RefreshCw, StickyNote, Save
+    Send, Trash2, X, RefreshCw, StickyNote, Save, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -48,7 +48,57 @@ type ExperienceTypeFilter = 'all' | 'ignite' | 'sprint' | 'challenge' | 'blog';
 
 export const CoachParticipants: React.FC = () => {
     const { user } = useAuth();
-    const [experienceTypeFilter, setExperienceTypeFilter] = useState<ExperienceTypeFilter>('all');
+    const [experienceTypeFilter, setExperienceTypeFilter] = useState<ExperienceTypeFilter>(() => {
+        try {
+            const saved = localStorage.getItem('coach_default_experience_type');
+            if (saved && ['all', 'ignite', 'sprint', 'challenge', 'blog'].includes(saved)) {
+                return saved as ExperienceTypeFilter;
+            }
+        } catch (e) {}
+        return 'all';
+    });
+    const [isExperienceMenuOpen, setIsExperienceMenuOpen] = useState(false);
+    const experienceMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (experienceMenuRef.current && !experienceMenuRef.current.contains(event.target as Node)) {
+                setIsExperienceMenuOpen(false);
+            }
+        };
+        if (isExperienceMenuOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isExperienceMenuOpen]);
+
+    const handleSetExperienceType = (type: ExperienceTypeFilter) => {
+        setExperienceTypeFilter(type);
+        try {
+            localStorage.setItem('coach_default_experience_type', type);
+        } catch (e) {}
+        setSelectedProgramId('all');
+        setIsExperienceMenuOpen(false);
+    };
+
+    const renderExperienceIcon = (type: ExperienceTypeFilter) => {
+        switch (type) {
+            case 'ignite':
+                return <Sparkles className="w-4 h-4 text-purple-600" />;
+            case 'sprint':
+                return <Flame className="w-4 h-4 text-[#0E7850]" />;
+            case 'challenge':
+                return <Trophy className="w-4 h-4 text-amber-600" />;
+            case 'blog':
+                return <BookOpen className="w-4 h-4 text-blue-600" />;
+            case 'all':
+            default:
+                return <Settings className="w-4 h-4 text-gray-700" />;
+        }
+    };
+
     const [selectedProgramId, setSelectedProgramId] = useState<string>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -800,6 +850,19 @@ export const CoachParticipants: React.FC = () => {
             acc.userEmail?.toLowerCase().includes(trackerSearchTerm.toLowerCase())
         );
     }, [trackerInteractions, trackerActiveTab, trackerSearchTerm]);
+
+    // Filtered programs for Program Select based on experienceTypeFilter
+    const filteredProgramsForSelect = useMemo(() => {
+        return allExperiences.filter(exp => {
+            const ct = String(exp.contentType || 'sprint').toLowerCase();
+            if (experienceTypeFilter === 'all') return true;
+            if (experienceTypeFilter === 'ignite') return ct === 'ignite';
+            if (experienceTypeFilter === 'blog') return ct === 'blog' || ct === 'riseblog';
+            if (experienceTypeFilter === 'challenge') return ct === 'challenge';
+            if (experienceTypeFilter === 'sprint') return ct === 'sprint' || !exp.contentType;
+            return true;
+        });
+    }, [allExperiences, experienceTypeFilter]);
 
     // Send coach feedback
     const handleSendFeedback = async (e: React.FormEvent) => {
@@ -1955,13 +2018,75 @@ export const CoachParticipants: React.FC = () => {
                             />
                         </div>
 
+                        {/* Setting Icon Trigger in front of All Programs with Kebab-style Overlay Dropdown */}
+                        <div className="relative" ref={experienceMenuRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsExperienceMenuOpen(!isExperienceMenuOpen)}
+                                className="h-11 w-11 flex items-center justify-center bg-white border border-gray-200 hover:border-gray-300 rounded-2xl text-gray-700 shadow-sm transition-all active:scale-95 cursor-pointer"
+                                title="Default Experience Type Filter"
+                                aria-label="Default Experience Type Filter"
+                            >
+                                {renderExperienceIcon(experienceTypeFilter)}
+                            </button>
+
+                            {/* Overlay Dropdown like Kebab Style */}
+                            {isExperienceMenuOpen && (
+                                <div className="absolute right-0 sm:left-0 sm:right-auto top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-gray-400 border-b border-gray-100 mb-1">
+                                        Default Experience Type
+                                    </div>
+                                    {[
+                                        { value: 'all' as ExperienceTypeFilter, label: 'All experience', icon: <Settings className="w-4 h-4 text-gray-600" /> },
+                                        { value: 'ignite' as ExperienceTypeFilter, label: 'Ignite', icon: <Sparkles className="w-4 h-4 text-purple-600" /> },
+                                        { value: 'sprint' as ExperienceTypeFilter, label: 'Sprint', icon: <Flame className="w-4 h-4 text-[#0E7850]" /> },
+                                        { value: 'challenge' as ExperienceTypeFilter, label: 'Challenge', icon: <Trophy className="w-4 h-4 text-amber-600" /> },
+                                        { value: 'blog' as ExperienceTypeFilter, label: 'Riseblog', icon: <BookOpen className="w-4 h-4 text-blue-600" /> },
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => handleSetExperienceType(opt.value)}
+                                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                                experienceTypeFilter === opt.value
+                                                    ? 'bg-gray-100 text-gray-950 font-black'
+                                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-2.5">
+                                                <span>{opt.icon}</span>
+                                                <span>{opt.label}</span>
+                                            </div>
+                                            {experienceTypeFilter === opt.value && (
+                                                <Check className="w-3.5 h-3.5 text-[#0E7850]" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
                         {/* Program Filter */}
                         <CustomSelect 
                             value={selectedProgramId}
                             onChange={(val) => setSelectedProgramId(String(val))}
                             options={[
-                                { value: 'all', label: 'All Programs' },
-                                ...allExperiences.map(s => ({ value: s.id, label: s.title }))
+                                { 
+                                    value: 'all', 
+                                    label: experienceTypeFilter === 'all' 
+                                        ? 'All Programs' 
+                                        : experienceTypeFilter === 'ignite' 
+                                            ? 'All Ignites' 
+                                            : experienceTypeFilter === 'sprint' 
+                                                ? 'All Sprints' 
+                                                : experienceTypeFilter === 'challenge' 
+                                                    ? 'All Challenges' 
+                                                    : 'All Riseblogs' 
+                                },
+                                ...filteredProgramsForSelect.map(s => ({ 
+                                    value: s.id, 
+                                    label: s.title || (s.contentType === 'ignite' ? s.igniteBody?.slice(0, 30) || 'Ignite' : 'Untitled') 
+                                }))
                             ]}
                             className="min-w-[160px]"
                         />
@@ -1971,7 +2096,7 @@ export const CoachParticipants: React.FC = () => {
                     <div className="mb-8 p-1.5 bg-gray-100 rounded-2xl inline-flex flex-wrap gap-1">
                         <button
                             type="button"
-                            onClick={() => setExperienceTypeFilter('all')}
+                            onClick={() => handleSetExperienceType('all')}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                 experienceTypeFilter === 'all'
                                     ? 'bg-white text-gray-900 shadow-sm'
@@ -1983,7 +2108,7 @@ export const CoachParticipants: React.FC = () => {
 
                         <button
                             type="button"
-                            onClick={() => setExperienceTypeFilter('ignite')}
+                            onClick={() => handleSetExperienceType('ignite')}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                 experienceTypeFilter === 'ignite'
                                     ? 'bg-white text-purple-700 shadow-sm'
@@ -1996,7 +2121,7 @@ export const CoachParticipants: React.FC = () => {
 
                         <button
                             type="button"
-                            onClick={() => setExperienceTypeFilter('sprint')}
+                            onClick={() => handleSetExperienceType('sprint')}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                 experienceTypeFilter === 'sprint'
                                     ? 'bg-white text-primary shadow-sm'
@@ -2009,7 +2134,7 @@ export const CoachParticipants: React.FC = () => {
 
                         <button
                             type="button"
-                            onClick={() => setExperienceTypeFilter('challenge')}
+                            onClick={() => handleSetExperienceType('challenge')}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                 experienceTypeFilter === 'challenge'
                                     ? 'bg-white text-amber-700 shadow-sm'
@@ -2022,7 +2147,7 @@ export const CoachParticipants: React.FC = () => {
 
                         <button
                             type="button"
-                            onClick={() => setExperienceTypeFilter('blog')}
+                            onClick={() => handleSetExperienceType('blog')}
                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                                 experienceTypeFilter === 'blog'
                                     ? 'bg-white text-emerald-700 shadow-sm'
