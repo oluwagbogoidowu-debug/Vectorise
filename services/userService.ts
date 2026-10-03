@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, increment, addDoc, onSnapshot } from 'firebase/firestore';
 import { User, Participant, Coach, UserRole, WalletTransaction } from '../types';
 import { toast } from 'sonner';
 import { MILESTONES, calculateMilestoneStatValue, UserMilestoneStats } from './milestoneConstants';
@@ -262,6 +262,31 @@ export const userService = {
     } catch (error) {
       console.error("Error fetching user document:", error);
       throw error;
+    }
+  },
+
+  subscribeToUserDocument: (uid: string, callback: (user: User | Participant | Coach | null) => void): (() => void) => {
+    if (!uid) {
+      callback(null);
+      return () => {};
+    }
+    try {
+      const userRef = doc(db, 'users', uid);
+      const unsubscribe = onSnapshot(userRef, (snap) => {
+        if (snap.exists()) {
+          const user = sanitizeData({ id: snap.id, ...snap.data() }) as User | Participant | Coach;
+          userMemoryCache.set(uid, { user, cachedAt: Date.now() });
+          callback(user);
+        } else {
+          callback(null);
+        }
+      }, (err) => {
+        console.error(`[userService] Realtime error subscribing to user ${uid}:`, err);
+      });
+      return unsubscribe;
+    } catch (e) {
+      console.error(`[userService] Failed to subscribe to user ${uid}:`, e);
+      return () => {};
     }
   },
 

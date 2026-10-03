@@ -5,6 +5,7 @@ import { db } from '../services/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { sprintService } from '../services/sprintService';
 import { userService } from '../services/userService';
+import { userIdentificationService } from '../services/userIdentificationService';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { RotateCcw, Play, ArrowRight, Layers, Loader2 } from 'lucide-react';
@@ -214,6 +215,12 @@ export const SprintConflictManager: React.FC = () => {
       await updateDoc(enrollmentRef, updatedData);
       await userService.addUserEnrollment(user.id, sprint.id);
 
+      if (cleanInputs.length > 0) {
+        userIdentificationService.applyUserIdentificationTracking(user.id, sprint, 1, cleanInputs).catch(err => {
+          console.warn("[SprintConflictManager] Failed to apply user identification tracking on rerun:", err);
+        });
+      }
+
       localStorage.removeItem('pending_first_action');
       localStorage.removeItem('vectorise_last_sprint');
       toast.success(`Started Run ${newRunNumber} for ${sprint.title}! Day 1 completed.`);
@@ -281,6 +288,13 @@ export const SprintConflictManager: React.FC = () => {
       }
 
       await userService.addUserEnrollment(user.id, sprint.id);
+
+      if (cleanInputs.length > 0) {
+        userIdentificationService.applyUserIdentificationTracking(user.id, sprint, 1, cleanInputs).catch(err => {
+          console.warn("[SprintConflictManager] Failed to apply user identification tracking on new enrollment:", err);
+        });
+      }
+
       localStorage.removeItem('pending_first_action');
       localStorage.removeItem('vectorise_last_sprint');
 
@@ -342,6 +356,12 @@ export const SprintConflictManager: React.FC = () => {
         last_activity_at: now,
         status: 'active'
       });
+
+      if (cleanInputs.length > 0 && pendingSprint) {
+        userIdentificationService.applyUserIdentificationTracking(user.id, pendingSprint, 1, cleanInputs).catch(err => {
+          console.warn("[SprintConflictManager] Failed to apply user identification tracking on restart:", err);
+        });
+      }
 
       localStorage.removeItem('pending_first_action');
       localStorage.removeItem('vectorise_last_sprint');

@@ -62,6 +62,16 @@ export default function AdminUserDetail() {
         return () => unsubMeta();
     }, []);
 
+    useEffect(() => {
+        if (!userId) return;
+        const unsubUser = userService.subscribeToUserDocument(userId, (userData) => {
+            if (userData) {
+                setUser(userData as Participant);
+            }
+        });
+        return () => unsubUser();
+    }, [userId]);
+
     const userMetadataList = useMemo(() => {
         if (!user) return [];
 
@@ -75,6 +85,16 @@ export default function AdminUserDetail() {
                 icon: f.icon || '✨',
                 category: f.category
             });
+            if (Array.isArray(f.aliases)) {
+                f.aliases.forEach(a => {
+                    if (a) fieldMap.set(a.toLowerCase().replace(/[\s_\-]+/g, ''), {
+                        key: f.key,
+                        label: f.label,
+                        icon: f.icon || '✨',
+                        category: f.category
+                    });
+                });
+            }
         });
 
         const userMeta = user.metadata || (user as any).userMetadata || {};
@@ -95,20 +115,59 @@ export default function AdminUserDetail() {
             category?: string;
         }> = [];
 
+        const addedResultKeys = new Set<string>();
+
         allKeys.forEach(k => {
             if (!k) return;
             // Ignore non-metadata internal attributes
             if (['lastMetadataUpdate', 'lastIdentificationUpdate', 'id', 'email', 'name', 'role', 'createdAt', 'updatedAt'].includes(k)) return;
 
-            const fieldInfo = fieldMap.get(k.toLowerCase()) || {
+            const normKey = k.toLowerCase().replace(/[\s_\-]+/g, '');
+            const fieldInfo = fieldMap.get(k.toLowerCase()) || fieldMap.get(normKey) || {
                 key: k,
                 label: k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim(),
                 icon: '🏷️'
             };
 
-            const rawVal = userMeta[k] !== undefined && userMeta[k] !== null && userMeta[k] !== '' 
-                ? userMeta[k] 
-                : (userIdent[k]?.value || (user as any)[k] || userIdent[fieldInfo.key]?.value || '');
+            const dedupeKey = fieldInfo.key.toLowerCase();
+            if (addedResultKeys.has(dedupeKey)) return;
+            addedResultKeys.add(dedupeKey);
+
+            let rawVal: any = userMeta[k] !== undefined && userMeta[k] !== null && userMeta[k] !== '' ? userMeta[k] : undefined;
+            if (rawVal === undefined) rawVal = userIdent[k]?.value;
+            if (rawVal === undefined) rawVal = (user as any)[k];
+            if (rawVal === undefined && fieldInfo.key) {
+                rawVal = userMeta[fieldInfo.key] ?? userIdent[fieldInfo.key]?.value ?? (user as any)[fieldInfo.key];
+            }
+
+            // Case-insensitive / normalized lookup fallback
+            if (rawVal === undefined) {
+                for (const [metaK, metaV] of Object.entries(userMeta)) {
+                    if (metaK.toLowerCase().replace(/[\s_\-]+/g, '') === normKey && metaV !== undefined && metaV !== null && metaV !== '') {
+                        rawVal = metaV;
+                        break;
+                    }
+                }
+            }
+            if (rawVal === undefined) {
+                for (const [identK, identV] of Object.entries(userIdent)) {
+                    if (identK.toLowerCase().replace(/[\s_\-]+/g, '') === normKey) {
+                        const v = (identV as any)?.value || identV;
+                        if (v !== undefined && v !== null && v !== '') {
+                            rawVal = v;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (rawVal === undefined) {
+                for (const [userK, userV] of Object.entries(user)) {
+                    if (userK.toLowerCase().replace(/[\s_\-]+/g, '') === normKey && userV !== undefined && userV !== null && userV !== '' && typeof userV !== 'object' && typeof userV !== 'function') {
+                        rawVal = userV;
+                        break;
+                    }
+                }
+            }
                 
             const sourceSprintTitle = userIdent[k]?.sourceSprintTitle || userIdent[fieldInfo.key]?.sourceSprintTitle || undefined;
             
@@ -117,7 +176,7 @@ export default function AdminUserDetail() {
                 if (Array.isArray(rawVal)) {
                     displayVal = rawVal.filter(Boolean).join(', ');
                 } else if (typeof rawVal === 'object') {
-                    displayVal = rawVal.value || rawVal.text || JSON.stringify(rawVal);
+                    displayVal = rawVal.value || rawVal.text || (typeof rawVal.toString === 'function' && rawVal.toString() !== '[object Object]' ? rawVal.toString() : '');
                 } else {
                     displayVal = String(rawVal).trim();
                 }

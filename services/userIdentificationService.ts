@@ -13,7 +13,8 @@ import {
 } from 'firebase/firestore';
 import { UserIdentificationRule, Sprint, ParticipantSprint } from '../types';
 import { parseOptionCodeHelper } from '../utils/sprintUtils';
-import { extractSaveMetadataFromStep, normalizeMetadataField, METADATA_FIELDS } from '../src/utils/stepPlaceholderUtils';
+import { extractSaveMetadataFromStep, extractAllSaveMetadataFromStep, normalizeMetadataField, METADATA_FIELDS } from '../src/utils/stepPlaceholderUtils';
+import { sprintService } from './sprintService';
 
 const RULES_COLLECTION = 'user_identification_rules';
 
@@ -48,7 +49,19 @@ export const userIdentificationService = {
         }
 
         try {
-            const dailyContentList = (sprint as any)?.dailyContent;
+            let dailyContentList = (sprint as any)?.dailyContent;
+            const targetSprintId = (sprint as any)?.id || (sprint as any)?.sprint_id || '';
+            
+            // If dailyContent is missing, fetch full sprint details from sprintService
+            if ((!Array.isArray(dailyContentList) || dailyContentList.length === 0) && targetSprintId) {
+                try {
+                    const fetchedSprint = await sprintService.getSprintById(targetSprintId);
+                    if (fetchedSprint && Array.isArray(fetchedSprint.dailyContent)) {
+                        dailyContentList = fetchedSprint.dailyContent;
+                    }
+                } catch (e) {}
+            }
+
             if (!Array.isArray(dailyContentList) || dailyContentList.length === 0) {
                 return {};
             }
@@ -76,65 +89,93 @@ export const userIdentificationService = {
             for (let stepIdx = 0; stepIdx < promptsCount; stepIdx++) {
                 if (stepIdx >= answers.length) continue;
 
-                const saveDirective = extractSaveMetadataFromStep(currentDC, stepIdx);
-                if (!saveDirective) continue;
+                const saveDirectives = extractAllSaveMetadataFromStep(currentDC, stepIdx);
+                if (saveDirectives.length === 0) continue;
 
                 const rawAns = answers[stepIdx];
                 if (rawAns === undefined || rawAns === null || rawAns === '') continue;
 
-                let answerText = '';
-                if (typeof rawAns === 'string') {
-                    const trimmed = rawAns.trim();
-                    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                        try {
-                            const parsed = JSON.parse(trimmed);
-                            answerText = parsed.text || parsed.choice || (Array.isArray(parsed.selectedChoices) ? parsed.selectedChoices.join(', ') : '') || trimmed;
-                        } catch (e) {
-                            answerText = trimmed;
-                        }
-                    } else if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-                        try {
-                            const parsed = JSON.parse(trimmed);
-                            if (Array.isArray(parsed)) answerText = parsed.filter(Boolean).join(', ');
-                            else answerText = trimmed;
-                        } catch (e) {
-                            answerText = trimmed;
-                        }
-                    } else {
-                        answerText = trimmed;
-                    }
-                } else if (Array.isArray(rawAns)) {
-                    answerText = rawAns.map(a => String(a).trim()).filter(Boolean).join(', ');
-                } else if (typeof rawAns === 'object') {
-                    answerText = (rawAns as any).text || (rawAns as any).choice || Object.values(rawAns).join(', ');
-                } else {
-                    answerText = String(rawAns);
-                }
-
-                if (!answerText || !answerText.trim()) continue;
-
-                const cleanAnswer = answerText.trim();
-                const fieldKey = saveDirective.fieldKey;
-                const fieldLabel = saveDirective.fieldLabel;
-                const sprintId = (sprint as any)?.id || (sprint as any)?.sprint_id || '';
+                const sprintId = targetSprintId;
                 const sprintTitle = (sprint as any)?.title || (sprint as any)?.sprint_title || '';
 
-                // Update root property, metadata object, and identification tracking
-                updatesToUser[fieldKey] = cleanAnswer;
-                updatedMetadata[fieldKey] = cleanAnswer;
-                updatedIdentification[fieldKey] = {
-                    field: fieldKey,
-                    label: fieldLabel,
-                    value: cleanAnswer,
-                    sourceSprintId: sprintId,
-                    sourceSprintTitle: sprintTitle,
-                    capturedAt: new Date().toISOString()
-                };
-                hasChanges = true;
+                // Handle multi-directive (e.g. multi-text inputs) or single directive
+                for (const saveDirective of saveDirectives) {
+                    let answerText = '';
+
+                    if (typeof rawAns === 'string') {
+                        const trimmed = rawAns.trim();
+                        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                            try {
+                                const parsed = JSON.parse(trimmed);
+                                if (saveDirective.fieldIndex !== undefined) {
+                                    const rawLabels = currentDC.taskMultiTextLabels?.[stepIdx] || [];
+                                    const targetLabel = rawLabels[saveDirective.fieldIndex];
+                                    if (targetLabel && parsed[targetLabel] !== undefined) {
+                                        answerText = parsed[targetLabel];
+                                    } else {
+                                        const values = Object.values(parsed);
+                                        answerText = String(values[saveDirective.fieldIndex] || '');
+                                    }
+                                } else {
+                                    answerText = parsed.text || parsed.choice || (Array.isArray(parsed.selectedChoices) ? parsed.selectedChoices.join(', ') : '') || trimmed;
+                                }
+                            } catch (e) {
+                                answerText = trimmed;
+                            }
+                        } else if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                            try {
+                                const parsed = JSON.parse(trimmed);
+                                if (Array.isArray(parsed)) {
+                                    if (saveDirective.fieldIndex !== undefined && parsed[saveDirective.fieldIndex] !== undefined) {
+                                        answerText = String(parsed[saveDirective.fieldIndex]);
+                                    } else {
+                                        answerText = parsed.filter(Boolean).join(', ');
+                                    }
+                                } else {
+                                    answerText = trimmed;
+                                }
+                            } catch (e) {
+                                answerText = trimmed;
+                            }
+                        } else {
+                            answerText = trimmed;
+                        }
+                    } else if (Array.isArray(rawAns)) {
+                        if (saveDirective.fieldIndex !== undefined && rawAns[saveDirective.fieldIndex] !== undefined) {
+                            answerText = String(rawAns[saveDirective.fieldIndex]).trim();
+                        } else {
+                            answerText = rawAns.map(a => String(a).trim()).filter(Boolean).join(', ');
+                        }
+                    } else if (typeof rawAns === 'object') {
+                        answerText = (rawAns as any).text || (rawAns as any).choice || Object.values(rawAns).join(', ');
+                    } else {
+                        answerText = String(rawAns);
+                    }
+
+                    if (!answerText || !answerText.trim()) continue;
+
+                    const cleanAnswer = answerText.trim();
+                    const fieldKey = saveDirective.fieldKey;
+                    const fieldLabel = saveDirective.fieldLabel;
+
+                    // Update root property, metadata object, and identification tracking
+                    updatesToUser[fieldKey] = cleanAnswer;
+                    updatedMetadata[fieldKey] = cleanAnswer;
+                    updatedIdentification[fieldKey] = {
+                        field: fieldKey,
+                        label: fieldLabel,
+                        value: cleanAnswer,
+                        sourceSprintId: sprintId,
+                        sourceSprintTitle: sprintTitle,
+                        capturedAt: new Date().toISOString()
+                    };
+                    hasChanges = true;
+                }
             }
 
             if (hasChanges) {
                 updatesToUser.metadata = updatedMetadata;
+                updatesToUser.userMetadata = updatedMetadata;
                 updatesToUser.identificationData = updatedIdentification;
                 updatesToUser.lastMetadataUpdate = new Date().toISOString();
                 await setDoc(userDocRef, sanitizeData(updatesToUser), { merge: true });
@@ -145,7 +186,7 @@ export const userIdentificationService = {
                         const localRaw = localStorage.getItem('vectorise_user') || localStorage.getItem('user');
                         if (localRaw) {
                             const parsed = JSON.parse(localRaw);
-                            const merged = { ...parsed, ...updatesToUser, metadata: updatedMetadata, identificationData: updatedIdentification };
+                            const merged = { ...parsed, ...updatesToUser, metadata: updatedMetadata, userMetadata: updatedMetadata, identificationData: updatedIdentification };
                             localStorage.setItem('vectorise_user', JSON.stringify(merged));
                             localStorage.setItem('user', JSON.stringify(merged));
                             window.dispatchEvent(new CustomEvent('vectorise_user_updated', { detail: merged }));

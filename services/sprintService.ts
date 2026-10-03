@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { collection, collectionGroup, query, where, getDocs, doc, setDoc, updateDoc, getDoc, addDoc, onSnapshot, deleteField, increment, serverTimestamp, deleteDoc, arrayUnion, arrayRemove, writeBatch } from 'firebase/firestore';
 import { ParticipantSprint, ParticipantSprintRun, Sprint, OrchestratorLog, OrchestrationTrigger, PaymentSource, LifecycleSlotAssignment, GlobalOrchestrationSettings, Review, Track, InteractionUser } from '../types';
 import { sanitizeData, safeJSONStringify, userService } from './userService';
+import { userIdentificationService } from './userIdentificationService';
 import { ensureSeedBlogsInFirestore } from './blogService';
 
 const cleanDetailsData = (raw: any): any => {
@@ -2182,10 +2183,11 @@ export const sprintService = {
 
         await setDoc(enrollmentRef, sanitizeData(newEnrollment));
 
+        let targetSprintData: Sprint | null = null;
         try {
             const userRef = doc(db, 'users', userId);
-            const spr = await sprintService.getSprintById(sprintId);
-            const isCoachSprint = !!(spr && spr.audience && spr.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
+            targetSprintData = await sprintService.getSprintById(sprintId);
+            const isCoachSprint = !!(targetSprintData && targetSprintData.audience && targetSprintData.audience.some((a: any) => typeof a === 'string' && a.toLowerCase().includes("coach")));
             
             await updateDoc(userRef, {
                 enrolledSprintIds: arrayUnion(sprintId),
@@ -2202,6 +2204,12 @@ export const sprintService = {
 
         if (newEnrollment.status === 'active') {
             await sprintService.checkReferralStart(userId);
+        }
+
+        if (hasInputs && cleanInputs.length > 0) {
+            userIdentificationService.applyUserIdentificationTracking(userId, targetSprintData || { id: sprintId, title: '' }, 1, cleanInputs).catch(err => {
+                console.warn("[SprintService] Failed to apply user identification tracking on enrollment:", err);
+            });
         }
         
         return newEnrollment;

@@ -227,9 +227,117 @@ export function extractMetadataTokens(text: string): MetadataTokenDetail[] {
 }
 
 /**
- * Resolves the stored value of a metadata field from user object or cache
+ * Resolves the stored value of a metadata field from active sprint inputs, user object, or cache
  */
-export function resolveUserMetadataValue(fieldKeyOrAlias: string, userOrMetadata?: any): string {
+export function resolveUserMetadataValue(
+  fieldKeyOrAlias: string, 
+  userOrMetadata?: any,
+  dayContent?: any,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[] | Record<number, any>
+): string {
+  const fieldDef = normalizeMetadataField(fieldKeyOrAlias);
+  const targetKey = fieldDef ? fieldDef.key : fieldKeyOrAlias;
+  const norm = targetKey.toLowerCase().replace(/[\s_\-]+/g, '');
+
+  // 1. First check: Active in-progress responses from current day's sprint steps ({Metadata ... save})
+  if (dayContent && taskInputs) {
+    const currentDayNum = Number(dayContent?.day || 1);
+    const promptsCount = Math.max(
+      dayContent?.taskPrompts?.length || 0,
+      dayContent?.taskInputTypes?.length || 0,
+      Array.isArray(taskInputs) ? taskInputs.length : 0
+    );
+
+    for (let sIdx = 0; sIdx < promptsCount; sIdx++) {
+      const rawAns = Array.isArray(taskInputs) ? taskInputs[sIdx] : (typeof taskInputs === 'object' ? taskInputs[sIdx] : undefined);
+      if (rawAns === undefined || rawAns === null || rawAns === '') continue;
+
+      const saves = extractAllSaveMetadataFromStep(dayContent, sIdx);
+      for (const s of saves) {
+        const sNorm = s.fieldKey.toLowerCase().replace(/[\s_\-]+/g, '');
+        if (sNorm === norm || (norm && (sNorm.includes(norm) || norm.includes(sNorm)))) {
+          let answerText = '';
+          if (typeof rawAns === 'string') {
+            const trimmed = rawAns.trim();
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (s.fieldIndex !== undefined) {
+                  const rawLabels = dayContent.taskMultiTextLabels?.[sIdx] || [];
+                  const targetLabel = rawLabels[s.fieldIndex];
+                  if (targetLabel && parsed[targetLabel] !== undefined) {
+                    answerText = parsed[targetLabel];
+                  } else {
+                    answerText = String(Object.values(parsed)[s.fieldIndex] || '');
+                  }
+                } else {
+                  answerText = parsed.text || parsed.choice || (Array.isArray(parsed.selectedChoices) ? parsed.selectedChoices.join(', ') : '') || trimmed;
+                }
+              } catch (e) {
+                answerText = trimmed;
+              }
+            } else if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                  answerText = parsed.filter(Boolean).join(', ');
+                } else {
+                  answerText = trimmed;
+                }
+              } catch (e) {
+                answerText = trimmed;
+              }
+            } else {
+              answerText = trimmed;
+            }
+          } else if (Array.isArray(rawAns)) {
+            answerText = rawAns.map(a => String(a).trim()).filter(Boolean).join(', ');
+          } else if (typeof rawAns === 'object') {
+            answerText = (rawAns as any).text || (rawAns as any).choice || Object.values(rawAns).join(', ');
+          } else {
+            answerText = String(rawAns);
+          }
+
+          if (answerText && answerText.trim()) {
+            return answerText.trim();
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Second check: Past completed days in sprint ({Metadata ... save} from prior moves)
+  if (allDaysContent && Array.isArray(allDaysContent) && allDaysInputs) {
+    for (const dc of allDaysContent) {
+      if (!dc) continue;
+      const dNum = Number(dc.day || 1);
+      let dayAnswers: any[] = [];
+      if (Array.isArray(allDaysInputs)) {
+        const prog = allDaysInputs.find((p: any) => p && Number(p.day) === dNum);
+        if (prog && Array.isArray(prog.answers)) dayAnswers = prog.answers;
+        else if (allDaysInputs[dNum - 1] && Array.isArray(allDaysInputs[dNum - 1])) dayAnswers = allDaysInputs[dNum - 1];
+      }
+
+      if (dayAnswers.length > 0) {
+        for (let sIdx = 0; sIdx < dayAnswers.length; sIdx++) {
+          const rawAns = dayAnswers[sIdx];
+          if (!rawAns) continue;
+          const saves = extractAllSaveMetadataFromStep(dc, sIdx);
+          for (const s of saves) {
+            const sNorm = s.fieldKey.toLowerCase().replace(/[\s_\-]+/g, '');
+            if (sNorm === norm || (norm && (sNorm.includes(norm) || norm.includes(sNorm)))) {
+              const textVal = typeof rawAns === 'string' ? rawAns : String(rawAns);
+              if (textVal && textVal.trim()) return textVal.trim();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Third check: Persisted user profile or metadata object
   let target = userOrMetadata;
   if (!target && typeof window !== 'undefined') {
     try {
@@ -241,30 +349,26 @@ export function resolveUserMetadataValue(fieldKeyOrAlias: string, userOrMetadata
   }
   if (!target) return '';
 
-  const fieldDef = normalizeMetadataField(fieldKeyOrAlias);
-  const targetKey = fieldDef ? fieldDef.key : fieldKeyOrAlias;
-  const norm = targetKey.toLowerCase().replace(/[\s_\-]+/g, '');
-
-  // 1. Direct metadata object: target.metadata, target.userMetadata, target.identificationData
+  // Direct metadata object: target.metadata, target.userMetadata, target.identificationData
   const metaObj = target.metadata || target.userMetadata || target.identificationData;
   if (typeof metaObj === 'object' && metaObj !== null) {
     if (metaObj[targetKey] !== undefined && metaObj[targetKey] !== null) {
       const val = metaObj[targetKey];
       if (typeof val === 'string') return val;
       if (typeof val === 'object' && val !== null && 'value' in val) return String((val as any).value);
-      if (Array.isArray(val)) return val.join(', ');
+      if (Array.isArray(val)) return val.filter(Boolean).join(', ');
     }
     for (const [k, v] of Object.entries(metaObj)) {
       const kNorm = k.toLowerCase().replace(/[\s_\-]+/g, '');
       if (kNorm === norm || (norm && (kNorm.includes(norm) || norm.includes(kNorm)))) {
         if (typeof v === 'string') return v;
         if (typeof v === 'object' && v !== null && 'value' in v) return String((v as any).value);
-        if (Array.isArray(v)) return v.join(', ');
+        if (Array.isArray(v)) return v.filter(Boolean).join(', ');
       }
     }
   }
 
-  // 2. Direct top-level properties on user
+  // Direct top-level properties on user
   if (norm.includes('lifestage') || norm === 'stage') {
     return target.lifeStage || target.occupation || target.persona || '';
   }
@@ -278,20 +382,43 @@ export function resolveUserMetadataValue(fieldKeyOrAlias: string, userOrMetadata
     return target.desiredDirection || target.risePathway || target.direction || '';
   }
   if (norm.includes('interest')) {
-    if (Array.isArray(target.interests)) return target.interests.join(', ');
+    if (Array.isArray(target.interests)) return target.interests.filter(Boolean).join(', ');
     if (typeof target.interests === 'string') return target.interests;
-    if (Array.isArray(target.growthAreas)) return target.growthAreas.join(', ');
+    if (Array.isArray(target.growthAreas)) return target.growthAreas.filter(Boolean).join(', ');
     return target.interests || '';
   }
   if (norm.includes('strength')) {
-    if (Array.isArray(target.strengths)) return target.strengths.join(', ');
+    if (Array.isArray(target.strengths)) return target.strengths.filter(Boolean).join(', ');
     if (typeof target.strengths === 'string') return target.strengths;
     return target.strengths || '';
+  }
+  if (norm.includes('occupation') || norm === 'role') {
+    return target.occupation || target.role || '';
+  }
+  if (norm.includes('industry') || norm.includes('sector')) {
+    return target.industry || target.domain || '';
+  }
+  if (norm.includes('gender') || norm === 'sex') {
+    return target.gender || '';
+  }
+  if (norm.includes('niche') || norm.includes('audience')) {
+    return target.targetNiche || target.targetAudience || '';
   }
 
   if (target[targetKey] !== undefined && target[targetKey] !== null) {
     const val = target[targetKey];
-    return Array.isArray(val) ? val.join(', ') : String(val);
+    return Array.isArray(val) ? val.filter(Boolean).join(', ') : String(val);
+  }
+
+  // Look through all keys on target for matching normalized name
+  for (const [k, v] of Object.entries(target)) {
+    const kNorm = k.toLowerCase().replace(/[\s_\-]+/g, '');
+    if (kNorm === norm) {
+      if (typeof v === 'string') return v;
+      if (typeof v === 'object' && v !== null && 'value' in v) return String((v as any).value);
+      if (Array.isArray(v)) return v.filter(Boolean).join(', ');
+      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    }
   }
 
   return '';
@@ -301,7 +428,14 @@ export function resolveUserMetadataValue(fieldKeyOrAlias: string, userOrMetadata
  * Replaces `{Metadata <field> receive}`, `{Metadata list}`, `{Metadata sentence}` etc. with user's stored metadata value,
  * and removes `{Metadata <field> save}` from participant view.
  */
-export function interpolateMetadataInText(text: string, userOrMetadata?: any): string {
+export function interpolateMetadataInText(
+  text: string, 
+  userOrMetadata?: any,
+  dayContent?: any,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[] | Record<number, any>
+): string {
   if (!text || typeof text !== 'string') return '';
   const tokens = extractMetadataTokens(text);
   if (tokens.length === 0) return text;
@@ -320,7 +454,14 @@ export function interpolateMetadataInText(text: string, userOrMetadata?: any): s
     }
 
     const fieldDef = normalizeMetadataField(tokenDetail.fieldKey);
-    const resolvedVal = resolveUserMetadataValue(tokenDetail.fieldKey || '', userOrMetadata);
+    const resolvedVal = resolveUserMetadataValue(
+      tokenDetail.fieldKey || '', 
+      userOrMetadata,
+      dayContent,
+      taskInputs,
+      allDaysContent,
+      allDaysInputs
+    );
 
     let replacement = '';
     if (resolvedVal && resolvedVal.trim()) {
@@ -371,73 +512,99 @@ export function interpolateMetadataInText(text: string, userOrMetadata?: any): s
 }
 
 /**
- * Inspects a step's prompt, hints, footnotes, and tag notes for any `{Metadata <field> save}` directive.
+ * Inspects a step's prompt, hints, footnotes, fills, subprompts, labels, and tag notes for any `{Metadata <field> save}` directives.
  */
 export function extractSaveMetadataFromStep(
   dayContent: any,
   stepIndex: number
 ): { fieldKey: string; fieldLabel: string; mode: 'save' } | null {
-  if (!dayContent) return null;
+  const allSaves = extractAllSaveMetadataFromStep(dayContent, stepIndex);
+  return allSaves.length > 0 ? allSaves[0] : null;
+}
 
-  const textsToScan: string[] = [];
+/**
+ * Extracts all `{Metadata <field> save}` directives configured on a step.
+ */
+export function extractAllSaveMetadataFromStep(
+  dayContent: any,
+  stepIndex: number
+): Array<{ fieldKey: string; fieldLabel: string; mode: 'save'; fieldIndex?: number }> {
+  if (!dayContent) return [];
+
+  const textsToScan: Array<{ text: string; fieldIndex?: number }> = [];
+
   if (Array.isArray(dayContent.taskPrompts) && dayContent.taskPrompts[stepIndex]) {
     const raw = dayContent.taskPrompts[stepIndex];
-    textsToScan.push(raw);
+    textsToScan.push({ text: raw });
     if (typeof raw === 'string' && raw.includes('|||')) {
-      raw.split('|||').forEach((p: string) => textsToScan.push(p.trim()));
+      raw.split('|||').forEach((p: string) => textsToScan.push({ text: p.trim() }));
     }
   } else if (stepIndex === 0 && dayContent.taskPrompt) {
     const raw = dayContent.taskPrompt;
-    textsToScan.push(raw);
+    textsToScan.push({ text: raw });
     if (typeof raw === 'string' && raw.includes('|||')) {
-      raw.split('|||').forEach((p: string) => textsToScan.push(p.trim()));
+      raw.split('|||').forEach((p: string) => textsToScan.push({ text: p.trim() }));
     }
   }
+
   if (Array.isArray(dayContent.taskHints) && dayContent.taskHints[stepIndex]) {
-    textsToScan.push(dayContent.taskHints[stepIndex]);
+    textsToScan.push({ text: dayContent.taskHints[stepIndex] });
   }
   if (Array.isArray(dayContent.taskFootnotes) && dayContent.taskFootnotes[stepIndex]) {
-    textsToScan.push(dayContent.taskFootnotes[stepIndex]);
+    textsToScan.push({ text: dayContent.taskFootnotes[stepIndex] });
   }
   if (Array.isArray(dayContent.taskFills) && dayContent.taskFills[stepIndex]) {
-    textsToScan.push(dayContent.taskFills[stepIndex] as string);
+    const rawFill = dayContent.taskFills[stepIndex];
+    if (typeof rawFill === 'string') textsToScan.push({ text: rawFill });
+    else if (Array.isArray(rawFill)) rawFill.forEach((f, fIdx) => textsToScan.push({ text: String(f), fieldIndex: fIdx }));
   }
   if (Array.isArray(dayContent.taskTagNotes) && dayContent.taskTagNotes[stepIndex]) {
-    textsToScan.push(dayContent.taskTagNotes[stepIndex]);
+    textsToScan.push({ text: dayContent.taskTagNotes[stepIndex] });
   }
   if (Array.isArray(dayContent.taskSubPrompts) && dayContent.taskSubPrompts[stepIndex]) {
-    textsToScan.push(dayContent.taskSubPrompts[stepIndex]);
+    const rawSub = dayContent.taskSubPrompts[stepIndex];
+    if (typeof rawSub === 'string') textsToScan.push({ text: rawSub });
+    else if (Array.isArray(rawSub)) rawSub.forEach((s, sIdx) => textsToScan.push({ text: String(s), fieldIndex: sIdx }));
+  }
+  if (Array.isArray(dayContent.taskMultiTextLabels) && dayContent.taskMultiTextLabels[stepIndex]) {
+    const rawLabels = dayContent.taskMultiTextLabels[stepIndex];
+    if (Array.isArray(rawLabels)) {
+      rawLabels.forEach((lbl: string, lIdx: number) => {
+        if (typeof lbl === 'string') textsToScan.push({ text: lbl, fieldIndex: lIdx });
+      });
+    }
   }
   if (Array.isArray(dayContent.taskPollOptions) && dayContent.taskPollOptions[stepIndex]) {
     const raw = dayContent.taskPollOptions[stepIndex];
-    if (typeof raw === 'string') textsToScan.push(raw);
-    else if (Array.isArray(raw)) textsToScan.push(...raw.map(String));
+    if (typeof raw === 'string') textsToScan.push({ text: raw });
+    else if (Array.isArray(raw)) textsToScan.push(...raw.map(String).map(text => ({ text })));
   }
 
-  for (const text of textsToScan) {
-    if (!text || typeof text !== 'string') continue;
-    const tokens = extractMetadataTokens(text);
-    // 1. Explicit save token
-    const saveToken = tokens.find(t => t.mode === 'save' && t.fieldKey);
-    if (saveToken && saveToken.fieldKey) {
-      return {
-        fieldKey: saveToken.fieldKey,
-        fieldLabel: saveToken.fieldLabel,
-        mode: 'save'
-      };
-    }
-    // 2. Any metadata token with a recognized fieldKey
-    const anyMetaToken = tokens.find(t => Boolean(t.fieldKey && t.fieldKey.toLowerCase() !== 'metadata'));
-    if (anyMetaToken && anyMetaToken.fieldKey) {
-      return {
-        fieldKey: anyMetaToken.fieldKey,
-        fieldLabel: anyMetaToken.fieldLabel,
-        mode: 'save'
-      };
+  const results: Array<{ fieldKey: string; fieldLabel: string; mode: 'save'; fieldIndex?: number }> = [];
+  const seenKeys = new Set<string>();
+
+  for (const item of textsToScan) {
+    if (!item.text || typeof item.text !== 'string') continue;
+    const tokens = extractMetadataTokens(item.text);
+
+    // ONLY match explicit save tokens!
+    for (const t of tokens) {
+      if (t.mode === 'save' && t.fieldKey) {
+        const dedupeKey = `${t.fieldKey.toLowerCase()}_${item.fieldIndex ?? ''}`;
+        if (!seenKeys.has(dedupeKey)) {
+          seenKeys.add(dedupeKey);
+          results.push({
+            fieldKey: t.fieldKey,
+            fieldLabel: t.fieldLabel,
+            mode: 'save',
+            fieldIndex: item.fieldIndex
+          });
+        }
+      }
     }
   }
 
-  return null;
+  return results;
 }
 
 export interface StepPlaceholderDetail {
@@ -1488,8 +1655,15 @@ export function formatInterpolatedText(
 ): string {
   if (!prompt) return '';
 
-  // Interpolate metadata tokens first (e.g. {Metadata interest receive} or {Metadata life stage})
-  const textWithMetadata = interpolateMetadataInText(prompt, userOrMetadata);
+  // Interpolate metadata tokens first (e.g. {Metadata interest receive} or {Metadata life stage}) with active sprint responses and user profile recall
+  const textWithMetadata = interpolateMetadataInText(
+    prompt, 
+    userOrMetadata,
+    dayContent,
+    taskInputs,
+    allDaysContent,
+    allDaysInputs
+  );
 
   // Normalize bare coding tokens like "M2 Step 1 op 2", "M1 Step 1.1 h", or "Step 1.2" into "{M2 Step 1 op 2}"
   const normalizedPrompt = textWithMetadata.replace(

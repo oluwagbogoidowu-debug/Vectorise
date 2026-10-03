@@ -4894,12 +4894,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 </SectionHeading>
 
                               <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
-                                <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
                                   <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-xs`}>
-                                    <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                    <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                                   </div>
                                 </div>
                               )}
@@ -5942,12 +5942,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           return (
                             <>
                               <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
-                                <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
                                   <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-xs`}>
-                                    <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)} />
+                                    <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                                   </div>
                                 </div>
                               )}
