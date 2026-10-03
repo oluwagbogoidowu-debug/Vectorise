@@ -9,11 +9,12 @@ import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { RotateCcw, Play, ArrowRight, Layers, Loader2 } from 'lucide-react';
 import { ParticipantSprint, Sprint } from '../types';
+import NextSprintModal, { QueuedSprintItem } from './NextSprintModal';
 
 export const SprintConflictManager: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, activeRole } = useAuth();
 
   const [pendingAction, setPendingAction] = useState<any>(null);
   const [pendingSprint, setPendingSprint] = useState<Sprint | null>(null);
@@ -23,68 +24,141 @@ export const SprintConflictManager: React.FC = () => {
   const [showDiffSprintModal, setShowDiffSprintModal] = useState(false);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
+  // Queued sprint selection modal state
+  const [showQueuedModal, setShowQueuedModal] = useState(false);
+  const [queuedSprintItems, setQueuedSprintItems] = useState<QueuedSprintItem[]>([]);
+
   const checkConflicts = useCallback(async () => {
     if (loading || !user) return;
 
-    // Do not trigger while on public login/signup pages before auth finishes
-    if (location.pathname === '/login' || location.pathname === '/signup' || location.pathname === '/verify-email') {
+    // Do not trigger while on public login/signup pages or coach/admin dashboards
+    if (
+      location.pathname === '/login' || 
+      location.pathname === '/signup' || 
+      location.pathname === '/verify-email' ||
+      location.pathname.startsWith('/coach') ||
+      location.pathname.startsWith('/admin')
+    ) {
       return;
     }
 
     const pendingRaw = localStorage.getItem('pending_first_action');
-    if (!pendingRaw) return;
+    if (pendingRaw) {
+      try {
+        const pending = JSON.parse(pendingRaw);
+        if (pending && pending.sprintId) {
+          const targetSprintId = pending.sprintId;
+          const sprint = await sprintService.getSprintById(targetSprintId);
+          if (!sprint) {
+            localStorage.removeItem('pending_first_action');
+          } else {
+            setPendingAction(pending);
+            setPendingSprint(sprint);
 
+            const enrollments = await sprintService.getUserEnrollments(user.id);
+            const existingEnrollmentForTarget = enrollments.find(e => e.sprint_id === targetSprintId);
+            const currentActiveEnrollment = enrollments.find(e => e.status === 'active' && !e.completed_at);
+
+            // Case 1: Same sprint is actively in progress in their account
+            if (currentActiveEnrollment && currentActiveEnrollment.sprint_id === targetSprintId) {
+              setActiveOngoingEnrollment(currentActiveEnrollment);
+              setActiveOngoingSprint(sprint);
+              setShowSameSprintModal(true);
+              return;
+            }
+
+            // Case 2: A different sprint is currently active in their account
+            if (currentActiveEnrollment && currentActiveEnrollment.sprint_id !== targetSprintId) {
+              const activeSprintObj = await sprintService.getSprintById(currentActiveEnrollment.sprint_id).catch(() => null);
+              setActiveOngoingEnrollment(currentActiveEnrollment);
+              setActiveOngoingSprint(activeSprintObj || ({ id: currentActiveEnrollment.sprint_id, title: 'Current Sprint' } as any));
+              setShowDiffSprintModal(true);
+              return;
+            }
+
+            // Case 3: Previously completed sprint (no other active sprint conflict) -> Start Rerun immediately (Run 2+)
+            if (existingEnrollmentForTarget && existingEnrollmentForTarget.status === 'completed') {
+              await executeStartRerun(sprint, pending, existingEnrollmentForTarget);
+              return;
+            }
+
+            // Case 4: Brand new sprint (no active conflicts) -> Auto enroll & navigate to Day Success
+            await executeNewEnrollment(sprint, pending);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("[SprintConflictManager] Error evaluating pending preview action:", err);
+      }
+    }
+
+    // Check if user has no active sprint, but has queued sprints
     try {
-      const pending = JSON.parse(pendingRaw);
-      if (!pending || !pending.sprintId) return;
+      const isDismissed = sessionStorage.getItem('vectorise_queued_prompt_dismissed') === 'true';
+      if (!isDismissed) {
+        const enrollments = await sprintService.getUserEnrollments(user.id);
+        const trulyActive = enrollments.find(e => {
+          if (e.status !== 'active') return false;
+          if (e.completed_at) return false;
+          const isAllDone = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed);
+          return !isAllDone;
+        });
 
-      const targetSprintId = pending.sprintId;
-      const sprint = await sprintService.getSprintById(targetSprintId);
-      if (!sprint) {
-        localStorage.removeItem('pending_first_action');
-        return;
+        const queuedEnrollments = enrollments.filter(e => e.status === 'queued');
+
+        if (!trulyActive && queuedEnrollments.length > 0) {
+          const top2Queued = queuedEnrollments.slice(0, 2);
+          const enrichedList: QueuedSprintItem[] = [];
+          for (const enr of top2Queued) {
+            const sp = await sprintService.getSprintById(enr.sprint_id).catch(() => null);
+            if (sp) {
+              enrichedList.push({ enrollment: enr, sprint: sp });
+            }
+          }
+          if (enrichedList.length > 0) {
+            setQueuedSprintItems(enrichedList);
+            setShowQueuedModal(true);
+          }
+        }
       }
-
-      setPendingAction(pending);
-      setPendingSprint(sprint);
-
-      const enrollments = await sprintService.getUserEnrollments(user.id);
-      const existingEnrollmentForTarget = enrollments.find(e => e.sprint_id === targetSprintId);
-      const currentActiveEnrollment = enrollments.find(e => e.status === 'active' && !e.completed_at);
-
-      // Case 1: Same sprint is actively in progress in their account
-      if (currentActiveEnrollment && currentActiveEnrollment.sprint_id === targetSprintId) {
-        setActiveOngoingEnrollment(currentActiveEnrollment);
-        setActiveOngoingSprint(sprint);
-        setShowSameSprintModal(true);
-        return;
-      }
-
-      // Case 2: A different sprint is currently active in their account
-      if (currentActiveEnrollment && currentActiveEnrollment.sprint_id !== targetSprintId) {
-        const activeSprintObj = await sprintService.getSprintById(currentActiveEnrollment.sprint_id).catch(() => null);
-        setActiveOngoingEnrollment(currentActiveEnrollment);
-        setActiveOngoingSprint(activeSprintObj || ({ id: currentActiveEnrollment.sprint_id, title: 'Current Sprint' } as any));
-        setShowDiffSprintModal(true);
-        return;
-      }
-
-      // Case 3: Previously completed sprint (no other active sprint conflict) -> Start Rerun immediately (Run 2+)
-      if (existingEnrollmentForTarget && existingEnrollmentForTarget.status === 'completed') {
-        await executeStartRerun(sprint, pending, existingEnrollmentForTarget);
-        return;
-      }
-
-      // Case 4: Brand new sprint (no active conflicts) -> Auto enroll & navigate to Day Success
-      await executeNewEnrollment(sprint, pending);
-    } catch (err) {
-      console.error("[SprintConflictManager] Error evaluating pending preview action:", err);
+    } catch (e) {
+      console.error("[SprintConflictManager] Error checking queued sprints:", e);
     }
   }, [user, loading, location.pathname]);
 
   useEffect(() => {
     checkConflicts();
   }, [checkConflicts]);
+
+  const handleStartQueuedSprint = async (enrollmentId?: string, sprintId?: string) => {
+    if (!user) return;
+    setIsProcessingAction(true);
+    try {
+      let activeId = enrollmentId;
+      if (!activeId && queuedSprintItems[0]) {
+        activeId = queuedSprintItems[0].enrollment.id;
+      }
+      if (activeId) {
+        const startedId = await sprintService.startSpecificQueuedSprint(user.id, activeId);
+        if (startedId) {
+          setShowQueuedModal(false);
+          sessionStorage.removeItem('vectorise_queued_prompt_dismissed');
+          toast.success("Sprint activated! Let's get started.");
+          navigate(`/participant/sprint/${startedId}`);
+        }
+      }
+    } catch (e) {
+      console.error("[SprintConflictManager] Failed to start queued sprint:", e);
+      toast.error("Failed to start sprint. Please try again.");
+    } finally {
+      setIsProcessingAction(false);
+    }
+  };
+
+  const handleCloseQueuedModal = () => {
+    sessionStorage.setItem('vectorise_queued_prompt_dismissed', 'true');
+    setShowQueuedModal(false);
+  };
 
   // Execute Rerun for completed sprints
   const executeStartRerun = async (sprint: Sprint, pending: any, existingEnrollment: ParticipantSprint) => {
@@ -454,6 +528,17 @@ export const SprintConflictManager: React.FC = () => {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* MODAL 3: Global Queued Sprints Prompt (On Login or Reload when No Sprint is Active) */}
+      {showQueuedModal && queuedSprintItems.length > 0 && (
+        <NextSprintModal 
+          isOpen={showQueuedModal}
+          queuedSprints={queuedSprintItems}
+          sprint={queuedSprintItems[0]?.sprint}
+          onStart={handleStartQueuedSprint}
+          onClose={handleCloseQueuedModal}
+        />
       )}
     </>
   );
