@@ -2660,14 +2660,23 @@ export function isStepVisibleForSprint(
 
     if (stepPlaceholders.length === 0) return true;
 
-    // Group placeholders by target (targetDay:targetIdx)
+    // Filter to ONLY placeholders that contain conditional visibility/branching logic.
+    // Pure receiving/display placeholders (e.g. {Step 1}, {Step 1 s}, {Step 1 list}, {Step 1 normal}, {Step 1 main})
+    // are strictly text interpolation tokens and must NEVER hide a step or act as visibility filters.
+    const conditionalPlaceholders = stepPlaceholders.filter(p => {
+      return p.opNum !== undefined || p.mode === 'hide' || p.mode === 'disconnect';
+    });
+
+    if (conditionalPlaceholders.length === 0) return true;
+
+    // Group conditional placeholders by target (targetDay:targetIdx)
     const targetGroups: Record<string, {
       targetDay: number;
       targetIdx: number;
       placeholders: { opNum?: number; mode: StepPlaceholderMode }[];
     }> = {};
 
-    for (const placeholder of stepPlaceholders) {
+    for (const placeholder of conditionalPlaceholders) {
       const { dayNum, stepNum, opNum, mode } = placeholder;
       const targetIdx = stepNum - 1;
       const targetDay = dayNum !== undefined ? dayNum : viewingDay;
@@ -2685,114 +2694,131 @@ export function isStepVisibleForSprint(
     for (const group of Object.values(targetGroups)) {
       const { targetDay, targetIdx, placeholders } = group;
 
-      if (targetDay <= viewingDay) {
-        if (targetDay === viewingDay && targetIdx >= stepIndex) {
-          continue;
+      // Cannot condition visibility on itself or future steps of the same day
+      if (targetDay === viewingDay && targetIdx >= stepIndex) {
+        continue;
+      }
+      // Cannot condition on future days
+      if (targetDay > viewingDay) {
+        continue;
+      }
+
+      const targetDC = targetDay === viewingDay 
+        ? dayContent 
+        : (Array.isArray(allDaysContent) ? allDaysContent.find(dc => Number(dc.day) === targetDay) : undefined);
+      if (!targetDC) continue;
+
+      let val: any = undefined;
+      if (targetDay === viewingDay) {
+        val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[targetIdx] : taskInputs[targetIdx]) : undefined;
+      } else {
+        if (allDaysInputs) {
+          if (Array.isArray(allDaysInputs)) {
+            const prevProg = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+            if (prevProg) {
+              if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
+              else if (prevProg.answersMap && typeof prevProg.answersMap === 'object') val = (prevProg.answersMap as any)[targetIdx];
+              else if (typeof prevProg.submission === 'string') val = prevProg.submission.split(' | ')[targetIdx];
+            }
+          } else if (typeof allDaysInputs === 'object') {
+            const dVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
+            if (dVal) val = Array.isArray(dVal) ? dVal[targetIdx] : (dVal as any)[targetIdx];
+          }
         }
-
-        const targetDC = targetDay === viewingDay ? dayContent : (Array.isArray(allDaysContent) ? allDaysContent.find(dc => Number(dc.day) === targetDay) : undefined);
-        if (!targetDC) continue;
-
-        let val: any = undefined;
-        if (targetDay === viewingDay) {
-          val = taskInputs ? (Array.isArray(taskInputs) ? taskInputs[targetIdx] : taskInputs[targetIdx]) : undefined;
-        } else {
-          if (allDaysInputs) {
-            if (Array.isArray(allDaysInputs)) {
-              const prevProg = allDaysInputs.find((p: any) => p && Number(p.day) === targetDay);
+        if (!val && typeof sessionStorage !== 'undefined' && previewSprintId) {
+          try {
+            const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${previewSprintId}`);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              const prevProg = parsed?.progress?.find((p: any) => p && Number(p.day) === targetDay);
               if (prevProg) {
                 if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
-                else if (prevProg.answersMap && typeof prevProg.answersMap === 'object') val = (prevProg.answersMap as any)[targetIdx];
+                else if (prevProg.answersMap) val = (prevProg.answersMap as any)[targetIdx];
                 else if (typeof prevProg.submission === 'string') val = prevProg.submission.split(' | ')[targetIdx];
               }
-            } else if (typeof allDaysInputs === 'object') {
-              const dVal = (allDaysInputs as any)[targetDay] || (allDaysInputs as any)[targetDay - 1];
-              if (dVal) val = Array.isArray(dVal) ? dVal[targetIdx] : (dVal as any)[targetIdx];
             }
+          } catch (e) {}
+        }
+      }
+
+      const isTargetPoll = targetDC.taskInputTypes?.[targetIdx] === 'poll' || 
+                           targetDC.taskInputTypes?.[targetIdx] === 'tags' ||
+                           isStepOrSubStepPoll(targetDC.taskInputTypes?.[targetIdx]);
+
+      if (isTargetPoll) {
+        let userChoices: string[] = [];
+        try {
+          const strVal = String(val || '').trim();
+          if (strVal.startsWith('[')) {
+            userChoices = JSON.parse(strVal);
+          } else if (strVal.startsWith('{')) {
+            userChoices = Object.values(JSON.parse(strVal));
+          } else if (strVal) {
+            userChoices = [strVal];
           }
-          if (!val && typeof sessionStorage !== 'undefined' && previewSprintId) {
-            try {
-              const saved = sessionStorage.getItem(`vectorise_preview_enrollment_${previewSprintId}`);
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                const prevProg = parsed?.progress?.find((p: any) => p && Number(p.day) === targetDay);
-                if (prevProg) {
-                  if (Array.isArray(prevProg.answers)) val = prevProg.answers[targetIdx];
-                  else if (prevProg.answersMap) val = (prevProg.answersMap as any)[targetIdx];
-                  else if (typeof prevProg.submission === 'string') val = prevProg.submission.split(' | ')[targetIdx];
-                }
-              }
-            } catch (e) {}
+        } catch (e) {
+          if (val) userChoices = [String(val).trim()];
+        }
+        userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
+
+        const writtenOpts = getAllStepPollOptions(targetDC, targetIdx, taskInputs, allDaysContent, allDaysInputs);
+
+        const isOptionSelected = (oNum: number) => {
+          const optIndex = oNum - 1;
+          const targetWrittenText = writtenOpts[optIndex];
+          const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
+          if (prog.isNarrowed && prog.activeSelection) {
+            const activeNorm = prog.activeSelection.toLowerCase().trim();
+            if (targetWrittenText && targetWrittenText.toLowerCase().trim() === activeNorm) return true;
+            if (activeNorm === `option ${oNum}` || activeNorm === `option${oNum}` || activeNorm === `op ${oNum}` || activeNorm === `op${oNum}` || activeNorm === String(oNum) || activeNorm === `poll ${oNum}`) return true;
+            if (prog.sourceStepIdx === targetIdx && prog.activeOptionIndex === optIndex) return true;
+            return false;
+          }
+          return userChoices.some(c => {
+            const lowerC = c.toLowerCase().trim();
+            if (targetWrittenText && lowerC === targetWrittenText.toLowerCase().trim()) return true;
+            if (lowerC === `option ${oNum}` || lowerC === `option${oNum}` || lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
+            return false;
+          });
+        };
+
+        const disconnectOpNums = placeholders
+          .filter(p => p.mode === 'disconnect' && p.opNum !== undefined)
+          .map(p => p.opNum as number);
+
+        const positiveOpNums = placeholders
+          .filter(p => p.mode !== 'disconnect' && p.opNum !== undefined)
+          .map(p => p.opNum as number);
+
+        // If disconnected option selected -> hide step
+        if (disconnectOpNums.length > 0) {
+          if (disconnectOpNums.some(oNum => isOptionSelected(oNum))) {
+            return false;
           }
         }
 
-        // If only main connector without opNum, skip
-        if (placeholders.length === 1 && placeholders[0].mode === 'main' && placeholders[0].opNum === undefined) {
-          continue;
+        // If positive options specified (e.g. {Step 2 Op 1 h} or {Step 2 op 1}) -> show ONLY IF ANY positive option matches!
+        if (positiveOpNums.length > 0) {
+          if (!positiveOpNums.some(oNum => isOptionSelected(oNum))) {
+            return false;
+          }
         }
 
-        if (!val || (typeof val === 'string' && !val.trim())) {
+        // If mode === 'hide' with no opNum specified on poll step -> require non-empty answer
+        const hasPureHide = placeholders.some(p => p.mode === 'hide' && p.opNum === undefined);
+        if (hasPureHide && userChoices.length === 0) {
           return false;
         }
+      } else {
+        // Target is text/mark/note input
+        const hasPureHide = placeholders.some(p => p.mode === 'hide');
+        const hasDisconnect = placeholders.some(p => p.mode === 'disconnect');
 
-        if (targetDC.taskInputTypes?.[targetIdx] === 'poll' || targetDC.taskInputTypes?.[targetIdx] === 'tags') {
-          let userChoices: string[] = [];
-          try {
-            const strVal = String(val).trim();
-            if (strVal.startsWith('[')) {
-              userChoices = JSON.parse(strVal);
-            } else if (strVal.startsWith('{')) {
-              userChoices = Object.values(JSON.parse(strVal));
-            } else {
-              userChoices = [strVal];
-            }
-          } catch (e) {
-            userChoices = [String(val).trim()];
-          }
-          userChoices = userChoices.map(c => String(c).trim()).filter(Boolean);
-
-          const writtenOpts = getAllStepPollOptions(targetDC, targetIdx, taskInputs, allDaysContent, allDaysInputs);
-
-          const isOptionSelected = (oNum: number) => {
-            const optIndex = oNum - 1;
-            const targetWrittenText = writtenOpts[optIndex];
-            const prog = resolveProgressiveStepSelections(stepIndex, dayContent, taskInputs, allDaysContent, allDaysInputs);
-            if (prog.isNarrowed && prog.activeSelection) {
-              const activeNorm = prog.activeSelection.toLowerCase().trim();
-              if (targetWrittenText && targetWrittenText.toLowerCase().trim() === activeNorm) return true;
-              if (activeNorm === `option ${oNum}` || activeNorm === `op ${oNum}` || activeNorm === `op${oNum}` || activeNorm === String(oNum) || activeNorm === `poll ${oNum}`) return true;
-              if (prog.sourceStepIdx === targetIdx && prog.activeOptionIndex === optIndex) return true;
-              return false;
-            }
-            return userChoices.some(c => {
-              const lowerC = c.toLowerCase().trim();
-              if (targetWrittenText && lowerC === targetWrittenText.toLowerCase().trim()) return true;
-              if (lowerC === `option ${oNum}` || lowerC === `option${oNum}` || lowerC === `poll ${oNum}` || lowerC === `op ${oNum}` || lowerC === `op${oNum}` || lowerC === String(oNum)) return true;
-              return false;
-            });
-          };
-
-          const disconnectOpNums = placeholders
-            .filter(p => p.mode === 'disconnect' && p.opNum !== undefined)
-            .map(p => p.opNum as number);
-
-          const positiveOpNums = placeholders
-            .filter(p => p.mode !== 'disconnect' && p.opNum !== undefined)
-            .map(p => p.opNum as number);
-
-          // If disconnected option selected -> hide step
-          if (disconnectOpNums.length > 0) {
-            if (disconnectOpNums.some(oNum => isOptionSelected(oNum))) {
-              return false;
-            }
-          }
-
-          // If positive options specified (e.g. {Step 1 Op 2 h} {Step Op 3 h}) -> show if ANY positive option matches!
-          if (positiveOpNums.length > 0) {
-            if (!positiveOpNums.some(oNum => isOptionSelected(oNum))) {
-              return false;
-            }
-          }
+        if (hasPureHide && (!val || !String(val).trim())) {
+          return false;
+        }
+        if (hasDisconnect && val && String(val).trim()) {
+          return false;
         }
       }
     }
