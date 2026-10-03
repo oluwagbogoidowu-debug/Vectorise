@@ -2624,6 +2624,51 @@ export const sprintService = {
         }
     },
 
+    startSpecificQueuedSprint: async (userId: string, enrollmentId: string) => {
+        try {
+            console.log("[SprintService] Starting specific queued sprint:", enrollmentId, "for user:", userId);
+            const enrollmentRef = doc(db, 'users', userId, 'enrollments', enrollmentId);
+            const now = new Date().toISOString();
+            
+            // 1. Enforce single active sprint constraint: place any other currently active sprints into queued
+            const activeQuery = query(
+                collection(db, 'users', userId, 'enrollments'), 
+                where("status", "==", "active")
+            );
+            const activeSnap = await getDocs(activeQuery);
+            for (const docSnap of activeSnap.docs) {
+                if (docSnap.id !== enrollmentId) {
+                    await updateDoc(docSnap.ref, {
+                        status: 'queued',
+                        last_activity_at: now
+                    });
+                }
+            }
+
+            // 2. Set target enrollment to active
+            await updateDoc(enrollmentRef, {
+                status: 'active',
+                started_at: now,
+                last_activity_at: now
+            });
+
+            // 3. Notify coach
+            const snap = await getDoc(enrollmentRef);
+            if (snap.exists()) {
+                const data = snap.data();
+                notifyCoachesOnSprintStart(userId, data.sprint_id, data.coach_id).catch(err =>
+                    console.warn("[SprintService] Failed to notify coach on specific queued sprint activation:", err)
+                );
+            }
+
+            await sprintService.checkReferralStart(userId);
+            return enrollmentId;
+        } catch (error) {
+            console.error("[SprintService] Failed to start specific queued sprint:", error);
+            return null;
+        }
+    },
+
     checkReferralStart: async (userId: string) => {
         try {
             const q = query(

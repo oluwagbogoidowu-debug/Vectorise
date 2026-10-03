@@ -128,6 +128,15 @@ export const SprintConflictManager: React.FC = () => {
         last_activity_at: now
       };
 
+      // Ensure all other enrollments for this user are placed in queued status
+      const userEnrollments = await sprintService.getUserEnrollments(user.id);
+      for (const e of userEnrollments) {
+        if (e.id !== existingEnrollment.id && e.status === 'active') {
+          const otherRef = doc(db, 'users', user.id, 'enrollments', e.id);
+          await updateDoc(otherRef, { status: 'queued', last_activity_at: now });
+        }
+      }
+
       await updateDoc(enrollmentRef, updatedData);
       await userService.addUserEnrollment(user.id, sprint.id);
 
@@ -171,6 +180,15 @@ export const SprintConflictManager: React.FC = () => {
         taskInputs: cleanInputs
       });
 
+      // Explicitly set target enrollment to active, and queue any other active sprints
+      const userEnrollments = await sprintService.getUserEnrollments(user.id);
+      for (const e of userEnrollments) {
+        if (e.id !== enrollment?.id && e.status === 'active') {
+          const otherRef = doc(db, "users", user.id, "enrollments", e.id);
+          await updateDoc(otherRef, { status: 'queued', last_activity_at: new Date().toISOString() });
+        }
+      }
+
       if (enrollment && enrollment.progress && enrollment.progress[0]) {
         const updatedProgress = [...enrollment.progress];
         updatedProgress[0] = {
@@ -182,6 +200,7 @@ export const SprintConflictManager: React.FC = () => {
         };
         const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
         await updateDoc(enrollmentRef, {
+          status: 'active',
           progress: updatedProgress,
           last_activity_at: new Date().toISOString()
         });

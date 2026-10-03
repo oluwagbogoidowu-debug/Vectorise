@@ -3597,6 +3597,21 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (!user) return;
 
     try {
+      const userEnrollments = await sprintService.getUserEnrollments(user.id);
+      const queuedList = userEnrollments.filter(e => e.status === 'queued');
+
+      if (queuedList.length > 0) {
+        navigate("/dashboard", {
+          replace: true,
+          state: {
+            showNextSprintPopup: true,
+            completedSprintId: sprint?.id,
+            rating
+          }
+        });
+        return;
+      }
+
       navigate("/participant/next-sprint", { 
         replace: true,
         state: { 
@@ -3993,7 +4008,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           if (isPreview) {
             handleExitPreview();
           } else {
-            navigate("/dashboard", { replace: true });
+            navigate("/dashboard", { 
+              replace: true,
+              state: { showNextSprintPopup: true }
+            });
           }
         }}
         onStartNext={(rating) => {

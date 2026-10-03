@@ -1039,8 +1039,8 @@ const ParticipantDashboard: React.FC = () => {
   const p = user as Participant;
   const currentArchetype = ARCHETYPES.find(a => a.id === p.archetype);
 
-  const handleStartNextSprint = async () => {
-    console.log("[Dashboard] handleStartNextSprint clicked. User:", user?.id, "Queued count:", queuedSprints.length);
+  const handleStartNextSprint = async (enrollmentId?: string, sprintId?: string) => {
+    console.log("[Dashboard] handleStartNextSprint clicked. User:", user?.id, "Target Enrollment:", enrollmentId, "Queued count:", queuedSprints.length);
     if (!user || queuedSprints.length === 0 || isStartingNext) {
         console.log("[Dashboard] handleStartNextSprint early return:", { user: !!user, queuedCount: queuedSprints.length, isStartingNext });
         return;
@@ -1048,9 +1048,14 @@ const ParticipantDashboard: React.FC = () => {
     
     setIsStartingNext(true);
     try {
-        console.log("[Dashboard] Calling sprintService.startNextQueuedSprint...");
-        const nextEnrollmentId = await sprintService.startNextQueuedSprint(user.id);
-        console.log("[Dashboard] Result from startNextQueuedSprint:", nextEnrollmentId);
+        console.log("[Dashboard] Starting queued sprint...");
+        let nextEnrollmentId: string | null = null;
+        if (enrollmentId) {
+            nextEnrollmentId = await sprintService.startSpecificQueuedSprint(user.id, enrollmentId);
+        } else {
+            nextEnrollmentId = await sprintService.startNextQueuedSprint(user.id);
+        }
+        console.log("[Dashboard] Result from starting queued sprint:", nextEnrollmentId);
         
         if (nextEnrollmentId) {
             navigate(`/participant/sprint/${nextEnrollmentId}`);
@@ -2497,10 +2502,11 @@ const ParticipantDashboard: React.FC = () => {
         cancelText="Not Yet"
         variant="success"
       />
-      {queuedSprints[0] && (
+      {queuedSprints.length > 0 && (
           <NextSprintModal 
             isOpen={isNextSprintModalOpen}
-            sprint={queuedSprints[0].sprint}
+            queuedSprints={queuedSprints}
+            sprint={queuedSprints[0]?.sprint}
             onStart={handleStartNextSprint}
             onClose={() => setIsNextSprintModalOpen(false)}
           />
