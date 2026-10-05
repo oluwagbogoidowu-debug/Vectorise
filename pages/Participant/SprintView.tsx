@@ -13,7 +13,8 @@ import {
 } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
 import { sprintService, normalizeMultiTextDailyContent } from "../../services/sprintService";
-import { userService, safeJSONStringify } from "../../services/userService";
+import { userService, safeJSONStringify, sanitizeData } from "../../services/userService";
+import { userIdentificationService } from "../../services/userIdentificationService";
 import { analyticsService } from "../../services/analyticsService";
 import { analyticsTracker } from "../../services/analyticsTracker";
 import { sprintAnalyticsService } from "../../services/sprintAnalyticsService";
@@ -24,7 +25,8 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint } from "../../src/utils/stepPlaceholderUtils";
+import { MetadataInterventionCard } from "../../components/MetadataInterventionCard";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint, extractRequiredReceiveMetadataFromStep, findMetadataSourceStepAcrossSprints, normalizeMetadataField } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -45,7 +47,6 @@ import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import AiResearchModal from "../../components/AiResearchModal";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
-import { userIdentificationService } from "../../services/userIdentificationService";
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 
@@ -1207,6 +1208,77 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return () => unsub();
   }, [user?.id, enrollmentId, sprint?.id]);
 
+  const [allCatalogSprints, setAllCatalogSprints] = useState<Sprint[]>([]);
+  const [isSavingIntervention, setIsSavingIntervention] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    sprintService.getAdminSprints().then((sprints) => {
+      if (isMounted && Array.isArray(sprints)) {
+        setAllCatalogSprints(sprints);
+      }
+    }).catch(err => {
+      console.warn("Failed to load catalog sprints for metadata intervention:", err);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleSaveIntervention = async (fieldKey: string, val: string) => {
+    if (!val || !val.trim() || !user) return;
+    setIsSavingIntervention(true);
+    try {
+      const fieldDef = normalizeMetadataField(fieldKey);
+      const fKey = fieldDef ? fieldDef.key : fieldKey;
+
+      const config = findMetadataSourceStepAcrossSprints(fKey, allCatalogSprints);
+      await userIdentificationService.applyUserIdentificationTracking(
+        user.id,
+        config.sourceSprintId ? { id: config.sourceSprintId, title: config.sourceSprintTitle || '' } : (sprint || { id: 'manual', title: 'User Profile' }),
+        config.sourceDay || 1,
+        [val.trim()]
+      );
+
+      const userRef = doc(db, 'users', user.id);
+      const updates: Record<string, any> = {
+        [`metadata.${fKey}`]: val.trim(),
+        [`userMetadata.${fKey}`]: val.trim(),
+        [`identificationData.${fKey}`]: {
+          field: fKey,
+          value: val.trim(),
+          sourceSprintId: config.sourceSprintId || sprint?.id || '',
+          sourceSprintTitle: config.sourceSprintTitle || sprint?.title || '',
+          capturedAt: new Date().toISOString()
+        },
+        [fKey]: val.trim(),
+        lastIdentificationUpdate: new Date().toISOString()
+      };
+      await updateDoc(userRef, sanitizeData(updates));
+
+      try {
+        const cached = localStorage.getItem('vectorise_user') || localStorage.getItem('user');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const merged = {
+            ...parsed,
+            ...updates,
+            metadata: { ...(parsed.metadata || {}), [fKey]: val.trim() },
+            userMetadata: { ...(parsed.userMetadata || {}), [fKey]: val.trim() }
+          };
+          localStorage.setItem('vectorise_user', JSON.stringify(merged));
+          localStorage.setItem('vectorise_cached_user', JSON.stringify(merged));
+        }
+      } catch (e) {}
+
+      toast.success(`Saved your ${config.fieldLabel}!`);
+      triggerHaptic(hapticPatterns.success);
+    } catch (err) {
+      console.error("Failed to save metadata intervention:", err);
+      toast.error("Failed to save. Please try again.");
+    } finally {
+      setIsSavingIntervention(false);
+    }
+  };
+
   const handleOpenRerun = () => {
     setIsKebabMenuOpen(false);
     if (activeOtherSprint) {
@@ -1955,10 +2027,99 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const loadedEnrollmentIdRef = useRef<string | null>(null);
   const lastSavedInputsRef = useRef<string>("");
 
+  const normalizeStepAnswerForStorage = (
+  rawAnswer: any,
+  stepIndex: number,
+  dayContent: any
+): string => {
+  if (rawAnswer === undefined || rawAnswer === null) return "";
+  const rawType = Array.isArray(dayContent?.taskInputTypes) 
+    ? String(dayContent.taskInputTypes[stepIndex] || "text").trim().toLowerCase()
+    : "text";
+
+  // If input type is none/informational/note: strictly empty string
+  if (rawType === "none" || rawType === "note" || rawType === "informational") {
+    return "";
+  }
+
+  // If input type is mark/marked: strictly "Completed" or ""
+  if (rawType === "mark" || rawType === "marked") {
+    const s = String(rawAnswer).trim();
+    return s === "Completed" || s === "true" ? "Completed" : "";
+  }
+
+  // If input type is tags: strictly tags array JSON or ""
+  if (rawType === "tags") {
+    if (typeof rawAnswer === "string") {
+      const trimmed = rawAnswer.trim();
+      if (!trimmed || trimmed === "[]") return "";
+      return trimmed;
+    }
+    if (Array.isArray(rawAnswer)) {
+      const filtered = rawAnswer.filter(Boolean);
+      return filtered.length > 0 ? JSON.stringify(filtered) : "";
+    }
+    return "";
+  }
+
+  // If input type is poll/multichoice/arrange: strictly selected poll option(s) or ""
+  if (rawType === "poll" || rawType === "multichoice" || rawType === "arrange") {
+    if (typeof rawAnswer === "string") {
+      const trimmed = rawAnswer.trim();
+      if (!trimmed || trimmed === "[]") return "";
+      return trimmed;
+    }
+    if (Array.isArray(rawAnswer)) {
+      const filtered = rawAnswer.filter(Boolean);
+      return filtered.length > 0 ? JSON.stringify(filtered) : "";
+    }
+    return String(rawAnswer);
+  }
+
+  // If input type is multitext: strictly JSON map or ""
+  if (rawType === "multitext") {
+    if (typeof rawAnswer === "string") {
+      const trimmed = rawAnswer.trim();
+      if (!trimmed || trimmed === "{}") return "";
+      return trimmed;
+    }
+    if (typeof rawAnswer === "object" && rawAnswer !== null) {
+      const keys = Object.keys(rawAnswer);
+      const hasAny = keys.some(k => rawAnswer[k] && String(rawAnswer[k]).trim().length > 0);
+      return hasAny ? JSON.stringify(rawAnswer) : "";
+    }
+    return "";
+  }
+
+  // Standard text / reflection: strictly what user typed
+  if (typeof rawAnswer === "string") {
+    return rawAnswer;
+  }
+  return String(rawAnswer);
+};
+
+  const cleanAllStepAnswersForStorage = (
+  inputs: string[],
+  dayContent: any
+): string[] => {
+  if (!inputs || !Array.isArray(inputs)) return [];
+  const promptsCount = Math.max(
+    dayContent?.taskPrompts?.length || 0,
+    dayContent?.taskInputTypes?.length || 0,
+    inputs.length
+  );
+  const result: string[] = [];
+  for (let i = 0; i < promptsCount; i++) {
+    result.push(normalizeStepAnswerForStorage(inputs[i], i, dayContent));
+  }
+  return result;
+};
+
   const saveParticipantInputImmediately = async (inputsToSave: string[]) => {
     if (!enrollment || !inputsToSave) return;
     if (!isPreview && dayProgress?.completed) return;
-    const currentInputsStr = JSON.stringify(inputsToSave);
+    const sanitizedInputs = cleanAllStepAnswersForStorage(inputsToSave, dayContent);
+    const currentInputsStr = JSON.stringify(sanitizedInputs);
     if (currentInputsStr === lastSavedInputsRef.current) return;
 
     if (isPreview) {
@@ -1968,8 +2129,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           if (p.day === viewingDay) {
             return {
               ...p,
-              answers: inputsToSave,
-              submission: inputsToSave.map((ti) => ti || "").join(" | "),
+              answers: sanitizedInputs,
+              submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
             };
           }
           return p;
@@ -1997,8 +2158,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           foundDay = true;
           return {
             ...p,
-            answers: inputsToSave,
-            submission: inputsToSave.map((ti) => ti || "").join(" | "),
+            answers: sanitizedInputs,
+            submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
           };
         }
         return p;
@@ -2008,8 +2169,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         updatedProgress.push({
           day: viewingDay,
           completed: false,
-          answers: inputsToSave,
-          submission: inputsToSave.map((ti) => ti || "").join(" | "),
+          answers: sanitizedInputs,
+          submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
         });
       }
 
@@ -2024,7 +2185,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       // Automatically extract and persist user identification data from sprint responses
       if (enrollment.user_id && sprint) {
         userIdentificationService
-          .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, inputsToSave)
+          .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, sanitizedInputs)
           .catch((e) => console.error("Auto user identification tracking failed on nav:", e));
       }
     } catch (err) {
@@ -2670,31 +2831,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return "";
   };
 
-  useEffect(() => {
-    if (!dayContent || !taskInputs) return;
-    
-    const type = String(dayContent.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
-    const isText = type === "text" || type === "" || type === "undefined";
-    
-    if (isText && !isMultiTextStep(activeTaskIndex)) {
-      const currentValue = taskInputs[activeTaskIndex];
-      if (!currentValue || currentValue.trim() === "") {
-        const rawFill = dayContent.taskFills?.[activeTaskIndex];
-        const fillValue = rawFill ? formatInterpolatedText(rawFill, dayContent, taskInputs, sprint?.dailyContent, undefined, user) : "";
-        const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
-        const prefillVal = fillValue || spreadValue;
-        if (prefillVal && prefillVal.trim() !== "") {
-          setTaskInputs(prev => {
-            if (prev[activeTaskIndex] === prefillVal) return prev;
-            const updated = [...prev];
-            updated[activeTaskIndex] = prefillVal;
-            return updated;
-          });
-        }
-      }
-    }
-  }, [activeTaskIndex, dayContent, taskInputs, sprint?.dailyContent, user]);
-
   const dayProgress = enrollment?.progress?.find((p) => p.day === viewingDay);
   const completedDaysCount = useMemo(
     () => enrollment?.progress?.filter((p) => p.completed).length || 0,
@@ -2986,10 +3122,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
   // Debounced autosave hook for participant inputs
   useEffect(() => {
-    if (!enrollment || !taskInputs) return;
+    if (!enrollment || !taskInputs || !dayContent) return;
     if (!isPreview && dayProgress?.completed) return;
 
-    const currentInputsStr = JSON.stringify(taskInputs);
+    const sanitizedInputs = cleanAllStepAnswersForStorage(taskInputs, dayContent);
+    const currentInputsStr = JSON.stringify(sanitizedInputs);
     // If the inputs haven't actually changed from what is in the database or what we last saved, don't trigger save
     if (currentInputsStr === lastSavedInputsRef.current) return;
     
@@ -3008,8 +3145,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             if (p.day === viewingDay) {
               return {
                 ...p,
-                answers: taskInputs,
-                submission: taskInputs.map((ti) => ti || "").join(" | "),
+                answers: sanitizedInputs,
+                submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
               };
             }
             return p;
@@ -3039,8 +3176,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             foundDay = true;
             return {
               ...p,
-              answers: taskInputs,
-              submission: taskInputs.map((ti) => ti || "").join(" | "),
+              answers: sanitizedInputs,
+              submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
             };
           }
           return p;
@@ -3050,8 +3187,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           updatedProgress.push({
             day: viewingDay,
             completed: false,
-            answers: taskInputs,
-            submission: taskInputs.map((ti) => ti || "").join(" | "),
+            answers: sanitizedInputs,
+            submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
           });
         }
 
@@ -3068,7 +3205,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         // Automatically extract and persist user identification data from sprint responses
         if (enrollment.user_id && sprint) {
           userIdentificationService
-            .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, taskInputs)
+            .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, sanitizedInputs)
             .catch((e) => console.error("Auto user identification tracking failed on autosave:", e));
         }
       } catch (err) {
@@ -3077,7 +3214,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [taskInputs, enrollment, user, viewingDay, dayProgress]);
+  }, [taskInputs, enrollment, user, viewingDay, dayProgress, dayContent]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -3308,6 +3445,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     setIsSubmitting(true);
     try {
       const timestamp = new Date().toISOString();
+      const sanitizedInputs = cleanAllStepAnswersForStorage(taskInputs, dayContent);
 
       if (isPreview) {
         const isLastDay = viewingDay === enrollment.progress.length;
@@ -3317,8 +3455,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 ...p,
                 completed: true,
                 completedAt: timestamp,
-                submission: taskInputs.map((ti) => ti || "").join(" | "),
-                answers: taskInputs,
+                submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
+                answers: sanitizedInputs,
                 questions: dayContent?.taskPrompts || (dayContent?.taskPrompt ? [dayContent.taskPrompt] : []),
               }
             : p,
@@ -3414,8 +3552,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               ...p,
               completed: true,
               completedAt: timestamp,
-              submission: taskInputs.map((ti) => ti || "").join(" | "),
-              answers: taskInputs,
+              submission: sanitizedInputs.map((ti) => ti || "").join(" | "),
+              answers: sanitizedInputs,
               questions: dayContent?.taskPrompts || (dayContent?.taskPrompt ? [dayContent.taskPrompt] : []),
             }
           : p,
@@ -3506,7 +3644,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       // Automatically extract and persist user identification data from sprint responses
       if (enrollment.user_id && sprint) {
         userIdentificationService
-          .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, taskInputs)
+          .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, sanitizedInputs)
           .catch((e) => console.error("Auto user identification tracking failed on completion:", e));
       }
 
@@ -4844,6 +4982,27 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 const effectivePollOptions = getStepPollOptions(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const rawFootnote = dayContent?.taskFootnotes?.[i];
                                 const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
+
+                                const missingRequiredMetadata = !dayProgress?.completed 
+                                  ? extractRequiredReceiveMetadataFromStep(dayContent, i, user, taskInputs, sprint?.dailyContent, enrollment?.progress)
+                                  : [];
+
+                                if (missingRequiredMetadata.length > 0) {
+                                  const currentMissing = missingRequiredMetadata[0];
+                                  const interventionConfig = findMetadataSourceStepAcrossSprints(currentMissing.fieldKey, allCatalogSprints);
+
+                                  return (
+                                    <div key={`intervention-${i}-${currentMissing.fieldKey}`} className="w-full">
+                                      <MetadataInterventionCard
+                                        config={interventionConfig}
+                                        isFullBleed={activeFullBleed}
+                                        isSaving={isSavingIntervention}
+                                        onSave={(k, v) => handleSaveIntervention(k, v)}
+                                      />
+                                    </div>
+                                  );
+                                }
+
                                 return (
                                   <motion.div
                               key={i}
@@ -5489,17 +5648,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     </div>
                                   ) : (
                                     <AutoGrowingTextarea
-                                      value={taskInputs[i] !== undefined && taskInputs[i] !== "" 
-                                        ? taskInputs[i] 
-                                        : (dayContent?.taskFills?.[i] 
-                                          ? formatInterpolatedText(dayContent.taskFills[i], dayContent, taskInputs, sprint?.dailyContent, undefined, user) 
-                                          : (taskInputs[i] || ""))}
+                                      value={taskInputs[i] || ""}
                                       onChange={(val) => {
                                         const newInputs = [...taskInputs];
                                         newInputs[i] = val;
                                         setTaskInputs(newInputs);
                                       }}
-                                      placeholder="What's on your mind..."
+                                      placeholder={dayContent?.taskFills?.[i] 
+                                        ? formatInterpolatedText(dayContent.taskFills[i], dayContent, taskInputs, sprint?.dailyContent, undefined, user) 
+                                        : "What's on your mind..."}
                                       isFullBleed={isFullBleed}
                                       className={`w-full ${isFullBleed ? 'px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-base rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in`}
                                     />
@@ -5931,6 +6088,26 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           </SectionHeading>
 
                         {(() => {
+                          const missingRequiredMetadata = !dayProgress?.completed 
+                            ? extractRequiredReceiveMetadataFromStep(dayContent, 0, user, taskInputs, sprint?.dailyContent, enrollment?.progress)
+                            : [];
+
+                          if (missingRequiredMetadata.length > 0) {
+                            const currentMissing = missingRequiredMetadata[0];
+                            const interventionConfig = findMetadataSourceStepAcrossSprints(currentMissing.fieldKey, allCatalogSprints);
+
+                            return (
+                              <div key={`intervention-0-${currentMissing.fieldKey}`} className="w-full mb-6">
+                                <MetadataInterventionCard
+                                  config={interventionConfig}
+                                  isFullBleed={activeFullBleed}
+                                  isSaving={isSavingIntervention}
+                                  onSave={(k, v) => handleSaveIntervention(k, v)}
+                                />
+                              </div>
+                            );
+                          }
+
                           const stepVerIdx = resolveStepVersionIndex(0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                           const rawPrompt = dayContent?.taskPrompt || dayContent?.taskPrompts?.[0] || "";
                           const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
@@ -5955,6 +6132,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           );
                         })()}
                         {(() => {
+                          const hasPendingIntervention = !dayProgress?.completed && 
+                            extractRequiredReceiveMetadataFromStep(dayContent, 0, user, taskInputs, sprint?.dailyContent, enrollment?.progress).length > 0;
+                          if (hasPendingIntervention) return null;
+
                           const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[0], 0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                           const isAskAiEnabled = Boolean(
                             (dayContent?.taskAskAis?.[0] !== undefined && dayContent?.taskAskAis?.[0] !== null) ||
@@ -6017,7 +6198,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </div>
                           );
                         })()}
-                        {!dayProgress?.completed &&
+                        {!dayProgress?.completed && extractRequiredReceiveMetadataFromStep(dayContent, 0, user, taskInputs, sprint?.dailyContent, enrollment?.progress).length === 0 &&
                           (dayContent?.taskInputTypes?.[0] === "tags" ? (
                             <TagInput
                               value={taskInputs[0]}
@@ -6363,7 +6544,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 newInputs[0] = val;
                                 setTaskInputs(newInputs);
                               }}
-                              placeholder="What's on your mind..."
+                              placeholder={dayContent?.taskFills?.[0] 
+                                ? formatInterpolatedText(dayContent.taskFills[0], dayContent, taskInputs, sprint?.dailyContent, undefined, user) 
+                                : "What's on your mind..."}
                               isFullBleed={isFullBleed}
                               className={`w-full ${isFullBleed ? 'px-5 sm:px-6 py-4 sm:py-5 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-base rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in`}
                             />

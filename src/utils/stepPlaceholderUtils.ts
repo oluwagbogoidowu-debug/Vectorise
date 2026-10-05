@@ -607,6 +607,292 @@ export function extractAllSaveMetadataFromStep(
   return results;
 }
 
+export interface RequiredMetadataTokenInfo {
+  raw: string;
+  token: string;
+  fieldKey: string;
+  fieldLabel: string;
+  formatMode: 'normal' | 'list' | 'sentence' | 'main';
+}
+
+export interface MetadataInterventionStepConfig {
+  fieldKey: string;
+  fieldLabel: string;
+  sourceSprintId?: string;
+  sourceSprintTitle?: string;
+  sourceDay?: number;
+  sourceStepIndex?: number;
+  prompt: string;
+  inputType: string;
+  pollOptions?: string | string[];
+  pollOptionLinks?: any;
+  footnote?: string;
+  hint?: string;
+  tagNote?: string;
+  multiTextLabels?: string[];
+  multiTextSignals?: string[];
+  multiTextTags?: string[];
+  multiTextLinks?: any;
+  fills?: any;
+  askAi?: any;
+  isFallback?: boolean;
+}
+
+/**
+ * Checks a step for any metadata tokens requiring retrieval ({Metadata <field> receive}, {Metadata <field>})
+ * where the user does NOT have a stored value yet.
+ */
+export function extractRequiredReceiveMetadataFromStep(
+  dayContent: any,
+  stepIndex: number,
+  userOrMetadata?: any,
+  taskInputs?: any,
+  allDaysContent?: any[],
+  allDaysInputs?: any[] | Record<number, any>
+): RequiredMetadataTokenInfo[] {
+  if (!dayContent) return [];
+
+  const textsToScan: string[] = [];
+
+  if (Array.isArray(dayContent.taskPrompts) && dayContent.taskPrompts[stepIndex]) {
+    const raw = dayContent.taskPrompts[stepIndex];
+    if (typeof raw === 'string') textsToScan.push(raw);
+  } else if (stepIndex === 0 && dayContent.taskPrompt) {
+    if (typeof dayContent.taskPrompt === 'string') textsToScan.push(dayContent.taskPrompt);
+  }
+
+  if (Array.isArray(dayContent.taskFootnotes) && dayContent.taskFootnotes[stepIndex]) {
+    textsToScan.push(String(dayContent.taskFootnotes[stepIndex]));
+  }
+  if (Array.isArray(dayContent.taskHints) && dayContent.taskHints[stepIndex]) {
+    textsToScan.push(String(dayContent.taskHints[stepIndex]));
+  }
+  if (Array.isArray(dayContent.taskFills) && dayContent.taskFills[stepIndex]) {
+    const fill = dayContent.taskFills[stepIndex];
+    if (typeof fill === 'string') textsToScan.push(fill);
+    else if (Array.isArray(fill)) fill.forEach(f => textsToScan.push(String(f)));
+  }
+  if (Array.isArray(dayContent.taskTagNotes) && dayContent.taskTagNotes[stepIndex]) {
+    textsToScan.push(String(dayContent.taskTagNotes[stepIndex]));
+  }
+  if (Array.isArray(dayContent.taskSubPrompts) && dayContent.taskSubPrompts[stepIndex]) {
+    const sub = dayContent.taskSubPrompts[stepIndex];
+    if (typeof sub === 'string') textsToScan.push(sub);
+    else if (Array.isArray(sub)) sub.forEach(s => textsToScan.push(String(s)));
+  }
+  if (Array.isArray(dayContent.taskMultiTextLabels) && dayContent.taskMultiTextLabels[stepIndex]) {
+    const labels = dayContent.taskMultiTextLabels[stepIndex];
+    if (Array.isArray(labels)) labels.forEach(l => textsToScan.push(String(l)));
+  }
+
+  const missingTokens: RequiredMetadataTokenInfo[] = [];
+  const seenNormKeys = new Set<string>();
+
+  for (const text of textsToScan) {
+    if (!text || typeof text !== 'string') continue;
+    const tokens = extractMetadataTokens(text);
+
+    for (const t of tokens) {
+      if (t.mode === 'save') continue;
+      if (t.formatMode === 'hide' || t.formatMode === 'disconnect') continue;
+      if (!t.fieldKey) continue;
+
+      const normKey = t.fieldKey.toLowerCase().replace(/[\s_\-]+/g, '');
+      if (seenNormKeys.has(normKey)) continue;
+
+      // Check if value is already captured/available
+      const resolvedVal = resolveUserMetadataValue(
+        t.fieldKey,
+        userOrMetadata,
+        dayContent,
+        taskInputs,
+        allDaysContent,
+        allDaysInputs
+      );
+
+      if (!resolvedVal || !resolvedVal.trim()) {
+        seenNormKeys.add(normKey);
+        missingTokens.push({
+          raw: t.raw,
+          token: t.token,
+          fieldKey: t.fieldKey,
+          fieldLabel: t.fieldLabel || t.fieldKey,
+          formatMode: t.formatMode || 'normal'
+        });
+      }
+    }
+  }
+
+  return missingTokens;
+}
+
+/**
+ * Locates the exact action step configuration in any sprint across the platform
+ * that contains {Metadata <fieldKey> save}.
+ * If not found in any existing sprint, generates a high-fidelity matching intervention step.
+ */
+export function findMetadataSourceStepAcrossSprints(
+  fieldKey: string,
+  allSprints?: any[]
+): MetadataInterventionStepConfig {
+  const normKey = fieldKey.toLowerCase().replace(/[\s_\-]+/g, '');
+  const fieldDef = normalizeMetadataField(fieldKey);
+  const displayLabel = fieldDef ? fieldDef.label : (fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1));
+
+  // 1. Search through all existing sprints
+  if (Array.isArray(allSprints) && allSprints.length > 0) {
+    for (const sprint of allSprints) {
+      if (!sprint || !Array.isArray(sprint.dailyContent)) continue;
+
+      for (const dc of sprint.dailyContent) {
+        if (!dc) continue;
+        const promptsCount = Math.max(
+          dc.taskPrompts?.length || 0,
+          dc.taskInputTypes?.length || 0,
+          1
+        );
+
+        for (let sIdx = 0; sIdx < promptsCount; sIdx++) {
+          const saves = extractAllSaveMetadataFromStep(dc, sIdx);
+          for (const s of saves) {
+            const sNorm = s.fieldKey.toLowerCase().replace(/[\s_\-]+/g, '');
+            if (sNorm === normKey || (normKey && (sNorm.includes(normKey) || normKey.includes(sNorm)))) {
+              // Found exact step in sprint!
+              const rawPrompt = (dc.taskPrompts && dc.taskPrompts[sIdx]) || (sIdx === 0 ? dc.taskPrompt : '') || `Please share your ${displayLabel}:`;
+              const cleanPrompt = interpolateMetadataInText(rawPrompt); // Strips the {Metadata ... save} token so it reads cleanly
+              const inputType = (dc.taskInputTypes && dc.taskInputTypes[sIdx]) || 'text';
+              const rawPoll = (dc.taskPollOptions && dc.taskPollOptions[sIdx]) || '';
+              const footnote = (dc.taskFootnotes && dc.taskFootnotes[sIdx]) || '';
+              const hint = (dc.taskHints && dc.taskHints[sIdx]) || '';
+              const tagNote = (dc.taskTagNotes && dc.taskTagNotes[sIdx]) || '';
+              const multiTextLabels = (dc.taskMultiTextLabels && dc.taskMultiTextLabels[sIdx]) || undefined;
+              const multiTextSignals = (dc.taskMultiTextSignals && dc.taskMultiTextSignals[sIdx]) || undefined;
+              const multiTextTags = (dc.taskMultiTextTags && dc.taskMultiTextTags[sIdx]) || undefined;
+              const multiTextLinks = (dc.taskMultiTextLinks && dc.taskMultiTextLinks[sIdx]) || undefined;
+              const pollOptionLinks = (dc.taskPollOptionLinks && dc.taskPollOptionLinks[sIdx]) || undefined;
+              const fills = (dc.taskFills && dc.taskFills[sIdx]) || undefined;
+              const askAi = (dc.taskAskAis && dc.taskAskAis[sIdx]) || (dc.taskAskAi && dc.taskAskAi[sIdx]) || undefined;
+
+              return {
+                fieldKey: s.fieldKey || fieldKey,
+                fieldLabel: displayLabel,
+                sourceSprintId: sprint.id,
+                sourceSprintTitle: sprint.title,
+                sourceDay: Number(dc.day || 1),
+                sourceStepIndex: sIdx,
+                prompt: cleanPrompt || `What is your ${displayLabel}?`,
+                inputType,
+                pollOptions: rawPoll,
+                pollOptionLinks,
+                footnote,
+                hint,
+                tagNote,
+                multiTextLabels,
+                multiTextSignals,
+                multiTextTags,
+                multiTextLinks,
+                fills,
+                askAi,
+                isFallback: false
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2. High-fidelity dynamic fallback intervention step based on standard metadata domain
+  if (normKey.includes('skill')) {
+    return {
+      fieldKey: 'skill',
+      fieldLabel: 'Skills & Capabilities',
+      prompt: 'What are your core skills, proficiencies, or technical domains? {Metadata skill save}',
+      inputType: 'tags',
+      footnote: 'Type a skill and press Enter or comma to add multiple capabilities.',
+      hint: 'Include primary technical or domain capabilities relevant to your goal (e.g., Data Analysis, UX Design, Python, Leadership).',
+      isFallback: true
+    };
+  }
+
+  if (normKey.includes('lifestage') || normKey === 'stage') {
+    return {
+      fieldKey: 'life_stage',
+      fieldLabel: 'Life & Career Stage',
+      prompt: 'What is your current life or career stage? {Metadata life stage save}',
+      inputType: 'poll',
+      pollOptions: JSON.stringify(['Student', 'Early Career (0-3 yrs)', 'Mid-Career (4-8 yrs)', 'Senior Leader (9+ yrs)', 'Career Transition', 'Founder / Entrepreneur']),
+      footnote: 'Select the option that best reflects your current phase.',
+      isFallback: true
+    };
+  }
+
+  if (normKey.includes('goal')) {
+    return {
+      fieldKey: 'current_goal',
+      fieldLabel: 'Primary Goal',
+      prompt: 'What is your primary goal or main objective right now? {Metadata goal save}',
+      inputType: 'text',
+      footnote: 'Be as specific as possible so this sprint can tailor your actions.',
+      hint: 'Example: Transition to senior product manager within 6 months, or launch MVP by Q4.',
+      isFallback: true
+    };
+  }
+
+  if (normKey.includes('interest')) {
+    return {
+      fieldKey: 'interests',
+      fieldLabel: 'Areas of Interest',
+      prompt: 'What specific topics or areas of interest are you focusing on? {Metadata interest save}',
+      inputType: 'tags',
+      footnote: 'Add tags for your top interests or growth domains.',
+      isFallback: true
+    };
+  }
+
+  if (normKey.includes('strength')) {
+    return {
+      fieldKey: 'strengths',
+      fieldLabel: 'Core Strengths',
+      prompt: 'What do you consider your greatest professional or personal strengths? {Metadata strength save}',
+      inputType: 'tags',
+      footnote: 'Add tags for what you excel at most.',
+      isFallback: true
+    };
+  }
+
+  if (normKey.includes('industry') || normKey.includes('sector')) {
+    return {
+      fieldKey: 'industry',
+      fieldLabel: 'Industry / Domain',
+      prompt: 'What industry or business domain do you operate in? {Metadata industry save}',
+      inputType: 'text',
+      footnote: 'e.g. Healthcare, Fintech, SaaS, Education, Creative Media',
+      isFallback: true
+    };
+  }
+
+  if (normKey.includes('occupation') || normKey === 'role') {
+    return {
+      fieldKey: 'occupation',
+      fieldLabel: 'Occupation / Role',
+      prompt: 'What is your current occupation, title, or role? {Metadata occupation save}',
+      inputType: 'text',
+      footnote: 'e.g. Software Engineer, Marketing Lead, Consultant',
+      isFallback: true
+    };
+  }
+
+  return {
+    fieldKey,
+    fieldLabel: displayLabel,
+    prompt: `What is your ${displayLabel}? {Metadata ${fieldKey} save}`,
+    inputType: 'text',
+    footnote: `Please provide your ${displayLabel.toLowerCase()} to continue personalizing this sprint step.`,
+    isFallback: true
+  };
+}
+
 export interface StepPlaceholderDetail {
   dayNum?: number;
   stepNum: number;

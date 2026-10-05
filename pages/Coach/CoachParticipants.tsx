@@ -1255,25 +1255,19 @@ export const CoachParticipants: React.FC = () => {
                                             }
 
                                             const pAny = progressObj as any;
-                                            let rawAnswer = answers[idx];
-                                            if (rawAnswer === undefined || rawAnswer === null || String(rawAnswer).trim() === '') {
-                                                if (Array.isArray(pAny?.taskInputs) && pAny.taskInputs[idx] !== undefined && String(pAny.taskInputs[idx]).trim() !== '') {
-                                                    rawAnswer = pAny.taskInputs[idx];
-                                                } else if (Array.isArray(pAny?.answers) && pAny.answers[idx] !== undefined && String(pAny.answers[idx]).trim() !== '') {
-                                                    rawAnswer = pAny.answers[idx];
-                                                } else if (pAny?.answersMap && (pAny.answersMap[idx] || pAny.answersMap[String(idx)] || pAny.answersMap[`step${idx + 1}`] || pAny.answersMap[`Step ${idx + 1}`] || pAny.answersMap[String(idx + 1)])) {
-                                                    rawAnswer = pAny.answersMap[idx] || pAny.answersMap[String(idx)] || pAny.answersMap[`step${idx + 1}`] || pAny.answersMap[`Step ${idx + 1}`] || pAny.answersMap[String(idx + 1)];
-                                                } else if (Array.isArray(pAny?.responses) && pAny.responses[idx]) {
-                                                    rawAnswer = pAny.responses[idx];
-                                                } else if (Array.isArray(pAny?.userAnswers) && pAny.userAnswers[idx]) {
-                                                    rawAnswer = pAny.userAnswers[idx];
-                                                } else if (typeof sub === 'string' && sub.trim()) {
-                                                    const subParts = sub.includes(' | ') ? sub.split(' | ') : [sub];
-                                                    if (subParts[idx] !== undefined && String(subParts[idx]).trim() !== '') {
-                                                        rawAnswer = subParts[idx];
-                                                    } else if (subParts.length === 1 && renderedSteps.length === 1) {
-                                                        rawAnswer = subParts[0];
-                                                    }
+                                            let rawAnswer: any = '';
+                                            if (Array.isArray(answers) && answers[idx] !== undefined && answers[idx] !== null && String(answers[idx]).trim() !== '') {
+                                                rawAnswer = answers[idx];
+                                            } else if (Array.isArray(pAny?.answers) && pAny.answers[idx] !== undefined && pAny.answers[idx] !== null && String(pAny.answers[idx]).trim() !== '') {
+                                                rawAnswer = pAny.answers[idx];
+                                            } else if (Array.isArray(pAny?.taskInputs) && pAny.taskInputs[idx] !== undefined && pAny.taskInputs[idx] !== null && String(pAny.taskInputs[idx]).trim() !== '') {
+                                                rawAnswer = pAny.taskInputs[idx];
+                                            } else if (pAny?.answersMap && (pAny.answersMap[idx] || pAny.answersMap[String(idx)])) {
+                                                rawAnswer = pAny.answersMap[idx] || pAny.answersMap[String(idx)];
+                                            } else if (typeof sub === 'string' && sub.trim()) {
+                                                const subParts = sub.includes(' | ') ? sub.split(' | ') : [sub];
+                                                if (subParts[idx] !== undefined && String(subParts[idx]).trim() !== '') {
+                                                    rawAnswer = subParts[idx];
                                                 }
                                             }
 
@@ -1302,7 +1296,7 @@ export const CoachParticipants: React.FC = () => {
                                                 }
                                             }).filter(Boolean);
 
-                                            // Parse selected choices for polls / tags / dual robustly
+                                            // Parse selected choices for polls / tags / dual strictly for this step
                                             let selectedPollChoices: string[] = [];
                                             const addChoice = (c: any) => {
                                                 if (c === undefined || c === null) return;
@@ -1375,39 +1369,8 @@ export const CoachParticipants: React.FC = () => {
                                                 }
                                             };
 
-                                            addChoice(rawAnswer);
-
-                                            // Fallback answer detection: If selected choices are empty, scan participant answers for match with effectivePollOptions
-                                            if (selectedPollChoices.length === 0) {
-                                                const candidateSources = [
-                                                    pAny?.answers?.[idx],
-                                                    pAny?.taskInputs?.[idx],
-                                                    pAny?.answersMap?.[idx],
-                                                    pAny?.answersMap?.[String(idx)],
-                                                    pAny?.answersMap?.[`step${idx + 1}`],
-                                                    pAny?.answersMap?.[String(idx + 1)],
-                                                    pAny?.submission
-                                                ];
-                                                for (const cand of candidateSources) {
-                                                    if (cand !== undefined && cand !== null && String(cand).trim() !== '') {
-                                                        addChoice(cand);
-                                                        if (selectedPollChoices.length > 0) break;
-                                                    }
-                                                }
-
-                                                // If still empty, check if any answer anywhere in answers array matches an option in effectivePollOptions
-                                                if (selectedPollChoices.length === 0 && effectivePollOptions.length > 0) {
-                                                    const allRawAns = Array.isArray(answers) ? answers : [];
-                                                    for (const a of allRawAns) {
-                                                        if (a && typeof a === 'string') {
-                                                            const cleanA = a.trim().toLowerCase();
-                                                            if (effectivePollOptions.some(o => o.trim().toLowerCase() === cleanA)) {
-                                                                addChoice(a);
-                                                                break;
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                            if (rawAnswer && String(rawAnswer).trim() !== '') {
+                                                addChoice(rawAnswer);
                                             }
 
                                             selectedPollChoices = Array.from(new Set(selectedPollChoices)).filter(Boolean);
@@ -1517,14 +1480,6 @@ export const CoachParticipants: React.FC = () => {
                                             // Fallback: If no configured options exist, show the student's selections as the choices
                                             if (effectivePollOptions.length === 0 && selectedPollChoices.length > 0) {
                                                 effectivePollOptions.push(...selectedPollChoices);
-                                            } else if (selectedPollChoices.length > 0) {
-                                                // Guarantee that every choice picked by the participant is present in effectivePollOptions
-                                                selectedPollChoices.forEach((sel) => {
-                                                    const matchesAny = effectivePollOptions.some((opt, optIdx) => isOptionSelected(opt, optIdx, [sel]));
-                                                    if (!matchesAny && !effectivePollOptions.some(opt => opt.trim().toLowerCase() === sel.trim().toLowerCase())) {
-                                                        effectivePollOptions.push(sel);
-                                                    }
-                                                });
                                             }
 
                                             const isPollStep = effectiveInputType !== 'none' && effectiveInputType !== 'mark' && effectiveInputType !== 'note' && (
