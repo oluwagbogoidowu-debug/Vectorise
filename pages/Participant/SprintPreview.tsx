@@ -2151,12 +2151,18 @@ const SprintPreview: React.FC = () => {
 
                                                     let selectedOpts: string[] = [];
                                                     try {
-                                                        if (taskInputs[i] && taskInputs[i].startsWith("[")) {
-                                                            selectedOpts = JSON.parse(taskInputs[i]);
+                                                        if (taskInputs[i] && typeof taskInputs[i] === 'string' && taskInputs[i].trim().startsWith("[")) {
+                                                            const parsed = JSON.parse(taskInputs[i]);
+                                                            if (Array.isArray(parsed)) {
+                                                                selectedOpts = parsed.map(String);
+                                                            }
                                                         } else if (taskInputs[i]) {
-                                                            selectedOpts = [taskInputs[i]];
+                                                            selectedOpts = [String(taskInputs[i])];
                                                         }
-                                                    } catch (e) {}
+                                                    } catch (e) {
+                                                        selectedOpts = [];
+                                                    }
+                                                    if (!Array.isArray(selectedOpts)) selectedOpts = [];
 
                                                     if (pollOptions.length > 6) {
                                                         if (isMultiSelect) {

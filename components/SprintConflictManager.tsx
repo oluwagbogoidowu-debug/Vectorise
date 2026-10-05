@@ -30,7 +30,7 @@ export const SprintConflictManager: React.FC = () => {
   const [queuedSprintItems, setQueuedSprintItems] = useState<QueuedSprintItem[]>([]);
 
   const checkConflicts = useCallback(async () => {
-    if (loading || !user) return;
+    if (loading || !user || !user.id) return;
 
     // Do not trigger while on public login/signup pages or coach/admin dashboards
     if (
@@ -57,8 +57,8 @@ export const SprintConflictManager: React.FC = () => {
             setPendingSprint(sprint);
 
             const enrollments = await sprintService.getUserEnrollments(user.id);
-            const existingEnrollmentForTarget = enrollments.find(e => e.sprint_id === targetSprintId);
-            const currentActiveEnrollment = enrollments.find(e => e.status === 'active' && !e.completed_at);
+            const existingEnrollmentForTarget = (enrollments || []).find(e => e && e.sprint_id === targetSprintId);
+            const currentActiveEnrollment = (enrollments || []).find(e => e && e.status === 'active' && !e.completed_at);
 
             // Case 1: Same sprint is actively in progress in their account
             if (currentActiveEnrollment && currentActiveEnrollment.sprint_id === targetSprintId) {
@@ -95,22 +95,24 @@ export const SprintConflictManager: React.FC = () => {
 
     // Check if user has no active sprint, but has queued sprints
     try {
+      if (!user?.id) return;
       const isDismissed = sessionStorage.getItem('vectorise_queued_prompt_dismissed') === 'true';
       if (!isDismissed) {
         const enrollments = await sprintService.getUserEnrollments(user.id);
-        const trulyActive = enrollments.find(e => {
-          if (e.status !== 'active') return false;
+        const trulyActive = (enrollments || []).find(e => {
+          if (!e || e.status !== 'active') return false;
           if (e.completed_at) return false;
           const isAllDone = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed);
           return !isAllDone;
         });
 
-        const queuedEnrollments = enrollments.filter(e => e.status === 'queued');
+        const queuedEnrollments = (enrollments || []).filter(e => e && e.status === 'queued');
 
         if (!trulyActive && queuedEnrollments.length > 0) {
           const top2Queued = queuedEnrollments.slice(0, 2);
           const enrichedList: QueuedSprintItem[] = [];
           for (const enr of top2Queued) {
+            if (!enr?.sprint_id) continue;
             const sp = await sprintService.getSprintById(enr.sprint_id).catch(() => null);
             if (sp) {
               enrichedList.push({ enrollment: enr, sprint: sp });

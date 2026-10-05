@@ -20,74 +20,90 @@ export const FloatingSprintBar: React.FC = () => {
   const [isSwitchModeOpen, setIsSwitchModeOpen] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !user.id) {
       setActiveSprintEnrollment(null);
       setActiveChallengeEnrollment(null);
       setHasLoadedEnrollments(false);
       return;
     }
 
-    const unsubscribe = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
-      // Find active ongoing enrollments
-      const activeList = enrollments.filter((e) => {
-        if (e.status !== 'active') return false;
-        if (e.completed_at) return false;
-        const allDaysCompleted = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p) => p.completed);
-        return !allDaysCompleted;
-      });
+    let isMounted = true;
+    const unsubscribe = sprintService.subscribeToUserEnrollments(user.id, async (enrollments = []) => {
+      if (!isMounted) return;
+      try {
+        // Find active ongoing enrollments
+        const activeList = (enrollments || []).filter((e) => {
+          if (!e || e.status !== 'active') return false;
+          if (e.completed_at) return false;
+          const allDaysCompleted = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p) => p.completed);
+          return !allDaysCompleted;
+        });
 
-      let foundSprint: ParticipantSprint | null = null;
-      let foundChallenge: { enrollment: ParticipantSprint; sprint: Sprint } | null = null;
+        let foundSprint: ParticipantSprint | null = null;
+        let foundChallenge: { enrollment: ParticipantSprint; sprint: Sprint } | null = null;
 
-      for (const enrol of activeList) {
-        try {
-          const isIdChallenge = enrol.sprint_id.startsWith('challenge_') || enrol.sprint_id.includes('challenge') || (enrol as any).contentType === 'challenge';
-          const sprintData = await sprintService.getSprintById(enrol.sprint_id);
-          if (sprintData) {
-            const isChall = isIdChallenge || sprintData.contentType === 'challenge' || Boolean(sprintData.challengeData) || Boolean(sprintData.challengeCategory) || Boolean((sprintData as any).challengeType);
-            if (isChall && !foundChallenge) {
-              foundChallenge = { enrollment: enrol, sprint: sprintData };
-            } else if (!isChall && !foundSprint) {
+        for (const enrol of activeList) {
+          if (!enrol?.sprint_id) continue;
+          try {
+            const isIdChallenge = enrol.sprint_id.startsWith('challenge_') || enrol.sprint_id.includes('challenge') || (enrol as any).contentType === 'challenge';
+            const sprintData = await sprintService.getSprintById(enrol.sprint_id);
+            if (!isMounted) return;
+            if (sprintData) {
+              const isChall = isIdChallenge || sprintData.contentType === 'challenge' || Boolean(sprintData.challengeData) || Boolean(sprintData.challengeCategory) || Boolean((sprintData as any).challengeType);
+              if (isChall && !foundChallenge) {
+                foundChallenge = { enrollment: enrol, sprint: sprintData };
+              } else if (!isChall && !foundSprint) {
+                foundSprint = enrol;
+              }
+            } else if (isIdChallenge && !foundChallenge) {
+              const placeholderSprint: Sprint = {
+                id: enrol.sprint_id,
+                coachId: 'coach_default',
+                title: (enrol as any).sprintTitle || 'Active Challenge',
+                subtitle: 'Active Challenge',
+                description: 'Active Challenge',
+                contentType: 'challenge',
+                category: 'Exploration',
+                coverImageUrl: '',
+                duration: (enrol as any).duration || 7,
+                price: 0,
+                currency: 'NGN',
+                published: true,
+                approvalStatus: 'approved',
+                dailyContent: []
+              };
+              foundChallenge = { enrollment: enrol, sprint: placeholderSprint };
+            } else if (!foundSprint) {
               foundSprint = enrol;
             }
-          } else if (isIdChallenge && !foundChallenge) {
-            const placeholderSprint: Sprint = {
-              id: enrol.sprint_id,
-              coachId: 'coach_default',
-              title: (enrol as any).sprintTitle || 'Active Challenge',
-              subtitle: 'Active Challenge',
-              description: 'Active Challenge',
-              contentType: 'challenge',
-              category: 'Exploration',
-              coverImageUrl: '',
-              duration: (enrol as any).duration || 7,
-              price: 0,
-              currency: 'NGN',
-              published: true,
-              approvalStatus: 'approved',
-              dailyContent: []
-            };
-            foundChallenge = { enrollment: enrol, sprint: placeholderSprint };
-          } else if (!foundSprint) {
-            foundSprint = enrol;
+          } catch (e) {
+            if (!foundSprint) foundSprint = enrol;
           }
-        } catch (e) {
-          if (!foundSprint) foundSprint = enrol;
+        }
+
+        // Fallback: if only one active and not challenge identified, treat as sprint
+        if (!foundSprint && activeList.length > 0 && !foundChallenge) {
+          foundSprint = activeList[0];
+        }
+
+        if (isMounted) {
+          setActiveSprintEnrollment(foundSprint);
+          setActiveChallengeEnrollment(foundChallenge);
+          setHasLoadedEnrollments(true);
+        }
+      } catch (err) {
+        console.error("[FloatingSprintBar] Error resolving active enrollments:", err);
+        if (isMounted) {
+          setHasLoadedEnrollments(true);
         }
       }
-
-      // Fallback: if only one active and not challenge identified, treat as sprint
-      if (!foundSprint && activeList.length > 0 && !foundChallenge) {
-        foundSprint = activeList[0];
-      }
-
-      setActiveSprintEnrollment(foundSprint);
-      setActiveChallengeEnrollment(foundChallenge);
-      setHasLoadedEnrollments(true);
     });
 
     return () => {
-      unsubscribe();
+      isMounted = false;
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
   }, [user]);
 
@@ -156,10 +172,11 @@ export const FloatingSprintBar: React.FC = () => {
   const isCurrentSprintActive = Boolean(activeSprintEnrollment);
   const isCurrentlyOnSprintView = activeSprintEnrollment && location.pathname === `/participant/sprint/${activeSprintEnrollment.id}`;
 
-  const challengeDay = activeChallengeEnrollment ? (
-    activeChallengeEnrollment.enrollment.progress?.find(p => !p.completed)?.day || 
-    (activeChallengeEnrollment.enrollment.progress?.filter(p => p.completed).length + 1) || 1
-  ) : 1;
+  const challengeProgress = Array.isArray(activeChallengeEnrollment?.enrollment?.progress)
+    ? activeChallengeEnrollment.enrollment.progress
+    : [];
+  const challengeDay = challengeProgress.find(p => p && !p.completed)?.day || 
+    (challengeProgress.filter(p => p && p.completed).length + 1) || 1;
 
   const handleSprintClick = () => {
     triggerHaptic(hapticPatterns.light);

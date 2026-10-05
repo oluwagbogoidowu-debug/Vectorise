@@ -89,13 +89,14 @@ const AppContent: React.FC = () => {
     let checkInterval: any = null;
 
     try {
-      unsub = sprintService.subscribeToUserEnrollments(user.id, async (enrollments) => {
-        const activeEnrollments = enrollments.filter(e => e.status === 'active');
+      unsub = sprintService.subscribeToUserEnrollments(user.id, async (enrollments = []) => {
+        const activeEnrollments = (enrollments || []).filter(e => e && e.status === 'active');
         
         const enrichedSprints = await Promise.all(activeEnrollments.map(async (e) => {
           try {
-            const sprintDetails = await sprintService.getSprintById(e.sprint_id);
-            const nextDayIdx = e.progress.findIndex(p => !p.completed);
+            const sprintDetails = e.sprint_id ? await sprintService.getSprintById(e.sprint_id) : null;
+            const progress = Array.isArray(e.progress) ? e.progress : [];
+            const nextDayIdx = progress.findIndex(p => p && !p.completed);
             const currentDayNum = nextDayIdx !== -1 ? nextDayIdx + 1 : 1;
             return {
               id: e.sprint_id,
@@ -103,7 +104,8 @@ const AppContent: React.FC = () => {
               currentDayNum: currentDayNum
             };
           } catch (err) {
-            const nextDayIdx = e.progress.findIndex(p => !p.completed);
+            const progress = Array.isArray(e.progress) ? e.progress : [];
+            const nextDayIdx = progress.findIndex(p => p && !p.completed);
             const currentDayNum = nextDayIdx !== -1 ? nextDayIdx + 1 : 1;
             return {
               id: e.sprint_id,
@@ -205,8 +207,12 @@ const AppContent: React.FC = () => {
       <OfflineBanner />
       <DormancyPrompt />
       <PWAInstallPrompt deferredPrompt={deferredPrompt} />
-      <FloatingSprintBar />
-      <SprintConflictManager />
+      <ErrorBoundary fallback={null}>
+        <FloatingSprintBar />
+      </ErrorBoundary>
+      <ErrorBoundary fallback={null}>
+        <SprintConflictManager />
+      </ErrorBoundary>
 
 
     </div>

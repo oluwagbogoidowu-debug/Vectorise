@@ -1161,6 +1161,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isRerunModalOpen, setIsRerunModalOpen] = useState(false);
   const [isProcessingRerun, setIsProcessingRerun] = useState(false);
   const [isRerunActivePromptOpen, setIsRerunActivePromptOpen] = useState(false);
+  const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
+  const [isActivatingSprint, setIsActivatingSprint] = useState(false);
   const [activeOtherSprint, setActiveOtherSprint] = useState<{ enrollment: ParticipantSprint; sprintTitle?: string } | null>(null);
   const [rerunPaymentMethod, setRerunPaymentMethod] = useState<string>("coins");
   const kebabMenuRef = useRef<HTMLDivElement>(null);
@@ -1299,6 +1301,46 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       navigate(`/participant/sprint/${activeOtherSprint.enrollment.id}`);
     }
   };
+
+  const handleActivateSprint = async () => {
+    if (!enrollment || !user || isActivatingSprint) return;
+    setIsActivatingSprint(true);
+    try {
+      if (isPreview) {
+        setEnrollment(prev => prev ? { ...prev, status: 'active' } : null);
+        setActiveOtherSprint(null);
+        setIsActivateModalOpen(false);
+        toast.success(`"${sprint?.title || 'Sprint'}" is now active!`);
+        triggerHaptic(hapticPatterns.success);
+        const firstIncomplete = enrollment.progress?.find(p => !p.completed)?.day || 1;
+        setViewingDay(firstIncomplete);
+        return;
+      }
+
+      await sprintService.updateEnrollment(enrollment.id, {
+        status: 'active'
+      });
+      setEnrollment(prev => prev ? { ...prev, status: 'active' } : null);
+      setActiveOtherSprint(null);
+      setIsActivateModalOpen(false);
+      toast.success(`"${sprint?.title || 'Sprint'}" is now your active focus!`);
+      triggerHaptic(hapticPatterns.success);
+      const firstIncomplete = enrollment.progress?.find(p => !p.completed)?.day || 1;
+      setViewingDay(firstIncomplete);
+    } catch (err) {
+      console.error("Failed to activate sprint:", err);
+      toast.error("Failed to activate sprint. Please try again.");
+    } finally {
+      setIsActivatingSprint(false);
+    }
+  };
+
+  const isQueuedOrInactive = useMemo(() => {
+    if (!enrollment) return false;
+    if (enrollment.status === 'queued' || (enrollment as any).status === 'paused') return true;
+    if (activeOtherSprint && enrollment.status !== 'active') return true;
+    return false;
+  }, [enrollment, activeOtherSprint]);
 
   const isSprintCompleted = useMemo(() => {
     if (!enrollment) return false;
@@ -3979,6 +4021,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       </div>
 
       <div className="space-y-0.5">
+        {isQueuedOrInactive && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsKebabMenuOpen(false);
+              setIsActivateModalOpen(true);
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-[#0E7850] bg-[#0E7850]/5 hover:bg-[#0E7850]/10 active:bg-[#0E7850]/15 transition-all text-left cursor-pointer border border-[#0E7850]/15 mb-1"
+          >
+            <div className="w-8 h-8 rounded-xl bg-[#0E7850] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="truncate font-black block text-gray-950">Activate Sprint</span>
+              <span className="text-[10px] text-gray-500 font-medium block leading-none mt-0.5">Set as your active focus</span>
+            </div>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => {
@@ -4262,6 +4323,57 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] transition-all active:scale-95 cursor-pointer"
                 >
                   Continue active
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Activate Sprint Confirmation Modal */}
+      <AnimatePresence>
+        {isActivateModalOpen && (
+          <div className="fixed inset-0 z-[350] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs text-center animate-fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="bg-white dark:bg-[#1c1c1e] rounded-[2.5rem] p-6 sm:p-8 max-w-sm w-full text-gray-900 dark:text-gray-100 shadow-2xl border border-gray-100 dark:border-zinc-800 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-[#0E7850]/10 text-[#0E7850] dark:text-emerald-400 flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <Sparkles className="w-7 h-7 animate-pulse text-[#0E7850]" />
+              </div>
+
+              <h3 className="text-lg sm:text-xl font-black text-gray-950 dark:text-white tracking-tight leading-snug mb-2">
+                Activate this Sprint?
+              </h3>
+
+              <p className="text-xs text-gray-600 dark:text-zinc-300 font-medium mb-6 leading-relaxed">
+                Are you sure you want to continue this sprint? It will pause the current sprint{" "}
+                <span className="font-bold text-gray-900 dark:text-white">
+                  "{activeOtherSprint?.sprintTitle || 'Active Sprint'}"
+                </span>{" "}
+                you are running.
+              </p>
+
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  disabled={isActivatingSprint}
+                  onClick={handleActivateSprint}
+                  className="w-full py-3.5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {isActivatingSprint ? "Activating..." : "Yes, Activate"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isActivatingSprint}
+                  onClick={() => setIsActivateModalOpen(false)}
+                  className="w-full py-3.5 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] transition-all active:scale-95 cursor-pointer"
+                >
+                  No, Keep Current
                 </button>
               </div>
             </motion.div>
@@ -4710,12 +4822,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 <p className="text-sm text-gray-500 font-medium mb-12 max-w-sm leading-relaxed">
                   You have an active sprint running. This journey will automatically unlock once your current focus is complete.
                 </p>
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="px-10 py-5 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02]"
-                >
-                  Return to Active Focus
-                </button>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full max-w-md">
+                  <button
+                    onClick={() => navigate("/dashboard")}
+                    className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02] cursor-pointer"
+                  >
+                    Return to Active Focus
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsActivateModalOpen(true)}
+                    className="w-full sm:w-auto px-8 py-4 bg-emerald-50 text-[#0E7850] hover:bg-emerald-100 border border-emerald-200 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#0E7850]" />
+                    <span>Activate this Sprint</span>
+                  </button>
+                </div>
               </div>
             ) : dayLockDetails.isLocked ? (
               <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[50vh] w-full">
@@ -4922,12 +5044,22 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   You have an active sprint running. This journey will
                   automatically unlock once your current focus is complete.
                 </p>
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="px-10 py-5 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02]"
-                >
-                  Return to Active Focus
-                </button>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full max-w-md">
+                  <button
+                    onClick={() => navigate("/dashboard")}
+                    className="w-full sm:w-auto px-8 py-4 bg-primary text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 active:scale-95 transition-all hover:scale-[1.02] cursor-pointer"
+                  >
+                    Return to Active Focus
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsActivateModalOpen(true)}
+                    className="w-full sm:w-auto px-8 py-4 bg-emerald-50 text-[#0E7850] hover:bg-emerald-100 border border-emerald-200 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-[#0E7850]" />
+                    <span>Activate this Sprint</span>
+                  </button>
+                </div>
               </div>
             ) : dayLockDetails.isLocked ? (
               <div className="flex flex-col items-center justify-center text-center p-8 animate-fade-in min-h-[60vh] w-full">
@@ -5209,12 +5341,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                                       let selectedOpts: string[] = [];
                                       try {
-                                        if (taskInputs[i] && taskInputs[i].startsWith("[")) {
-                                          selectedOpts = JSON.parse(taskInputs[i]);
+                                        if (taskInputs[i] && typeof taskInputs[i] === 'string' && taskInputs[i].trim().startsWith("[")) {
+                                          const parsed = JSON.parse(taskInputs[i]);
+                                          if (Array.isArray(parsed)) {
+                                            selectedOpts = parsed.map(String);
+                                          }
                                         } else if (taskInputs[i]) {
-                                          selectedOpts = [taskInputs[i]];
+                                          selectedOpts = [String(taskInputs[i])];
                                         }
-                                      } catch (e) {}
+                                      } catch (e) {
+                                        selectedOpts = [];
+                                      }
+                                      if (!Array.isArray(selectedOpts)) selectedOpts = [];
 
                                       if (pollOptions.length > 6) {
                                         if (isMultiSelect) {
@@ -6246,12 +6384,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                                 let selectedOpts: string[] = [];
                                 try {
-                                  if (taskInputs[0] && taskInputs[0].startsWith("[")) {
-                                    selectedOpts = JSON.parse(taskInputs[0]);
+                                  if (taskInputs[0] && typeof taskInputs[0] === 'string' && taskInputs[0].trim().startsWith("[")) {
+                                    const parsed = JSON.parse(taskInputs[0]);
+                                    if (Array.isArray(parsed)) {
+                                      selectedOpts = parsed.map(String);
+                                    }
                                   } else if (taskInputs[0]) {
-                                    selectedOpts = [taskInputs[0]];
+                                    selectedOpts = [String(taskInputs[0])];
                                   }
-                                } catch (e) {}
+                                } catch (e) {
+                                  selectedOpts = [];
+                                }
+                                if (!Array.isArray(selectedOpts)) selectedOpts = [];
 
                                 if (pollOpts.length > 6) {
                                   if (isMultiSelect) {

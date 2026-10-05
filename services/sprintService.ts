@@ -784,6 +784,7 @@ export const sprintService = {
     },
 
     fetchAndCacheSprintInBackground: async (sprintId: string) => {
+        if (!sprintId || typeof sprintId !== 'string' || !sprintId.trim() || sprintId === 'undefined' || sprintId.includes('/')) return;
         const cacheKey = `vectorise_sprint_cache_${sprintId}`;
         try {
             let sprintData: any = null;
@@ -846,7 +847,7 @@ export const sprintService = {
     },
 
     getSprintById: async (sprintId: string, forceRefresh: boolean = false): Promise<Sprint | null> => {
-        if (!sprintId) return null;
+        if (!sprintId || typeof sprintId !== 'string' || !sprintId.trim() || sprintId === 'undefined' || sprintId.includes('/')) return null;
         const cacheKey = `vectorise_sprint_cache_${sprintId}`;
         
         // 1. Check in-memory cache first (skip if forceRefresh is true)
@@ -2216,9 +2217,17 @@ export const sprintService = {
     },
 
     getUserEnrollments: async (userId: string) => {
-        const q = query(collection(db, 'users', userId, 'enrollments'));
-        const snap = await getDocs(q);
-        return snap.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
+        if (!userId || typeof userId !== 'string' || !userId.trim() || userId === 'undefined') {
+            return [];
+        }
+        try {
+            const q = query(collection(db, 'users', userId, 'enrollments'));
+            const snap = await getDocs(q);
+            return (snap.docs || []).map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint));
+        } catch (e) {
+            console.error("[sprintService] getUserEnrollments error:", e);
+            return [];
+        }
     },
 
     deleteEnrollment: async (enrollmentId: string, explicitUserId?: string, explicitSprintId?: string) => {
@@ -2275,12 +2284,24 @@ export const sprintService = {
     },
 
     subscribeToUserEnrollments: (userId: string, callback: (enrollments: ParticipantSprint[]) => void, onError?: (error: any) => void) => {
-        const q = query(collection(db, 'users', userId, 'enrollments'));
-        return onSnapshot(q, (snapshot) => {
-            callback(snapshot.docs.map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint)));
-        }, (error) => {
-            if (onError) onError(error);
-        });
+        if (!userId || typeof userId !== 'string' || !userId.trim() || userId === 'undefined') {
+            callback([]);
+            return () => {};
+        }
+        try {
+            const q = query(collection(db, 'users', userId, 'enrollments'));
+            return onSnapshot(q, (snapshot) => {
+                callback((snapshot.docs || []).map(doc => ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint)));
+            }, (error) => {
+                console.error("[sprintService] subscribeToUserEnrollments error:", error);
+                if (onError) onError(error);
+                else callback([]);
+            });
+        } catch (err) {
+            console.error("[sprintService] subscribeToUserEnrollments init error:", err);
+            callback([]);
+            return () => {};
+        }
     },
 
     getEnrollmentsForSprints: async (sprintIds: string[]) => {
@@ -2292,13 +2313,29 @@ export const sprintService = {
     },
 
     subscribeToEnrollment: (enrollmentId: string, callback: (data: ParticipantSprint | null) => void, onError?: (error: any) => void) => {
+        if (!enrollmentId || typeof enrollmentId !== 'string') {
+            callback(null);
+            return () => {};
+        }
         const parts = enrollmentId.split('_');
         const userId = parts[1];
-        return onSnapshot(doc(db, 'users', userId, 'enrollments', enrollmentId), (doc) => {
-            callback(doc.exists() ? ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint) : null);
-        }, (error) => {
-            if (onError) onError(error);
-        });
+        if (!userId || userId === 'undefined') {
+            callback(null);
+            return () => {};
+        }
+        try {
+            return onSnapshot(doc(db, 'users', userId, 'enrollments', enrollmentId), (doc) => {
+                callback(doc.exists() ? ({ id: doc.id, ...sanitizeData(doc.data()) } as ParticipantSprint) : null);
+            }, (error) => {
+                console.error("[sprintService] subscribeToEnrollment error:", error);
+                if (onError) onError(error);
+                else callback(null);
+            });
+        } catch (err) {
+            console.error("[sprintService] subscribeToEnrollment init error:", err);
+            callback(null);
+            return () => {};
+        }
     },
 
     getAllEnrollments: async () => {

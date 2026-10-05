@@ -616,7 +616,7 @@ export const getExploreSprintItems = (
 
     // C. If Sprint A belongs to a track / pack and no pack sprint has been linked at Level 1,
     // show the next sprint in the pack sequence as the next recommended sprint!
-    if (activeTrack && packSprintIds.length > 0) {
+    if (activeTrack && Array.isArray(packSprintIds) && packSprintIds.length > 0) {
         const hasPackSprintInLevel1 = level1Items.some(item => packSprintIds.includes(normalizeId(item.sprint.id)));
         if (!hasPackSprintInLevel1) {
             const currentIndexInTrack = packSprintIds.indexOf(sprintAId || '');
