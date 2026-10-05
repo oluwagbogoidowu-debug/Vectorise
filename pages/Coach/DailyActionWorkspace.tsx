@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
-import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube } from 'lucide-react';
+import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube, ChevronLeft, ChevronRight } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
 import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
@@ -60,6 +60,7 @@ export default function DailyActionWorkspace({
   const [advancedGeneralInput, setAdvancedGeneralInput] = useState('');
   const [selectedText, setSelectedText] = useState('');
   const [activeStepIndices, setActiveStepIndices] = useState<Record<number, number>>({});
+  const [stepPageOffsetMap, setStepPageOffsetMap] = useState<Record<number, number>>({});
   const [activeLinkSelectorIndex, setActiveLinkSelectorIndex] = useState<number | null>(null);
   const [activeLinkSelectorType, setActiveLinkSelectorType] = useState<'tag' | 'text' | 'poll' | null>(null);
   const [expandedStepEarlierDays, setExpandedStepEarlierDays] = useState<Record<number, boolean>>({});
@@ -997,6 +998,25 @@ export default function DailyActionWorkspace({
                       displayedIndices.splice(dragStepState.currentIndex, 0, moved);
                     }
 
+                    const PAGE_SIZE = 5;
+                    const rawOffset = stepPageOffsetMap[dayNum] || 0;
+                    // Auto-adjust offset if current active or dragged step is out of view
+                    const focusIdx = isThisDayDragging ? dragStepState.currentIndex : activeIdx;
+                    let currentOffset = rawOffset;
+                    if (focusIdx < currentOffset) {
+                      currentOffset = focusIdx;
+                    } else if (focusIdx >= currentOffset + PAGE_SIZE) {
+                      currentOffset = focusIdx - PAGE_SIZE + 1;
+                    }
+                    currentOffset = Math.max(0, Math.min(Math.max(0, totalSteps - PAGE_SIZE), currentOffset));
+
+                    const hasMultiplePages = totalSteps > PAGE_SIZE;
+                    const canGoLeft = hasMultiplePages && currentOffset > 0;
+                    const canGoRight = hasMultiplePages && currentOffset + PAGE_SIZE < totalSteps;
+                    const visibleIndices = hasMultiplePages
+                      ? displayedIndices.slice(currentOffset, currentOffset + PAGE_SIZE)
+                      : displayedIndices;
+
                     return (
                       <div 
                         ref={el => { stepButtonsContainerRef.current[dayNum] = el; }}
@@ -1005,7 +1025,27 @@ export default function DailyActionWorkspace({
                         }`}
                         title="Hold step number (1, 2, 3...) to drag and reorder"
                       >
-                        {displayedIndices.map((stepIdx, slotIdx) => {
+                        {/* Arrow Left when earlier steps are hidden */}
+                        {canGoLeft && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStepPageOffsetMap(prev => ({
+                                ...prev,
+                                [dayNum]: Math.max(0, currentOffset - 1)
+                              }));
+                            }}
+                            className="w-5 h-5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none"
+                            title="Previous steps"
+                            aria-label="Previous action steps"
+                          >
+                            <ChevronLeft size={12} strokeWidth={2.5} />
+                          </button>
+                        )}
+
+                        {visibleIndices.map((stepIdx) => {
+                          const slotIdx = displayedIndices.indexOf(stepIdx);
                           const btnPlaceholderVal = validateStepPlaceholders(dayContent.taskPrompts?.[stepIdx] || '', stepIdx, dayContent.taskInputTypes || [], dayContent.taskPollOptions, dayNum, sprint?.dailyContent);
                           const isBeingHeldOrDragged = isThisDayDragging && stepIdx === dragStepState.fromIndex;
                           const isCurrentActiveStep = activeIdx === stepIdx;
@@ -1042,6 +1082,25 @@ export default function DailyActionWorkspace({
                             </button>
                           );
                         })}
+
+                        {/* Arrow Right when later steps are hidden */}
+                        {canGoRight && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStepPageOffsetMap(prev => ({
+                                ...prev,
+                                [dayNum]: Math.min(totalSteps - PAGE_SIZE, currentOffset + 1)
+                              }));
+                            }}
+                            className="w-5 h-5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold transition-all cursor-pointer select-none"
+                            title="Next steps"
+                            aria-label="Next action steps"
+                          >
+                            <ChevronRight size={12} strokeWidth={2.5} />
+                          </button>
+                        )}
                         
                         {/* "+" Button to add step to this card */}
                         <button
@@ -1050,8 +1109,13 @@ export default function DailyActionWorkspace({
                             e.stopPropagation();
                             setSelectedDay(dayNum);
                             handleAddStepForDay(dayNum);
+                            // Auto scroll window to reveal newly added step
+                            setStepPageOffsetMap(prev => ({
+                              ...prev,
+                              [dayNum]: Math.max(0, totalSteps + 1 - PAGE_SIZE)
+                            }));
                           }}
-                          className="w-5 h-5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200/50 flex items-center justify-center text-xs font-bold transition-all cursor-pointer"
+                          className="w-5 h-5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200/50 flex items-center justify-center text-xs font-bold transition-all cursor-pointer shrink-0"
                           title="Add Action Step"
                         >
                           <Plus size={10} strokeWidth={3} />

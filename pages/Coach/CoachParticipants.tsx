@@ -117,6 +117,7 @@ export const CoachParticipants: React.FC = () => {
     const [isInsightExpanded, setIsInsightExpanded] = useState<boolean>(false);
     const actionStepsScrollRef = useRef<HTMLDivElement>(null);
     const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
+    const [participantStepPageOffset, setParticipantStepPageOffset] = useState<number>(0);
 
     // Express Note & AI Research State
     const [isExpressNoteOpen, setIsExpressNoteOpen] = useState(false);
@@ -1145,29 +1146,73 @@ export const CoachParticipants: React.FC = () => {
                                                 </h3>
                                             </div>
 
-                                            {/* 1 2 3 4 5 Step Selector Buttons */}
-                                            {renderedSteps.length > 1 && (
-                                                <div className="flex items-center gap-1.5 bg-gray-50 p-1 border border-gray-150 rounded-xl">
-                                                    {renderedSteps.map((step, sIdx) => {
-                                                        const isCurrentActiveStep = activeStepIndex === sIdx;
-                                                        return (
+                                            {/* 1 2 3 4 5 Step Selector Buttons with Pagination */}
+                                            {renderedSteps.length > 1 && (() => {
+                                                const PAGE_SIZE = 5;
+                                                const hasMultiplePages = renderedSteps.length > PAGE_SIZE;
+                                                const rawOffset = participantStepPageOffset;
+                                                let currentOffset = rawOffset;
+                                                if (activeStepIndex < currentOffset) {
+                                                    currentOffset = activeStepIndex;
+                                                } else if (activeStepIndex >= currentOffset + PAGE_SIZE) {
+                                                    currentOffset = activeStepIndex - PAGE_SIZE + 1;
+                                                }
+                                                currentOffset = Math.max(0, Math.min(Math.max(0, renderedSteps.length - PAGE_SIZE), currentOffset));
+
+                                                const canGoLeft = hasMultiplePages && currentOffset > 0;
+                                                const canGoRight = hasMultiplePages && currentOffset + PAGE_SIZE < renderedSteps.length;
+                                                const visibleSteps = hasMultiplePages
+                                                    ? renderedSteps.slice(currentOffset, currentOffset + PAGE_SIZE)
+                                                    : renderedSteps;
+
+                                                return (
+                                                    <div className="flex items-center gap-1.5 bg-gray-50 p-1 border border-gray-150 rounded-xl">
+                                                        {canGoLeft && (
                                                             <button
-                                                                key={step.idx}
                                                                 type="button"
-                                                                onClick={() => setActiveStepIndex(sIdx)}
-                                                                className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-black transition-all select-none cursor-pointer ${
-                                                                    isCurrentActiveStep
-                                                                        ? 'bg-[#0E7850] text-white shadow-xs scale-105'
-                                                                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200/60'
-                                                                }`}
-                                                                title={`Action Step ${step.order}`}
+                                                                onClick={() => setParticipantStepPageOffset(Math.max(0, currentOffset - 1))}
+                                                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all bg-white text-gray-600 hover:bg-gray-100 border border-gray-200/60 cursor-pointer select-none"
+                                                                title="Previous steps"
+                                                                aria-label="Previous action steps"
                                                             >
-                                                                {step.order}
+                                                                <ChevronLeft className="w-3.5 h-3.5" />
                                                             </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                                        )}
+
+                                                        {visibleSteps.map((step) => {
+                                                            const sIdx = renderedSteps.findIndex(s => s.idx === step.idx);
+                                                            const isCurrentActiveStep = activeStepIndex === sIdx;
+                                                            return (
+                                                                <button
+                                                                    key={step.idx}
+                                                                    type="button"
+                                                                    onClick={() => setActiveStepIndex(sIdx)}
+                                                                    className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-black transition-all select-none cursor-pointer ${
+                                                                        isCurrentActiveStep
+                                                                            ? 'bg-[#0E7850] text-white shadow-xs scale-105'
+                                                                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200/60'
+                                                                    }`}
+                                                                    title={`Action Step ${step.order}`}
+                                                                >
+                                                                    {step.order}
+                                                                </button>
+                                                            );
+                                                        })}
+
+                                                        {canGoRight && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setParticipantStepPageOffset(Math.min(renderedSteps.length - PAGE_SIZE, currentOffset + 1))}
+                                                                className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all bg-white text-gray-600 hover:bg-gray-100 border border-gray-200/60 cursor-pointer select-none"
+                                                                title="Next steps"
+                                                                aria-label="Next action steps"
+                                                            >
+                                                                <ChevronRight className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
 
                                         {/* Active Step Card Display */}
