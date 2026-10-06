@@ -58,44 +58,9 @@ export const NextSprintRecommendation: React.FC = () => {
     const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<any | null>(null);
     const [userEnrollments, setUserEnrollments] = useState<any[]>([]);
     const [unclaimedMilestones, setUnclaimedMilestones] = useState<any[]>([]);
-    const [hasSeenKebab, setHasSeenKebab] = useState<boolean>(() => {
-        try {
-            return localStorage.getItem('vectorise_next_sprint_kebab_seen') === 'true';
-        } catch (e) {
-            return false;
-        }
-    });
-    const [showFirstTimeKebabDot, setShowFirstTimeKebabDot] = useState<boolean>(() => {
-        try {
-            return localStorage.getItem('vectorise_next_sprint_kebab_seen') !== 'true';
-        } catch (e) {
-            return false;
-        }
-    });
-
-    // Blink 3 times when someone visits Next Sprint page for the first time, then remove red dot permanently
-    useEffect(() => {
-        if (showFirstTimeKebabDot) {
-            const timer = setTimeout(() => {
-                setShowFirstTimeKebabDot(false);
-                setHasSeenKebab(true);
-                try {
-                    localStorage.setItem('vectorise_next_sprint_kebab_seen', 'true');
-                } catch (e) {}
-            }, 2400); // 3 blinks (800ms * 3 = 2400ms)
-            return () => clearTimeout(timer);
-        }
-    }, [showFirstTimeKebabDot]);
 
     const handleToggleKebabMenu = () => {
         setIsKebabMenuOpen((prev) => !prev);
-        if (showFirstTimeKebabDot || !hasSeenKebab) {
-            setShowFirstTimeKebabDot(false);
-            setHasSeenKebab(true);
-            try {
-                localStorage.setItem('vectorise_next_sprint_kebab_seen', 'true');
-            } catch (e) {}
-        }
     };
 
     useEffect(() => {
@@ -595,8 +560,10 @@ export const NextSprintRecommendation: React.FC = () => {
                         title="Options"
                     >
                         <MoreVertical className="w-5 h-5" />
-                        {(unclaimedMilestones.length > 0 || showFirstTimeKebabDot) && (
-                            <span className={`absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 ${showFirstTimeKebabDot && unclaimedMilestones.length === 0 ? 'animate-kebab-blink' : 'animate-pulse'} pointer-events-none`} />
+                        {unclaimedMilestones.length > 0 && (
+                            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white rounded-full border-2 border-white dark:border-zinc-900 flex items-center justify-center text-[9px] font-black leading-none animate-pulse pointer-events-none">
+                                {unclaimedMilestones.length}
+                            </span>
                         )}
                     </button>
 
@@ -617,13 +584,11 @@ export const NextSprintRecommendation: React.FC = () => {
                                     >
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <BookOpen className="w-4 h-4" />
-                                            
-        </div>
+                                        </div>
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Read Rise Blog</span>
                                             <span className="font-normal text-gray-500 dark:text-gray-400"> · Earn coins</span>
-                                            
-        </div>
+                                        </div>
                                     </button>
 
                                     <button
@@ -633,13 +598,11 @@ export const NextSprintRecommendation: React.FC = () => {
                                     >
                                         <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
                                             <UserPlus className="w-4 h-4" />
-                                            
-        </div>
+                                        </div>
                                         <div className="text-xs truncate">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Refer a Friend</span>
                                             <span className="font-normal text-gray-500 dark:text-gray-400"> · Earn coins</span>
-                                            
-        </div>
+                                        </div>
                                     </button>
 
                                     <button
@@ -647,15 +610,21 @@ export const NextSprintRecommendation: React.FC = () => {
                                         onClick={handleClaimMilestones}
                                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 dark:hover:bg-zinc-800 active:bg-gray-100 dark:active:bg-zinc-700 transition-all text-left cursor-pointer group"
                                     >
-                                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors">
+                                        <div className="w-8 h-8 rounded-xl bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center shrink-0 group-hover:bg-[#0E7850]/10 group-hover:text-[#0E7850] transition-colors relative">
                                             <Trophy className="w-4 h-4" />
-                                            
-        </div>
-                                        <div className="text-xs truncate">
+                                            {unclaimedMilestones.length > 0 && (
+                                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-zinc-900 animate-pulse" />
+                                            )}
+                                        </div>
+                                        <div className="text-xs truncate flex items-center gap-1.5 min-w-0">
                                             <span className="font-bold text-gray-900 dark:text-gray-100">Claim Milestones</span>
-                                            <span className="font-normal text-gray-500 dark:text-gray-400"> • Earn coin</span>
-                                            
-        </div>
+                                            {unclaimedMilestones.length > 0 && (
+                                                <span className="inline-flex items-center justify-center px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-black rounded-full shadow-xs shrink-0 min-w-[16px] h-4">
+                                                    {unclaimedMilestones.length}
+                                                </span>
+                                            )}
+                                            <span className="font-normal text-gray-500 dark:text-gray-400"> · Earn coins</span>
+                                        </div>
                                     </button>
 
                                     <button
@@ -1268,15 +1237,6 @@ export const NextSprintRecommendation: React.FC = () => {
                     navigate(route);
                 }}
             />
-            <style>{`
-                @keyframes kebabBlink {
-                    0%, 100% { opacity: 1; transform: scale(1); }
-                    50% { opacity: 0.2; transform: scale(1.4); }
-                }
-                .animate-kebab-blink {
-                    animation: kebabBlink 0.8s ease-in-out 3;
-                }
-            `}</style>
         </div>
     );
 };

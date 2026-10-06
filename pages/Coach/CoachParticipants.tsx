@@ -42,7 +42,51 @@ interface ExtendedEnrollment extends ParticipantSprint {
     isActiveToday: boolean;
     completedCount: number;
     currentMilestoneDay: number;
+    latestActivityTime: number;
 }
+
+const getEnrollmentLatestActivityTime = (ps: any): number => {
+    let latestTime = 0;
+
+    const checkTimestamp = (val: any) => {
+        if (!val) return;
+        try {
+            const t = typeof val === 'number' ? val : new Date(val).getTime();
+            if (!isNaN(t) && t > latestTime) {
+                latestTime = t;
+            }
+        } catch (err) {}
+    };
+
+    // 1. Check top-level timestamps on enrollment
+    checkTimestamp(ps.last_activity_at);
+    checkTimestamp(ps.lastActivityAt);
+    checkTimestamp(ps.updatedAt);
+    checkTimestamp(ps.updated_at);
+    checkTimestamp(ps.completed_at);
+    checkTimestamp(ps.completedAt);
+    checkTimestamp(ps.started_at);
+    checkTimestamp(ps.startedAt);
+    checkTimestamp(ps.created_at);
+    checkTimestamp(ps.createdAt);
+
+    // 2. Check each day's progress item for submission/completion/updated timestamps
+    const progressList = Array.isArray(ps.progress) ? ps.progress : [];
+    for (const p of progressList) {
+        if (!p) continue;
+        checkTimestamp(p.completedAt);
+        checkTimestamp(p.completed_at);
+        checkTimestamp(p.submittedAt);
+        checkTimestamp(p.submitted_at);
+        checkTimestamp(p.lastActivityAt);
+        checkTimestamp(p.last_activity_at);
+        checkTimestamp(p.updatedAt);
+        checkTimestamp(p.updated_at);
+        checkTimestamp(p.date);
+    }
+
+    return latestTime;
+};
 
 type ExperienceTypeFilter = 'all' | 'ignite' | 'sprint' | 'challenge' | 'blog';
 
@@ -592,6 +636,7 @@ export const CoachParticipants: React.FC = () => {
                         : false;
 
                     const nextIncomplete = progressList.find(p => p && !p.completed);
+                    const latestActivityTime = getEnrollmentLatestActivityTime(ps);
 
                     return {
                         ...ps,
@@ -600,7 +645,8 @@ export const CoachParticipants: React.FC = () => {
                         sprint,
                         isActiveToday,
                         completedCount: completions.length,
-                        currentMilestoneDay: nextIncomplete ? nextIncomplete.day : (sprint.duration || progressList.length || 7)
+                        currentMilestoneDay: nextIncomplete ? nextIncomplete.day : (sprint.duration || progressList.length || 7),
+                        latestActivityTime
                     };
                 }).filter((e): e is ExtendedEnrollment => e !== null);
 
@@ -807,12 +853,18 @@ export const CoachParticipants: React.FC = () => {
 
             return matchesProgram && matchesSearch && matchesStatus;
         }).sort((a, b) => {
+            const timeA = a.latestActivityTime || (new Date(a.started_at || 0).getTime());
+            const timeB = b.latestActivityTime || (new Date(b.started_at || 0).getTime());
+
             if (sortBy === 'recent') {
-                const dateA = new Date(a.started_at || 0).getTime();
-                const dateB = new Date(b.started_at || 0).getTime();
-                return dateB - dateA;
+                return timeB - timeA;
+            } else if (sortBy === 'progress') {
+                if (b.completedCount !== a.completedCount) {
+                    return b.completedCount - a.completedCount;
+                }
+                return timeB - timeA;
             } else {
-                return b.completedCount - a.completedCount;
+                return timeB - timeA;
             }
         });
     }, [allEnrollments, selectedProgramId, searchTerm, statusFilter, sortBy]);
@@ -931,10 +983,17 @@ export const CoachParticipants: React.FC = () => {
         if (!iso) return 'recently';
         try {
             const diff = Date.now() - new Date(iso).getTime();
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            if (days <= 0) return 'today';
-            if (days === 1) return '1 day ago';
-            return `${days} days ago`;
+            if (diff < 0 || diff < 60000) return 'just now';
+            const mins = Math.floor(diff / (1000 * 60));
+            if (mins < 60) return `${mins}m ago`;
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            if (days === 1) return 'yesterday';
+            if (days < 30) return `${days}d ago`;
+            const months = Math.floor(days / 30);
+            if (months === 1) return '1mo ago';
+            return `${months}mo ago`;
         } catch {
             return 'recently';
         }
@@ -2290,7 +2349,7 @@ export const CoachParticipants: React.FC = () => {
                                                                     {e.student.name}
                                                                 </p>
                                                                 <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">
-                                                                    Started {formatTimeAgo(e.started_at)}
+                                                                    {e.latestActivityTime > 0 ? `Active ${formatTimeAgo(new Date(e.latestActivityTime).toISOString())}` : `Started ${formatTimeAgo(e.started_at)}`}
                                                                 </p>
                                                             </div>
                                                         </div>
