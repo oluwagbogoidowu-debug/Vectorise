@@ -472,10 +472,17 @@ const SprintPreview: React.FC = () => {
                     };
                     localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
 
-                    // Check if user has active enrollment before auto enrolling
+                    // Check if user has a conflicting DIFFERENT active sprint before auto enrolling
                     sprintService.getUserEnrollments(user.id).then(async (userEnrollments) => {
-                        const activeEnrollment = userEnrollments.find(e => e.status === 'active' && !e.completed_at);
-                        if (activeEnrollment) {
+                        const conflictingActiveEnrollment = (userEnrollments || []).find(e => {
+                            if (!e || e.status !== 'active' || e.completed_at) return false;
+                            const isAllDone = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p && p.completed);
+                            if (isAllDone) return false;
+                            return e.sprint_id !== targetSprintId;
+                        });
+
+                        if (conflictingActiveEnrollment) {
+                            // STRICT CONFLICT CASE: User has another different sprint actively running.
                             // Let SprintConflictManager display the multi-sprint conflict modal
                             setShowLockModal(false);
                             return;
@@ -1137,11 +1144,17 @@ const SprintPreview: React.FC = () => {
                 targetSprint = await sprintService.getSprintById(targetSprintId);
             }
 
-            // Check if user has active enrollments
+            // Check if user has a conflicting DIFFERENT active sprint
             const userEnrollments = await sprintService.getUserEnrollments(firebaseUser.uid);
-            const activeEnrollment = userEnrollments.find(e => e.status === 'active' && !e.completed_at);
-            if (activeEnrollment) {
-                // There is a conflict (either different active sprint or same sprint active)
+            const conflictingActiveEnrollment = (userEnrollments || []).find(e => {
+                if (!e || e.status !== 'active' || e.completed_at) return false;
+                const isAllDone = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p && p.completed);
+                if (isAllDone) return false;
+                return e.sprint_id !== targetSprintId;
+            });
+
+            if (conflictingActiveEnrollment) {
+                // STRICT CONFLICT: User has a different active sprint.
                 // Keep pending_first_action in localStorage, close lock modal, and let SprintConflictManager show the popup!
                 setShowLockModal(false);
                 return;

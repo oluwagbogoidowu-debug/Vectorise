@@ -127,10 +127,12 @@ export const FloatingSprintBar: React.FC = () => {
       return true;
     }
 
-    // 2. Next sprint page: hide only if there is NO active sprint/challenge to continue
+    // 2. Active sprint, Next sprint recommendation, and main dashboard
     if (
-      (path.startsWith('/participant/next-sprint') || path.startsWith('/participant/recommendation') || path === '/dashboard') &&
-      !activeSprintEnrollment && !activeChallengeEnrollment
+      path.startsWith('/participant/active-sprint') ||
+      path.startsWith('/participant/next-sprint') ||
+      path.startsWith('/participant/recommendation') ||
+      path === '/dashboard'
     ) {
       return true;
     }

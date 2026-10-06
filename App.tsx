@@ -176,6 +176,9 @@ const AppContent: React.FC = () => {
   const isFullBleed = 
     location.pathname.startsWith('/participant/day-success') || 
     location.pathname.startsWith('/participant/sprint') || 
+    location.pathname.startsWith('/participant/active-sprint') || 
+    location.pathname.startsWith('/participant/next-sprint') || 
+    location.pathname.startsWith('/participant/recommendation') || 
     location.pathname.startsWith('/sprint') ||
     location.pathname.startsWith('/coach/sprint/preview') ||
     location.pathname.startsWith('/profile/settings');
