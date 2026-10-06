@@ -21,7 +21,6 @@ export const SprintConflictManager: React.FC = () => {
   const [pendingSprint, setPendingSprint] = useState<Sprint | null>(null);
   const [activeOngoingSprint, setActiveOngoingSprint] = useState<Sprint | null>(null);
   const [activeOngoingEnrollment, setActiveOngoingEnrollment] = useState<ParticipantSprint | null>(null);
-  const [showSameSprintModal, setShowSameSprintModal] = useState(false);
   const [showDiffSprintModal, setShowDiffSprintModal] = useState(false);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
@@ -58,32 +57,40 @@ export const SprintConflictManager: React.FC = () => {
 
             const enrollments = await sprintService.getUserEnrollments(user.id);
             const existingEnrollmentForTarget = (enrollments || []).find(e => e && e.sprint_id === targetSprintId);
-            const currentActiveEnrollment = (enrollments || []).find(e => e && e.status === 'active' && !e.completed_at);
 
-            // Case 1: Same sprint is actively in progress in their account
-            if (currentActiveEnrollment && currentActiveEnrollment.sprint_id === targetSprintId) {
-              setActiveOngoingEnrollment(currentActiveEnrollment);
-              setActiveOngoingSprint(sprint);
-              setShowSameSprintModal(true);
-              return;
-            }
+            // Find if there is a DIFFERENT sprint actively in progress in their account
+            const conflictingDifferentActiveEnrollment = (enrollments || []).find(e => {
+              if (!e || e.status !== 'active' || e.completed_at) return false;
+              const isAllDone = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p && p.completed);
+              if (isAllDone) return false;
+              return e.sprint_id !== targetSprintId;
+            });
 
-            // Case 2: A different sprint is currently active in their account
-            if (currentActiveEnrollment && currentActiveEnrollment.sprint_id !== targetSprintId) {
-              const activeSprintObj = await sprintService.getSprintById(currentActiveEnrollment.sprint_id).catch(() => null);
-              setActiveOngoingEnrollment(currentActiveEnrollment);
-              setActiveOngoingSprint(activeSprintObj || ({ id: currentActiveEnrollment.sprint_id, title: 'Current Sprint' } as any));
+            // STRICT ONLY CASE for modal: Exactly 2 conflicting active sprints (a different active sprint vs the new preview sprint)
+            if (conflictingDifferentActiveEnrollment) {
+              const activeSprintObj = await sprintService.getSprintById(conflictingDifferentActiveEnrollment.sprint_id).catch(() => null);
+              setActiveOngoingEnrollment(conflictingDifferentActiveEnrollment);
+              setActiveOngoingSprint(activeSprintObj || ({ id: conflictingDifferentActiveEnrollment.sprint_id, title: 'Current Sprint' } as any));
               setShowDiffSprintModal(true);
               return;
             }
 
-            // Case 3: Previously completed sprint (no other active sprint conflict) -> Start Rerun immediately (Run 2+)
-            if (existingEnrollmentForTarget && existingEnrollmentForTarget.status === 'completed') {
-              await executeStartRerun(sprint, pending, existingEnrollmentForTarget);
-              return;
+            // No conflict with any other active sprint:
+            // 1. If user previously completed this sprint, start a new rerun
+            if (existingEnrollmentForTarget) {
+              const isCompleted = existingEnrollmentForTarget.status === 'completed' || 
+                (Array.isArray(existingEnrollmentForTarget.progress) && existingEnrollmentForTarget.progress.length > 0 && existingEnrollmentForTarget.progress.every(p => p && p.completed));
+
+              if (isCompleted) {
+                await executeStartRerun(sprint, pending, existingEnrollmentForTarget);
+                return;
+              } else {
+                await executeApplyPreviewToExisting(sprint, pending, existingEnrollmentForTarget);
+                return;
+              }
             }
 
-            // Case 4: Brand new sprint (no active conflicts) -> Auto enroll & navigate to Day Success
+            // 2. Brand new sprint (first sprint or no existing enrollment) -> Auto enroll into active mode immediately
             await executeNewEnrollment(sprint, pending);
             return;
           }
@@ -321,72 +328,81 @@ export const SprintConflictManager: React.FC = () => {
     }
   };
 
-  // Handler: Modal 1 - Keep Previous Progress (Same Sprint)
-  const handleContinuePreviousSameSprint = () => {
-    localStorage.removeItem('pending_first_action');
-    localStorage.removeItem('vectorise_last_sprint');
-    setShowSameSprintModal(false);
-    toast.success(`Resumed previous progress for ${pendingSprint?.title || 'your sprint'}.`);
-    if (activeOngoingEnrollment?.id) {
-      navigate(`/participant/sprint/${activeOngoingEnrollment.id}`);
-    }
-  };
-
-  // Handler: Modal 1 - Restart With New Action (Same Sprint)
-  const handleRestartWithNewActionSameSprint = async () => {
-    if (!user || !pendingSprint || !activeOngoingEnrollment) return;
+  // Execute Apply Preview to Existing (Same Sprint, No Conflict)
+  const executeApplyPreviewToExisting = async (sprint: Sprint, pending: any, existingEnrollment: ParticipantSprint) => {
+    if (!user) return;
     setIsProcessingAction(true);
     try {
-      const rawInputs = pendingAction?.taskInputs || (pendingAction?.firstActionInput ? [pendingAction.firstActionInput] : []);
+      const rawInputs = pending.taskInputs || (pending.firstActionInput ? [pending.firstActionInput] : []);
       const cleanInputs: string[] = Array.isArray(rawInputs) ? rawInputs : [];
-      const primarySubmission = cleanInputs.find(t => t && t.trim().length > 0) || cleanInputs[0] || pendingAction?.firstActionInput || "";
+      const primarySubmission = cleanInputs.find(t => t && t.trim().length > 0) || cleanInputs[0] || pending.firstActionInput || "";
       const now = new Date().toISOString();
-      const effectiveDuration = pendingSprint.duration || activeOngoingEnrollment.progress?.length || 7;
 
-      const freshProgress = Array.from({ length: effectiveDuration }, (_, i) => ({
-        day: i + 1,
-        completed: i === 0,
-        completedAt: i === 0 ? now : undefined,
-        answers: i === 0 ? cleanInputs : [],
-        submission: i === 0 ? primarySubmission : ""
-      }));
+      const existingProgress = Array.isArray(existingEnrollment.progress) ? [...existingEnrollment.progress] : [];
+      if (existingProgress.length === 0) {
+        const effectiveDuration = sprint.duration || 5;
+        for (let i = 0; i < effectiveDuration; i++) {
+          existingProgress.push({
+            day: i + 1,
+            completed: i === 0,
+            completedAt: i === 0 ? now : undefined,
+            answers: i === 0 ? cleanInputs : [],
+            submission: i === 0 ? primarySubmission : ""
+          });
+        }
+      } else {
+        existingProgress[0] = {
+          ...existingProgress[0],
+          completed: true,
+          completedAt: existingProgress[0].completedAt || now,
+          answers: cleanInputs.length > 0 ? cleanInputs : (existingProgress[0].answers || []),
+          submission: primarySubmission || existingProgress[0].submission || ""
+        };
+      }
 
-      const enrollmentRef = doc(db, 'users', user.id, 'enrollments', activeOngoingEnrollment.id);
+      const enrollmentRef = doc(db, 'users', user.id, 'enrollments', existingEnrollment.id);
       await updateDoc(enrollmentRef, {
-        progress: freshProgress,
-        started_at: now,
-        last_activity_at: now,
-        status: 'active'
+        status: 'active',
+        progress: existingProgress,
+        last_activity_at: now
       });
 
-      if (cleanInputs.length > 0 && pendingSprint) {
-        userIdentificationService.applyUserIdentificationTracking(user.id, pendingSprint, 1, cleanInputs).catch(err => {
-          console.warn("[SprintConflictManager] Failed to apply user identification tracking on restart:", err);
+      // Ensure all other enrollments are queued
+      const userEnrollments = await sprintService.getUserEnrollments(user.id);
+      for (const e of userEnrollments) {
+        if (e.id !== existingEnrollment.id && e.status === 'active') {
+          const otherRef = doc(db, 'users', user.id, 'enrollments', e.id);
+          await updateDoc(otherRef, { status: 'queued', last_activity_at: now });
+        }
+      }
+
+      await userService.addUserEnrollment(user.id, sprint.id);
+
+      if (cleanInputs.length > 0) {
+        userIdentificationService.applyUserIdentificationTracking(user.id, sprint, 1, cleanInputs).catch(err => {
+          console.warn("[SprintConflictManager] Failed to apply user identification tracking:", err);
         });
       }
 
       localStorage.removeItem('pending_first_action');
       localStorage.removeItem('vectorise_last_sprint');
-      setShowSameSprintModal(false);
-      toast.success(`Sprint restarted with your new Day 1 action!`);
 
-      const d1Content = Array.isArray(pendingSprint?.dailyContent) ? pendingSprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
+      const d1Content = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find((dc: any) => dc.day === 1) : undefined;
       navigate('/participant/day-success', {
         replace: true,
         state: {
           day: 1,
           coinsUnlocked: 10,
           bridgeNote: d1Content?.bridgeNote,
-          sprintId: pendingSprint.id,
-          sprint: pendingSprint,
-          enrollmentId: activeOngoingEnrollment.id,
+          sprintId: sprint.id,
+          sprint: sprint,
+          enrollmentId: existingEnrollment.id,
           taskInputs: cleanInputs,
           redirectToDaySuccess: true
         }
       });
-    } catch (err) {
-      console.error("[SprintConflictManager] Error restarting sprint with new action:", err);
-      toast.error("Failed to restart sprint. Please try again.");
+    } catch (e) {
+      console.error("[SprintConflictManager] Failed to apply preview to existing enrollment:", e);
     } finally {
       setIsProcessingAction(false);
     }
@@ -436,65 +452,7 @@ export const SprintConflictManager: React.FC = () => {
 
   return (
     <>
-      {/* MODAL 1: Same Sprint In-Progress Conflict Modal */}
-      {showSameSprintModal && pendingSprint && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl p-8 sm:p-10 max-w-md w-full text-center relative overflow-hidden animate-slide-up border border-gray-100 dark:border-zinc-800">
-            <div className="w-16 h-16 bg-[#0E7850]/10 rounded-full flex items-center justify-center mx-auto mb-5 text-[#0E7850]">
-              <RotateCcw className="w-8 h-8" />
-            </div>
-
-            <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 text-[9px] font-black uppercase tracking-widest rounded-full">
-              Sprint In Progress
-            </span>
-
-            <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight mt-3 mb-2">
-              Sprint Already Active
-            </h3>
-            
-            <p className="text-xs text-gray-500 dark:text-zinc-400 font-medium leading-relaxed mb-6">
-              You already have an active session for <strong className="text-gray-900 dark:text-white font-black">{pendingSprint.title}</strong> in your account. You just completed Day 1 in preview.
-            </p>
-
-            <div className="space-y-3">
-              {/* Option A: Continue from previous progress */}
-              <button
-                type="button"
-                disabled={isProcessingAction}
-                onClick={handleContinuePreviousSameSprint}
-                className="w-full py-4 px-5 bg-white dark:bg-zinc-800 border-2 border-gray-200 dark:border-zinc-700 hover:border-[#0E7850] text-gray-800 dark:text-gray-200 rounded-2xl font-black text-xs transition-all active:scale-95 flex items-center justify-between group cursor-pointer shadow-xs"
-              >
-                <div className="text-left">
-                  <p className="leading-snug">Continue Previous Progress</p>
-                  <p className="text-[10px] text-gray-400 font-medium mt-0.5">Keep your account progress; discard preview</p>
-                </div>
-                <Play className="w-4 h-4 text-gray-400 group-hover:text-[#0E7850] shrink-0" />
-              </button>
-
-              {/* Option B: Start fresh / Restart with new action */}
-              <button
-                type="button"
-                disabled={isProcessingAction}
-                onClick={handleRestartWithNewActionSameSprint}
-                className="w-full py-4 px-5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl font-black text-xs transition-all shadow-md active:scale-95 flex items-center justify-between group cursor-pointer"
-              >
-                <div className="text-left">
-                  <p className="leading-snug">Restart With New Day 1 Action</p>
-                  <p className="text-[10px] text-emerald-100/80 font-medium mt-0.5">Start fresh with your preview answer</p>
-                </div>
-                {isProcessingAction ? (
-                  <Loader2 className="w-4 h-4 text-white animate-spin shrink-0" />
-                ) : (
-                  <ArrowRight className="w-4 h-4 text-white shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* MODAL 2: Different Sprints Active Conflict Modal (Multi-Sprint Conflict Pop-Up) */}
+      {/* MODAL: Different Sprints Active Conflict Modal (Strictly 2-Sprint Conflict Only) */}
       {showDiffSprintModal && pendingSprint && activeOngoingSprint && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
           <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl p-8 sm:p-10 max-w-md w-full text-center relative overflow-hidden animate-slide-up border border-gray-100 dark:border-zinc-800">

@@ -172,11 +172,12 @@ export const FloatingSprintBar: React.FC = () => {
   const isCurrentSprintActive = Boolean(activeSprintEnrollment);
   const isCurrentlyOnSprintView = activeSprintEnrollment && location.pathname === `/participant/sprint/${activeSprintEnrollment.id}`;
 
+  const challengeDuration = activeChallengeEnrollment?.sprint?.duration || (Array.isArray(activeChallengeEnrollment?.enrollment?.progress) ? activeChallengeEnrollment.enrollment.progress.length : 5) || 5;
   const challengeProgress = Array.isArray(activeChallengeEnrollment?.enrollment?.progress)
     ? activeChallengeEnrollment.enrollment.progress
     : [];
   const challengeDay = challengeProgress.find(p => p && !p.completed)?.day || 
-    (challengeProgress.filter(p => p && p.completed).length + 1) || 1;
+    Math.min(challengeProgress.filter(p => p && p.completed).length, challengeDuration) || 1;
 
   const handleSprintClick = () => {
     triggerHaptic(hapticPatterns.light);
@@ -242,24 +243,21 @@ export const FloatingSprintBar: React.FC = () => {
             </button>
           )}
 
-          {/* Continue Your Rise / Keep Building Main Button */}
+          {/* Continue your rise / Return to Active sprint Main Button */}
           <button
             type="button"
             onClick={handleSprintClick}
-            className="group flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2.5 sm:py-3 bg-gray-950/95 hover:bg-black text-white rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
-            title="Continue Your Rise | Keep Building"
+            className="group flex items-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2 sm:py-2.5 bg-gray-950/95 hover:bg-black text-white rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.25)] border border-white/15 backdrop-blur-md transition-all duration-200 active:scale-95 cursor-pointer shrink-0"
+            title="Continue your rise"
           >
             <span className="w-2 h-2 rounded-full bg-[#10b981] shrink-0 animate-pulse shadow-[0_0_8px_#10b981]" />
 
-            <div className="flex items-center text-xs sm:text-sm tracking-tight whitespace-nowrap overflow-hidden">
-              <span className="font-bold text-white group-hover:text-emerald-300 transition-colors">
-                Continue Your Rise
+            <div className="flex flex-col text-left tracking-tight whitespace-nowrap overflow-hidden">
+              <span className="font-bold text-xs sm:text-sm text-white group-hover:text-emerald-300 transition-colors leading-tight">
+                Continue your rise
               </span>
-              <span className="text-gray-500 font-light mx-2 text-xs sm:text-sm">
-                |
-              </span>
-              <span className="font-light text-gray-300">
-                Keep Building
+              <span className="text-[9px] sm:text-[10px] font-medium text-gray-400 group-hover:text-gray-300 leading-tight">
+                Return to Active sprint
               </span>
             </div>
 

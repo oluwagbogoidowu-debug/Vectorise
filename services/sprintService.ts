@@ -2307,6 +2307,24 @@ export const sprintService = {
         }
     },
 
+    completeSprint: async (enrollmentId: string, userId?: string) => {
+        if (!enrollmentId || typeof enrollmentId !== 'string') return;
+        const resolvedUserId = userId || enrollmentId.split('_')[1];
+        if (!resolvedUserId || resolvedUserId === 'undefined') return;
+        try {
+            const now = new Date().toISOString();
+            const enrollRef = doc(db, 'users', resolvedUserId, 'enrollments', enrollmentId);
+            await updateDoc(enrollRef, {
+                status: 'completed',
+                completed_at: now,
+                last_activity_at: now
+            });
+            cachedAllEnrollments = null;
+        } catch (e) {
+            console.error("[sprintService] completeSprint error:", e);
+        }
+    },
+
     getEnrollmentsForSprints: async (sprintIds: string[]) => {
         if (!sprintIds.length) return [];
         const sprintIdSet = new Set(sprintIds.filter(id => !!id && typeof id === 'string'));

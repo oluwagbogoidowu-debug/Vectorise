@@ -85,6 +85,29 @@ const getEnrollmentLatestActivityTime = (ps: any): number => {
         checkTimestamp(p.date);
     }
 
+    // 3. Check past runs
+    const pastRuns = Array.isArray(ps.pastRuns) ? ps.pastRuns : [];
+    for (const pr of pastRuns) {
+        if (!pr) continue;
+        checkTimestamp(pr.completed_at);
+        checkTimestamp(pr.completedAt);
+        checkTimestamp(pr.started_at);
+        checkTimestamp(pr.startedAt);
+        const prProgress = Array.isArray(pr.progress) ? pr.progress : [];
+        for (const p of prProgress) {
+            if (!p) continue;
+            checkTimestamp(p.completedAt);
+            checkTimestamp(p.completed_at);
+            checkTimestamp(p.submittedAt);
+            checkTimestamp(p.submitted_at);
+            checkTimestamp(p.lastActivityAt);
+            checkTimestamp(p.last_activity_at);
+            checkTimestamp(p.updatedAt);
+            checkTimestamp(p.updated_at);
+            checkTimestamp(p.date);
+        }
+    }
+
     return latestTime;
 };
 
@@ -2382,7 +2405,7 @@ export const CoachParticipants: React.FC = () => {
                                                     <div className="mb-4">
                                                         <div className="flex items-center gap-1.5 flex-wrap">
                                                             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
-                                                                {e.sprint.title} • {e.completedCount} / {e.sprint.duration || e.progress.length || 5} Days
+                                                                {e.sprint.title} • {e.completedCount} / {e.sprint.duration || e.progress.length || 5} Moves
                                                             </p>
                                                             {((e.currentRun && e.currentRun > 1) || (e.runNumber && e.runNumber > 1) || (Array.isArray(e.pastRuns) && e.pastRuns.length > 0)) && (
                                                                 <span className="text-[8px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-wider border border-purple-100 flex items-center gap-1 shadow-xs">
@@ -2414,7 +2437,7 @@ export const CoachParticipants: React.FC = () => {
                                                                             }
                                                                         }}
                                                                         disabled={!isCompleted}
-                                                                        title={`Day ${p.day}: ${isCompleted ? 'Click to Review Submission' : 'Pending'}`}
+                                                                        title={`Move ${p.day}: ${isCompleted ? 'Click to Review Submission' : 'Pending'}`}
                                                                         className={`text-base leading-none transition-all duration-200 select-none ${
                                                                             isCompleted 
                                                                                 ? 'text-primary hover:scale-125 cursor-pointer' 

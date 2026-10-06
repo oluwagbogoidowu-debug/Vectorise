@@ -110,19 +110,21 @@ export const ActiveSprintPage: React.FC = () => {
     }, [user]);
 
     // Calculate current milestone/day
+    const totalDays = activeSprint?.duration || 5;
+
     const currentDay = useMemo(() => {
         if (!activeEnrollment) return 1;
         const progress = (activeEnrollment as any).progress || [];
         const firstUncompleted = progress.find((p: any) => !p.completed);
-        return firstUncompleted ? firstUncompleted.day : ((activeEnrollment as any).currentMilestoneDay || 1);
-    }, [activeEnrollment]);
+        const calcDay = firstUncompleted ? firstUncompleted.day : ((activeEnrollment as any).currentMilestoneDay || totalDays);
+        return Math.min(Math.max(1, calcDay), totalDays);
+    }, [activeEnrollment, totalDays]);
 
     const completedDaysCount = useMemo(() => {
         if (!activeEnrollment) return 0;
-        return ((activeEnrollment as any).progress || []).filter((p: any) => p.completed).length;
-    }, [activeEnrollment]);
-
-    const totalDays = activeSprint?.duration || 7;
+        const count = ((activeEnrollment as any).progress || []).filter((p: any) => p.completed).length;
+        return Math.min(count, totalDays);
+    }, [activeEnrollment, totalDays]);
 
     const handleContinueSprint = () => {
         if (!activeEnrollment) {
@@ -336,7 +338,7 @@ export const ActiveSprintPage: React.FC = () => {
                                 <div className="absolute top-4 left-4">
                                     <span className="px-3 py-1 bg-black/60 backdrop-blur-md text-white border border-white/20 text-[9px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5">
                                         <Flame className="w-3 h-3 text-amber-400" />
-                                        Day {currentDay} of {totalDays}
+                                        Move {currentDay} of {totalDays}
                                     </span>
                                 </div>
 
@@ -354,7 +356,7 @@ export const ActiveSprintPage: React.FC = () => {
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-gray-400">
                                     <span>Milestones Completed</span>
-                                    <span>{completedDaysCount} / {totalDays} Days</span>
+                                    <span>{completedDaysCount} / {totalDays} Moves</span>
                                 </div>
 
                                 <div className="flex gap-1.5 items-center">

@@ -154,7 +154,9 @@ const DaySuccessPage: React.FC = () => {
     const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
     const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
-    const nextDay = completedDay + 1;
+    const sprintDuration = location.state?.sprint?.duration || location.state?.enrollment?.progress?.length || 5;
+    const isFinished = completedDay >= sprintDuration;
+    const nextDay = isFinished ? sprintDuration : completedDay + 1;
 
     if (isCoachPreview) {
       if (sprintId) {
@@ -163,6 +165,11 @@ const DaySuccessPage: React.FC = () => {
         } catch (e) {}
       }
       navigate(returnToPreviewUrl ? returnToPreviewUrl : '/coach-dashboard', { replace: true, state: { resetPreview: true } });
+      return;
+    }
+
+    if (isFinished) {
+      navigate('/participant/next-sprint', { replace: true, state: { justCompletedSprintId: sprintId } });
       return;
     }
 
@@ -283,10 +290,11 @@ const DaySuccessPage: React.FC = () => {
     const sprintId = location.state?.sprintId || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
     const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
-    const nextDay = completedDay + 1;
+    const sprintDuration = location.state?.sprint?.duration || location.state?.enrollment?.progress?.length || 5;
+    const isFinished = completedDay >= sprintDuration;
+    const nextDay = isFinished ? sprintDuration : completedDay + 1;
 
     if (isCoachPreview) {
-      const sprintDuration = location.state?.sprint?.duration || location.state?.enrollment?.progress?.length || 7;
       if (completedDay >= sprintDuration) {
         if (sprintId) {
           try {
@@ -308,6 +316,17 @@ const DaySuccessPage: React.FC = () => {
           isPreview: true,
           returnToPreviewUrl: returnToPreviewUrl || targetUrl
         }
+      });
+      return;
+    }
+
+    if (isFinished) {
+      if (enrollmentId) {
+        sprintService.completeSprint(enrollmentId).catch(() => {});
+      }
+      navigate('/participant/next-sprint', { 
+        replace: true, 
+        state: { justCompletedSprintId: sprintId } 
       });
       return;
     }
@@ -335,7 +354,7 @@ const DaySuccessPage: React.FC = () => {
           });
         } else if (sprintId) {
           try {
-            const newEnr = await sprintService.enrollUser(user.id, sprintId, 7);
+            const newEnr = await sprintService.enrollUser(user.id, sprintId, sprintDuration);
             navigate(`/participant/sprint/${newEnr.id}?day=${nextDay}`, { 
               replace: true,
               state: { targetDay: nextDay }
