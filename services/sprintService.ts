@@ -2068,9 +2068,12 @@ export const sprintService = {
         
         if (existing.exists()) {
             const existingData = sanitizeData(existing.data()) as ParticipantSprint;
+            const isAllProgressCompleted = Array.isArray(existingData.progress) && 
+                existingData.progress.length > 0 && 
+                existingData.progress.every(p => p.completed);
 
-            // If the user has already completed this sprint, start a new run (Run 2, Run 3, etc.)
-            if (existingData.status === 'completed') {
+            // If the user has already completed this sprint (or all days in previous run are completed), start a new run (Run 2, Run 3, etc.)
+            if (existingData.status === 'completed' || isAllProgressCompleted) {
                 const activeQuery = query(
                     collection(db, 'users', userId, 'enrollments'), 
                     where("status", "==", "active")
@@ -2088,7 +2091,7 @@ export const sprintService = {
                 };
                 const newPastRuns = [...previousRuns, completedRun];
                 const newRunNumber = newPastRuns.length + 1;
-                const effectiveDuration = duration && duration > 0 ? duration : (existingData.progress?.length || 1);
+                const effectiveDuration = duration && duration > 0 ? duration : (existingData.progress?.length || 5);
                 const freshProgress = Array.from({ length: effectiveDuration }, (_, i) => ({
                     day: i + 1,
                     completed: (i === 0 && hasInputs) ? true : false,

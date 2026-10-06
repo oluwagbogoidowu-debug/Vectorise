@@ -332,7 +332,9 @@ const MySprints: React.FC = () => {
                                 {inProgress.map(({ id, enrollment, sprint, runNumber, totalRuns, progress: runProgress }) => {
                                     const progress = calculateProgress(runProgress || enrollment.progress);
                                     const sprintCover = getSprintCoverImage(sprint);
-                                    const completedCount = (runProgress || enrollment.progress || []).filter(p => p.completed).length;
+                                    const sprintDuration = sprint.duration || (Array.isArray(runProgress || enrollment.progress) ? (runProgress || enrollment.progress).length : 5) || 5;
+                                    const completedCount = Math.min((runProgress || enrollment.progress || []).filter(p => p.completed).length, sprintDuration);
+                                    const currentDayNum = Math.min(completedCount + 1, sprintDuration);
                                     const isChallenge = sprint.contentType === 'challenge' || sprint.challengeData || sprint.challengeType;
                                     const linkPath = isChallenge ? `/challenge/${sprint.id}` : `/participant/sprint/${enrollment.id}`;
                                     return (
@@ -366,7 +368,9 @@ const MySprints: React.FC = () => {
                                                     <h3 className="text-sm font-black text-gray-900 truncate group-hover:text-primary transition-colors">{sprint.title}</h3>
                                                     <ProgressBar value={progress} />
                                                     <div className="mt-3 flex items-center justify-between">
-                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {completedCount + 1} / {sprint.duration || 7}</p>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">
+                                                            {completedCount >= sprintDuration ? `Complete • ${sprintDuration}/${sprintDuration}` : `Day ${currentDayNum} / ${sprintDuration}`}
+                                                        </p>
                                                         <button className="text-[8px] font-black text-primary uppercase tracking-widest group-hover:underline">Resume &rarr;</button>
                                                     </div>
                                                 </div>
@@ -572,7 +576,9 @@ const MySprints: React.FC = () => {
                                 {activeChallenges.map(({ id, enrollment, sprint, runNumber, totalRuns, progress: runProgress }) => {
                                     const progress = calculateProgress(runProgress || enrollment.progress);
                                     const sprintCover = getSprintCoverImage(sprint);
-                                    const completedCount = (runProgress || enrollment.progress || []).filter(p => p.completed).length;
+                                    const sprintDuration = sprint.duration || (Array.isArray(runProgress || enrollment.progress) ? (runProgress || enrollment.progress).length : 5) || 5;
+                                    const completedCount = Math.min((runProgress || enrollment.progress || []).filter(p => p.completed).length, sprintDuration);
+                                    const currentDayNum = Math.min(completedCount + 1, sprintDuration);
                                     const linkPath = `/challenge/${sprint.id}`;
                                     return (
                                         <Link 
@@ -605,7 +611,9 @@ const MySprints: React.FC = () => {
                                                     <h3 className="text-sm font-black text-gray-900 truncate group-hover:text-purple-600 transition-colors">{sprint.title}</h3>
                                                     <ProgressBar value={progress} />
                                                     <div className="mt-3 flex items-center justify-between">
-                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">Day {completedCount + 1} / {sprint.duration || 7}</p>
+                                                        <p className="text-[10px] text-gray-500 font-bold uppercase">
+                                                            {completedCount >= sprintDuration ? `Complete • ${sprintDuration}/${sprintDuration}` : `Day ${currentDayNum} / ${sprintDuration}`}
+                                                        </p>
                                                         <button className="text-[8px] font-black text-purple-600 uppercase tracking-widest group-hover:underline">Resume &rarr;</button>
                                                     </div>
                                                 </div>

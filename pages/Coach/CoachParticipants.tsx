@@ -638,14 +638,18 @@ export const CoachParticipants: React.FC = () => {
                     const nextIncomplete = progressList.find(p => p && !p.completed);
                     const latestActivityTime = getEnrollmentLatestActivityTime(ps);
 
+                    const sprintDuration = sprint.duration || progressList.length || 5;
+                    const clampedCompletedCount = Math.min(completions.length, sprintDuration);
+                    const clampedMilestoneDay = nextIncomplete ? Math.min(nextIncomplete.day, sprintDuration) : sprintDuration;
+
                     return {
                         ...ps,
                         progress: progressList,
                         student,
                         sprint,
                         isActiveToday,
-                        completedCount: completions.length,
-                        currentMilestoneDay: nextIncomplete ? nextIncomplete.day : (sprint.duration || progressList.length || 7),
+                        completedCount: clampedCompletedCount,
+                        currentMilestoneDay: clampedMilestoneDay,
                         latestActivityTime
                     };
                 }).filter((e): e is ExtendedEnrollment => e !== null);
@@ -2369,7 +2373,7 @@ export const CoachParticipants: React.FC = () => {
                                                     {/* Sprint Title & Progress Info */}
                                                     <div className="mb-4">
                                                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
-                                                            {e.sprint.title} • {e.completedCount} / {e.sprint.duration} Days
+                                                            {e.sprint.title} • {e.completedCount} / {e.sprint.duration || e.progress.length || 5} Days
                                                         </p>
                                                     </div>
 
