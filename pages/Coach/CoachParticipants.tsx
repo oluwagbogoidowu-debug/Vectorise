@@ -31,7 +31,7 @@ import {
     Flame, Sparkles, BookOpen, Trophy, Eye, Heart, MessageSquare, 
     ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, Search, Filter, Calendar, Clock, 
     Share2, UserCheck, CheckCircle2, Circle, Check, Award, Download, ExternalLink,
-    Send, Trash2, X, RefreshCw, StickyNote, Save, Settings
+    Send, Trash2, X, RefreshCw, StickyNote, Save, Settings, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -1043,9 +1043,17 @@ export const CoachParticipants: React.FC = () => {
                                 <p className="text-xs font-black text-gray-900 leading-tight">
                                     {viewingSubmission.enrollment.student.name}
                                 </p>
-                                <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
-                                    {viewingSubmission.enrollment.completedCount} / {viewingSubmission.enrollment.sprint.duration} Moves Completed
-                                </p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                    {((viewingSubmission.enrollment.currentRun && viewingSubmission.enrollment.currentRun > 1) || (viewingSubmission.enrollment.runNumber && viewingSubmission.enrollment.runNumber > 1) || (Array.isArray(viewingSubmission.enrollment.pastRuns) && viewingSubmission.enrollment.pastRuns.length > 0)) && (
+                                        <span className="text-[8px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-wider border border-purple-100 flex items-center gap-0.5">
+                                            <RotateCcw className="w-2.5 h-2.5" />
+                                            <span>Run {viewingSubmission.enrollment.currentRun || viewingSubmission.enrollment.runNumber || ((viewingSubmission.enrollment.pastRuns?.length || 0) + 1)}</span>
+                                        </span>
+                                    )}
+                                    <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
+                                        {Math.min(viewingSubmission.enrollment.completedCount, viewingSubmission.enrollment.sprint.duration || 5)} / {viewingSubmission.enrollment.sprint.duration || 5} Moves Completed
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </header>
@@ -2372,9 +2380,17 @@ export const CoachParticipants: React.FC = () => {
 
                                                     {/* Sprint Title & Progress Info */}
                                                     <div className="mb-4">
-                                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
-                                                            {e.sprint.title} • {e.completedCount} / {e.sprint.duration || e.progress.length || 5} Days
-                                                        </p>
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                                                                {e.sprint.title} • {e.completedCount} / {e.sprint.duration || e.progress.length || 5} Days
+                                                            </p>
+                                                            {((e.currentRun && e.currentRun > 1) || (e.runNumber && e.runNumber > 1) || (Array.isArray(e.pastRuns) && e.pastRuns.length > 0)) && (
+                                                                <span className="text-[8px] font-black bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded uppercase tracking-wider border border-purple-100 flex items-center gap-1 shadow-xs">
+                                                                    <RotateCcw className="w-2.5 h-2.5 stroke-[2.5]" />
+                                                                    <span>Run {e.currentRun || e.runNumber || ((e.pastRuns?.length || 0) + 1)}</span>
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     {/* Structural Divider */}
