@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { userService, sanitizeData } from '../../services/userService';
 import { sprintService } from '../../services/sprintService';
+import { shineService } from '../../services/shineService';
 import { Participant, ParticipantSprint, Sprint, Referral, UserRole } from '../../types';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
-import { ArrowLeft, Calendar, Mail, Phone, Smartphone, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Calendar, Mail, Phone, Smartphone, User as UserIcon, Zap, Target, Clock, AlertCircle, ChevronRight, Award, Flame, TrendingUp, Users, Coins, X, AlertTriangle, CheckCircle, Copy, Check, ChevronDown, ChevronUp, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { UserStreakVisualizer } from '../../components/UserStreakVisualizer';
 import ArchetypeAvatar from '../../components/ArchetypeAvatar';
@@ -12,6 +13,7 @@ import { PERSONA_QUIZZES } from '../../services/mockData';
 import { db } from '../../services/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { metadataService, SystemMetadataField } from '../../services/metadataService';
+import { toast } from 'sonner';
 
 const METADATA_PAGE_SIZE = 4;
 
@@ -49,9 +51,13 @@ export default function AdminUserDetail() {
     const [isCancellingEnrollment, setIsCancellingEnrollment] = useState(false);
     const [sprints, setSprints] = useState<Sprint[]>([]);
     const [referrals, setReferrals] = useState<Referral[]>([]);
+    const [reflections, setReflections] = useState<any[]>([]);
     const [lastNotificationReceivedAt, setLastNotificationReceivedAt] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [isUpdatingEmailVerified, setIsUpdatingEmailVerified] = useState(false);
+    const [copiedField, setCopiedField] = useState<string | null>(null);
+    const [expandedEnrollmentIds, setExpandedEnrollmentIds] = useState<Record<string, boolean>>({});
     const [systemMetadataFields, setSystemMetadataFields] = useState<SystemMetadataField[]>(() => metadataService.getCombinedFields());
     const [metadataPageIndex, setMetadataPageIndex] = useState(0);
 
@@ -337,6 +343,40 @@ export default function AdminUserDetail() {
         }
     };
 
+    const copyToClipboard = async (text: string, label: string) => {
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedField(label);
+            toast.success(`${label} copied to clipboard!`);
+            setTimeout(() => setCopiedField(null), 2000);
+        } catch (e) {
+            toast.error(`Could not copy ${label}`);
+        }
+    };
+
+    const handleToggleEmailVerified = async () => {
+        if (!userId || !user) return;
+        setIsUpdatingEmailVerified(true);
+        const currentVerified = Boolean(user.emailVerifiedConfirmed || user.emailVerifiedOverride || user.emailVerified);
+        const nextVerified = !currentVerified;
+        try {
+            const updateData = {
+                emailVerifiedConfirmed: nextVerified,
+                emailVerifiedOverride: nextVerified,
+                emailVerified: nextVerified
+            };
+            await userService.updateUserDocument(userId, updateData);
+            setUser(prev => prev ? { ...prev, ...updateData } : null);
+            toast.success(nextVerified ? 'Email successfully marked as verified!' : 'Email marked as unverified.');
+        } catch (error) {
+            console.error("Failed to toggle email verification:", error);
+            toast.error("Failed to update email verification status.");
+        } finally {
+            setIsUpdatingEmailVerified(false);
+        }
+    };
+
     const handleToggleNotifications = async () => {
         if (!userId || !user) return;
         try {
@@ -384,14 +424,16 @@ export default function AdminUserDetail() {
             if (!userId) return;
             setIsLoading(true);
             try {
-                const [userData, enrollmentsData, sprintsData] = await Promise.all([
+                const [userData, enrollmentsData, sprintsData, reflectionsData] = await Promise.all([
                     userService.getUserDocument(userId),
                     sprintService.getUserEnrollments(userId),
-                    sprintService.getAdminSprints()
+                    sprintService.getAdminSprints(),
+                    shineService.getPostsByUserId(userId).catch(() => [])
                 ]);
                 setUser(userData as Participant);
-                setEnrollments(enrollmentsData);
-                setSprints(sprintsData);
+                setEnrollments(enrollmentsData || []);
+                setSprints(sprintsData || []);
+                setReflections(reflectionsData || []);
 
                 // Fetch referrals
                 const referralsQuery = query(collection(db, 'users', userId, 'referrals'));
@@ -550,7 +592,7 @@ export default function AdminUserDetail() {
 
     const unclaimedButActiveMilestones = useMemo(() => {
         if (!user) return [];
-        const milestoneStats = computeMilestoneStats(enrollments, [], referrals.length);
+        const milestoneStats = computeMilestoneStats(enrollments, reflections, referrals.length);
 
         const getTypeName = (category: string) => {
             switch(category) {
@@ -579,14 +621,14 @@ export default function AdminUserDetail() {
         ];
         
         return allMilestoneDefs.filter(m => m.current >= m.targetValue && !claimedIds.includes(m.id));
-    }, [user, enrollments, referrals]);
+    }, [user, enrollments, reflections, referrals]);
 
     const unifiedClaimedBadges = useMemo(() => {
         if (!user) return [];
         
         const badges = [...(user.claimedBadges || [])];
         const existingClaimedIds = new Set(badges.map((b: any) => b.milestoneId));
-        const milestoneStats = computeMilestoneStats(enrollments, [], referrals.length);
+        const milestoneStats = computeMilestoneStats(enrollments, reflections, referrals.length);
 
         const getTypeName = (category: string) => {
             switch(category) {
@@ -632,7 +674,7 @@ export default function AdminUserDetail() {
                 icon: def ? def.icon : '🎖'
             };
         });
-    }, [user, enrollments, referrals, streakStats]);
+    }, [user, enrollments, reflections, referrals, streakStats]);
 
     const getSprintTitle = (sprintId: string) => {
         return sprints.find(s => s.id === sprintId)?.title || 'Unknown Sprint';
@@ -757,7 +799,7 @@ export default function AdminUserDetail() {
     }
 
     // Checking "No progress when they didn't proceed with a new sprint the next day after they finished the first"
-    const completedSprints = enrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
+    const completedSprints = enrollments.filter(e => e.status === 'completed' || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p && p.completed)));
     let isNoProgress = false;
     if (completedSprints.length > 0) {
         const sortedCompleted = [...completedSprints].sort((a, b) => {
@@ -779,6 +821,8 @@ export default function AdminUserDetail() {
         }
     }
 
+    const isEmailVerified = Boolean(user.emailVerifiedConfirmed || user.emailVerifiedOverride || user.emailVerified);
+
     return (
         <div className="min-h-screen bg-white pb-20">
             <style>{`
@@ -798,7 +842,7 @@ export default function AdminUserDetail() {
                         <div className="flex items-center gap-4">
                             <button 
                                 onClick={() => navigate(-1)}
-                                className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900"
+                                className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-gray-400 hover:text-gray-900 cursor-pointer"
                             >
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
@@ -819,47 +863,114 @@ export default function AdminUserDetail() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
                 
-                {/* Profile Card Section (A bit smaller like participant design) */}
+                {/* Profile Card Section */}
                 <div>
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Participant Identity</h3>
-                    <div className="inline-block bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm min-w-[300px] max-w-full hover:border-[#0E7850]/20 transition-all duration-300">
-                        <div className="flex items-center gap-4">
-                            <ArchetypeAvatar 
-                                archetypeId={user.archetype} 
-                                profileImageUrl={user.profileImageUrl} 
-                                size="lg" 
-                                isVerified={user.emailVerifiedConfirmed || user.emailVerifiedOverride}
-                            />
-                            <div className="min-w-0 flex-1">
-                                <h2 className="text-sm font-black text-gray-900 tracking-tight leading-none mb-1.5">{user.name}</h2>
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-1.5">
-                                        <Mail className="w-3 h-3 text-gray-400 shrink-0" />
-                                        <p className="text-[10px] font-bold text-gray-500 truncate tracking-wide leading-none">{user.email}</p>
+                    <div className="bg-white border border-gray-100 rounded-[2rem] p-5 sm:p-6 shadow-sm max-w-full hover:border-[#0E7850]/20 transition-all duration-300">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                <ArchetypeAvatar 
+                                    archetypeId={user.archetype} 
+                                    profileImageUrl={user.profileImageUrl} 
+                                    size="lg" 
+                                    isVerified={isEmailVerified}
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                                        <h2 className="text-base font-black text-gray-900 tracking-tight leading-none">{user.name}</h2>
+                                        <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider border inline-flex items-center gap-1 ${
+                                            isEmailVerified ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'
+                                        }`}>
+                                            {isEmailVerified ? <ShieldCheck className="w-2.5 h-2.5" /> : <ShieldAlert className="w-2.5 h-2.5" />}
+                                            {isEmailVerified ? 'Verified' : 'Unverified'}
+                                        </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                        <Phone className="w-3 h-3 text-[#0E7850] shrink-0" />
-                                        {userPhone ? (
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] font-black text-gray-800 tracking-wide font-mono leading-none">{userPhone}</span>
-                                                <a 
-                                                    href={`https://wa.me/${userPhone.replace(/[^0-9]/g, '')}`} 
-                                                    target="_blank" 
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-[#0E7850] border border-emerald-200/60 rounded text-[7.5px] font-black uppercase tracking-wider transition-colors"
-                                                    title="Message via WhatsApp"
-                                                >
-                                                    WhatsApp ↗
-                                                </a>
-                                            </div>
-                                        ) : (
-                                            <span className="text-[9.5px] font-medium text-gray-300 italic">No phone received</span>
-                                        )}
+                                    <div className="space-y-1 text-left">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                                            <p className="text-[11px] font-bold text-gray-600 truncate tracking-wide leading-none">{user.email}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => copyToClipboard(user.email, 'Email')}
+                                                className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                                                title="Copy email"
+                                            >
+                                                {copiedField === 'Email' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <Phone className="w-3 h-3 text-[#0E7850] shrink-0" />
+                                            {userPhone ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10.5px] font-black text-gray-800 tracking-wide font-mono leading-none">{userPhone}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => copyToClipboard(userPhone, 'Phone')}
+                                                        className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                                                        title="Copy phone"
+                                                    >
+                                                        {copiedField === 'Phone' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                                    </button>
+                                                    <a 
+                                                        href={`https://wa.me/${userPhone.replace(/[^0-9]/g, '')}`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-[#0E7850] border border-emerald-200/60 rounded text-[8px] font-black uppercase tracking-wider transition-colors"
+                                                        title="Message via WhatsApp"
+                                                    >
+                                                        WhatsApp ↗
+                                                    </a>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[9.5px] font-medium text-gray-300 italic">No phone received</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                        <p className="text-[9px] font-black text-[#0E7850] uppercase bg-emerald-50/50 border border-emerald-100/50 px-2.5 py-0.5 rounded-md inline-block tracking-wider leading-none">
+                                            @{user.occupation || user.persona || 'Student/Graduate'}
+                                        </p>
+                                        <span className="text-[9px] font-mono font-bold text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+                                            ID: {user.id?.slice(0, 8)}...
+                                            <button
+                                                type="button"
+                                                onClick={() => copyToClipboard(user.id, 'User ID')}
+                                                className="hover:text-gray-700 cursor-pointer"
+                                                title="Copy User ID"
+                                            >
+                                                {copiedField === 'User ID' ? <Check className="w-2.5 h-2.5 text-emerald-600" /> : <Copy className="w-2.5 h-2.5" />}
+                                            </button>
+                                        </span>
                                     </div>
                                 </div>
-                                <p className="text-[9px] font-black text-[#0E7850] uppercase mt-2 bg-emerald-50/50 border border-emerald-100/50 px-2 py-0.5 rounded-md inline-block tracking-wider leading-none">
-                                    @{user.occupation || user.persona || 'Student/Graduate'}
-                                </p>
+                            </div>
+
+                            {/* Quick Admin Actions */}
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                <button
+                                    type="button"
+                                    disabled={isUpdatingEmailVerified}
+                                    onClick={handleToggleEmailVerified}
+                                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5 ${
+                                        isEmailVerified
+                                            ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                    }`}
+                                >
+                                    {isUpdatingEmailVerified ? (
+                                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    ) : isEmailVerified ? (
+                                        <>
+                                            <ShieldAlert className="w-3.5 h-3.5" />
+                                            <span>Mark Unverified</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                            <span>Verify Email</span>
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -986,8 +1097,8 @@ export default function AdminUserDetail() {
                         </div>
 
                         {/* Timeline Metrics Card (The 2nd Card) */}
-                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] min-h-[280px] bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm snap-start flex flex-col justify-between hover:border-[#0E7850]/10 transition-all duration-300">
-                            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-50 flex-shrink-0">
+                        <div className="flex-shrink-0 w-[290px] sm:w-[320px] min-h-[320px] bg-white border border-gray-100 rounded-[2rem] p-5 sm:p-6 shadow-sm snap-start flex flex-col justify-between hover:border-[#0E7850]/10 transition-all duration-300">
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-50 flex-shrink-0">
                                 <span className="text-sm">⏱️</span>
                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Current Status</h4>
                             </div>
@@ -1006,24 +1117,27 @@ export default function AdminUserDetail() {
                                         </p>
                                     </div>
                                 </div>
-                                <div>
-                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Phone Number (Sign Up)</p>
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-xs font-bold text-gray-900 font-mono">
-                                            {userPhone || 'Not provided'}
-                                        </p>
-                                        {userPhone && (
-                                            <a 
-                                                href={`https://wa.me/${userPhone.replace(/[^0-9]/g, '')}`} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="text-[7.5px] font-black text-[#0E7850] bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded hover:bg-emerald-100 transition-colors uppercase tracking-wider"
-                                            >
-                                                Chat WhatsApp ↗
-                                            </a>
-                                        )}
+
+                                {/* Interactive Role / Status Selector */}
+                                <div className="p-2.5 bg-gray-50/80 rounded-xl border border-gray-100">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Update Role / Status</p>
+                                        {isUpdatingStatus && <div className="w-3 h-3 border-2 border-[#0E7850] border-t-transparent rounded-full animate-spin" />}
                                     </div>
+                                    <select
+                                        value={currentStatusValue}
+                                        disabled={isUpdatingStatus}
+                                        onChange={(e) => handleStatusChange(e.target.value)}
+                                        className="w-full text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0E7850]/20 focus:border-[#0E7850] cursor-pointer disabled:opacity-50"
+                                    >
+                                        <option value="participant">Participant</option>
+                                        <option value="coach_active">Coach (Active)</option>
+                                        <option value="coach_pending">Coach (Pending)</option>
+                                        <option value="coach_non_active">Coach (Non-active)</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
                                 </div>
+
                                 <div>
                                     <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Joined Vectorise</p>
                                     <p className="text-xs font-bold text-gray-900">
@@ -1470,7 +1584,7 @@ export default function AdminUserDetail() {
                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-50">
                         <div>
                             <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Sprint Enrollments</h3>
-                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Chronological list of all active or completed sprints</p>
+                            <p className="text-[9px] text-gray-400 font-black uppercase tracking-wider mt-0.5">Chronological list of all active or completed sprints and detailed daily submissions</p>
                         </div>
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
                             {enrollments.length} Total
@@ -1486,6 +1600,8 @@ export default function AdminUserDetail() {
                                     : 0;
                                 const isCurrent = enrollment.status === 'active';
                                 const completionRate = (isNoProgress && isCurrent) ? 0 : actualCompletionRate;
+                                const isExpanded = Boolean(expandedEnrollmentIds[enrollment.id]);
+                                const sprintObj = sprints.find(s => s.id === enrollment.sprint_id);
                                 
                                 return (
                                     <div 
@@ -1493,37 +1609,52 @@ export default function AdminUserDetail() {
                                         className={`p-6 rounded-3xl border transition-all ${
                                             isCurrent 
                                                 ? 'bg-primary/5 border-primary/20 ring-1 ring-primary/10' 
-                                                : 'bg-gray-50/50 border-gray-100'
+                                                : 'bg-gray-50/50 border-gray-100 hover:border-gray-200'
                                         }`}
                                     >
                                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`h-11 w-11 rounded-2xl flex items-center justify-center ${
+                                            <div className="flex items-center gap-4 min-w-0">
+                                                <div className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 ${
                                                     isCurrent ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white border border-gray-100 text-gray-400'
                                                 }`}>
                                                     <Zap className="w-5 h-5" />
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="text-sm font-black text-gray-900">{getSprintTitle(enrollment.sprint_id)}</h4>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h4 className="text-sm font-black text-gray-900 truncate">{getSprintTitle(enrollment.sprint_id)}</h4>
                                                         {isCurrent && (
                                                             <span className="px-2 py-0.5 bg-primary text-white text-[8px] font-black uppercase tracking-widest rounded-md">Active</span>
+                                                        )}
+                                                        {enrollment.currentRun && enrollment.currentRun > 1 && (
+                                                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[8px] font-black uppercase tracking-widest rounded-md">
+                                                                Run {enrollment.currentRun}
+                                                            </span>
                                                         )}
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
                                                         Started {safeFormatDate(enrollment.started_at, 'MMM d, yyyy')}
+                                                        {enrollment.completed_at && ` • Completed ${safeFormatDate(enrollment.completed_at, 'MMM d, yyyy')}`}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-3 self-end md:self-center">
                                                 <div className="text-right">
                                                     <p className="text-2xl font-black text-gray-900 leading-none">{Math.round(completionRate)}%</p>
                                                     <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mt-1">Completion</p>
                                                 </div>
                                                 <button
                                                     type="button"
+                                                    onClick={() => setExpandedEnrollmentIds(prev => ({ ...prev, [enrollment.id]: !prev[enrollment.id] }))}
+                                                    className="px-3 py-2 bg-white hover:bg-gray-100 border border-gray-200 rounded-xl text-xs font-black text-gray-700 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                                                    title={isExpanded ? "Collapse daily submissions" : "View daily submissions"}
+                                                >
+                                                    <span>{isExpanded ? 'Hide Moves' : 'View Moves'}</span>
+                                                    {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                </button>
+                                                <button
+                                                    type="button"
                                                     onClick={() => setEnrollmentToCancel(enrollment)}
-                                                    className="h-9 w-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-rose-600 bg-white hover:bg-rose-50 border border-gray-200/80 hover:border-rose-200 transition-all shadow-sm hover:shadow group ml-1"
+                                                    className="h-9 w-9 rounded-xl flex items-center justify-center text-gray-400 hover:text-rose-600 bg-white hover:bg-rose-50 border border-gray-200/80 hover:border-rose-200 transition-all shadow-sm hover:shadow group ml-1 cursor-pointer"
                                                     title="Cancel and remove enrollment"
                                                     aria-label="Cancel enrollment"
                                                 >
@@ -1540,24 +1671,108 @@ export default function AdminUserDetail() {
                                             <div className="bg-white/50 p-3 rounded-2xl border border-gray-100/50">
                                                 <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Last Activity</p>
                                                 <p className="text-xs font-black text-gray-700">
-                                                    {safeFormatDate(enrollment.last_activity_at, 'MMM d')}
+                                                    {safeFormatDate(enrollment.last_activity_at, 'MMM d, h:mm a')}
                                                 </p>
                                             </div>
                                             <div className="col-span-2">
                                                 <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-2">
                                                     {(isNoProgress && isCurrent) ? 'Daily Progress (Suspended: No Sprint)' : 'Daily Progress'}
                                                 </p>
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1.5">
                                                     {progressList.map((p, i) => (
                                                         <div 
                                                             key={i}
-                                                            className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-primary' : 'bg-gray-200'}`}
-                                                            title={`Day ${p.day}`}
+                                                            className={`flex-1 h-2 rounded-sm ${(p.completed && !(isNoProgress && isCurrent)) ? 'bg-[#0E7850]' : 'bg-gray-200'}`}
+                                                            title={`Move ${p.day}: ${p.completed ? 'Completed' : 'Pending'}`}
                                                         />
                                                     ))}
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Expanded Daily Moves & Submissions Breakdown */}
+                                        {isExpanded && (
+                                            <div className="mt-6 pt-5 border-t border-gray-200/80 space-y-3 animate-in fade-in duration-200">
+                                                <div className="flex items-center justify-between">
+                                                    <h5 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                                        Daily Moves Submissions ({progressList.filter(p => p.completed).length}/{progressList.length} Finished)
+                                                    </h5>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {progressList.map((p) => {
+                                                        const dContent: any = Array.isArray(sprintObj?.dailyContent) ? sprintObj?.dailyContent.find((dc: any) => dc.day === p.day) : undefined;
+                                                        const pAny = p as any;
+                                                        const answers = Array.isArray(p.answers) ? p.answers : (p.answers ? [String(p.answers)] : []);
+                                                        const taskInputs = Array.isArray(pAny.taskInputs) ? pAny.taskInputs : [];
+                                                        const allAnswers = answers.length > 0 ? answers : taskInputs;
+                                                        const submissionText = p.submission || (allAnswers.length > 0 ? allAnswers.join(' \n') : '');
+                                                        const moveTitle = dContent?.title || dContent?.taskPrompt || `Day ${p.day}`;
+
+                                                        return (
+                                                            <div 
+                                                                key={p.day}
+                                                                className={`p-4 rounded-2xl border transition-all text-left ${
+                                                                    p.completed 
+                                                                        ? 'bg-white border-emerald-100 shadow-xs' 
+                                                                        : 'bg-gray-50/70 border-gray-100 opacity-75'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gray-50">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black ${
+                                                                            p.completed ? 'bg-emerald-50 text-[#0E7850]' : 'bg-gray-100 text-gray-400'
+                                                                        }`}>
+                                                                            {p.day}
+                                                                        </span>
+                                                                        <h6 className="text-xs font-black text-gray-900">
+                                                                            Move {p.day}: {moveTitle}
+                                                                        </h6>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {p.completedAt && (
+                                                                            <span className="text-[8px] font-bold text-gray-400 uppercase">
+                                                                                {safeFormatDate(p.completedAt, 'MMM d, h:mm a')}
+                                                                            </span>
+                                                                        )}
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider border ${
+                                                                            p.completed 
+                                                                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                                                                                : 'bg-gray-100 text-gray-500 border-gray-200'
+                                                                        }`}>
+                                                                            {p.completed ? 'Completed' : 'Pending'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Task Prompt / Objective */}
+                                                                {(dContent?.taskPrompt || dContent?.lessonText) && (
+                                                                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide mb-1 truncate">
+                                                                        Task: {dContent?.taskPrompt || dContent?.lessonText?.slice(0, 80)}
+                                                                    </p>
+                                                                )}
+
+                                                                {/* User Submission Text */}
+                                                                {p.completed ? (
+                                                                    submissionText ? (
+                                                                        <div className="mt-1.5 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                                                                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Participant Submission:</p>
+                                                                            <p className="text-xs text-gray-800 font-medium whitespace-pre-wrap leading-relaxed">
+                                                                                {submissionText}
+                                                                            </p>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p className="text-[10px] text-gray-400 italic">Completed without text submission.</p>
+                                                                    )
+                                                                ) : (
+                                                                    <p className="text-[10px] text-gray-400 italic">Not completed yet.</p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })

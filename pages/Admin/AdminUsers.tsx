@@ -116,7 +116,7 @@ export default function AdminUsers() {
             }
 
             // 2. "No progress when they didn't proceed with a new sprint the next day after they finished the first."
-            const completedEnrollments = userEnrollments.filter(e => e.status === 'completed' || e.progress?.every(p => p.completed));
+            const completedEnrollments = userEnrollments.filter(e => e.status === 'completed' || (Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every(p => p.completed)));
             let isNoProgress = false;
             if (completedEnrollments.length > 0) {
                 const sortedCompleted = [...completedEnrollments].sort((a, b) => {
@@ -137,13 +137,14 @@ export default function AdminUsers() {
                 }
             }
 
-            const actualCompletionRate = activeEnrollment 
-                ? (activeEnrollment.progress.filter(p => p.completed).length / activeEnrollment.progress.length) * 100 
+            const activeProgress = Array.isArray(activeEnrollment?.progress) ? activeEnrollment.progress : [];
+            const actualCompletionRate = activeProgress.length > 0 
+                ? (activeProgress.filter(p => p && p.completed).length / activeProgress.length) * 100 
                 : 0;
             const rate = isNoProgress ? 0 : actualCompletionRate;
 
-            const actualTasksCompleted = activeEnrollment 
-                ? activeEnrollment.progress.filter(p => p.completed).length 
+            const actualTasksCompleted = activeProgress.length > 0 
+                ? activeProgress.filter(p => p && p.completed).length 
                 : 0;
             const tasksCompleted = isNoProgress ? 0 : actualTasksCompleted;
 
@@ -167,7 +168,7 @@ export default function AdminUsers() {
                 sprintTitle: isNoProgress ? 'No active sprint' : (sprint?.title || 'No active sprint'),
                 completionRate: rate,
                 tasksCompleted: tasksCompleted,
-                totalTasks: activeEnrollment ? activeEnrollment.progress.length : 0,
+                totalTasks: activeProgress.length,
                 isActive,
                 isNoProgress,
                 hasSprint: userEnrollments.length > 0,
