@@ -2079,7 +2079,13 @@ export const sprintService = {
                     where("status", "==", "active")
                 );
                 const activeSnap = await getDocs(activeQuery);
-                const hasActive = !activeSnap.empty && activeSnap.docs.some(d => d.id !== enrollmentId);
+                const hasActive = activeSnap.docs.some(docSnap => {
+                    if (docSnap.id === enrollmentId) return false;
+                    const d = docSnap.data() as ParticipantSprint;
+                    if (!d || d.status !== 'active' || d.completed_at) return false;
+                    const isAllDaysDone = Array.isArray(d.progress) && d.progress.length > 0 && d.progress.every(p => p && p.completed);
+                    return !isAllDaysDone;
+                });
 
                 const previousRuns = existingData.pastRuns || [];
                 const completedRun: ParticipantSprintRun = {
@@ -2137,10 +2143,27 @@ export const sprintService = {
                     answers: mergedAnswers,
                     submission: mergedSubmission
                 };
+
+                const activeQuery = query(
+                    collection(db, 'users', userId, 'enrollments'), 
+                    where("status", "==", "active")
+                );
+                const activeSnap = await getDocs(activeQuery);
+                const hasOtherActive = activeSnap.docs.some(docSnap => {
+                    if (docSnap.id === enrollmentId) return false;
+                    const d = docSnap.data() as ParticipantSprint;
+                    if (!d || d.status !== 'active' || d.completed_at) return false;
+                    const isAllDaysDone = Array.isArray(d.progress) && d.progress.length > 0 && d.progress.every(p => p && p.completed);
+                    return !isAllDaysDone;
+                });
+                const resolvedStatus = hasOtherActive ? existingData.status : 'active';
+
                 await updateDoc(enrollmentRef, {
+                    status: resolvedStatus,
                     progress: updatedProgress,
                     last_activity_at: now
                 });
+                existingData.status = resolvedStatus;
                 existingData.progress = updatedProgress;
             }
             try {
@@ -2158,9 +2181,15 @@ export const sprintService = {
             where("status", "==", "active")
         );
         const activeSnap = await getDocs(activeQuery);
-        const hasActive = !activeSnap.empty;
+        const hasActive = activeSnap.docs.some(docSnap => {
+            if (docSnap.id === enrollmentId) return false;
+            const d = docSnap.data() as ParticipantSprint;
+            if (!d || d.status !== 'active' || d.completed_at) return false;
+            const isAllDaysDone = Array.isArray(d.progress) && d.progress.length > 0 && d.progress.every(p => p && p.completed);
+            return !isAllDaysDone;
+        });
 
-        const effectiveDuration = duration && duration > 0 ? duration : 1;
+        const effectiveDuration = duration && duration > 0 ? duration : 5;
         const newEnrollment: ParticipantSprint = {
             id: enrollmentId,
             sprint_id: sprintId,

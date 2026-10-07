@@ -5184,7 +5184,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
 
-                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
+                              <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
                               {effectiveFootnote && (
@@ -6256,7 +6256,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                           return (
                             <>
-                              <div className={`text-gray-950 font-black leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
+                              <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
                               {effectiveFootnote && (

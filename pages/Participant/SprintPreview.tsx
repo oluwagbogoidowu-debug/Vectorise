@@ -26,6 +26,7 @@ import { X, Eye, EyeOff, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import { ArrangePollOptions } from '../../src/components/ArrangePollOptions';
+import { userIdentificationService } from '../../services/userIdentificationService';
 
 const AutoGrowingTextarea: React.FC<{
   value: string;
@@ -916,7 +917,11 @@ const SprintPreview: React.FC = () => {
                 }
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id);
+                    localStorage.removeItem('pending_first_action');
                     localStorage.removeItem('vectorise_last_sprint');
+                    if (effectiveInputs.length > 0) {
+                        userIdentificationService.applyUserIdentificationTracking(firebaseUser.uid, targetSprint, 1, effectiveInputs).catch(console.warn);
+                    }
                 }
                 const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
                 setShowLockModal(false);
@@ -1188,7 +1193,11 @@ const SprintPreview: React.FC = () => {
                 setCreatedEnrollmentId(enrollment.id);
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:EmailLogin] Confirmed target enrollment created/updated:", enrollment.id);
+                    localStorage.removeItem('pending_first_action');
                     localStorage.removeItem('vectorise_last_sprint');
+                    if (effectiveInputs.length > 0) {
+                        userIdentificationService.applyUserIdentificationTracking(firebaseUser.uid, targetSprint, 1, effectiveInputs).catch(console.warn);
+                    }
                 }
 
                 const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
@@ -1964,7 +1973,7 @@ const SprintPreview: React.FC = () => {
                                             );
                                         })()}
 
-                                        <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
+                                        <div className={`text-gray-950 text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                             <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent)} />
                                         </div>
                                         {effectiveFootnote && (

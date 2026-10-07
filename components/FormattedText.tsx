@@ -123,6 +123,9 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
   const safeText = typeof text === 'string' ? text : String(text || '');
   if (!safeText.trim()) return null;
 
+  // Detect whether text has markdown bold (**text** or __text__)
+  const hasBold = /\*\*[^*]+\*\*|__[^_]+__/.test(safeText);
+
   const processedText = inline ? safeText : processListText(safeText);
 
   if (inline) {
@@ -130,9 +133,9 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          p: ({ node, ...props }) => <span {...props} />,
-          em: ({ node, ...props }) => <em className="italic" {...props} />,
-          strong: ({ node, ...props }) => <strong className="font-black" {...props} />,
+          p: ({ node, ...props }) => <span className={hasBold ? "font-light text-gray-800 dark:text-gray-200" : "font-normal"} {...props} />,
+          em: ({ node, ...props }) => <em className="italic text-gray-900 dark:text-gray-100 font-normal" {...props} />,
+          strong: ({ node, ...props }) => <strong className="font-black text-gray-950 dark:text-white" {...props} />,
         }}
       >
         {processedText}
@@ -142,16 +145,17 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
 
   const hasExplicitTextSize = /\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|\[\d+px\])\b/.test(className);
   const baseSizeClass = hasExplicitTextSize ? '' : 'text-base';
+  const textWeightClass = hasBold ? 'font-light text-gray-800 dark:text-gray-200' : 'font-normal text-gray-800 dark:text-gray-200';
 
   return (
-    <div className={`markdown-content leading-[1.6] text-gray-800 max-w-[60ch] ${baseSizeClass} ${className}`}>
+    <div className={`markdown-content leading-[1.6] max-w-[60ch] ${baseSizeClass} ${textWeightClass} ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          em: ({ node, ...props }) => <em className="italic text-gray-900" {...props} />,
-          strong: ({ node, ...props }) => <strong className="font-black text-gray-900" {...props} />,
-          ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-4" {...props} />,
-          ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-4" {...props} />,
+          em: ({ node, ...props }) => <em className="italic text-gray-900 dark:text-gray-100 font-normal" {...props} />,
+          strong: ({ node, ...props }) => <strong className="font-black text-gray-950 dark:text-white" {...props} />,
+          ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-3" {...props} />,
+          ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-3" {...props} />,
           li: ({ node, ...props }) => {
             const { bulletChar, cleaned: modifiedChildren } = extractBulletPrefix(props.children);
 
@@ -181,22 +185,22 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
             }
 
             return (
-              <li className="flex items-start gap-2.5 my-2.5 text-gray-700 leading-relaxed font-normal" {...props}>
+              <li className={`flex items-start gap-2.5 my-2 leading-relaxed ${hasBold ? 'font-light text-gray-800 dark:text-gray-200' : 'font-normal text-gray-700 dark:text-gray-300'}`} {...props}>
                 {bulletElement}
                 <span className="flex-1">{modifiedChildren}</span>
               </li>
             );
           },
-          p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6] whitespace-pre-line text-inherit text-gray-800" {...props} />,
+          p: ({ node, ...props }) => <p className={`mb-4 last:mb-0 leading-[1.6] whitespace-pre-line text-inherit ${hasBold ? 'font-light' : 'font-normal'}`} {...props} />,
           hr: ({ node, ...props }) => (
-            <hr className="my-8 border-t border-gray-200 w-full" {...props} />
+            <hr className="my-8 border-t border-gray-200 dark:border-zinc-800 w-full" {...props} />
           ),
-          h1: ({ node, ...props }) => <h1 className="text-3xl font-black text-gray-900 mb-6 mt-8 tracking-tight" {...props} />,
-          h2: ({ node, ...props }) => <h2 className="text-2xl font-black text-gray-900 mb-4 mt-6 tracking-tight" {...props} />,
-          h3: ({ node, ...props }) => <h3 className="text-xl font-black text-gray-900 mb-3 mt-5 tracking-tight" {...props} />,
+          h1: ({ node, ...props }) => <h1 className="text-3xl font-black text-gray-950 dark:text-white mb-6 mt-8 tracking-tight" {...props} />,
+          h2: ({ node, ...props }) => <h2 className="text-2xl font-black text-gray-950 dark:text-white mb-4 mt-6 tracking-tight" {...props} />,
+          h3: ({ node, ...props }) => <h3 className="text-xl font-black text-gray-950 dark:text-white mb-3 mt-5 tracking-tight" {...props} />,
           a: ({ node, ...props }) => <a className="text-primary font-bold hover:underline decoration-2 underline-offset-4" {...props} />,
           blockquote: ({ node, ...props }) => (
-            <blockquote className="border-l-4 border-primary/20 pl-6 py-3 my-6 italic text-gray-700 bg-gray-50/50 rounded-r-xl" {...props} />
+            <blockquote className="border-l-4 border-primary/20 pl-6 py-3 my-6 italic text-gray-700 dark:text-gray-300 bg-gray-50/50 dark:bg-zinc-800/50 rounded-r-xl" {...props} />
           ),
         }}
       >
