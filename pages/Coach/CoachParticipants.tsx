@@ -111,14 +111,14 @@ const getEnrollmentLatestActivityTime = (ps: any): number => {
     return latestTime;
 };
 
-type ExperienceTypeFilter = 'all' | 'ignite' | 'sprint' | 'challenge' | 'blog';
+type ExperienceTypeFilter = 'all' | 'sprint' | 'blog' | 'challenge' | 'ignite';
 
 export const CoachParticipants: React.FC = () => {
     const { user } = useAuth();
     const [experienceTypeFilter, setExperienceTypeFilter] = useState<ExperienceTypeFilter>(() => {
         try {
             const saved = localStorage.getItem('coach_default_experience_type');
-            if (saved && ['all', 'ignite', 'sprint', 'challenge', 'blog'].includes(saved)) {
+            if (saved && ['all', 'sprint', 'blog', 'challenge', 'ignite'].includes(saved)) {
                 return saved as ExperienceTypeFilter;
             }
         } catch (e) {}
@@ -126,6 +126,7 @@ export const CoachParticipants: React.FC = () => {
     });
     const [isExperienceMenuOpen, setIsExperienceMenuOpen] = useState(false);
     const experienceMenuRef = useRef<HTMLDivElement>(null);
+    const contentSectionRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -148,18 +149,21 @@ export const CoachParticipants: React.FC = () => {
         } catch (e) {}
         setSelectedProgramId('all');
         setIsExperienceMenuOpen(false);
+        setTimeout(() => {
+            contentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 60);
     };
 
     const renderExperienceIcon = (type: ExperienceTypeFilter) => {
         switch (type) {
-            case 'ignite':
-                return <Sparkles className="w-4 h-4 text-purple-600" />;
             case 'sprint':
                 return <Flame className="w-4 h-4 text-[#0E7850]" />;
-            case 'challenge':
-                return <Trophy className="w-4 h-4 text-amber-600" />;
             case 'blog':
                 return <BookOpen className="w-4 h-4 text-blue-600" />;
+            case 'challenge':
+                return <Trophy className="w-4 h-4 text-amber-600" />;
+            case 'ignite':
+                return <Sparkles className="w-4 h-4 text-purple-600" />;
             case 'all':
             default:
                 return <Settings className="w-4 h-4 text-gray-700" />;
@@ -921,11 +925,11 @@ export const CoachParticipants: React.FC = () => {
         });
 
         const typeRank: Record<string, number> = {
-            'ignite': 1,
+            'sprint': 1,
             'blog': 2,
             'riseblog': 2,
             'challenge': 3,
-            'sprint': 4
+            'ignite': 4
         };
 
         return list.sort((a, b) => {
@@ -2148,10 +2152,10 @@ export const CoachParticipants: React.FC = () => {
                                         </div>
                                         {[
                                             { value: 'all' as ExperienceTypeFilter, label: 'All experience', icon: <Settings className="w-4 h-4 text-gray-600" /> },
-                                            { value: 'ignite' as ExperienceTypeFilter, label: 'Ignite', icon: <Sparkles className="w-4 h-4 text-purple-600" /> },
+                                            { value: 'sprint' as ExperienceTypeFilter, label: 'Sprint', icon: <Flame className="w-4 h-4 text-[#0E7850]" /> },
                                             { value: 'blog' as ExperienceTypeFilter, label: 'Riseblog', icon: <BookOpen className="w-4 h-4 text-blue-600" /> },
                                             { value: 'challenge' as ExperienceTypeFilter, label: 'Challenge', icon: <Trophy className="w-4 h-4 text-amber-600" /> },
-                                            { value: 'sprint' as ExperienceTypeFilter, label: 'Sprint', icon: <Flame className="w-4 h-4 text-[#0E7850]" /> },
+                                            { value: 'ignite' as ExperienceTypeFilter, label: 'Ignite', icon: <Sparkles className="w-4 h-4 text-purple-600" /> },
                                         ].map((opt) => (
                                             <button
                                                 key={opt.value}
@@ -2179,19 +2183,24 @@ export const CoachParticipants: React.FC = () => {
                             {/* Program Filter */}
                             <CustomSelect 
                                 value={selectedProgramId}
-                                onChange={(val) => setSelectedProgramId(String(val))}
+                                onChange={(val) => {
+                                    setSelectedProgramId(String(val));
+                                    setTimeout(() => {
+                                        contentSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                    }, 60);
+                                }}
                                 options={[
                                     { 
                                         value: 'all', 
                                         label: experienceTypeFilter === 'all' 
                                             ? 'All Programs' 
-                                            : experienceTypeFilter === 'ignite' 
-                                                ? 'All Ignites' 
-                                                : experienceTypeFilter === 'sprint' 
-                                                    ? 'All Sprints' 
+                                            : experienceTypeFilter === 'sprint' 
+                                                ? 'All Sprints' 
+                                                : experienceTypeFilter === 'blog' 
+                                                    ? 'All Riseblogs' 
                                                     : experienceTypeFilter === 'challenge' 
                                                         ? 'All Challenges' 
-                                                        : 'All Riseblogs' 
+                                                        : 'All Ignites' 
                                     },
                                     ...filteredProgramsForSelect.map(s => ({ 
                                         value: s.id, 
@@ -2203,19 +2212,23 @@ export const CoachParticipants: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* SECTION 1: NON-SPRINT EXPERIENCES (IGNITE, RISEBLOG, CHALLENGE) */}
+                    {/* SECTION 1: NON-SPRINT EXPERIENCES (SPRINT, RISEBLOG, CHALLENGE, IGNITE) */}
                     {(experienceTypeFilter === 'all' || experienceTypeFilter !== 'sprint') && (
-                        <div className="space-y-6 mb-12">
-                            {experienceTypeFilter === 'all' && (
-                                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                                    <div className="flex items-center gap-2">
-                                        <Sparkles className="w-5 h-5 text-purple-600" />
-                                        <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">
-                                            Experiences (Ignite, Riseblog, Challenge)
-                                        </h2>
-                                    </div>
+                        <div ref={contentSectionRef} className="space-y-6 mb-12 scroll-mt-20">
+                            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                                <div className="flex items-center gap-2">
+                                    {experienceTypeFilter === 'ignite' && <Sparkles className="w-5 h-5 text-purple-600" />}
+                                    {experienceTypeFilter === 'blog' && <BookOpen className="w-5 h-5 text-blue-600" />}
+                                    {experienceTypeFilter === 'challenge' && <Trophy className="w-5 h-5 text-amber-600" />}
+                                    {experienceTypeFilter === 'all' && <Sparkles className="w-5 h-5 text-purple-600" />}
+                                    <h2 className="text-sm font-black uppercase tracking-widest text-gray-900">
+                                        {experienceTypeFilter === 'ignite' ? `Ignite Sparks (${filteredNonSprintExperiences.length})` :
+                                         experienceTypeFilter === 'blog' ? `Riseblog Articles (${filteredNonSprintExperiences.length})` :
+                                         experienceTypeFilter === 'challenge' ? `Challenges (${filteredNonSprintExperiences.length})` :
+                                         `Experiences (Sprint, Riseblog, Challenge, Ignite)`}
+                                    </h2>
                                 </div>
-                            )}
+                            </div>
 
                             {filteredNonSprintExperiences.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -2332,7 +2345,7 @@ export const CoachParticipants: React.FC = () => {
 
                     {/* SECTION 2: SPRINT PARTICIPANT CARDS */}
                     {(experienceTypeFilter === 'all' || experienceTypeFilter === 'sprint') && (
-                        <div className="space-y-6">
+                        <div ref={experienceTypeFilter === 'sprint' ? contentSectionRef : undefined} className="space-y-6 scroll-mt-20">
                             {experienceTypeFilter === 'all' && (
                                 <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                                     <div className="flex items-center gap-2">

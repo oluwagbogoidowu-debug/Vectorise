@@ -670,16 +670,6 @@ const CreateSprint: React.FC = () => {
                         </button>
                         <button
                             type="button"
-                            onClick={() => setActiveTab('ignite')}
-                            className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                                activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
-                            }`}
-                        >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            <span>Ignite</span>
-                        </button>
-                        <button
-                            type="button"
                             onClick={() => setActiveTab('challenge')}
                             className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                                 activeTab === 'challenge' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
@@ -687,6 +677,16 @@ const CreateSprint: React.FC = () => {
                         >
                             <Trophy className="w-3.5 h-3.5" />
                             <span>Challenge</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('ignite')}
+                            className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                                activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                            }`}
+                        >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Ignite</span>
                         </button>
                     </div>
                 </div>

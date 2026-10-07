@@ -18,12 +18,12 @@ export const CreateTypeModal: React.FC<CreateTypeModalProps> = ({
 
   const options = [
     {
-      id: 'ignite',
-      label: 'Ignite',
-      desc: 'Daily bite-sized inspiration & prompt',
-      icon: Sparkles,
-      colorClass: 'bg-amber-50/50 text-amber-700 border-amber-100 hover:border-amber-300 hover:bg-amber-50',
-      iconBgClass: 'bg-amber-500 text-white',
+      id: 'sprint',
+      label: 'Sprint',
+      desc: 'Multi-day action program with daily lessons & tasks',
+      icon: Zap,
+      colorClass: 'bg-emerald-50/50 text-emerald-700 border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50',
+      iconBgClass: 'bg-emerald-500 text-white',
     },
     {
       id: 'blog',
@@ -42,12 +42,12 @@ export const CreateTypeModal: React.FC<CreateTypeModalProps> = ({
       iconBgClass: 'bg-purple-500 text-white',
     },
     {
-      id: 'sprint',
-      label: 'Sprint',
-      desc: 'Multi-day action program with daily lessons & tasks',
-      icon: Zap,
-      colorClass: 'bg-emerald-50/50 text-emerald-700 border-emerald-100 hover:border-emerald-300 hover:bg-emerald-50',
-      iconBgClass: 'bg-emerald-500 text-white',
+      id: 'ignite',
+      label: 'Ignite',
+      desc: 'Daily bite-sized inspiration & prompt',
+      icon: Sparkles,
+      colorClass: 'bg-amber-50/50 text-amber-700 border-amber-100 hover:border-amber-300 hover:bg-amber-50',
+      iconBgClass: 'bg-amber-500 text-white',
     },
   ];
 

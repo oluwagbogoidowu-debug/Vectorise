@@ -1312,14 +1312,14 @@ const CoachSprints: React.FC = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [orchestratedIds, setOrchestratedIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<'all' | 'published' | 'pending' | 'rejected' | 'draft'>('all');
-  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite' | 'challenge'>('ignite');
+  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'challenge' | 'ignite'>('sprint');
   const [isCreateTypeOpen, setIsCreateTypeOpen] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tab = params.get('tab');
     if (tab === 'sprint' || tab === 'blog' || tab === 'ignite' || tab === 'challenge') {
-      setActiveTab(tab);
+      setActiveTab(tab as any);
     }
   }, [location.search]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1678,15 +1678,15 @@ const CoachSprints: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => {
-                            setActiveTab('ignite');
+                            setActiveTab('sprint');
                             setFilter('all');
                         }}
                         className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                            activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                            activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                         }`}
                     >
-                        <Sparkles className="w-3 h-3" />
-                        <span>Ignite</span>
+                        <Flame className="w-3 h-3" />
+                        <span>Sprint</span>
                     </button>
 
                     <button
@@ -1720,15 +1720,15 @@ const CoachSprints: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => {
-                            setActiveTab('sprint');
+                            setActiveTab('ignite');
                             setFilter('all');
                         }}
                         className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                            activeTab === 'sprint' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                            activeTab === 'ignite' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
                         }`}
                     >
-                        <Flame className="w-3 h-3" />
-                        <span>Sprint</span>
+                        <Sparkles className="w-3 h-3" />
+                        <span>Ignite</span>
                     </button>
                 </div>
                                 
