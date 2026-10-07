@@ -527,7 +527,7 @@ export const NextSprintRecommendation: React.FC = () => {
     return (
         <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-transparent dark:bg-transparent text-gray-900 dark:text-gray-100 relative overflow-hidden">
             {/* Navigation Header */}
-            <header className="w-full max-w-[340px] sm:max-w-[380px] z-20 flex items-center justify-between pt-2 bg-transparent">
+            <header className="w-full max-w-[340px] sm:max-w-[380px] z-20 flex items-center justify-between pt-4 sm:pt-6 bg-transparent">
                 <button
                     type="button"
                     onClick={() => setIsMenuOpen(true)}

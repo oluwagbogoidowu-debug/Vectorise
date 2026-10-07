@@ -225,7 +225,7 @@ export const ActiveSprintPage: React.FC = () => {
     };
 
     return (
-        <div className="relative min-h-[100dvh] w-full bg-[#FAFAFA] dark:bg-[#121212] flex flex-col justify-between items-center px-4 overflow-x-hidden selection:bg-[#0E7850]/10 font-sans pb-12 select-none">
+        <div className="flex flex-col min-h-screen w-full items-center justify-between p-6 bg-[#FAFAFA] dark:bg-[#121212] relative overflow-hidden selection:bg-[#0E7850]/10 font-sans select-none">
             {/* Drawer Menu */}
             <ParticipantDrawerMenu 
                 isOpen={isMenuOpen} 
@@ -233,7 +233,7 @@ export const ActiveSprintPage: React.FC = () => {
             />
 
             {/* Header: Left drawer button, Right Switch Mode & Kebab Menu (Identical to NextSprintRecommendation) */}
-            <header className="w-full max-w-[340px] sm:max-w-[380px] z-20 flex items-center justify-between pt-2 bg-transparent">
+            <header className="w-full max-w-[340px] sm:max-w-[380px] z-20 flex items-center justify-between pt-4 sm:pt-6 bg-transparent">
                 <button
                     type="button"
                     onClick={() => setIsMenuOpen(true)}
