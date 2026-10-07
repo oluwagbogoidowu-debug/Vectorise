@@ -1,4 +1,4 @@
-import admin from '../lib/firebaseAdmin';
+import admin, { db } from '../lib/firebaseAdmin';
 
 export default async (req: any, res: any) => {
   if (req.method !== 'POST') {
@@ -15,7 +15,6 @@ export default async (req: any, res: any) => {
   }
 
   try {
-    const db = admin.firestore();
     if (!db) return res.status(500).json({ error: "Database unreachable" });
 
     const payload = req.body;
@@ -46,7 +45,7 @@ export default async (req: any, res: any) => {
 
     const { userId, sprintId } = paymentData || {};
 
-    await db.runTransaction(async (transaction) => {
+    await db.runTransaction(async (transaction: any) => {
       transaction.update(paymentRef, {
         status: 'success',
         paidAt: admin.firestore.FieldValue.serverTimestamp(),

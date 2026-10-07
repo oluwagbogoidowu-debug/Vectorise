@@ -32,11 +32,27 @@ function parseRelaxedJSON(str: string): any {
 let config: admin.ServiceAccount | undefined;
 let isFirebaseAdminConfigured = false;
 
-if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+const rawServiceKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || 
+  process.env.FIREBASE_SERVICE_ACCOUNT || 
+  process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || 
+  process.env.FIREBASE_ADMIN_CREDENTIALS;
+
+if (rawServiceKey) {
   try {
-    const keyVal = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
+    const keyVal = rawServiceKey.trim();
     let parsedConfig: any = null;
     const errors: string[] = [];
+
+    // Try base64 decoding first if it doesn't look like raw JSON
+    let candidateStrings: string[] = [keyVal];
+    if (!keyVal.startsWith('{') && !keyVal.startsWith('[') && !keyVal.startsWith('"') && !keyVal.startsWith("'")) {
+      try {
+        const decoded = Buffer.from(keyVal, 'base64').toString('utf-8');
+        if (decoded && (decoded.trim().startsWith('{') || decoded.trim().startsWith('['))) {
+          candidateStrings.unshift(decoded.trim());
+        }
+      } catch {}
+    }
 
     const strategies = [
       // Strategy 1: As-is
@@ -72,29 +88,36 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       }
     ];
 
-    for (const strategy of strategies) {
-      try {
-        const processed = strategy(keyVal);
-        const firstBrace = processed.indexOf('{');
-        const lastBrace = processed.lastIndexOf('}');
-        let candidate: any = null;
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-          const jsonCandidate = processed.substring(firstBrace, lastBrace + 1);
-          candidate = parseRelaxedJSON(jsonCandidate);
-        } else {
-          candidate = parseRelaxedJSON(processed);
+    for (const rawCandidate of candidateStrings) {
+      for (const strategy of strategies) {
+        try {
+          const processed = strategy(rawCandidate);
+          const firstBrace = processed.indexOf('{');
+          const lastBrace = processed.lastIndexOf('}');
+          let candidate: any = null;
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            const jsonCandidate = processed.substring(firstBrace, lastBrace + 1);
+            candidate = parseRelaxedJSON(jsonCandidate);
+          } else {
+            candidate = parseRelaxedJSON(processed);
+          }
+          if (candidate && typeof candidate === "object" && (candidate.client_email || candidate.clientEmail || candidate.private_key || candidate.privateKey)) {
+            parsedConfig = candidate;
+            break;
+          }
+        } catch (err: any) {
+          errors.push(err.message);
         }
-        if (candidate && typeof candidate === "object") {
-          parsedConfig = candidate;
-          break;
-        }
-      } catch (err: any) {
-        errors.push(err.message);
       }
+      if (parsedConfig) break;
     }
 
     if (parsedConfig) {
-      config = parsedConfig;
+      config = {
+        projectId: parsedConfig.project_id || parsedConfig.projectId || process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID,
+        clientEmail: parsedConfig.client_email || parsedConfig.clientEmail,
+        privateKey: parsedConfig.private_key || parsedConfig.privateKey,
+      };
     } else {
       console.warn("[FirebaseAdmin] All service account key parsing strategies failed.");
     }
@@ -103,11 +126,15 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
   }
 }
 
-if (!config && process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+const envPrivateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.FIREBASE_ADMIN_PRIVATE_KEY;
+const envClientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+const envProjectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || process.env.GCP_PROJECT;
+
+if (!config && envProjectId && envClientEmail && envPrivateKey) {
   config = {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY,
+    projectId: envProjectId,
+    clientEmail: envClientEmail,
+    privateKey: envPrivateKey,
   };
 }
 

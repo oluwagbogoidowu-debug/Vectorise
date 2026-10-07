@@ -1,4 +1,4 @@
-import admin from '../lib/firebaseAdmin';
+import admin, { db } from '../lib/firebaseAdmin';
 
 export default async (req: any, res: any) => {
   // Prevent caching of status checks
@@ -15,7 +15,6 @@ export default async (req: any, res: any) => {
   }
 
   try {
-    const db = admin.firestore();
     if (!db) {
       return res.status(500).json({ error: "Database unreachable" });
     }
@@ -42,7 +41,12 @@ export default async (req: any, res: any) => {
       });
     }
 
-    const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
+    const rawFlwKey = process.env.FLW_SECRET_KEY || 
+      process.env.FLUTTERWAVE_SECRET_KEY || 
+      process.env.VITE_FLW_SECRET_KEY || 
+      process.env.FLW_SECRET;
+
+    const FLW_SECRET_KEY = rawFlwKey ? rawFlwKey.trim().replace(/^['"]|['"]$/g, '') : '';
     if (!FLW_SECRET_KEY) {
       return res.status(500).json({ error: "Flutterwave configuration missing" });
     }
@@ -71,7 +75,7 @@ export default async (req: any, res: any) => {
       const flw_tx = verifyData.data;
       
       // Update the corresponding Firestore document
-      await db.runTransaction(async (transaction) => {
+      await db.runTransaction(async (transaction: any) => {
         const freshSnap = await transaction.get(paymentRef);
         const freshData = freshSnap.data() as any;
         

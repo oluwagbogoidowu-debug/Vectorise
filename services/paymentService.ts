@@ -58,7 +58,11 @@ export const paymentService = {
           errorMsg = errorJson.error || errorJson.message || errorMsg;
         } catch (parseError) {
           console.error("[Registry] Server returned non-JSON error:", responseText);
-          errorMsg = responseText.substring(0, 100) || `Registry Server Error (${response.status})`;
+          if (responseText.includes("FUNCTION_INVOCATION_FAILED") || responseText.includes("504 Gateway") || responseText.includes("Internal Server Error")) {
+            errorMsg = "Payment gateway is momentarily unavailable. Please check your network or try again in a few moments.";
+          } else {
+            errorMsg = responseText.substring(0, 120).trim() || `Gateway Error (${response.status})`;
+          }
         }
         throw new Error(errorMsg);
       }

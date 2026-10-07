@@ -1,4 +1,4 @@
-import admin from '../lib/firebaseAdmin';
+import admin, { db } from '../lib/firebaseAdmin';
 
 export default async (req: any, res: any) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -9,14 +9,17 @@ export default async (req: any, res: any) => {
   if (req.method !== 'POST') return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const db = admin.firestore();
-    if (!db) {
-      return res.status(500).json({ error: "Registry Configuration Error: Database unreachable." });
-    }
+    const rawFlwKey = process.env.FLW_SECRET_KEY || 
+      process.env.FLUTTERWAVE_SECRET_KEY || 
+      process.env.VITE_FLW_SECRET_KEY || 
+      process.env.FLW_SECRET;
 
-    const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY;
+    const FLW_SECRET_KEY = rawFlwKey ? rawFlwKey.trim().replace(/^['"]|['"]$/g, '') : '';
     if (!FLW_SECRET_KEY) {
-      return res.status(500).json({ error: "Gateway Configuration Error: Missing Secret Key." });
+      console.warn("[Registry] Gateway Configuration Notice: FLW_SECRET_KEY is missing in environment.");
+      return res.status(503).json({ 
+        error: "Payment gateway is currently not configured or undergoing maintenance. Please try again shortly." 
+      });
     }
 
     const { email, amount, sprintId, trackId, coinPackageId, coins, name, userId, currency = "NGN" } = req.body || {};
@@ -28,26 +31,36 @@ export default async (req: any, res: any) => {
     const tx_ref = `vec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const paymentAmount = Number(amount);
 
-    // Save pending payment record
-    await db.collection('payments').doc(tx_ref).set({
-        userId,
-        email: email.toLowerCase().trim(),
-        userName: name || 'Vectorise User',
-        sprintId: sprintId || null,
-        trackId: trackId || null,
-        coinPackageId: coinPackageId || null,
-        coins: coins || null,
-        amount: paymentAmount,
-        currency,
-        status: "pending",
-        paymentProvider: "flutterwave",
-        txRef: tx_ref,
-        initiatedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-    });
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      return res.status(400).json({ error: "Invalid payment amount specified." });
+    }
 
-    const host = req.headers.host || 'vectorise.online';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
+    // Save pending payment record safely in Firestore
+    try {
+      if (db) {
+        await db.collection('payments').doc(tx_ref).set({
+            userId,
+            email: email.toLowerCase().trim(),
+            userName: name || 'Vectorise User',
+            sprintId: sprintId || null,
+            trackId: trackId || null,
+            coinPackageId: coinPackageId || null,
+            coins: coins || null,
+            amount: paymentAmount,
+            currency,
+            status: "pending",
+            paymentProvider: "flutterwave",
+            txRef: tx_ref,
+            initiatedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        });
+      }
+    } catch (dbErr: any) {
+      console.warn("[Registry] Firestore pre-payment record non-fatal warning:", dbErr?.message);
+    }
+
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'vectorise.online';
+    const protocol = req.headers['x-forwarded-proto'] || (host.includes('localhost') ? 'http' : 'https');
     const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
     const redirectUrl = `${baseUrl}/api/payment-success`;
 
@@ -65,7 +78,7 @@ export default async (req: any, res: any) => {
         redirect_url: redirectUrl,
         customer: { email, name: name || 'Vectorise User' },
         customizations: {
-          title: coinPackageId ? "Vectorise Coin Purchase" : "Vectorise Registry Authorization",
+          title: coinPackageId ? "Vectorise Coin Purchase" : (trackId ? "Vectorise Track Bundle" : "Vectorise Registry Authorization"),
           description: coinPackageId ? `Coin Package: ${coins} Coins` : (trackId ? `Track Bundle: ${trackId}` : `Sprint Enrollment: ${sprintId}`)
         }
       })
@@ -73,7 +86,7 @@ export default async (req: any, res: any) => {
 
     const data = await flwResponse.json();
     if (!flwResponse.ok) {
-        console.error("[Registry] Flutterwave error:", data);
+        console.error("[Registry] Flutterwave error response:", data);
         return res.status(flwResponse.status).json(data);
     }
 
