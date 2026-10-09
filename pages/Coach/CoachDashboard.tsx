@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { sprintService } from '../../services/sprintService';
 import { notificationService } from '../../services/notificationService';
@@ -9,12 +9,14 @@ import { Sprint, Notification, Review, UserRole } from '../../types';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import LocalLogo from '../../components/LocalLogo';
 import CreateTypeModal from '../../components/CreateTypeModal';
-import { MoreVertical, User, Layers, Compass, TrendingUp, Plus, Sparkles, ArrowRight } from 'lucide-react';
+import CoachSprintAnalyticsModal from '../../components/CoachSprintAnalyticsModal';
+import { MoreVertical, User, Layers, Compass, TrendingUp, Plus, Sparkles, ArrowRight, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CoachDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dynamicNotifications, setDynamicNotifications] = useState<Notification[]>([]);
   const [mySprints, setMySprints] = useState<Sprint[]>([]);
@@ -22,9 +24,18 @@ const CoachDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatesExpanded, setIsUpdatesExpanded] = useState(false);
   const [totalStudentsCount, setTotalStudentsCount] = useState(0);
+  const [coachEnrollments, setCoachEnrollments] = useState<any[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSprintAnalyticsOpen, setIsSprintAnalyticsOpen] = useState(false);
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
   const kebabMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('analytics') === 'true') {
+      setIsSprintAnalyticsOpen(true);
+    }
+  }, [location.search]);
 
   // Close kebab menu when clicking outside
   useEffect(() => {
@@ -69,6 +80,7 @@ const CoachDashboard: React.FC = () => {
               if (sprintIds.length > 0) {
                   // 1. Get student counts
                   const enrollments = await sprintService.getEnrollmentsForSprints(sprintIds);
+                  setCoachEnrollments(enrollments);
                   setTotalStudentsCount(new Set(enrollments.map(e => e.user_id)).size);
 
                   // 1b. Load participants details to enrich notifications
@@ -381,6 +393,13 @@ const CoachDashboard: React.FC = () => {
               </div>
           </div>
           <CreateTypeModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+          <CoachSprintAnalyticsModal 
+            isOpen={isSprintAnalyticsOpen} 
+            onClose={() => setIsSprintAnalyticsOpen(false)} 
+            sprints={mySprints}
+            enrollments={coachEnrollments}
+            userId={user.id}
+          />
       </div>
     );
   }
@@ -422,6 +441,22 @@ const CoachDashboard: React.FC = () => {
                    className="absolute right-0 mt-2 w-52 bg-white rounded-3xl shadow-2xl border border-gray-100/90 py-2 px-2 z-[100] origin-top-right overflow-hidden select-none"
                  >
                    <div className="space-y-1">
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setIsKebabMenuOpen(false);
+                         setIsSprintAnalyticsOpen(true);
+                       }}
+                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer group"
+                     >
+                       <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-700 flex items-center justify-center shrink-0 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                         <BarChart3 className="w-4 h-4" />
+                       </div>
+                       <div className="text-xs truncate">
+                         <span className="font-bold text-gray-900">Sprint analytics</span>
+                       </div>
+                     </button>
+
                      <button
                        type="button"
                        onClick={() => {
@@ -530,6 +565,14 @@ const CoachDashboard: React.FC = () => {
       </div>
 
       <CreateTypeModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
+
+      <CoachSprintAnalyticsModal 
+        isOpen={isSprintAnalyticsOpen} 
+        onClose={() => setIsSprintAnalyticsOpen(false)} 
+        sprints={mySprints}
+        enrollments={coachEnrollments}
+        userId={user.id}
+      />
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
