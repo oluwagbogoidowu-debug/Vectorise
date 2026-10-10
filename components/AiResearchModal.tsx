@@ -42,7 +42,8 @@ export interface AiResearchModalProps {
 }
 
 const MAX_TABS = 5;
-const MAX_QUESTIONS_PER_TAB = 5;
+const MAX_QUESTIONS_PER_TAB = 4;
+const MAX_FOLLOW_UPS_PER_TAB = 3;
 
 export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   isOpen,
@@ -394,7 +395,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                   ? 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200/60 dark:border-zinc-700'
                   : 'bg-white/60 dark:bg-zinc-900/60 text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-dashed border-gray-200 dark:border-zinc-800'
               }`}
-              title={`Search Tab ${tabNum}${hasData ? ` (${qCount}/5 questions)` : ' (Empty)'}`}
+              title={`Search Tab ${tabNum}${hasData ? ` (${qCount}/4 questions)` : ' (Empty)'}`}
             >
               {tabNum}
               {hasData && !isCurrentActiveStep && !isLocked && (
@@ -441,6 +442,9 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-800/50 text-purple-700 dark:text-purple-300 font-bold">
                 Tab {activeTab} of 5
+              </span>
+              <span className="hidden sm:inline text-[10px] text-gray-400 dark:text-zinc-500 font-medium">
+                (4 questions per tab • Max 20 across all 5 tabs)
               </span>
             </div>
           </div>
@@ -500,7 +504,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
               Action Step {stepIndex + 1}
             </span>
             <span className="text-[10px] text-gray-400 font-medium">
-              Questions in Tab: {questionCount}/5
+              Questions in Tab: {questionCount}/4
             </span>
           </div>
           <p className="text-xs sm:text-sm font-bold text-gray-900 dark:text-zinc-100 line-clamp-2">
@@ -576,6 +580,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
 
                   // Render follow-up question header if not first question
                   if (!isFirst) {
+                    const followUpIndex = questionIndex - 1; // 1 to 3
                     elements.push(
                       <div
                         key={`q_${msg.id}`}
@@ -586,7 +591,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                         </div>
                         <div className="flex-1">
                           <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 dark:text-purple-300">
-                            Follow-up Question {questionIndex}/5
+                            Follow-up Question {followUpIndex}/3
                           </span>
                           <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-zinc-100 mt-0.5">
                             {msg.content}
@@ -700,8 +705,8 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                                 Tab {activeTab} of 5
                               </span>
                               <span className="text-gray-300 dark:text-zinc-700">•</span>
-                              <span className={`font-semibold ${questionCount >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-zinc-400'}`}>
-                                {questionCount}/5 questions
+                              <span className={`font-semibold ${questionCount >= MAX_QUESTIONS_PER_TAB ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-zinc-400'}`}>
+                                {questionCount}/4 questions
                               </span>
                             </div>
                           </div>
@@ -724,10 +729,10 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                   </div>
                   <div>
                     <h5 className="font-black text-sm text-amber-950 dark:text-amber-100 tracking-tight">
-                      Chat limit reached (5/5).
+                      Chat limit reached (4/4).
                     </h5>
                     <p className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5 leading-relaxed">
-                      You've used all 5 questions for this research tab. Switch to another tab to start a new research session.
+                      You've used all 4 questions for this research tab. Switch to another tab to start a new research session.
                     </p>
                   </div>
                 </div>
@@ -764,7 +769,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                 What do you need help with in Tab {activeTab}?
               </h3>
               <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-                Select a quick research preset above or ask anything about this action step below. Each tab allows up to 5 questions.
+                Select a quick research preset above or ask anything about this action step below. Each tab allows 4 questions (1 initial + 3 follow-ups).
               </p>
             </div>
           </div>
@@ -814,9 +819,9 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
           <div className="p-3.5 bg-amber-50/60 dark:bg-zinc-900 rounded-2xl border border-amber-200/80 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 text-amber-900 dark:text-zinc-200 font-medium">
               <span className="text-sm">🔒</span>
-              <span className="font-bold text-amber-950 dark:text-amber-100">Chat limit reached (5/5).</span>
+              <span className="font-bold text-amber-950 dark:text-amber-100">Chat limit reached (4/4).</span>
               <span className="text-amber-800 dark:text-zinc-400 hidden sm:inline text-[11px]">
-                You've used all 5 questions for this research tab. Switch to another tab to start a new research session.
+                You've used all 4 questions for this research tab. Switch to another tab to start a new research session.
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -840,7 +845,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                 placeholder={
                   questionCount === 0
                     ? `Ask anything about this step in Tab ${activeTab}...`
-                    : `Ask a follow-up question (${MAX_QUESTIONS_PER_TAB - questionCount} remaining in Tab ${activeTab})...`
+                    : `Ask a follow-up question (${MAX_QUESTIONS_PER_TAB - questionCount} remaining • follow-up ${questionCount}/3 in Tab ${activeTab})...`
                 }
                 disabled={isLoading || isTabLocked}
                 className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl text-xs sm:text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all disabled:opacity-50"
@@ -870,7 +875,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                 <Send className="w-4 h-4" />
               )}
               <span className="hidden sm:inline">
-                {questionCount === 0 ? 'Research' : `Ask (Q${questionCount + 1})`}
+                {questionCount === 0 ? 'Research' : `Ask Follow-up (${questionCount}/3)`}
               </span>
             </button>
           </form>
