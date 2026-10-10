@@ -2741,22 +2741,107 @@ export const CoachParticipants: React.FC = () => {
                 sprintOutcomes={viewingSubmission?.enrollment.sprint?.outcomes}
                 category={viewingSubmission?.enrollment.sprint?.category}
                 totalMoves={viewingSubmission?.enrollment.sprint?.duration || viewingSubmission?.enrollment.sprint?.dailyContent?.length || 1}
-                dailyContent={viewingSubmission?.enrollment.sprint?.dailyContent}
+                dailyContent={(() => {
+                    const dcList = viewingSubmission?.enrollment.sprint?.dailyContent;
+                    if (!dcList || !Array.isArray(dcList)) return dcList;
+                    const progressList = viewingSubmission?.enrollment.progress || [];
+                    return dcList.map((dc) => {
+                        if (!dc) return dc;
+                        const progForDay = progressList.find((p: any) => Number(p.day) === Number(dc.day));
+                        const answers = progForDay?.answers || {};
+                        const prompts = Array.isArray(dc.taskPrompts)
+                            ? dc.taskPrompts.map((p: string, idx: number) => {
+                                try {
+                                    const stepVerIdx = resolveStepVersionIndex(idx, dc, answers, dcList, progressList);
+                                    const effectiveP = getStepVersionValue(p, stepVerIdx);
+                                    return formatInterpolatedText(effectiveP, dc, answers, dcList, progressList);
+                                } catch (e) {
+                                    return p;
+                                }
+                            })
+                            : dc.taskPrompts;
+
+                        const footnotes = Array.isArray(dc.taskFootnotes)
+                            ? dc.taskFootnotes.map((fn: string, idx: number) => {
+                                try {
+                                    const stepVerIdx = resolveStepVersionIndex(idx, dc, answers, dcList, progressList);
+                                    const effectiveFn = getStepVersionValue(fn, stepVerIdx, '');
+                                    return effectiveFn ? formatInterpolatedText(effectiveFn, dc, answers, dcList, progressList) : effectiveFn;
+                                } catch (e) {
+                                    return fn;
+                                }
+                            })
+                            : dc.taskFootnotes;
+
+                        return {
+                            ...dc,
+                            taskPrompts: prompts,
+                            taskFootnotes: footnotes,
+                            taskPrompt: dc.taskPrompt
+                                ? (() => {
+                                    try {
+                                        return formatInterpolatedText(dc.taskPrompt, dc, answers, dcList, progressList);
+                                    } catch {
+                                        return dc.taskPrompt;
+                                    }
+                                })()
+                                : dc.taskPrompt,
+                        };
+                    });
+                })()}
                 moveDay={viewingSubmission?.day || 1}
                 stepIndex={aiResearchStepIndex}
-                stepPrompt={
-                    Array.isArray(activeDayContent?.taskPrompts) && activeDayContent.taskPrompts.length > 1
+                stepPrompt={(() => {
+                    if (!activeDayContent) return "";
+                    const prog = viewingSubmission?.enrollment.progress?.find(p => Number(p.day) === Number(viewingSubmission?.day));
+                    const answers = prog?.answers || {};
+                    const progressList = viewingSubmission?.enrollment.progress || [];
+                    const sprintDailyContent = viewingSubmission?.enrollment.sprint?.dailyContent || [];
+                    const stepVerIdx = resolveStepVersionIndex(aiResearchStepIndex, activeDayContent, answers, sprintDailyContent, progressList);
+                    const rawPrompt = Array.isArray(activeDayContent?.taskPrompts) && activeDayContent.taskPrompts.length > 1
                         ? activeDayContent.taskPrompts[aiResearchStepIndex]
-                        : (activeDayContent?.taskPrompt || activeDayContent?.taskPrompts?.[0] || "")
-                }
-                footnote={activeDayContent?.taskFootnotes?.[aiResearchStepIndex]}
-                askAiGuidance={
-                    typeof activeDayContent?.taskAskAis?.[aiResearchStepIndex] === 'string'
+                        : (activeDayContent?.taskPrompt || activeDayContent?.taskPrompts?.[0] || "");
+                    const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
+                    try {
+                        return formatInterpolatedText(effectivePrompt, activeDayContent, answers, sprintDailyContent, progressList);
+                    } catch {
+                        return effectivePrompt;
+                    }
+                })()}
+                footnote={(() => {
+                    if (!activeDayContent) return undefined;
+                    const prog = viewingSubmission?.enrollment.progress?.find(p => Number(p.day) === Number(viewingSubmission?.day));
+                    const answers = prog?.answers || {};
+                    const progressList = viewingSubmission?.enrollment.progress || [];
+                    const sprintDailyContent = viewingSubmission?.enrollment.sprint?.dailyContent || [];
+                    const stepVerIdx = resolveStepVersionIndex(aiResearchStepIndex, activeDayContent, answers, sprintDailyContent, progressList);
+                    const rawFootnote = activeDayContent?.taskFootnotes?.[aiResearchStepIndex];
+                    const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
+                    if (!effectiveFootnote) return undefined;
+                    try {
+                        return formatInterpolatedText(effectiveFootnote, activeDayContent, answers, sprintDailyContent, progressList);
+                    } catch {
+                        return effectiveFootnote;
+                    }
+                })()}
+                askAiGuidance={(() => {
+                    if (!activeDayContent) return undefined;
+                    const rawAskAi = typeof activeDayContent?.taskAskAis?.[aiResearchStepIndex] === 'string'
                         ? activeDayContent?.taskAskAis?.[aiResearchStepIndex]
                         : typeof activeDayContent?.taskAskAi?.[aiResearchStepIndex] === 'string'
                         ? activeDayContent?.taskAskAi?.[aiResearchStepIndex]
-                        : undefined
-                }
+                        : undefined;
+                    if (!rawAskAi) return undefined;
+                    const prog = viewingSubmission?.enrollment.progress?.find(p => Number(p.day) === Number(viewingSubmission?.day));
+                    const answers = prog?.answers || {};
+                    const progressList = viewingSubmission?.enrollment.progress || [];
+                    const sprintDailyContent = viewingSubmission?.enrollment.sprint?.dailyContent || [];
+                    try {
+                        return formatInterpolatedText(rawAskAi, activeDayContent, answers, sprintDailyContent, progressList);
+                    } catch {
+                        return rawAskAi;
+                    }
+                })()}
                 userAnswer={(() => {
                     const prog = viewingSubmission?.enrollment.progress?.find(p => Number(p.day) === Number(viewingSubmission?.day));
                     if (!prog) return '';

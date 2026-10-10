@@ -4689,23 +4689,124 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         sprintOutcomes={sprint?.outcomes}
         category={sprint?.category}
         totalMoves={sprint?.duration || sprint?.dailyContent?.length || 1}
-        dailyContent={sprint?.dailyContent}
+        dailyContent={(() => {
+          if (!sprint?.dailyContent || !Array.isArray(sprint.dailyContent)) return sprint?.dailyContent;
+          return sprint.dailyContent.map((dc) => {
+            if (!dc) return dc;
+            const isCurrentDay = Number(dc.day) === viewingDay;
+            const inputsForDay = isCurrentDay
+              ? taskInputs
+              : enrollment?.progress?.find((p) => Number(p.day) === Number(dc.day))?.answers;
+
+            const prompts = Array.isArray(dc.taskPrompts)
+              ? dc.taskPrompts.map((p: string, idx: number) => {
+                  try {
+                    const stepVerIdx = resolveStepVersionIndex(idx, dc, inputsForDay, sprint?.dailyContent, enrollment?.progress);
+                    const effectiveP = getStepVersionValue(p, stepVerIdx);
+                    return formatInterpolatedText(effectiveP, dc, inputsForDay, sprint?.dailyContent, enrollment?.progress, user);
+                  } catch (e) {
+                    return p;
+                  }
+                })
+              : dc.taskPrompts;
+
+            const footnotes = Array.isArray(dc.taskFootnotes)
+              ? dc.taskFootnotes.map((fn: string, idx: number) => {
+                  try {
+                    const stepVerIdx = resolveStepVersionIndex(idx, dc, inputsForDay, sprint?.dailyContent, enrollment?.progress);
+                    const effectiveFn = getStepVersionValue(fn, stepVerIdx, '');
+                    return effectiveFn ? formatInterpolatedText(effectiveFn, dc, inputsForDay, sprint?.dailyContent, enrollment?.progress, user) : effectiveFn;
+                  } catch (e) {
+                    return fn;
+                  }
+                })
+              : dc.taskFootnotes;
+
+            return {
+              ...dc,
+              taskPrompts: prompts,
+              taskFootnotes: footnotes,
+              taskPrompt: dc.taskPrompt
+                ? (() => {
+                    try {
+                      return formatInterpolatedText(dc.taskPrompt, dc, inputsForDay, sprint?.dailyContent, enrollment?.progress, user);
+                    } catch {
+                      return dc.taskPrompt;
+                    }
+                  })()
+                : dc.taskPrompt,
+            };
+          });
+        })()}
         moveDay={viewingDay}
         stepIndex={aiResearchStepIndex}
-        stepPrompt={
-          Array.isArray(dayContent?.taskPrompts) && dayContent.taskPrompts.length > 1
-            ? dayContent.taskPrompts[aiResearchStepIndex]
-            : (dayContent?.taskPrompt || dayContent?.taskPrompts?.[0] || "")
-        }
-        footnote={dayContent?.taskFootnotes?.[aiResearchStepIndex]}
-        askAiGuidance={
-          typeof dayContent?.taskAskAis?.[aiResearchStepIndex] === 'string'
+        stepPrompt={(() => {
+          if (!dayContent) return "";
+          const stepVerIdx = resolveStepVersionIndex(aiResearchStepIndex, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          const rawPrompt = Array.isArray(dayContent?.taskPrompts) && dayContent.taskPrompts.length > 1
+            ? (dayContent.taskPrompts[aiResearchStepIndex] || "")
+            : (dayContent?.taskPrompt || dayContent?.taskPrompts?.[0] || "");
+          const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
+          try {
+            return formatInterpolatedText(
+              effectivePrompt,
+              dayContent,
+              taskInputs,
+              sprint?.dailyContent,
+              enrollment?.progress,
+              user
+            );
+          } catch {
+            return effectivePrompt;
+          }
+        })()}
+        footnote={(() => {
+          if (!dayContent) return undefined;
+          const stepVerIdx = resolveStepVersionIndex(aiResearchStepIndex, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          const rawFootnote = dayContent?.taskFootnotes?.[aiResearchStepIndex];
+          const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
+          if (!effectiveFootnote) return undefined;
+          try {
+            return formatInterpolatedText(
+              effectiveFootnote,
+              dayContent,
+              taskInputs,
+              sprint?.dailyContent,
+              enrollment?.progress,
+              user
+            );
+          } catch {
+            return effectiveFootnote;
+          }
+        })()}
+        askAiGuidance={(() => {
+          if (!dayContent) return undefined;
+          const rawAskAi = typeof dayContent?.taskAskAis?.[aiResearchStepIndex] === 'string'
             ? dayContent?.taskAskAis?.[aiResearchStepIndex]
             : typeof dayContent?.taskAskAi?.[aiResearchStepIndex] === 'string'
             ? dayContent?.taskAskAi?.[aiResearchStepIndex]
-            : undefined
+            : undefined;
+          if (!rawAskAi) return undefined;
+          try {
+            return formatInterpolatedText(
+              rawAskAi,
+              dayContent,
+              taskInputs,
+              sprint?.dailyContent,
+              enrollment?.progress,
+              user
+            );
+          } catch {
+            return rawAskAi;
+          }
+        })()}
+        userAnswer={
+          typeof (taskInputs as any)?.[aiResearchStepIndex] === 'string'
+            ? (taskInputs as any)[aiResearchStepIndex]
+            : Array.isArray((taskInputs as any)?.[aiResearchStepIndex])
+            ? ((taskInputs as any)[aiResearchStepIndex] as any[]).join(', ')
+            : JSON.stringify((taskInputs as any)?.[aiResearchStepIndex] || '')
         }
-        userAnswer={taskInputs[aiResearchStepIndex]}
         onSaveToNote={(noteText) => {
           if (aiResearchStepIndex === expressNoteStepIndex) {
             setExpressNoteText(noteText);

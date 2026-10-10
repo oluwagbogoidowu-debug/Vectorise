@@ -52,7 +52,8 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   const [feedbackState, setFeedbackState] = useState<'up' | 'down' | null>(null);
   const [feedbackComment, setFeedbackComment] = useState<string>('');
 
-  const storageKey = `ai_research_${sprintKey}_day_${moveDay}_step_${stepIndex}`;
+  const promptKeyPart = stepPrompt ? stepPrompt.trim().replace(/\s+/g, ' ').slice(0, 40) : '';
+  const storageKey = `ai_research_${sprintKey}_day_${moveDay}_step_${stepIndex}_${promptKeyPart ? encodeURIComponent(promptKeyPart) : 'v1'}`;
 
   // Load cached research for this step when opened
   useEffect(() => {
@@ -63,7 +64,8 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       setSavedToNote(false);
       try {
         const cached = localStorage.getItem(storageKey);
-        if (cached) {
+        // If cached research mentions raw unresolved template tags like "{Step 1}", ignore it to ensure fresh research
+        if (cached && !/\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d+[^}]*\}/i.test(cached)) {
           setResearchText(cached);
         } else {
           setResearchText('');

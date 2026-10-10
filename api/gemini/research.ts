@@ -43,6 +43,15 @@ export default async function geminiResearchHandler(req: Request, res: Response)
   let queryText = prompt?.trim() || "";
   const isResearchMode = preset === "research_this" || queryText.toLowerCase().includes("research");
 
+  // Ensure stepPrompt has placeholders resolved if any raw tokens remain
+  let resolvedStepPrompt = (stepPrompt || "").trim();
+  if (userAnswer && /\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d+[^}]*\}/i.test(resolvedStepPrompt)) {
+    resolvedStepPrompt = resolvedStepPrompt.replace(
+      /\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d+[^}]*\}/gi,
+      typeof userAnswer === "string" ? userAnswer : String(userAnswer)
+    );
+  }
+
   if (preset === "explain_this") {
     queryText = `Explain this action step or concept clearly in the context of this sprint. Explain why it matters and how to approach it.`;
   } else if (preset === "examples") {
@@ -106,13 +115,13 @@ ${outcomesFormatted ? `Target Sprint Outcomes:\n${outcomesFormatted}\n` : ""}
 ========================================
 FULL SPRINT CURRICULUM (MOVE 1 TO END)
 ========================================
-${curriculumText || `Move ${moveDay || 1}: ${stepPrompt || ""}`}
+${curriculumText || `Move ${moveDay || 1}: ${resolvedStepPrompt || ""}`}
 
 ========================================
 CURRENT ACTION STEP DETAILS
 ========================================
 Active Move: Move ${moveDay || 1}
-Active Action Step: Step ${(Number(stepIndex) || 0) + 1} ("${stepPrompt || ""}")
+Active Action Step: Step ${(Number(stepIndex) || 0) + 1} ("${resolvedStepPrompt || ""}")
 ${footnote ? `Step Footnote / Context: "${footnote}"\n` : ""}
 ${askAiGuidance ? `Coach's Special Guidance for this step: "${askAiGuidance}"\n` : ""}
 ${userAnswer ? `Participant's Current Input / Draft: "${userAnswer}"\n` : ""}
@@ -126,6 +135,9 @@ ${queryText}
   const systemInstruction = `You are the VectoRise Research Assistant.
 
 Your job is to help the user complete the current action step.
+
+CRITICAL INSTRUCTION ON DYNAMIC USER CHOICES:
+If an action step states or references a user's choice (for example: "You chose Financial Analysis" or "Selected option: Financial Analysis"), ALWAYS explain, research, and provide examples for the concrete chosen concept ("Financial Analysis"), rather than referencing template variables, bracketed tags, or internal step numbers. Treat the resolved choice as the explicit subject of the user's action step.
 
 When the user selects "Research this", actually research the topic using web search/Google Search grounding. Do NOT teach the user how to research it.
 - Search current, relevant information from multiple credible sources.
