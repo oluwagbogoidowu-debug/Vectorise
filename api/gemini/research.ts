@@ -21,6 +21,7 @@ export default async function geminiResearchHandler(req: Request, res: Response)
     askAiGuidance,
     userAnswer,
     preset,
+    history,
   } = req.body || {};
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
@@ -102,6 +103,18 @@ export default async function geminiResearchHandler(req: Request, res: Response)
     ? sprintOutcomes.map((o: string, idx: number) => `${idx + 1}. ${o}`).join("\n")
     : "";
 
+  let historySection = "";
+  if (Array.isArray(history) && history.length > 0) {
+    historySection = `
+========================================
+PRIOR CONVERSATION IN THIS TAB
+========================================
+${history
+  .map((m: any) => `${m.role === 'user' ? 'User Question' : 'Research Assistant'}: ${m.text || m.content || ''}`)
+  .join('\n\n')}
+`;
+  }
+
   const fullPrompt = `
 ========================================
 SPRINT CONTEXT
@@ -125,7 +138,7 @@ Active Action Step: Step ${(Number(stepIndex) || 0) + 1} ("${resolvedStepPrompt 
 ${footnote ? `Step Footnote / Context: "${footnote}"\n` : ""}
 ${askAiGuidance ? `Coach's Special Guidance for this step: "${askAiGuidance}"\n` : ""}
 ${userAnswer ? `Participant's Current Input / Draft: "${userAnswer}"\n` : ""}
-
+${historySection}
 ========================================
 REQUESTED OBJECTIVE / QUERY
 ========================================
@@ -155,39 +168,82 @@ Modes:
 - Research this: Actually perform web research and report findings with sources.
 - Improve my answer: Review and improve the user's response without replacing their thinking.
 
-Do not invent information or sources.
+  Do not invent information or sources.
 Structure output in crisp, clean Markdown with headings and bullet points.`;
 
-  const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+  // Ordered fallback plans to ensure high reliability and avoid hitting single-model quota
+  interface AttemptConfig {
+    model: string;
+    useSearch: boolean;
+    label: string;
+  }
+
+  const fallbackPlans: AttemptConfig[] = [
+    // 1. Primary: gemini-3.8-flash (with search if requested)
+    { model: "gemini-3.8-flash", useSearch: isResearchMode, label: "Primary (gemini-3.8-flash)" },
+    // 2. Fallback 1: gemini-flash-latest (with search if requested)
+    { model: "gemini-flash-latest", useSearch: isResearchMode, label: "Fallback 1 (gemini-flash-latest)" },
+    // 3. Fallback 2: gemini-3.1-flash-lite (with search if requested)
+    { model: "gemini-3.1-flash-lite", useSearch: isResearchMode, label: "Fallback 2 (gemini-3.1-flash-lite)" },
+    // 4. Safety net without search tool if search tool was rate limited or exhausted
+    ...(isResearchMode
+      ? [
+          { model: "gemini-3.8-flash", useSearch: false, label: "Fallback 3 (gemini-3.8-flash without tool)" },
+          { model: "gemini-flash-latest", useSearch: false, label: "Fallback 4 (gemini-flash-latest without tool)" },
+        ]
+      : []),
+  ];
+
+  const isQuotaOrRateLimitError = (err: any): boolean => {
+    if (!err) return false;
+    const status = err.status || err.statusCode || err.code || err.response?.status;
+    if (status === 429 || status === 503) return true;
+
+    const msg = (err.message || String(err)).toLowerCase();
+    return (
+      msg.includes('429') ||
+      msg.includes('quota') ||
+      msg.includes('rate limit') ||
+      msg.includes('resource_exhausted') ||
+      msg.includes('too many requests') ||
+      msg.includes('overloaded') ||
+      msg.includes('temporarily unavailable')
+    );
+  };
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   let research = "";
   let lastError: any = null;
 
-  for (const modelName of modelsToTry) {
+  for (let i = 0; i < fallbackPlans.length; i++) {
+    const plan = fallbackPlans[i];
     try {
-      console.log(`[API Gemini Research] Generating research assistant response with: ${modelName}, isResearchMode: ${isResearchMode}`);
+      console.log(`[API Gemini Research] Attempt ${i + 1}/${fallbackPlans.length}: Generating with ${plan.label}`);
+
       const config: any = {
         systemInstruction,
       };
 
-      if (isResearchMode) {
+      if (plan.useSearch) {
         config.tools = [{ googleSearch: {} }];
       }
 
       const response = await ai.models.generateContent({
-        model: modelName,
+        model: plan.model,
         contents: fullPrompt,
         config,
       });
 
       research = response.text || "";
-      
+
       // Append grounding citations if provided by Google Search and not already in text
       const searchChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      if (searchChunks && Array.isArray(searchChunks) && searchChunks.length > 0 && isResearchMode) {
+      if (searchChunks && Array.isArray(searchChunks) && searchChunks.length > 0 && plan.useSearch) {
         const webSources = searchChunks
           .map((chunk: any) => chunk.web)
           .filter((w: any) => w && (w.uri || w.title));
-        
+
         if (webSources.length > 0 && !research.toLowerCase().includes("sources") && !research.toLowerCase().includes("references")) {
           const formattedSources = webSources
             .slice(0, 5)
@@ -198,23 +254,34 @@ Structure output in crisp, clean Markdown with headings and bullet points.`;
       }
 
       if (research) {
-        console.log(`[API Gemini Research] Successfully generated research using ${modelName}`);
+        console.log(`[API Gemini Research] Successfully generated research using ${plan.label}`);
         return res.status(200).json({
           success: true,
           research,
-          modelUsed: modelName
+          modelUsed: plan.model,
         });
       }
     } catch (error: any) {
-      console.warn(`[API Gemini Research] Model ${modelName} failed/overloaded:`, error?.message || error);
       lastError = error;
+      const isQuota = isQuotaOrRateLimitError(error);
+
+      if (isQuota) {
+        console.warn(`[API Gemini Research] ${plan.label} hit quota limit / rate limit (429). Switching to fallback model...`);
+      } else {
+        console.warn(`[API Gemini Research] ${plan.label} failed: ${error?.message || error}. Trying fallback...`);
+      }
+
+      // If there are more fallback plans, add a brief pause and continue to next model in background
+      if (i < fallbackPlans.length - 1) {
+        await sleep(isQuota ? 500 : 250);
+      }
     }
   }
 
-  // If all models failed, propagate the error response
-  console.error("[API Gemini Research] All configured models failed.", lastError);
+  // If all fallback models failed, return a friendly user message (never a raw technical 429 API error)
+  console.error("[API Gemini Research] All configured model fallbacks failed.", lastError);
   return res.status(503).json({
     success: false,
-    error: lastError?.message || "All Gemini models are currently experiencing high demand. Please try again in a few moments.",
+    error: "The AI research assistant is currently experiencing high demand. Please try again in a few moments.",
   });
 }
