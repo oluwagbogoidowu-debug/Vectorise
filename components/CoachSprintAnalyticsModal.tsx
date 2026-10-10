@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, BarChart3, TrendingUp, Users, CheckCircle2, Calendar, Sparkles } from 'lucide-react';
+import {
+  X, BarChart3, TrendingUp, Users, CheckCircle2, Calendar, Sparkles,
+  ArrowLeft, Activity, Layers, Flame, ArrowUpRight
+} from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -20,6 +23,7 @@ interface CoachSprintAnalyticsModalProps {
   sprints: Sprint[];
   enrollments: ParticipantSprint[];
   userId: string;
+  initialSprintId?: string;
 }
 
 type AnalyticsType = 'enrollment' | 'completion';
@@ -31,11 +35,15 @@ export const CoachSprintAnalyticsModal: React.FC<CoachSprintAnalyticsModalProps>
   sprints,
   enrollments,
   userId,
+  initialSprintId,
 }) => {
   const storageKey = `coach_default_analytics_sprint_${userId || 'general'}`;
 
   // 1. Persisted selected sprint ID
   const [selectedSprintId, setSelectedSprintId] = useState<string>(() => {
+    if (initialSprintId && sprints.some(s => s.id === initialSprintId)) {
+      return initialSprintId;
+    }
     try {
       const stored = localStorage.getItem(storageKey);
       if (stored && sprints.some(s => s.id === stored)) {
@@ -76,8 +84,13 @@ export const CoachSprintAnalyticsModal: React.FC<CoachSprintAnalyticsModalProps>
     }
   }, [enrollments, isOpen, sprints]);
 
-  // Keep selectedSprintId valid against current sprints list
+  // Keep selectedSprintId valid against current sprints list or initialSprintId
   useEffect(() => {
+    if (initialSprintId && sprints.some(s => s.id === initialSprintId) && selectedSprintId !== initialSprintId) {
+      setSelectedSprintId(initialSprintId);
+      return;
+    }
+
     if (!selectedSprintId && sprints.length > 0) {
       try {
         const stored = localStorage.getItem(storageKey);
@@ -98,7 +111,7 @@ export const CoachSprintAnalyticsModal: React.FC<CoachSprintAnalyticsModalProps>
         localStorage.setItem(storageKey, fallbackId);
       } catch {}
     }
-  }, [sprints, selectedSprintId, storageKey]);
+  }, [sprints, selectedSprintId, storageKey, initialSprintId]);
 
   // Handle sprint change and persist as default
   const handleSprintChange = (newSprintId: string) => {
@@ -266,6 +279,16 @@ export const CoachSprintAnalyticsModal: React.FC<CoachSprintAnalyticsModalProps>
     };
   }, [sprintEnrollments]);
 
+  // Daily telemetry logs sorted reverse-chronologically for breakdown table
+  const dailyTelemetryLogs = useMemo(() => {
+    const maxVal = Math.max(1, ...chartData.map(d => d.count));
+    return [...chartData].reverse().slice(0, 14).map(item => ({
+      ...item,
+      percentageOfMax: Math.round((item.count / maxVal) * 100),
+      percentageOfTotal: totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0,
+    }));
+  }, [chartData, totalCount]);
+
   // Sprint select options styled like Coach Participant page
   const sprintOptions = useMemo(() => {
     return sprints.map(s => ({
@@ -274,70 +297,106 @@ export const CoachSprintAnalyticsModal: React.FC<CoachSprintAnalyticsModalProps>
     }));
   }, [sprints]);
 
-  const typeOptions = [
-    { value: 'enrollment', label: 'Enrollment' },
-    { value: 'completion', label: 'Completion' }
-  ];
-
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/45 backdrop-blur-xs transition-opacity"
-        />
-
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 16 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.94, y: 16 }}
-          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-3xl bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl p-6 sm:p-9 z-10 my-auto overflow-hidden select-none"
-        >
-          {/* Subtle Ambient Decorative Gradient Glow */}
-          <div className="absolute -top-20 -right-20 w-72 h-72 bg-emerald-50 rounded-full blur-3xl pointer-events-none -z-10" />
-
-          {/* Modal Header */}
-          <div className="flex items-start justify-between gap-4 mb-6 sm:mb-8">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center shrink-0 shadow-sm border border-[#0E7850]/15">
-                <BarChart3 className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 rounded-full text-[9px] font-black uppercase tracking-wider text-emerald-800 mb-1 border border-emerald-100">
-                  <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                  Coach Performance Engine
-                </div>
-                <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-                  Sprint Analytics
-                </h2>
-              </div>
-            </div>
-
+      <motion.div
+        key="coach-sprint-analytics-fullbleed"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 z-[200] bg-gray-50/80 dark:bg-zinc-950 flex flex-col overflow-y-auto text-left select-none custom-scrollbar animate-fade-in"
+      >
+        {/* Full Bleed Sticky Header Bar */}
+        <header className="sticky top-0 z-40 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4 shrink-0 shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={onClose}
-              className="w-10 h-10 rounded-2xl bg-gray-50 border border-gray-100 text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all flex items-center justify-center cursor-pointer shrink-0"
+              className="p-2 sm:px-3 sm:py-2 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-200 text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0"
+              title="Return to Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </button>
+
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center shrink-0 border border-[#0E7850]/15 shadow-xs">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none truncate">
+                  Coach Analytics
+                </h1>
+                <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 rounded-full text-[9px] font-black uppercase tracking-wider border border-emerald-100 dark:border-emerald-800/50">
+                  <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                  Full Bleed
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-500 dark:text-zinc-400 font-medium truncate max-w-xs sm:max-w-md mt-0.5">
+                {currentSprint?.title || 'Selected Sprint Telemetry'}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Header Controls */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Metric Mode Toggle (Enrollment / Completion) in Top Bar */}
+            <div className="inline-flex items-center bg-gray-100 dark:bg-zinc-800 p-1 rounded-2xl border border-gray-200/60 dark:border-zinc-700/60">
+              <button
+                type="button"
+                onClick={() => setAnalyticsType('enrollment')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  analyticsType === 'enrollment'
+                    ? 'bg-[#0E7850] text-white shadow-xs'
+                    : 'text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Enrollment</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAnalyticsType('completion')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  analyticsType === 'completion'
+                    ? 'bg-[#0E7850] text-white shadow-xs'
+                    : 'text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Completion</span>
+              </button>
+            </div>
+
+            {/* Done / Exit button */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 sm:px-4 sm:py-2 bg-gray-900 hover:bg-black text-white dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-1.5"
               title="Close Analytics"
             >
               <X className="w-4 h-4" />
+              <span className="hidden sm:inline">Done</span>
             </button>
           </div>
+        </header>
 
-          {/* Top Controls Grid: Pick Sprint, Analytics Type, Duration */}
-          <div className="space-y-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {/* Pick Sprint Dropdown (Coach Participant Style) */}
-              <div>
-                <label className="block text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1.5 ml-1">
-                  Pick Sprint
+        {/* Full Bleed Main Workspace */}
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+          {/* Top Control Panel: Sprint Picker & Date Range */}
+          <section className="bg-white dark:bg-zinc-900 p-5 sm:p-7 rounded-[2rem] border border-gray-100 dark:border-zinc-800 shadow-xs relative overflow-hidden">
+            <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-end">
+              {/* Pick Sprint Dropdown */}
+              <div className="lg:col-span-5">
+                <label className="block text-[10px] font-black uppercase text-gray-400 dark:text-zinc-400 tracking-wider mb-1.5 ml-1 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-gray-400" />
+                  Select Sprint
                 </label>
                 {sprintOptions.length > 0 ? (
                   <CustomSelect
@@ -347,186 +406,220 @@ export const CoachSprintAnalyticsModal: React.FC<CoachSprintAnalyticsModalProps>
                     placeholder="Choose a sprint..."
                   />
                 ) : (
-                  <div className="px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-bold text-gray-400">
+                  <div className="px-5 py-3.5 bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-700/60 rounded-2xl text-xs font-bold text-gray-400">
                     No Sprints Available
                   </div>
                 )}
-                {selectedSprintId && (
-                  <p className="text-[10px] text-gray-400 font-medium mt-1 ml-1">
-                    *Saved as default sprint across sessions
-                  </p>
-                )}
+                <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-zinc-500 font-medium mt-1.5 ml-1">
+                  <span>*Saved as default sprint across sessions</span>
+                  <span className="font-bold text-[#0E7850]">{sprintEnrollments.length} total participants</span>
+                </div>
               </div>
 
-              {/* Analytics Type Dropdown (Enrollment or Completion) */}
-              <div>
-                <label className="block text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1.5 ml-1">
-                  Analytics Type
-                </label>
-                <CustomSelect
-                  value={analyticsType}
-                  onChange={(val) => setAnalyticsType(val as AnalyticsType)}
-                  options={typeOptions}
-                  placeholder="Select analytics metric..."
-                />
+              {/* Date Presets & Inputs */}
+              <div className="lg:col-span-7 bg-gray-50/70 dark:bg-zinc-800/50 p-4 sm:p-5 rounded-2xl border border-gray-100 dark:border-zinc-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                  <span className="text-[10px] font-black uppercase text-gray-500 dark:text-zinc-400 tracking-wider flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#0E7850]" />
+                    Date Window ({chartData.length} days selected)
+                  </span>
+
+                  {/* Preset Pills */}
+                  <div className="inline-flex items-center gap-1 bg-white dark:bg-zinc-900 p-1 rounded-xl border border-gray-100 dark:border-zinc-700 shadow-xs self-start sm:self-auto">
+                    {(['7d', '14d', '30d', 'all'] as PresetDuration[]).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => handleApplyPreset(preset)}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                          activePreset === preset
+                            ? 'bg-[#0E7850] text-white shadow-xs'
+                            : 'text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-zinc-800'
+                        }`}
+                      >
+                        {preset === '7d' ? '7D' : preset === '14d' ? '14D' : preset === '30d' ? '30D' : 'All Time'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-gray-400 dark:text-zinc-400 tracking-widest mb-1 ml-1">
+                      From Date
+                    </label>
+                    <input
+                      type="date"
+                      value={fromDate}
+                      max={toDate}
+                      onChange={(e) => {
+                        setFromDate(e.target.value);
+                        setActivePreset('30d');
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-700 dark:text-zinc-200 shadow-xs focus:ring-4 focus:ring-primary/5 focus:border-[#0E7850] outline-none transition-all cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-gray-400 dark:text-zinc-400 tracking-widest mb-1 ml-1">
+                      To Date
+                    </label>
+                    <input
+                      type="date"
+                      value={toDate}
+                      min={fromDate}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => {
+                        setToDate(e.target.value);
+                        setActivePreset('30d');
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-gray-700 dark:text-zinc-200 shadow-xs focus:ring-4 focus:ring-primary/5 focus:border-[#0E7850] outline-none transition-all cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+          </section>
 
-            {/* Time Duration from to */}
-            <div className="p-4 bg-gray-50/70 border border-gray-100 rounded-2xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                  Time Duration Range
+          {/* Performance KPI Cards (Full Width Grid) */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
+            {/* 1. Period Volume */}
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-400">
+                  {analyticsType === 'enrollment' ? 'Period Enrollments' : 'Period Completions'}
                 </span>
-
-                {/* Quick Presets */}
-                <div className="inline-flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-100 shadow-xs">
-                  {(['7d', '14d', '30d', 'all'] as PresetDuration[]).map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => handleApplyPreset(preset)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        activePreset === preset
-                          ? 'bg-[#0E7850] text-white shadow-xs'
-                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      {preset === '7d' ? '7D' : preset === '14d' ? '14D' : preset === '30d' ? '30D' : 'All'}
-                    </button>
-                  ))}
+                <div className="w-7 h-7 rounded-xl bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center">
+                  {analyticsType === 'enrollment' ? <Users className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1 ml-1">
-                    From
-                  </label>
-                  <input
-                    type="date"
-                    value={fromDate}
-                    max={toDate}
-                    onChange={(e) => {
-                      setFromDate(e.target.value);
-                      setActivePreset('30d');
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 shadow-xs focus:ring-4 focus:ring-primary/5 focus:border-[#0E7850] outline-none transition-all cursor-pointer"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1 ml-1">
-                    To
-                  </label>
-                  <input
-                    type="date"
-                    value={toDate}
-                    min={fromDate}
-                    max={new Date().toISOString().slice(0, 10)}
-                    onChange={(e) => {
-                      setToDate(e.target.value);
-                      setActivePreset('30d');
-                    }}
-                    className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 shadow-xs focus:ring-4 focus:ring-primary/5 focus:border-[#0E7850] outline-none transition-all cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-6">
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-xs">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                Period {analyticsType === 'enrollment' ? 'Enrollments' : 'Completions'}
-              </p>
-              <p className="text-xl sm:text-2xl font-black text-gray-900 leading-none">
+              <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white leading-none tracking-tight">
                 {totalCount}
               </p>
+              <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-[#0E7850] font-bold">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Active period volume</span>
+              </div>
             </div>
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-xs">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                Daily Average
-              </p>
-              <p className="text-xl sm:text-2xl font-black text-[#0E7850] leading-none">
+
+            {/* 2. Daily Average */}
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-400">
+                  Daily Average
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                  <Activity className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-black text-[#0E7850] leading-none tracking-tight">
                 {dailyAverage}
               </p>
-            </div>
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-xs">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                Peak Day
-              </p>
-              <p className="text-sm sm:text-base font-black text-gray-900 leading-tight truncate" title={`${peakDay.name} (${peakDay.count})`}>
-                {peakDay.name} <span className="text-xs text-gray-400 font-bold">({peakDay.count})</span>
-              </p>
-            </div>
-            <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-100 shadow-xs">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">
-                Completion Rate
-              </p>
-              <p className="text-xl sm:text-2xl font-black text-gray-900 leading-none">
-                {lifetimeStats.completionRate}%
-              </p>
-            </div>
-          </div>
-
-          {/* Graph Section: Participant Analytics Styling */}
-          <section className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-7 border border-gray-100 shadow-xs">
-            <div className="flex justify-between items-end mb-6">
-              <div>
-                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                  Visual Momentum
-                </h3>
-                <p className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
-                  {analyticsType === 'enrollment' ? 'Enrollment Pattern' : 'Completion Trajectory'}
-                </p>
-                <p className="text-[11px] text-gray-500 font-medium truncate max-w-md">
-                  {currentSprint?.title || 'Selected Sprint'}
-                </p>
+              <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-gray-400 font-medium">
+                <span>Per-day velocity rate</span>
               </div>
-              <div className="text-right">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest">
-                  <TrendingUp className="w-3 h-3" />
-                  Active Velocity
+            </div>
+
+            {/* 3. Peak Volume Day */}
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-400">
+                  Peak Day
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                  <Flame className="w-3.5 h-3.5 text-amber-500" />
+                </div>
+              </div>
+              <p className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white leading-tight truncate" title={`${peakDay.name} (${peakDay.count})`}>
+                {peakDay.name}
+              </p>
+              <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 rounded-full border border-amber-200/60 dark:border-amber-800/50">
+                  {peakDay.count} recorded
                 </span>
               </div>
             </div>
 
-            <div className="h-[220px] sm:h-[260px] w-full">
+            {/* 4. Lifetime Completion Rate */}
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-xs relative overflow-hidden group">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-400">
+                  Completion Rate
+                </span>
+                <div className="w-7 h-7 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 flex items-center justify-center">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white leading-none tracking-tight">
+                {lifetimeStats.completionRate}%
+              </p>
+              <div className="mt-2.5 flex items-center gap-1 text-[11px] text-gray-500 dark:text-zinc-400 font-medium truncate">
+                <span>{lifetimeStats.totalCompleted} done / {lifetimeStats.totalEnrolled} enrolled</span>
+              </div>
+            </div>
+          </section>
+
+          {/* Full-Bleed Visual Momentum Chart Section */}
+          <section className="bg-white dark:bg-zinc-900 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-9 border border-gray-100 dark:border-zinc-800 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-wider mb-2">
+                  <TrendingUp className="w-3 h-3" />
+                  Active Trajectory Engine
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                  {analyticsType === 'enrollment' ? 'Enrollment Pattern Over Time' : 'Completion Trajectory Over Time'}
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 font-medium mt-1">
+                  Chronological progression for <span className="font-bold text-gray-800 dark:text-zinc-200">{currentSprint?.title || 'Selected Sprint'}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 border border-gray-200/60 dark:border-zinc-700 rounded-xl text-xs font-bold">
+                  <Calendar className="w-3.5 h-3.5 text-[#0E7850]" />
+                  {fromDate} — {toDate}
+                </span>
+              </div>
+            </div>
+
+            {/* Expansive Full-Bleed Chart Container */}
+            <div className="h-[280px] sm:h-[360px] md:h-[400px] w-full">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="coachAnalyticsAreaColor" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0E7850" stopOpacity={0.16} />
-                        <stop offset="95%" stopColor="#0E7850" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#0E7850" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#0E7850" stopOpacity={0.01} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" opacity={0.6} />
                     <XAxis
                       dataKey="name"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fontWeight: 900, fill: '#9CA3AF' }}
+                      tick={{ fontSize: 11, fontWeight: 800, fill: '#9CA3AF' }}
                       dy={10}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 10, fontWeight: 900, fill: '#9CA3AF' }}
+                      tick={{ fontSize: 11, fontWeight: 800, fill: '#9CA3AF' }}
                       allowDecimals={false}
                     />
                     <Tooltip
                       contentStyle={{
                         borderRadius: '16px',
+                        backgroundColor: '#111827',
+                        color: '#FFFFFF',
                         border: 'none',
-                        boxShadow: '0 10px 20px -3px rgba(0,0,0,0.12)',
-                        fontSize: '11px',
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        padding: '10px 14px'
+                        boxShadow: '0 12px 24px -4px rgba(0,0,0,0.25)',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        padding: '10px 16px'
                       }}
+                      itemStyle={{ color: '#10B981' }}
+                      labelStyle={{ color: '#E5E7EB', marginBottom: '4px' }}
                       formatter={(val: any) => [val, analyticsType === 'enrollment' ? 'Enrollments' : 'Completions']}
                     />
                     <Area
@@ -536,32 +629,100 @@ export const CoachSprintAnalyticsModal: React.FC<CoachSprintAnalyticsModalProps>
                       strokeWidth={3.5}
                       fillOpacity={1}
                       fill="url(#coachAnalyticsAreaColor)"
-                      animationDuration={1200}
+                      animationDuration={1000}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
-                  <BarChart3 className="w-8 h-8 mb-2 opacity-40 text-gray-400" />
-                  <p className="text-xs font-bold text-gray-500">No telemetry data recorded for this time duration.</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Adjust dates above or select another sprint.</p>
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-400">
+                  <BarChart3 className="w-10 h-10 mb-3 opacity-30 text-gray-400" />
+                  <p className="text-sm font-bold text-gray-600 dark:text-zinc-300">No telemetry recorded for this timeframe.</p>
+                  <p className="text-xs text-gray-400 mt-1">Adjust the dates above or pick a different sprint to examine activity.</p>
                 </div>
               )}
             </div>
           </section>
 
-          {/* Bottom Close Action */}
-          <div className="flex justify-end pt-5">
+          {/* Daily Activity Telemetry Breakdown (Full-Bleed Table) */}
+          <section className="bg-white dark:bg-zinc-900 rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 border border-gray-100 dark:border-zinc-800 shadow-xs">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-gray-900 dark:text-white tracking-tight">
+                  Daily Velocity Breakdown
+                </h3>
+                <p className="text-xs text-gray-400 dark:text-zinc-400 font-medium">
+                  Recent day-by-day record of {analyticsType === 'enrollment' ? 'enrollment signups' : 'successful completions'}
+                </p>
+              </div>
+              <span className="text-xs font-bold text-gray-500 dark:text-zinc-400">
+                Showing recent {dailyTelemetryLogs.length} days
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-zinc-800 text-[10px] font-black uppercase text-gray-400 dark:text-zinc-400 tracking-wider">
+                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">Metric Volume</th>
+                    <th className="py-3 px-3">Share of Period</th>
+                    <th className="py-3 px-3 text-right">Relative Momentum</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-zinc-800 text-xs font-bold">
+                  {dailyTelemetryLogs.map((log) => (
+                    <tr key={log.fullDate} className="hover:bg-gray-50/70 dark:hover:bg-zinc-800/40 transition-colors">
+                      <td className="py-3.5 px-3 text-gray-900 dark:text-zinc-200">
+                        {log.name} <span className="text-[10px] text-gray-400 font-medium ml-1">({log.fullDate})</span>
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-black ${
+                          log.count > 0
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/40'
+                            : 'bg-gray-100 dark:bg-zinc-800 text-gray-400'
+                        }`}>
+                          {log.count} {analyticsType === 'enrollment' ? 'enrolled' : 'completed'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-gray-600 dark:text-zinc-400 font-semibold">
+                        {log.percentageOfTotal}%
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="w-36 ml-auto flex items-center justify-end gap-2">
+                          <div className="flex-1 bg-gray-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                            <div
+                              className="bg-[#0E7850] h-full rounded-full transition-all duration-500"
+                              style={{ width: `${Math.max(4, log.percentageOfMax)}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-gray-400 w-8 text-right font-black">
+                            {log.percentageOfMax}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* Full Bleed Footer Action Bar */}
+          <footer className="pt-2 pb-8 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-gray-100 dark:border-zinc-800 text-xs text-gray-400">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Telemetry synchronized live with student engagement database</span>
+            </div>
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md hover:scale-[1.01] active:scale-[0.99]"
+              className="w-full sm:w-auto px-8 py-3.5 bg-gray-900 hover:bg-black text-white dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-md hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
             >
-              Done
+              Done & Return to Dashboard
             </button>
-          </div>
-        </motion.div>
-      </div>
+          </footer>
+        </main>
+      </motion.div>
     </AnimatePresence>
   );
 };
