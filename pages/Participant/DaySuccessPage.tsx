@@ -13,6 +13,7 @@ import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
 import { UserRole } from '../../types';
+import SprintCelebratoryAnimation from '../../components/SprintCelebratoryAnimation';
 
 const DaySuccessPage: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ const DaySuccessPage: React.FC = () => {
   const initialCompletionNote = location.state?.completionNote || location.state?.dayContent?.completionNote;
 
   const [resolvedEnrollmentId, setResolvedEnrollmentId] = useState<string | null>(location.state?.enrollmentId || null);
+  const [showCelebrationModal, setShowCelebrationModal] = useState<boolean>(false);
 
   useEffect(() => {
     const sId = location.state?.sprintId || location.state?.sprint?.id;
@@ -573,11 +575,22 @@ const DaySuccessPage: React.FC = () => {
 
       {/* Top Header Bar with Day complete badge */}
       <div className="relative z-10 w-full max-w-md mx-auto flex justify-between items-center pt-2 pb-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850]">
-          <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
-          <span className="text-xs font-black uppercase tracking-wider">
-            Move {completedDay} is complete!
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850]">
+            <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
+            <span className="text-xs font-black uppercase tracking-wider">
+              {isSprintLastDay ? `Sprint Completed!` : `Move ${completedDay} is complete!`}
+            </span>
+          </div>
+          {isSprintLastDay && (
+            <button
+              type="button"
+              onClick={() => setShowCelebrationModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 rounded-full text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <span>🎉 Celebrate</span>
+            </button>
+          )}
         </div>
         {isCoachPreview && (
           <button
@@ -662,6 +675,18 @@ const DaySuccessPage: React.FC = () => {
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>
+
+      {/* Celebratory Animation Modal */}
+      <SprintCelebratoryAnimation
+        isOpen={showCelebrationModal}
+        onClose={() => setShowCelebrationModal(false)}
+        onContinue={() => setShowCelebrationModal(false)}
+        sprintTitle={location.state?.sprint?.title || "Growth Sprint"}
+        totalDays={sprintDuration}
+        completedDay={completedDay}
+        streakCount={(user as any)?.impactStats?.streak || 0}
+        completionNote={displayCompletionNote}
+      />
     </div>
   );
 };

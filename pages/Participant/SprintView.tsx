@@ -30,6 +30,7 @@ import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
+import SprintCelebratoryAnimation from "../../components/SprintCelebratoryAnimation";
 import PushPermissionModal from "../../components/PushPermissionModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import ActionStepConfirmModal from "../../components/ActionStepConfirmModal";
@@ -1739,6 +1740,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   }, [sprint?.coachId]);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [isSprintCelebrationOpen, setIsSprintCelebrationOpen] = useState(false);
+  const [pendingPostCelebrationNav, setPendingPostCelebrationNav] = useState<(() => void) | null>(null);
   const [isPushPermissionModalOpen, setIsPushPermissionModalOpen] =
     useState(false);
   const [confirmCheckInDay, setConfirmCheckInDay] = useState<number | null>(
@@ -3537,12 +3540,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           if (currentSprintId) {
             sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
           }
-          if (sprint?.previewMode === 'flow' || true) {
+          const proceedToSuccess = () => {
             navigate('/participant/day-success', { 
               state: { 
                 day: viewingDay, 
                 coinsUnlocked: viewingDay === 1 ? 10 : 0, 
                 bridgeNote: dayContent?.bridgeNote,
+                completionNote: dayContent?.completionNote,
                 sprintId: sprint?.id || previewSprintId,
                 sprint: sprint,
                 enrollment: updatedEnrollment,
@@ -3551,9 +3555,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
               } 
             });
-          } else {
-            setIsCompletionModalOpen(true);
-          }
+          };
+
+          setPendingPostCelebrationNav(() => proceedToSuccess);
+          setIsSprintCelebrationOpen(true);
         } else {
           navigate('/participant/day-success', { 
             state: { 
@@ -3647,27 +3652,30 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         triggerHaptic(hapticPatterns.success);
 
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
-          if (sprint?.previewMode === 'flow') {
+          const proceedToSuccess = () => {
             navigate('/participant/day-success', { 
               state: { 
                 day: viewingDay, 
                 coinsUnlocked: viewingDay === 1 ? 10 : 0, 
                 bridgeNote: dayContent?.bridgeNote,
+                completionNote: dayContent?.completionNote,
                 enrollmentId: enrollment.id,
                 sprintId: enrollment.sprint_id,
                 sprint: sprint,
                 enrollment: enrollment
               } 
             });
-          } else {
-            setIsCompletionModalOpen(true);
-          }
+          };
+
+          setPendingPostCelebrationNav(() => proceedToSuccess);
+          setIsSprintCelebrationOpen(true);
         } else {
           navigate('/participant/day-success', { 
             state: { 
               day: viewingDay, 
               coinsUnlocked: viewingDay === 1 ? 10 : 0, 
               bridgeNote: dayContent?.bridgeNote,
+              completionNote: dayContent?.completionNote,
               enrollmentId: enrollment.id,
               sprintId: enrollment.sprint_id,
               sprint: sprint,
@@ -3730,27 +3738,30 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
       if (isLastDay && updatedProgress.every((p) => p.completed)) {
         sprintAnalyticsService.trackSprintCompletion(enrollment.sprint_id, user.id);
-        if (sprint?.previewMode === 'flow') {
+        const proceedToSuccess = () => {
           navigate('/participant/day-success', { 
             state: { 
               day: viewingDay, 
               coinsUnlocked: viewingDay === 1 ? 10 : 0, 
               bridgeNote: dayContent?.bridgeNote,
+              completionNote: dayContent?.completionNote,
               enrollmentId: enrollment.id,
               sprintId: enrollment.sprint_id,
               sprint: sprint,
               enrollment: enrollment
             } 
           });
-        } else {
-          setIsCompletionModalOpen(true);
-        }
+        };
+
+        setPendingPostCelebrationNav(() => proceedToSuccess);
+        setIsSprintCelebrationOpen(true);
       } else {
         navigate('/participant/day-success', { 
           state: { 
             day: viewingDay, 
             coinsUnlocked: viewingDay === 1 ? 10 : 0, 
             bridgeNote: dayContent?.bridgeNote,
+            completionNote: dayContent?.completionNote,
             enrollmentId: enrollment.id,
             sprintId: enrollment.sprint_id,
             sprint: sprint,
@@ -4222,6 +4233,32 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         }}
         sprintTitle={sprint?.title}
         streakCount={(user as any)?.impactStats?.streak || 0}
+      />
+      {/* Celebratory Animation Component triggered immediately when user marks final day complete */}
+      <SprintCelebratoryAnimation
+        isOpen={isSprintCelebrationOpen}
+        onClose={() => {
+          setIsSprintCelebrationOpen(false);
+          if (pendingPostCelebrationNav) {
+            const nextAction = pendingPostCelebrationNav;
+            setPendingPostCelebrationNav(null);
+            nextAction();
+          }
+        }}
+        onContinue={() => {
+          setIsSprintCelebrationOpen(false);
+          if (pendingPostCelebrationNav) {
+            const nextAction = pendingPostCelebrationNav;
+            setPendingPostCelebrationNav(null);
+            nextAction();
+          }
+        }}
+        sprintTitle={sprint?.title || "Growth Sprint"}
+        totalDays={sprint?.duration || enrollment?.progress?.length || 5}
+        completedDay={viewingDay}
+        streakCount={(user as any)?.impactStats?.streak || (user as any)?.streakCount || 0}
+        completionNote={dayContent?.completionNote}
+        soundEnabled={soundEnabled}
       />
       <ConfirmModal
         isOpen={confirmCheckInDay !== null}
