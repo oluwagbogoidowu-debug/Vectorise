@@ -123,9 +123,6 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
   const safeText = typeof text === 'string' ? text : String(text || '');
   if (!safeText.trim()) return null;
 
-  // Detect whether text has markdown bold (**text** or __text__)
-  const hasBold = /\*\*[^*]+\*\*|__[^_]+__/.test(safeText);
-
   const processedText = inline ? safeText : processListText(safeText);
 
   if (inline) {
@@ -133,9 +130,9 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          p: ({ node, ...props }) => <span className={hasBold ? "font-light text-gray-800 dark:text-gray-200" : "font-normal"} {...props} />,
+          p: ({ node, ...props }) => <span className="font-normal" {...props} />,
           em: ({ node, ...props }) => <em className="italic text-gray-900 dark:text-gray-100 font-normal" {...props} />,
-          strong: ({ node, ...props }) => <strong className="font-black text-gray-950 dark:text-white" {...props} />,
+          strong: ({ node, ...props }) => <strong className="font-bold text-gray-950 dark:text-white" {...props} />,
         }}
       >
         {processedText}
@@ -145,7 +142,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
 
   const hasExplicitTextSize = /\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|\[\d+px\])\b/.test(className);
   const baseSizeClass = hasExplicitTextSize ? '' : 'text-base';
-  const textWeightClass = hasBold ? 'font-light text-gray-800 dark:text-gray-200' : 'font-normal text-gray-800 dark:text-gray-200';
+  const textWeightClass = 'font-normal text-gray-800 dark:text-gray-200';
 
   return (
     <div className={`markdown-content leading-[1.6] max-w-[60ch] ${baseSizeClass} ${textWeightClass} ${className}`}>
@@ -153,7 +150,7 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
         remarkPlugins={[remarkGfm]}
         components={{
           em: ({ node, ...props }) => <em className="italic text-gray-900 dark:text-gray-100 font-normal" {...props} />,
-          strong: ({ node, ...props }) => <strong className="font-black text-gray-950 dark:text-white" {...props} />,
+          strong: ({ node, ...props }) => <strong className="font-bold text-gray-950 dark:text-white" {...props} />,
           ul: ({ node, ...props }) => <ul className="list-none p-0 space-y-2 my-3" {...props} />,
           ol: ({ node, ...props }) => <ol className="list-none p-0 space-y-2 my-3" {...props} />,
           li: ({ node, ...props }) => {
@@ -185,13 +182,13 @@ const FormattedText: React.FC<FormattedTextProps> = ({ text, className = "", inl
             }
 
             return (
-              <li className={`flex items-start gap-2.5 my-2 leading-relaxed ${hasBold ? 'font-light text-gray-800 dark:text-gray-200' : 'font-normal text-gray-700 dark:text-gray-300'}`} {...props}>
+              <li className="flex items-start gap-2.5 my-2 leading-relaxed font-normal text-gray-700 dark:text-gray-300" {...props}>
                 {bulletElement}
                 <span className="flex-1">{modifiedChildren}</span>
               </li>
             );
           },
-          p: ({ node, ...props }) => <p className={`mb-4 last:mb-0 leading-[1.6] whitespace-pre-line text-inherit ${hasBold ? 'font-light' : 'font-normal'}`} {...props} />,
+          p: ({ node, ...props }) => <p className="mb-4 last:mb-0 leading-[1.6] whitespace-pre-line text-inherit font-normal" {...props} />,
           hr: ({ node, ...props }) => (
             <hr className="my-8 border-t border-gray-200 dark:border-zinc-800 w-full" {...props} />
           ),

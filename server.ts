@@ -4,7 +4,6 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import puppeteer from 'puppeteer';
 import { pushNotificationManager } from './services/pushNotificationManager';
 import { db, isFirebaseAdminAvailable } from './api/lib/firebaseAdmin';
 
@@ -25,7 +24,14 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  
+  const portArgIndex = process.argv.indexOf('--port');
+  const portFromArg = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? parseInt(process.argv[portArgIndex + 1], 10) : undefined;
+  const PORT = Number(process.env.PORT) || portFromArg || 3000;
+
+  const hostArgIndex = process.argv.indexOf('--host');
+  const hostFromArg = hostArgIndex !== -1 && process.argv[hostArgIndex + 1] ? process.argv[hostArgIndex + 1] : undefined;
+  const HOST = process.env.HOST || hostFromArg || '0.0.0.0';
 
   app.use(cors());
   app.use(express.json());
@@ -189,6 +195,8 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     const outcome = data?.outcome || "I realized I’ve been forcing a path that doesn’t align with how I naturally think and work.";
 
     try {
+      const puppeteerModule = await import('puppeteer');
+      const puppeteer = puppeteerModule.default;
       const browser = await puppeteer.launch({
         args: [
           '--no-sandbox',
@@ -519,8 +527,11 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, HOST, () => {
+    console.log(`\n  VITE v6.1.0  ready\n`);
+    console.log(`  ➜  Local:   http://localhost:${PORT}/`);
+    console.log(`  ➜  Network: http://${HOST === '0.0.0.0' ? '127.0.0.1' : HOST}:${PORT}/`);
+    console.log(`Server running on http://localhost:${PORT}\n`);
     
     if (isFirebaseAdminAvailable()) {
       // Start real-time notification listener for pushes
@@ -555,6 +566,17 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     } else {
       console.log('[Server] Firebase Admin service account not configured. Background push triggers and Firestore Admin sync will run in safe mode.');
     }
+  });
+
+  server.on('error', (err: any) => {
+    console.error(`[Server Error]:`, err);
+  });
+
+  process.on('SIGTERM', () => {
+    server.close(() => process.exit(0));
+  });
+  process.on('SIGINT', () => {
+    server.close(() => process.exit(0));
   });
 }
 
