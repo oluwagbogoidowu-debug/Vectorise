@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   X, Sparkles, Copy, Check, StickyNote, RotateCcw, Send, Loader2,
   BookOpen, Lightbulb, Compass, AlertCircle, ThumbsUp, ThumbsDown,
-  ChevronLeft, ChevronRight, Lock, MessageSquare
+  Lock, MessageSquare, Plus
 } from 'lucide-react';
 import FormattedText from './FormattedText';
 
@@ -18,6 +18,7 @@ export interface ResearchMessage {
 
 export interface ResearchTab {
   id: number; // 1 to 5
+  label?: string;
   messages: ResearchMessage[];
 }
 
@@ -64,10 +65,10 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   onSaveToNote,
   onLoadingChange,
 }) => {
-  // Tabs state: exactly 5 tabs (id: 1..5)
-  const [tabs, setTabs] = useState<ResearchTab[]>(() =>
-    Array.from({ length: MAX_TABS }, (_, i) => ({ id: i + 1, messages: [] }))
-  );
+  // Tabs state: starts with Tab 1 or stored tabs
+  const [tabs, setTabs] = useState<ResearchTab[]>(() => [
+    { id: 1, messages: [] }
+  ]);
   const [activeTab, setActiveTab] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   const [savedToNoteId, setSavedToNoteId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const tabsStorageKey = `ai_research_tabs_v3_${sprintKey}_day_${moveDay}_step_${stepIndex}`;
+  const tabsStorageKey = `ai_research_tabs_v4_${sprintKey}_day_${moveDay}_step_${stepIndex}`;
 
   // Load tabs from storage when opened
   useEffect(() => {
@@ -92,12 +93,21 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Normalize to exactly 5 tabs
-          const normalized: ResearchTab[] = Array.from({ length: MAX_TABS }, (_, i) => {
-            const found = parsed.find((t: any) => t && t.id === i + 1);
-            return found || { id: i + 1, messages: [] };
-          });
-          setTabs(normalized);
+          const loaded: ResearchTab[] = parsed
+            .filter((t: any) => t && typeof t.id === 'number')
+            .map((t: any) => ({
+              id: t.id,
+              label: t.label || undefined,
+              messages: Array.isArray(t.messages) ? t.messages : [],
+            }));
+
+          // Keep tabs that have messages, or at least the first tab
+          const activeOrFirst = loaded.filter((t) => t.messages.length > 0);
+          const finalTabs = activeOrFirst.length > 0 ? activeOrFirst : [{ id: 1, messages: [] }];
+          setTabs(finalTabs);
+          if (!finalTabs.some((t) => t.id === activeTab)) {
+            setActiveTab(finalTabs[0].id);
+          }
           return;
         }
       }
@@ -105,31 +115,34 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       // Check legacy single-research cache to migrate smoothly
       const legacyStorageKey = `ai_research_${sprintKey}_day_${moveDay}_step_${stepIndex}`;
       const legacyCached = localStorage.getItem(legacyStorageKey);
-      const initialTabs: ResearchTab[] = Array.from({ length: MAX_TABS }, (_, i) => ({
-        id: i + 1,
-        messages: [],
-      }));
-
       if (legacyCached && !/\{(?:\s*[dDmM](?:ay|ove)?\s*\d+\s+)?\s*[sS]?tep\s*\d+[^}]*\}/i.test(legacyCached)) {
-        initialTabs[0].messages = [
+        setTabs([
           {
-            id: `u_legacy`,
-            role: 'user',
-            content: 'Initial Step Research',
-            timestamp: Date.now(),
-            preset: 'explain_this',
+            id: 1,
+            label: 'Explain',
+            messages: [
+              {
+                id: `u_legacy`,
+                role: 'user',
+                content: 'Initial Step Research',
+                timestamp: Date.now(),
+                preset: 'explain_this',
+              },
+              {
+                id: `a_legacy`,
+                role: 'assistant',
+                content: legacyCached,
+                timestamp: Date.now(),
+              },
+            ],
           },
-          {
-            id: `a_legacy`,
-            role: 'assistant',
-            content: legacyCached,
-            timestamp: Date.now(),
-          },
-        ];
+        ]);
+        return;
       }
-      setTabs(initialTabs);
+
+      setTabs([{ id: 1, messages: [] }]);
     } catch (e) {
-      setTabs(Array.from({ length: MAX_TABS }, (_, i) => ({ id: i + 1, messages: [] })));
+      setTabs([{ id: 1, messages: [] }]);
     }
   }, [isOpen, tabsStorageKey, sprintKey, moveDay, stepIndex]);
 
@@ -140,6 +153,52 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       localStorage.setItem(tabsStorageKey, JSON.stringify(newTabs));
     } catch (e) {
       console.error('Failed to save AI research tabs:', e);
+    }
+  };
+
+  // Derive a user-friendly label for each tab (e.g. "1. Research", "2. Explain", or "Tab 1")
+  const getTabLabel = (tab: ResearchTab) => {
+    if (tab.label) return `${tab.id}. ${tab.label}`;
+    const firstUserMsg = tab.messages.find((m) => m.role === 'user');
+    if (firstUserMsg) {
+      if (firstUserMsg.preset === 'research_this') return `${tab.id}. Research`;
+      if (firstUserMsg.preset === 'explain_this') return `${tab.id}. Explain`;
+      if (firstUserMsg.preset === 'examples') return `${tab.id}. Examples`;
+      if (firstUserMsg.preset === 'improve_my_answer') return `${tab.id}. Improve`;
+      if (firstUserMsg.content) {
+        const words = firstUserMsg.content.trim().split(/\s+/);
+        const short = words.slice(0, 2).join(' ').slice(0, 12);
+        return `${tab.id}. ${short}`;
+      }
+    }
+    return `Tab [${tab.id}]`;
+  };
+
+  const handleAddNewTab = () => {
+    if (tabs.length >= MAX_TABS) return;
+    const existingIds = new Set(tabs.map((t) => t.id));
+    let nextId = 1;
+    while (existingIds.has(nextId) && nextId <= MAX_TABS) {
+      nextId++;
+    }
+    if (nextId > MAX_TABS) return;
+
+    const newTab: ResearchTab = {
+      id: nextId,
+      messages: [],
+    };
+    const updated = [...tabs, newTab].sort((a, b) => a.id - b.id);
+    saveTabsState(updated);
+    setActiveTab(nextId);
+    setError(null);
+  };
+
+  const handleRemoveTab = (tabId: number) => {
+    if (tabs.length <= 1) return;
+    const updated = tabs.filter((t) => t.id !== tabId);
+    saveTabsState(updated);
+    if (activeTab === tabId) {
+      setActiveTab(updated[0].id);
     }
   };
 
@@ -158,7 +217,41 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
 
   // Run research or follow-up question
   const handleRunResearch = async (presetOrPrompt?: string, isCustom = false) => {
-    if (isTabLocked) return;
+    let activeTabId = activeTab;
+    let targetTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
+    let workingTabs = [...tabs];
+
+    // If user clicked a preset chip ("research_this", "explain_this", etc.)
+    // AND current tab already has research, automatically create a new tab from that label!
+    if (!isCustom && presetOrPrompt && targetTab.messages.length > 0) {
+      if (workingTabs.length < MAX_TABS) {
+        const existingIds = new Set(workingTabs.map((t) => t.id));
+        let nextId = 1;
+        while (existingIds.has(nextId) && nextId <= MAX_TABS) {
+          nextId++;
+        }
+
+        let presetLabel = 'Research';
+        if (presetOrPrompt === 'explain_this') presetLabel = 'Explain';
+        else if (presetOrPrompt === 'examples') presetLabel = 'Examples';
+        else if (presetOrPrompt === 'improve_my_answer') presetLabel = 'Improve';
+
+        const newTab: ResearchTab = {
+          id: nextId,
+          label: presetLabel,
+          messages: [],
+        };
+
+        workingTabs = [...workingTabs, newTab].sort((a, b) => a.id - b.id);
+        targetTab = newTab;
+        activeTabId = nextId;
+        setActiveTab(nextId);
+        saveTabsState(workingTabs);
+      }
+    }
+
+    const questionCountInTarget = targetTab.messages.filter((m) => m.role === 'user').length;
+    if (questionCountInTarget >= MAX_QUESTIONS_PER_TAB) return;
 
     const promptToSend = isCustom ? customQuery.trim() : (presetOrPrompt || '');
     if (!promptToSend) return;
@@ -172,11 +265,22 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
 
     // Display title for presets
     let displayPrompt = promptToSend;
+    let computedLabel = targetTab.label;
+
     if (!isCustom) {
-      if (presetOrPrompt === 'explain_this') displayPrompt = 'Explain this action step';
-      else if (presetOrPrompt === 'examples') displayPrompt = 'Give me practical examples';
-      else if (presetOrPrompt === 'research_this') displayPrompt = 'Research this topic with web sources';
-      else if (presetOrPrompt === 'improve_my_answer') displayPrompt = 'Improve my current response';
+      if (presetOrPrompt === 'explain_this') {
+        displayPrompt = 'Explain this action step';
+        computedLabel = 'Explain';
+      } else if (presetOrPrompt === 'examples') {
+        displayPrompt = 'Give me practical examples';
+        computedLabel = 'Examples';
+      } else if (presetOrPrompt === 'research_this') {
+        displayPrompt = 'Research this topic with web sources';
+        computedLabel = 'Research';
+      } else if (presetOrPrompt === 'improve_my_answer') {
+        displayPrompt = 'Improve my current response';
+        computedLabel = 'Improve';
+      }
     }
 
     const newUserMessage: ResearchMessage = {
@@ -187,8 +291,8 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       preset: !isCustom ? presetOrPrompt : undefined,
     };
 
-    // Prepare history from existing tab messages
-    const historyPayload = currentTab.messages.map((m) => ({
+    // Prepare history from targetTab messages
+    const historyPayload = targetTab.messages.map((m) => ({
       role: m.role,
       text: m.content,
     }));
@@ -232,10 +336,11 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
         preset: !isCustom ? presetOrPrompt : undefined,
       };
 
-      const updatedTabs = tabs.map((t) => {
-        if (t.id === activeTab) {
+      const updatedTabs = workingTabs.map((t) => {
+        if (t.id === activeTabId) {
           return {
             ...t,
+            label: computedLabel || t.label,
             messages: [...t.messages, newUserMessage, newAssistantMessage],
           };
         }
@@ -352,77 +457,65 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     .map((m) => m.content)
     .join('\n\n---\n\n');
 
-  // Render CoachParticipant-style Pagination Component
-  const renderPaginationBar = (extraClass = '') => {
-    const canGoLeft = activeTab > 1;
-    const canGoRight = activeTab < MAX_TABS;
-
+  // Render clean pill design tabs: Tab [1] [+] or [1. Research] [2. Explain] [+]
+  const renderPillTabs = (extraClass = '') => {
     return (
-      <div className={`flex items-center gap-1.5 bg-gray-50 dark:bg-zinc-900 p-1 border border-gray-200 dark:border-zinc-800 rounded-xl select-none ${extraClass}`}>
-        {/* Left Arrow */}
-        <button
-          type="button"
-          disabled={!canGoLeft}
-          onClick={() => setActiveTab((prev) => Math.max(1, prev - 1))}
-          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${
-            canGoLeft
-              ? 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200/60 dark:border-zinc-700 cursor-pointer'
-              : 'opacity-30 cursor-not-allowed text-gray-400 bg-white/50 dark:bg-zinc-900'
-          }`}
-          title="Previous tab"
-          aria-label="Previous tab"
-        >
-          <ChevronLeft className="w-3.5 h-3.5" />
-        </button>
-
-        {/* 1 2 3 4 5 Numbers */}
-        {[1, 2, 3, 4, 5].map((tabNum) => {
-          const isCurrentActiveStep = activeTab === tabNum;
-          const tabData = tabs[tabNum - 1];
-          const hasData = tabData && tabData.messages && tabData.messages.length > 0;
-          const qCount = tabData ? tabData.messages.filter((m) => m.role === 'user').length : 0;
+      <div className={`inline-flex items-center gap-1.5 p-1 bg-gray-100/90 dark:bg-zinc-900 border border-gray-200/60 dark:border-zinc-800 rounded-2xl select-none max-w-full overflow-x-auto scrollbar-none ${extraClass}`}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const label = getTabLabel(tab);
+          const qCount = tab.messages.filter((m) => m.role === 'user').length;
           const isLocked = qCount >= MAX_QUESTIONS_PER_TAB;
 
           return (
             <button
-              key={tabNum}
+              key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tabNum)}
-              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-black transition-all select-none cursor-pointer relative ${
-                isCurrentActiveStep
-                  ? 'bg-[#0E7850] text-white shadow-xs scale-105'
-                  : hasData
-                  ? 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200/60 dark:border-zinc-700'
-                  : 'bg-white/60 dark:bg-zinc-900/60 text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-dashed border-gray-200 dark:border-zinc-800'
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer font-bold select-none shrink-0 ${
+                isActive
+                  ? 'bg-[#0E7850] text-white shadow-xs scale-102'
+                  : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-700 border border-gray-200/60 dark:border-zinc-700'
               }`}
-              title={`Search Tab ${tabNum}${hasData ? ` (${qCount}/4 questions)` : ' (Empty)'}`}
+              title={label}
             >
-              {tabNum}
-              {hasData && !isCurrentActiveStep && !isLocked && (
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[#0E7850]" />
-              )}
-              {isLocked && !isCurrentActiveStep && (
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span>{label}</span>
+              {isLocked && <span className="text-[10px]">🔒</span>}
+              {tabs.length > 1 && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveTab(tab.id);
+                  }}
+                  className={`ml-0.5 w-4 h-4 rounded-md flex items-center justify-center text-[11px] leading-none transition-all ${
+                    isActive
+                      ? 'text-white/80 hover:text-white hover:bg-white/20'
+                      : 'text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                  }`}
+                  title="Close tab"
+                  aria-label="Close tab"
+                >
+                  ×
+                </span>
               )}
             </button>
           );
         })}
 
-        {/* Right Arrow */}
-        <button
-          type="button"
-          disabled={!canGoRight}
-          onClick={() => setActiveTab((prev) => Math.min(MAX_TABS, prev + 1))}
-          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${
-            canGoRight
-              ? 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-700 border border-gray-200/60 dark:border-zinc-700 cursor-pointer'
-              : 'opacity-30 cursor-not-allowed text-gray-400 bg-white/50 dark:bg-zinc-900'
-          }`}
-          title="Next tab"
-          aria-label="Next tab"
-        >
-          <ChevronRight className="w-3.5 h-3.5" />
-        </button>
+        {/* [+] Button */}
+        {tabs.length < MAX_TABS && (
+          <button
+            type="button"
+            onClick={handleAddNewTab}
+            className="w-7 h-7 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 border border-gray-200/60 dark:border-zinc-700 transition-all cursor-pointer shadow-xs active:scale-95 text-sm font-black shrink-0"
+            title="Add new research tab"
+            aria-label="Add new research tab"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     );
   };
@@ -431,22 +524,15 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     <div className="fixed inset-0 z-[250] bg-white dark:bg-zinc-950 flex flex-col p-5 sm:p-8 md:p-10 animate-fade-in text-left overflow-hidden">
       {/* Top Header Bar */}
       <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3 mb-3 shrink-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 overflow-x-auto scrollbar-none py-0.5">
           <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0 shadow-xs border border-purple-200/60 dark:border-purple-800/50">
             <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-purple-700 dark:text-purple-400">
-                AI / Research
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 border border-purple-200/60 dark:border-purple-800/50 text-purple-700 dark:text-purple-300 font-bold">
-                Tab {activeTab} of 5
-              </span>
-              <span className="hidden sm:inline text-[10px] text-gray-400 dark:text-zinc-500 font-medium">
-                (4 questions per tab • Max 20 across all 5 tabs)
-              </span>
-            </div>
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs sm:text-sm font-black uppercase tracking-[0.25em] text-purple-700 dark:text-purple-400 shrink-0">
+              AI / Research
+            </span>
+            {renderPillTabs()}
           </div>
         </div>
 
@@ -499,12 +585,9 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       {/* Step Context Banner */}
       {stepPrompt && (
         <div className="mb-3 px-4 py-2.5 bg-gray-50/80 dark:bg-zinc-900/60 rounded-2xl border border-gray-100 dark:border-zinc-800 text-left shrink-0">
-          <div className="flex items-center justify-between gap-2 mb-0.5">
+          <div className="mb-0.5">
             <span className="text-[10px] font-black uppercase tracking-widest text-[#0E7850]">
               Action Step {stepIndex + 1}
-            </span>
-            <span className="text-[10px] text-gray-400 font-medium">
-              Questions in Tab: {questionCount}/4
             </span>
           </div>
           <p className="text-xs sm:text-sm font-bold text-gray-900 dark:text-zinc-100 line-clamp-2">
@@ -692,23 +775,9 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                             </div>
                           )}
 
-                          {/* BELOW "IS THIS HELPFUL": TAB SELECTION BAR 1 2 3 4 5 AND ARROW LIKE COACHPARTICIPANT */}
-                          <div className="p-3 bg-gray-50/70 dark:bg-zinc-900/50 rounded-2xl border border-gray-200/60 dark:border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 mt-3 mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-zinc-400">
-                                Search Tabs:
-                              </span>
-                              {renderPaginationBar()}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="font-bold text-gray-700 dark:text-zinc-300">
-                                Tab {activeTab} of 5
-                              </span>
-                              <span className="text-gray-300 dark:text-zinc-700">•</span>
-                              <span className={`font-semibold ${questionCount >= MAX_QUESTIONS_PER_TAB ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-zinc-400'}`}>
-                                {questionCount}/4 questions
-                              </span>
-                            </div>
+                          {/* BELOW "IS THIS HELPFUL": TAB SELECTION PILL BAR */}
+                          <div className="flex items-center justify-start mt-3 mb-1">
+                            {renderPillTabs()}
                           </div>
                         </>
                       )}
@@ -737,14 +806,13 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                   </div>
                 </div>
 
-                {activeTab < MAX_TABS && (
+                {tabs.length < MAX_TABS && (
                   <button
                     type="button"
-                    onClick={() => setActiveTab((prev) => Math.min(MAX_TABS, prev + 1))}
+                    onClick={handleAddNewTab}
                     className="self-start sm:self-auto px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shrink-0 shadow-xs cursor-pointer"
                   >
-                    <span>Open Tab {activeTab + 1}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <span>+ New Tab</span>
                   </button>
                 )}
               </div>
@@ -753,12 +821,9 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
         ) : (
           /* Empty Tab Starter Screen */
           <div className="my-auto py-12 flex flex-col items-center justify-center text-center space-y-5 text-gray-400">
-            {/* Show Tab Selection Bar at Top of Empty Tab so user can navigate */}
-            <div className="flex flex-col items-center gap-2 mb-2">
-              <span className="text-[11px] font-black uppercase tracking-wider text-gray-400 dark:text-zinc-500">
-                Active Search Tab:
-              </span>
-              {renderPaginationBar()}
+            {/* Show Tab Selection Bar on Empty Tab */}
+            <div className="flex items-center justify-center mb-2">
+              {renderPillTabs()}
             </div>
 
             <div className="w-16 h-16 rounded-3xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-100 dark:border-purple-800/40 shadow-xs">
@@ -766,10 +831,10 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
             </div>
             <div className="max-w-md mx-auto">
               <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-zinc-100">
-                What do you need help with in Tab {activeTab}?
+                What do you need help with?
               </h3>
               <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-                Select a quick research preset above or ask anything about this action step below. Each tab allows 4 questions (1 initial + 3 follow-ups).
+                Select a quick research preset above or ask anything about this action step below.
               </p>
             </div>
           </div>
@@ -821,12 +886,11 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
               <span className="text-sm">🔒</span>
               <span className="font-bold text-amber-950 dark:text-amber-100">Chat limit reached (4/4).</span>
               <span className="text-amber-800 dark:text-zinc-400 hidden sm:inline text-[11px]">
-                You've used all 4 questions for this research tab. Switch to another tab to start a new research session.
+                You've used all 4 questions for this research tab. Switch to another tab or tap + to start a new session.
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-gray-400 hidden md:inline">Switch tab:</span>
-              {renderPaginationBar()}
+              {renderPillTabs()}
             </div>
           </div>
         ) : (
@@ -844,8 +908,8 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                 onChange={(e) => setCustomQuery(e.target.value)}
                 placeholder={
                   questionCount === 0
-                    ? `Ask anything about this step in Tab ${activeTab}...`
-                    : `Ask a follow-up question (${MAX_QUESTIONS_PER_TAB - questionCount} remaining • follow-up ${questionCount}/3 in Tab ${activeTab})...`
+                    ? `Ask anything about this action step...`
+                    : `Ask a follow-up question (${MAX_QUESTIONS_PER_TAB - questionCount} remaining • follow-up ${questionCount}/3)...`
                 }
                 disabled={isLoading || isTabLocked}
                 className="w-full pl-4 pr-10 py-3 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl text-xs sm:text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all disabled:opacity-50"
