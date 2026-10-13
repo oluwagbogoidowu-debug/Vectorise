@@ -30,6 +30,7 @@ import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
+import TagInput from "../../components/TagInput";
 import PushPermissionModal from "../../components/PushPermissionModal";
 import ConfirmModal from "../../components/ConfirmModal";
 import ActionStepConfirmModal from "../../components/ActionStepConfirmModal";
@@ -794,157 +795,6 @@ const AutoGrowingTextarea: React.FC<{
       className={`text-gray-950 ${className} overflow-y-auto ${isFullBleed ? "min-h-[140px] sm:min-h-[180px]" : "min-h-[80px]"}`}
       style={{ maxHeight: isFullBleed ? "360px" : "180px" }}
     />
-  );
-};
-
-const TagInput: React.FC<{
-  value: string;
-  onChange: (newVal: string) => void;
-  maxTags?: number;
-  placeholder?: string;
-  onNext?: () => void;
-  isFullBleed?: boolean;
-}> = ({ value, onChange, maxTags = 10, placeholder = "Type and press Enter...", onNext, isFullBleed = false }) => {
-  const [inputValue, setInputValue] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const tags = useMemo<string[]>(() => {
-    if (!value) return [];
-    if (value.startsWith("[")) {
-      try {
-        return JSON.parse(value);
-      } catch (err) {
-        return [];
-      }
-    }
-    return value.split(",").filter(Boolean);
-  }, [value]);
-
-  const addTag = (tag: string) => {
-    const cleaned = tag.trim().replace(/^[,\s;]+|[,\s;]+$/g, "");
-    if (!cleaned) return;
-    
-    if (tags.length >= maxTags) {
-      setError(`Maximum of ${maxTags} tags allowed`);
-      toast.error(`You can only add up to ${maxTags} tags.`);
-      return;
-    }
-
-    if (tags.some(t => t.toLowerCase() === cleaned.toLowerCase())) {
-      setError("This tag is already added");
-      return;
-    }
-
-    const newTags = [...tags, cleaned];
-    onChange(JSON.stringify(newTags));
-    setInputValue("");
-    setError(null);
-  };
-
-  const removeTag = (tIndex: number) => {
-    const newTags = [...tags];
-    newTags.splice(tIndex, 1);
-    onChange(JSON.stringify(newTags));
-    setError(null);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === "," || e.key === ";") {
-      e.preventDefault();
-      const val = inputValue.trim();
-      if (val) {
-        addTag(val);
-      } else if (e.key === "Enter" && onNext) {
-        onNext();
-      }
-    } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
-      removeTag(tags.length - 1);
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData("text");
-    if (!text) return;
-
-    const rawTokens = text.split(/[,;\n]+/).map(t => t.trim()).filter(Boolean);
-    if (rawTokens.length === 0) return;
-
-    let addedCount = 0;
-    const currentTags = [...tags];
-
-    for (const token of rawTokens) {
-      if (currentTags.length >= maxTags) {
-        setError(`Maximum of ${maxTags} tags allowed. Paste truncated.`);
-        toast.error(`You can only add up to ${maxTags} tags.`);
-        break;
-      }
-      if (!currentTags.some(t => t.toLowerCase() === token.toLowerCase())) {
-        currentTags.push(token);
-        addedCount++;
-      }
-    }
-
-    if (addedCount > 0) {
-      onChange(JSON.stringify(currentTags));
-      setInputValue("");
-      setError(null);
-    }
-  };
-
-  return (
-    <div className="w-full text-left">
-      <div className={`w-full bg-white border border-gray-200 focus-within:ring-4 focus-within:ring-primary/5 focus-within:border-primary transition-all duration-200 rounded-2xl flex flex-wrap gap-2 items-center ${isFullBleed ? 'p-4 sm:p-5' : 'p-3'}`}>
-        {tags.map((tag, tIndex) => (
-          <span
-            key={tIndex}
-            className={`inline-flex items-center gap-1.5 rounded-xl font-black tracking-tight bg-primary/5 text-primary border border-primary/10 hover:bg-primary/10 transition-colors select-none ${isFullBleed ? 'px-4 py-2 text-sm sm:text-base' : 'px-3 py-1.5 text-xs'}`}
-          >
-            {tag}
-            <button
-              type="button"
-              onClick={() => removeTag(tIndex)}
-              className="text-primary/40 hover:text-primary transition-colors hover:bg-primary/15 rounded-full p-0.5"
-              title={`Remove ${tag}`}
-            >
-              <svg
-                className={isFullBleed ? "w-4 h-4" : "w-3.5 h-3.5"}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={3}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </span>
-        ))}
-        
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => {
-            setInputValue(e.target.value);
-            if (error) setError(null);
-          }}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={tags.length === 0 ? placeholder : "Add tag..."}
-          disabled={tags.length >= maxTags}
-          className={`flex-1 min-w-[145px] font-medium text-gray-900 outline-none bg-transparent disabled:opacity-50 ${isFullBleed ? 'px-3 py-2 text-base sm:text-lg md:text-xl placeholder:text-gray-400' : 'px-2 py-1 text-sm'}`}
-        />
-      </div>
-
-      {error && (
-        <p className={`mt-1.5 text-rose-500 font-bold animate-fade-in ${isFullBleed ? 'text-sm' : 'text-[10px]'}`}>
-          {error}
-        </p>
-      )}
-    </div>
   );
 };
 
@@ -5345,7 +5195,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           }
                                         }
                                       }}
-                                      placeholder="Type and press Enter to add tags..."
+                                      placeholder="Type one answer at a time and press Enter to add more...."
                                       isFullBleed={isFullBleed}
                                     />
                                   </div>
@@ -6415,7 +6265,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   handleFinishDay();
                                 }
                               }}
-                              placeholder="Type and press Enter to add tags..."
+                              placeholder="Type one answer at a time and press Enter to add more...."
                               isFullBleed={isFullBleed}
                             />
                           ) : dayContent?.taskInputTypes?.[0] === "poll" ? (
