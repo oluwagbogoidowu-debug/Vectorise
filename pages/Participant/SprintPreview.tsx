@@ -2007,6 +2007,7 @@ const SprintPreview: React.FC = () => {
 
                                                     const isMultiSelect = !!day1Content?.taskPollMultiSelect?.[i];
                                                     const isArrange = !!day1Content?.taskPollArrange?.[i];
+                                                    const isAddEnabled = !!day1Content?.taskPollAdd?.[i];
 
                                                     if (isArrange) {
                                                         return (
@@ -2022,20 +2023,32 @@ const SprintPreview: React.FC = () => {
                                                         );
                                                     }
 
+                                                    const rawInput = taskInputs[i] || "";
                                                     let selectedOpts: string[] = [];
-                                                    try {
-                                                        if (taskInputs[i] && typeof taskInputs[i] === 'string' && taskInputs[i].trim().startsWith("[")) {
-                                                            const parsed = JSON.parse(taskInputs[i]);
+                                                    let singleSelected = "";
+                                                    let customAdditionalText = "";
+
+                                                    if (typeof rawInput === "string" && rawInput.trim().startsWith("{")) {
+                                                        const dual = parseDualInputState(rawInput);
+                                                        singleSelected = dual.choice || "";
+                                                        selectedOpts = dual.selectedChoices || (dual.choice ? [dual.choice] : []);
+                                                        customAdditionalText = dual.text || "";
+                                                    } else if (typeof rawInput === "string" && rawInput.trim().startsWith("[")) {
+                                                        try {
+                                                            const parsed = JSON.parse(rawInput);
                                                             if (Array.isArray(parsed)) {
                                                                 selectedOpts = parsed.map(String);
+                                                                singleSelected = selectedOpts[0] || "";
                                                             }
-                                                        } else if (taskInputs[i]) {
-                                                            selectedOpts = [String(taskInputs[i])];
+                                                        } catch (e) {
+                                                            selectedOpts = [];
                                                         }
-                                                    } catch (e) {
-                                                        selectedOpts = [];
+                                                    } else if (rawInput) {
+                                                        singleSelected = String(rawInput);
+                                                        selectedOpts = [String(rawInput)];
                                                     }
                                                     if (!Array.isArray(selectedOpts)) selectedOpts = [];
+                                                    const lastOption = pollOptions.length > 0 ? pollOptions[pollOptions.length - 1] : null;
 
                                                     if (pollOptions.length > 6) {
                                                         if (isMultiSelect) {
@@ -2062,7 +2075,15 @@ const SprintPreview: React.FC = () => {
                                                                                             } else {
                                                                                                 newSelected = [...selectedOpts, opt];
                                                                                             }
-                                                                                            newInputs[i] = JSON.stringify(newSelected);
+                                                                                            if (isAddEnabled && newSelected.includes(lastOption || "")) {
+                                                                                                newInputs[i] = serializeDualInputState({
+                                                                                                    choice: newSelected[0] || "",
+                                                                                                    selectedChoices: newSelected,
+                                                                                                    text: customAdditionalText || "[]"
+                                                                                                });
+                                                                                            } else {
+                                                                                                newInputs[i] = JSON.stringify(newSelected);
+                                                                                            }
                                                                                             setTaskInputs(newInputs);
                                                                                         }}
                                                                                         className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
@@ -2072,31 +2093,95 @@ const SprintPreview: React.FC = () => {
                                                                                 );
                                                                             })}
                                                                     </div>
+                                                                    {isAddEnabled && selectedOpts.includes(lastOption || "") && (
+                                                                        <div 
+                                                                            className="mt-2.5 p-3 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <label className="block text-[11px] font-bold text-gray-600 mb-2">
+                                                                                Add items for this option:
+                                                                            </label>
+                                                                            <TagInput
+                                                                                value={customAdditionalText || "[]"}
+                                                                                onChange={(newTags) => {
+                                                                                    const newInputs = [...taskInputs];
+                                                                                    newInputs[i] = serializeDualInputState({
+                                                                                        choice: selectedOpts[0] || lastOption || "",
+                                                                                        selectedChoices: selectedOpts,
+                                                                                        text: newTags
+                                                                                    });
+                                                                                    setTaskInputs(newInputs);
+                                                                                }}
+                                                                                placeholder="Type one answer at a time and press Enter to add more...."
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                 </>
                                                             );
                                                         }
 
                                                         return (
-                                                            <div className="flex flex-wrap gap-1.5 w-full">
-                                                                {pollOptions
-                                                                    .filter(Boolean)
-                                                                    .map((opt: string, optIndex: number) => {
-                                                                        const isSel = taskInputs[i] === opt;
-                                                                        return (
-                                                                            <button
-                                                                                key={optIndex}
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    const newInputs = [...taskInputs];
-                                                                                    newInputs[i] = opt;
-                                                                                    setTaskInputs(newInputs);
-                                                                                }}
-                                                                                className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
-                                                                            >
-                                                                                {opt}
-                                                                            </button>
-                                                                        );
-                                                                    })}
+                                                            <div className="space-y-2 w-full">
+                                                                <div className="flex flex-wrap gap-1.5 w-full">
+                                                                    {pollOptions
+                                                                        .filter(Boolean)
+                                                                        .map((opt: string, optIndex: number) => {
+                                                                            const isSel = singleSelected === opt;
+                                                                            const isLast = isAddEnabled && optIndex === pollOptions.length - 1;
+                                                                            return (
+                                                                                <button
+                                                                                    key={optIndex}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newInputs = [...taskInputs];
+                                                                                        if (isLast) {
+                                                                                            if (isSel) {
+                                                                                                newInputs[i] = "";
+                                                                                            } else {
+                                                                                                newInputs[i] = serializeDualInputState({
+                                                                                                    choice: opt,
+                                                                                                    selectedChoices: [opt],
+                                                                                                    text: customAdditionalText || ""
+                                                                                                });
+                                                                                            }
+                                                                                        } else {
+                                                                                            newInputs[i] = opt;
+                                                                                        }
+                                                                                        setTaskInputs(newInputs);
+                                                                                    }}
+                                                                                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                                                >
+                                                                                    {opt}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                </div>
+                                                                {isAddEnabled && singleSelected === (lastOption || "") && (
+                                                                    <div 
+                                                                        className="mt-2 p-3 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <label className="block text-[11px] font-bold text-gray-600 mb-1.5">
+                                                                            Specify your answer:
+                                                                        </label>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={customAdditionalText}
+                                                                            onChange={(e) => {
+                                                                                const newInputs = [...taskInputs];
+                                                                                newInputs[i] = serializeDualInputState({
+                                                                                    choice: lastOption || "",
+                                                                                    selectedChoices: [lastOption || ""],
+                                                                                    text: e.target.value
+                                                                                });
+                                                                                setTaskInputs(newInputs);
+                                                                            }}
+                                                                            placeholder="Type your answer here..."
+                                                                            className="w-full px-3 py-2 text-xs bg-white border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-gray-900 placeholder-gray-400 outline-none transition-all font-medium"
+                                                                            autoFocus
+                                                                        />
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     }
@@ -2112,33 +2197,70 @@ const SprintPreview: React.FC = () => {
                                                                         .filter(Boolean)
                                                                         .map((opt: string, optIndex: number) => {
                                                                             const isSel = selectedOpts.includes(opt);
+                                                                            const isLast = isAddEnabled && optIndex === pollOptions.length - 1;
                                                                             return (
-                                                                                <button
-                                                                                    key={optIndex}
-                                                                                    type="button"
-                                                                                    onClick={() => {
-                                                                                        const newInputs = [...taskInputs];
-                                                                                        const indexInSel = selectedOpts.indexOf(opt);
-                                                                                        let newSelected: string[];
-                                                                                        if (indexInSel !== -1) {
-                                                                                            newSelected = selectedOpts.filter(o => o !== opt);
-                                                                                        } else {
-                                                                                            newSelected = [...selectedOpts, opt];
-                                                                                        }
-                                                                                        newInputs[i] = JSON.stringify(newSelected);
-                                                                                        setTaskInputs(newInputs);
-                                                                                    }}
-                                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
-                                                                                >
-                                                                                    <span>
-                                                                                        {String.fromCharCode(65 + optIndex)}. {opt}
-                                                                                    </span>
-                                                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
-                                                                                        {isSel && (
-                                                                                            <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </button>
+                                                                                <div key={optIndex} className="w-full">
+                                                                                    <button
+                                                                                        key={optIndex}
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            const newInputs = [...taskInputs];
+                                                                                            const indexInSel = selectedOpts.indexOf(opt);
+                                                                                            let newSelected: string[];
+                                                                                            if (indexInSel !== -1) {
+                                                                                                newSelected = selectedOpts.filter(o => o !== opt);
+                                                                                            } else {
+                                                                                                newSelected = [...selectedOpts, opt];
+                                                                                            }
+                                                                                            if (isAddEnabled && newSelected.includes(lastOption || "")) {
+                                                                                                newInputs[i] = serializeDualInputState({
+                                                                                                    choice: newSelected[0] || "",
+                                                                                                    selectedChoices: newSelected,
+                                                                                                    text: customAdditionalText || "[]"
+                                                                                                });
+                                                                                            } else {
+                                                                                                newInputs[i] = JSON.stringify(newSelected);
+                                                                                            }
+                                                                                            setTaskInputs(newInputs);
+                                                                                        }}
+                                                                                        className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between cursor-pointer ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                                                    >
+                                                                                        <span className="flex items-center gap-2">
+                                                                                            <span>{String.fromCharCode(65 + optIndex)}. {opt}</span>
+                                                                                            {isLast && (
+                                                                                                <span className="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0 animate-pulse" title="Add Option enabled" />
+                                                                                            )}
+                                                                                        </span>
+                                                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
+                                                                                            {isSel && (
+                                                                                                <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </button>
+                                                                                    {isLast && isSel && (
+                                                                                        <div 
+                                                                                            className="mt-2 p-3 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                        >
+                                                                                            <label className="block text-[11px] font-bold text-gray-600 mb-2">
+                                                                                                Add items for this option:
+                                                                                            </label>
+                                                                                            <TagInput
+                                                                                                value={customAdditionalText || "[]"}
+                                                                                                onChange={(newTags) => {
+                                                                                                    const newInputs = [...taskInputs];
+                                                                                                    newInputs[i] = serializeDualInputState({
+                                                                                                        choice: selectedOpts[0] || opt,
+                                                                                                        selectedChoices: selectedOpts,
+                                                                                                        text: newTags
+                                                                                                    });
+                                                                                                    setTaskInputs(newInputs);
+                                                                                                }}
+                                                                                                placeholder="Type one answer at a time and press Enter to add more...."
+                                                                                            />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
                                                                             );
                                                                         })}
                                                                 </div>
@@ -2146,29 +2268,79 @@ const SprintPreview: React.FC = () => {
                                                         );
                                                     }
 
-                                                    return pollOptions
-                                                        .filter(Boolean)
-                                                        .map(
-                                                            (opt: string, optIndex: number) => (
-                                                                <button
-                                                                    key={optIndex}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const newInputs = [
-                                                                            ...taskInputs,
-                                                                        ];
-                                                                        newInputs[i] = opt;
-                                                                        setTaskInputs(newInputs);
-                                                                    }}
-                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border ${taskInputs[i] === opt ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
-                                                                >
-                                                                    {String.fromCharCode(
-                                                                        65 + optIndex,
-                                                                    )}
-                                                                    . {opt}
-                                                                </button>
-                                                            ),
-                                                        );
+                                                    return (
+                                                        <div className="space-y-2 w-full">
+                                                            {pollOptions
+                                                                .filter(Boolean)
+                                                                .map((opt: string, optIndex: number) => {
+                                                                    const isSel = singleSelected === opt;
+                                                                    const isLast = isAddEnabled && optIndex === pollOptions.length - 1;
+                                                                    return (
+                                                                        <div key={optIndex} className="w-full">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newInputs = [...taskInputs];
+                                                                                    if (isLast) {
+                                                                                        if (isSel) {
+                                                                                            newInputs[i] = "";
+                                                                                        } else {
+                                                                                            newInputs[i] = serializeDualInputState({
+                                                                                                choice: opt,
+                                                                                                selectedChoices: [opt],
+                                                                                                text: customAdditionalText || ""
+                                                                                            });
+                                                                                        }
+                                                                                    } else {
+                                                                                        newInputs[i] = opt;
+                                                                                    }
+                                                                                    setTaskInputs(newInputs);
+                                                                                }}
+                                                                                className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border cursor-pointer flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                                            >
+                                                                                <span className="flex items-center gap-2">
+                                                                                    <span>{String.fromCharCode(65 + optIndex)}. {opt}</span>
+                                                                                    {isLast && (
+                                                                                        <span className="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0 animate-pulse" title="Add Option enabled" />
+                                                                                    )}
+                                                                                </span>
+                                                                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary" : "border-gray-300 bg-white"}`}>
+                                                                                    {isSel && (
+                                                                                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                                                                    )}
+                                                                                </div>
+                                                                            </button>
+                                                                            {isLast && isSel && (
+                                                                                <div 
+                                                                                    className="mt-2 p-3 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                >
+                                                                                    <label className="block text-[11px] font-bold text-gray-600 mb-1.5">
+                                                                                        Specify your answer:
+                                                                                    </label>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={customAdditionalText}
+                                                                                        onChange={(e) => {
+                                                                                            const newInputs = [...taskInputs];
+                                                                                            newInputs[i] = serializeDualInputState({
+                                                                                                choice: opt,
+                                                                                                selectedChoices: [opt],
+                                                                                                text: e.target.value
+                                                                                            });
+                                                                                            setTaskInputs(newInputs);
+                                                                                        }}
+                                                                                        placeholder="Type your answer here..."
+                                                                                        className="w-full px-3 py-2 text-xs bg-white border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-gray-900 placeholder-gray-400 outline-none transition-all font-medium"
+                                                                                        autoFocus
+                                                                                    />
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                        </div>
+                                                    );
                                                 })()}
                                             </div>
                                         ) : effectiveInputType === "mark" ? (

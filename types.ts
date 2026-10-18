@@ -478,6 +478,7 @@ export interface DailyContent {
   taskVideos?: (TaskVideoConfig | null | undefined)[];
   taskPollMultiSelect?: boolean[];
   taskPollArrange?: boolean[];
+  taskPollAdd?: boolean[];
   taskSpread?: boolean[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;

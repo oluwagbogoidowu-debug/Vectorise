@@ -950,6 +950,10 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskPollArrange
       : [];
 
+    const safePollAdd = Array.isArray((content as any).taskPollAdd)
+      ? (content as any).taskPollAdd
+      : [];
+
     const safeSpread = Array.isArray((content as any).taskSpread)
       ? (content as any).taskSpread
       : [];
@@ -1012,6 +1016,7 @@ const EditSprint: React.FC = () => {
         taskVideos: safeVideos,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
+        taskPollAdd: safePollAdd,
         taskSpread: safeSpread,
         taskMultiTextLabels: safeMultiTextLabels,
         taskMultiTextSignals: safeMultiTextSignals,
@@ -1974,6 +1979,31 @@ const EditSprint: React.FC = () => {
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
             taskPollArrange: currentArrange
+        };
+        return { ...prev, dailyContent: updatedDailyContent };
+    });
+    setSaveStatus('idle');
+  };
+
+  const handleTogglePollAdd = (index: number) => {
+    setSprint(prev => {
+        if (!prev) return null;
+        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
+        if (existingContentIndex < 0) return prev;
+        
+        let updatedDailyContent = [...prev.dailyContent];
+        let currentAdd = Array.isArray(updatedDailyContent[existingContentIndex].taskPollAdd)
+            ? [...(updatedDailyContent[existingContentIndex].taskPollAdd || [])]
+            : [];
+        
+        while (currentAdd.length <= index) {
+            currentAdd.push(false);
+        }
+        currentAdd[index] = !currentAdd[index];
+        
+        updatedDailyContent[existingContentIndex] = {
+            ...updatedDailyContent[existingContentIndex],
+            taskPollAdd: currentAdd
         };
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -5241,7 +5271,7 @@ const EditSprint: React.FC = () => {
                                             )}
                                             {activeInputType === 'poll' && (
                                                 <div className="mt-3 pl-2 border-l-2 border-primary/20 space-y-2">
-                                                    <div className="flex items-center gap-6 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                                                    <div className="flex items-center gap-6 mb-3 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex-wrap">
                                                         <div className="flex items-center gap-2">
                                                             <button
                                                                 type="button"
@@ -5263,6 +5293,22 @@ const EditSprint: React.FC = () => {
                                                                 <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollArrange?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
                                                             </button>
                                                             <span className="text-xs font-black text-gray-700 select-none cursor-help">Arrange (Drag & Reposition)</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleTogglePollAdd(index)}
+                                                                className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${currentContent.taskPollAdd?.[index] ? 'bg-rose-500 justify-end' : 'bg-gray-200 justify-start'}`}
+                                                                title="Add: When enabled, participants can add a custom answer under the last poll option (text input or tag input if multi-select is enabled)."
+                                                            >
+                                                                <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollAdd?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                            </button>
+                                                            <span className="text-xs font-black text-gray-700 select-none cursor-help flex items-center gap-1.5">
+                                                                Add
+                                                                {currentContent.taskPollAdd?.[index] && (
+                                                                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse" />
+                                                                )}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                     <div className="space-y-4">
@@ -5306,37 +5352,54 @@ const EditSprint: React.FC = () => {
                                                                         opts.push('');
                                                                     }
                                                                 }
-                                                                return opts.map((opt, optIndex) => (
-                                                                    <div key={optIndex} className="flex gap-2 items-center group/opt">
-                                                                        <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-bold shrink-0">
-                                                                            ●
+                                                                const isAddSet = !!currentContent.taskPollAdd?.[index];
+                                                                const lastFilledIdx = opts.map(o => (o || '').trim()).findLastIndex(o => o.length > 0);
+                                                                const lastOptIdx = lastFilledIdx !== -1 ? lastFilledIdx : (opts.length > 0 ? opts.length - 1 : 0);
+
+                                                                return opts.map((opt, optIndex) => {
+                                                                    const isLastOption = isAddSet && (optIndex === lastOptIdx);
+                                                                    return (
+                                                                        <div key={optIndex} className="flex gap-2 items-center group/opt">
+                                                                            <div className={`w-5 h-5 rounded flex items-center justify-center ${isLastOption ? 'bg-rose-50 ring-2 ring-red-400' : 'bg-gray-50 text-gray-400'} text-xs font-bold shrink-0 transition-all`}>
+                                                                                {isLastOption ? (
+                                                                                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm animate-pulse" title="Add enabled for this last option" />
+                                                                                ) : (
+                                                                                    <span>●</span>
+                                                                                )}
+                                                                            </div>
+                                                                            <input 
+                                                                                type="text"
+                                                                                value={opt}
+                                                                                onChange={(e) => {
+                                                                                    if (isDynamicPoll) {
+                                                                                        setAddingCustomOption(prev => ({ ...prev, [index]: e.target.value.trim() === '' }));
+                                                                                    }
+                                                                                    handleTaskPollOptionChange(index, optIndex, e.target.value);
+                                                                                }}
+                                                                                className={`flex-1 px-3 py-2 bg-white border ${isLastOption ? 'border-red-300 focus:border-red-500 focus:ring-red-100' : 'border-gray-200 focus:border-primary focus:ring-primary/10'} rounded-lg text-sm font-medium focus:ring-2 outline-none transition-all`}
+                                                                                placeholder="Additional custom option..."
+                                                                            />
+                                                                            {isLastOption && (
+                                                                                <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg shrink-0 shadow-xs animate-fade-in" title="Add enabled for this option">
+                                                                                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                                                                                    Add Option
+                                                                                </span>
+                                                                            )}
+                                                                            <button 
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    if (isDynamicPoll) {
+                                                                                        setAddingCustomOption(prev => ({ ...prev, [index]: false }));
+                                                                                    }
+                                                                                    removeTaskPollOption(index, optIndex);
+                                                                                }}
+                                                                                className="p-2 text-red-400 hover:text-red-500 rounded-lg transition-all"
+                                                                            >
+                                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                            </button>
                                                                         </div>
-                                                                        <input 
-                                                                            type="text"
-                                                                            value={opt}
-                                                                            onChange={(e) => {
-                                                                                if (isDynamicPoll) {
-                                                                                    setAddingCustomOption(prev => ({ ...prev, [index]: e.target.value.trim() === '' }));
-                                                                                }
-                                                                                handleTaskPollOptionChange(index, optIndex, e.target.value);
-                                                                            }}
-                                                                            className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all"
-                                                                            placeholder="Additional custom option..."
-                                                                        />
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                if (isDynamicPoll) {
-                                                                                    setAddingCustomOption(prev => ({ ...prev, [index]: false }));
-                                                                                }
-                                                                                removeTaskPollOption(index, optIndex);
-                                                                            }}
-                                                                            className="p-2 text-red-400 hover:text-red-500 rounded-lg transition-all"
-                                                                        >
-                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                        </button>
-                                                                    </div>
-                                                                ));
+                                                                    );
+                                                                });
                                                             })()}
                                                             <button 
                                                                 type="button"
@@ -5813,6 +5876,7 @@ const EditSprint: React.FC = () => {
                                                 : optionsList.filter(Boolean);
                                             
                                             const isMultiSelect = !!currentContent.taskPollMultiSelect?.[i];
+                                            const isAddSet = !!currentContent.taskPollAdd?.[i];
                                             let selectedOpts: string[] = [];
                                             try {
                                                 const val = previewInputs[i] || '';
@@ -5833,13 +5897,70 @@ const EditSprint: React.FC = () => {
                                                 }
 
                                                 if (allOptions.length > 6) {
+                                                    const lastOpt = allOptions[allOptions.length - 1];
+                                                    const isLastSel = isMultiSelect ? selectedOpts.includes(lastOpt) : (previewInputs[i] === lastOpt);
                                                     return (
-                                                        <div className="flex flex-wrap gap-1.5 w-full">
-                                                            {allOptions.map((opt, idx) => {
-                                                                const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
-                                                                return (
+                                                        <div className="space-y-2 w-full">
+                                                            <div className="flex flex-wrap gap-1.5 w-full">
+                                                                {allOptions.map((opt, idx) => {
+                                                                    const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
+                                                                    const isLastOption = isAddSet && (idx === allOptions.length - 1);
+                                                                    return (
+                                                                        <button
+                                                                            key={idx}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                if (isMultiSelect) {
+                                                                                    let newSelected: string[];
+                                                                                    if (selectedOpts.includes(opt)) {
+                                                                                        newSelected = selectedOpts.filter(o => o !== opt);
+                                                                                    } else {
+                                                                                        newSelected = [...selectedOpts, opt];
+                                                                                    }
+                                                                                    setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(newSelected) }));
+                                                                                } else {
+                                                                                    setPreviewInputs(prev => ({ ...prev, [i]: opt }));
+                                                                                }
+                                                                            }}
+                                                                            className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border cursor-pointer inline-flex items-center gap-1.5 ${
+                                                                                isSel 
+                                                                                    ? "bg-primary text-white border-primary shadow-md scale-95" 
+                                                                                    : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                                            }`}
+                                                                        >
+                                                                            <span>{opt}</span>
+                                                                            {isLastOption && (
+                                                                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 animate-pulse" title="Add Option enabled" />
+                                                                            )}
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            {isAddSet && isLastSel && (
+                                                                <div className="mt-2 p-2.5 bg-red-50/50 border border-red-100 rounded-xl animate-fade-in text-left">
+                                                                    <span className="text-[10px] font-black uppercase text-red-500 tracking-wider block mb-1">
+                                                                        {isMultiSelect ? 'Tag Input (Active for participants)' : 'Text Input (Active for participants)'}
+                                                                    </span>
+                                                                    <input
+                                                                        type="text"
+                                                                        disabled
+                                                                        placeholder={isMultiSelect ? "Type one answer at a time and press Enter to add more...." : "Type your answer here..."}
+                                                                        className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg text-gray-500"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <div className="space-y-2 w-full">
+                                                        {allOptions.map((opt, idx) => {
+                                                            const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
+                                                            const isLastOption = isAddSet && (idx === allOptions.length - 1);
+                                                            return (
+                                                                <div key={idx} className="w-full">
                                                                     <button
-                                                                        key={idx}
                                                                         type="button"
                                                                         onClick={() => {
                                                                             if (isMultiSelect) {
@@ -5854,73 +5975,55 @@ const EditSprint: React.FC = () => {
                                                                                 setPreviewInputs(prev => ({ ...prev, [i]: opt }));
                                                                             }
                                                                         }}
-                                                                        className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                                                        className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between cursor-pointer ${
                                                                             isSel 
-                                                                                ? "bg-primary text-white border-primary shadow-md scale-95" 
-                                                                                : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                                                                ? "bg-primary/10 border-primary text-primary shadow-sm" 
+                                                                                : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"
                                                                         }`}
-                                                                    >
-                                                                        {opt}
-                                                                    </button>
+                                                                        >
+                                                                            <span className="flex items-center gap-2">
+                                                                                <span>{String.fromCharCode(65 + idx)}. {opt}</span>
+                                                                                {isLastOption && (
+                                                                                    <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 animate-pulse" title="Add Option enabled" />
+                                                                                )}
+                                                                            </span>
+                                                                            {isMultiSelect ? (
+                                                                                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                                                                    isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"
+                                                                                }`}>
+                                                                                    {isSel && (
+                                                                                        <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                                                        </svg>
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                                                                                    isSel ? "border-primary bg-primary" : "border-gray-300 bg-white"
+                                                                                }`}>
+                                                                                    {isSel && (
+                                                                                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </button>
+                                                                        {isLastOption && isSel && (
+                                                                            <div className="mt-2 p-2.5 bg-red-50/50 border border-red-100 rounded-xl animate-fade-in text-left">
+                                                                                <span className="text-[10px] font-black uppercase text-red-500 tracking-wider block mb-1">
+                                                                                    {isMultiSelect ? 'Tag Input (Active for participants)' : 'Text Input (Active for participants)'}
+                                                                                </span>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    disabled
+                                                                                    placeholder={isMultiSelect ? "Type one answer at a time and press Enter to add more...." : "Type your answer here..."}
+                                                                                    className="w-full px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg text-gray-500"
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 );
                                                             })}
                                                         </div>
-                                                    );
-                                                }
-
-                                                return (
-                                                    <div className="space-y-2 w-full">
-                                                        {allOptions.map((opt, idx) => {
-                                                            const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
-                                                            return (
-                                                                <button
-                                                                    key={idx}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        if (isMultiSelect) {
-                                                                            let newSelected: string[];
-                                                                            if (selectedOpts.includes(opt)) {
-                                                                                newSelected = selectedOpts.filter(o => o !== opt);
-                                                                            } else {
-                                                                                newSelected = [...selectedOpts, opt];
-                                                                            }
-                                                                            setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(newSelected) }));
-                                                                        } else {
-                                                                            setPreviewInputs(prev => ({ ...prev, [i]: opt }));
-                                                                        }
-                                                                    }}
-                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between cursor-pointer ${
-                                                                        isSel 
-                                                                            ? "bg-primary/10 border-primary text-primary shadow-sm" 
-                                                                            : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"
-                                                                    }`}
-                                                                >
-                                                                    <span>
-                                                                        {String.fromCharCode(65 + idx)}. {opt}
-                                                                    </span>
-                                                                    {isMultiSelect ? (
-                                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                                                                            isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"
-                                                                        }`}>
-                                                                            {isSel && (
-                                                                                <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                                                </svg>
-                                                                            )}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
-                                                                            isSel ? "border-primary bg-primary" : "border-gray-300 bg-white"
-                                                                        }`}>
-                                                                            {isSel && (
-                                                                                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                                                                            )}
-                                                                        </div>
-                                                                    )}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
                                                 );
                                             };
 
@@ -6270,6 +6373,7 @@ const EditSprint: React.FC = () => {
                   handleContentChange('taskFootnotes', []);
                   handleContentChange('taskPollMultiSelect', []);
                   handleContentChange('taskPollArrange', []);
+                  handleContentChange('taskPollAdd', []);
                   handleContentChange('taskMultiTextLabels', []);
                   handleContentChange('taskLinkedToNext', []);
                   handleContentChange('taskLinkedSources', []);
