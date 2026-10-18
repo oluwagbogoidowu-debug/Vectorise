@@ -17,8 +17,8 @@ const PublicDiscover: React.FC = () => {
           sprintService.getPublishedSprints(),
           trackService.getAllTracks()
         ]);
-        // Filter to only approved and active sprints if needed
-        setSprints(fetchedSprints.filter(s => s.published || s.approvalStatus === 'approved'));
+        // Filter to only approved and active sprints if needed (excluding challenges)
+        setSprints(fetchedSprints.filter(s => (s.published || s.approvalStatus === 'approved') && s.contentType !== 'challenge' && !(s as any).challengeData && !(s as any).challengeType));
         setTracks(fetchedTracks.filter(t => t.published));
       } catch (error) {
         console.error('Failed to fetch public registry', error);

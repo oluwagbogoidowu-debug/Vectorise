@@ -7,10 +7,13 @@ import { Sparkles, Compass, Zap, SlidersHorizontal, BookOpen } from 'lucide-reac
 import { SwitchModeModal, hasMultipleModes } from './SwitchModeModal';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
 
+import { sprintService } from '../services/sprintService';
+
 const BottomNavigation: React.FC = () => {
   const { user, activeRole, switchRole } = useAuth();
   const navigate = useNavigate();
   const [hasUnread, setHasUnread] = useState(false);
+  const [hasActiveSprint, setHasActiveSprint] = useState(false);
   const [isSwitchModeOpen, setIsSwitchModeOpen] = useState(false);
   const showModeChanger = hasMultipleModes(user);
 
@@ -19,7 +22,21 @@ const BottomNavigation: React.FC = () => {
     const unsubscribe = notificationService.subscribeToNotifications(user.id, (notifs) => {
       setHasUnread(notifs.some(n => !n.isRead));
     });
-    return () => unsubscribe();
+
+    const unsubEnrollments = sprintService.subscribeToUserEnrollments(user.id, (enrollments) => {
+      const active = (enrollments || []).some(e => {
+        if (e.status !== 'active') return false;
+        if (e.completed_at) return false;
+        const allDaysCompleted = Array.isArray(e.progress) && e.progress.length > 0 && e.progress.every((p: any) => p.completed);
+        return !allDaysCompleted;
+      });
+      setHasActiveSprint(active);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubEnrollments();
+    };
   }, [user]);
 
   const leftNavItems = [
@@ -52,7 +69,15 @@ const BottomNavigation: React.FC = () => {
       label: 'My Sprints',
       path: '/my-sprints',
       icon: (active: boolean) => (
-        <Zap className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
+        <div className="relative">
+          <Zap className={`h-6 w-6 ${active ? 'text-[#0E7850]' : 'text-gray-400'}`} strokeWidth={active ? 2.5 : 2} />
+          {hasActiveSprint && (
+            <div className="absolute -top-1 -right-1 flex items-center justify-center">
+              <div className="absolute w-3.5 h-3.5 bg-red-500/20 rounded-full animate-pulse"></div>
+              <div className="relative w-2 h-2 bg-red-500 rounded-full border border-white shadow-sm"></div>
+            </div>
+          )}
+        </div>
       )
     },
     {

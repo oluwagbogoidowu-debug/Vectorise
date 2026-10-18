@@ -63,11 +63,12 @@ const DiscoverSprints: React.FC = () => {
     useEffect(() => {
         // Subscribe to published sprints in real-time
         const unsubSprints = sprintService.subscribeToPublishedSprints((data) => {
-            const nonIgnite = data.filter(s => s.contentType !== 'ignite');
-            const challengesList = data.filter(s => s.contentType === 'challenge');
+            const isChallenge = (s: Sprint) => s.contentType === 'challenge' || Boolean((s as any).challengeData) || Boolean((s as any).challengeType);
+            const pureSprints = data.filter(s => s.contentType !== 'ignite' && !isChallenge(s));
+            const challengesList = data.filter(s => isChallenge(s));
             setPublishedChallenges(challengesList);
-            setAllSprints(nonIgnite);
-            const allowedSprints = filterAllowedSprintsForUser(nonIgnite, user);
+            setAllSprints(pureSprints);
+            const allowedSprints = filterAllowedSprintsForUser(pureSprints, user);
             setSprints(allowedSprints);
             setIsSprintsLoaded(true);
         }, (error) => {

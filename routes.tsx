@@ -236,7 +236,7 @@ export const AppRoutes: React.FC = () => {
            <Route path="/impact/rewards" element={<GrowthRewards />} />
            <Route path="/impact/badges" element={<Badges />} />
            <Route path="/buy-coins" element={<BuyCoins />} />
-           <Route path="/participant/active-sprint" element={<ActiveSprintPage />} />
+           <Route path="/participant/active-sprint" element={<Navigate to="/my-sprints" replace />} />
            <Route path="/participant/next-sprint" element={<NextSprintRecommendation />} />
            <Route path="/participant/next-sprint/:sprintId" element={<NextSprintRecommendation />} />
            <Route path="/participant/recommendation" element={<NextSprintRecommendation />} />

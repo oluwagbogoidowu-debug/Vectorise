@@ -54,10 +54,15 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
   }, [isOpen]);
 
   const journeyItems = [
-    ...(hasActiveSprint ? [{ label: 'Active Sprint', path: '/participant/active-sprint', icon: Flame, badge: 'Active' }] : []),
-    { label: 'Your Next Sprint', path: '/participant/next-sprint', icon: Sparkles, badge: hasUnread ? 'New' : null },
-    { label: 'Explore Sprints', path: '/explore', icon: Compass, badge: null },
-    { label: 'My Sprints', path: '/my-sprints', icon: Zap, badge: null },
+    { label: 'Your Next Sprint', path: '/participant/next-sprint', icon: Sparkles, badge: hasUnread ? 'New' : null, showDot: false },
+    { label: 'Explore Sprints', path: '/explore', icon: Compass, badge: null, showDot: false },
+    { 
+      label: 'My Sprints', 
+      path: '/my-sprints', 
+      icon: Zap, 
+      badge: hasActiveSprint ? 'Active' : null, 
+      showDot: hasActiveSprint 
+    },
   ];
 
   const navSections = [
@@ -175,16 +180,25 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
                           <>
                             <div className="flex items-center gap-3.5 min-w-0">
                               <div
-                                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors relative ${
                                   isActive ? 'bg-[#0E7850] text-white shadow-xs' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
                                 }`}
                               >
                                 <Icon className="w-4 h-4" />
+                                {item.showDot && (
+                                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900 animate-pulse" />
+                                )}
                               </div>
-                              <span className="truncate">{item.label}</span>
+                              <span className="truncate flex items-center gap-1.5">
+                                <span>{item.label}</span>
+                                {item.showDot && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0 inline-block" />
+                                )}
+                              </span>
                             </div>
                             {item.badge ? (
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500 text-white animate-pulse">
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500 text-white flex items-center gap-1 shadow-xs animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white" />
                                 {item.badge}
                               </span>
                             ) : (

@@ -168,7 +168,7 @@ const LoginPage: React.FC = () => {
                   });
 
                   if (active) {
-                      navigate('/participant/active-sprint', { replace: true });
+                      navigate('/my-sprints', { replace: true });
                       return;
                   }
 
