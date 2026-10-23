@@ -635,6 +635,11 @@ export interface MetadataInterventionStepConfig {
   multiTextLinks?: any;
   fills?: any;
   askAi?: any;
+  pollMultiSelect?: boolean;
+  pollArrange?: boolean;
+  pollAdd?: boolean;
+  rawPrompt?: string;
+  cleanPrompt?: string;
   isFallback?: boolean;
 }
 
@@ -793,6 +798,11 @@ export function findMetadataSourceStepAcrossSprints(
                 multiTextLinks,
                 fills,
                 askAi,
+                pollMultiSelect: !!(dc.taskPollMultiSelect && dc.taskPollMultiSelect[sIdx]),
+                pollArrange: !!(dc.taskPollArrange && dc.taskPollArrange[sIdx]),
+                pollAdd: !!(dc.taskPollAdd && dc.taskPollAdd[sIdx]),
+                rawPrompt,
+                cleanPrompt,
                 isFallback: false
               };
             }

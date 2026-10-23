@@ -56,7 +56,7 @@ const parseTimeToSeconds = (timeStr?: string | number): number => {
 import { ChangesMadeCarousel } from '../../components/ChangesMadeCarousel';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 const customPrompt = (window as any).prompt;
@@ -346,6 +346,19 @@ const EditSprint: React.FC = () => {
   const [collapsedBranchingPaths, setCollapsedBranchingPaths] = useState<Record<number, boolean>>({});
   const [activeHintTabMap, setActiveHintTabMap] = useState<Record<number, number>>({});
   const [activeStepVersionMap, setActiveStepVersionMap] = useState<Record<number, number>>({});
+  const [allCatalogSprints, setAllCatalogSprints] = useState<Sprint[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    sprintService.getAdminSprints().then((sprints) => {
+      if (isMounted && Array.isArray(sprints)) {
+        setAllCatalogSprints(sprints);
+      }
+    }).catch(err => {
+      console.warn("Failed to load catalog sprints for metadata lookup:", err);
+    });
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     if (sprintId) {
@@ -998,6 +1011,14 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskTagNoteActive
       : [];
 
+    const safePrerequisiteEnabled = Array.isArray((content as any).taskPrerequisiteEnabled)
+      ? (content as any).taskPrerequisiteEnabled
+      : [];
+
+    const safePrerequisiteConfigs = Array.isArray((content as any).taskPrerequisiteConfigs)
+      ? (content as any).taskPrerequisiteConfigs
+      : [];
+
     return {
         ...content,
         taskPrompts: paddedPrompts,
@@ -1018,6 +1039,8 @@ const EditSprint: React.FC = () => {
         taskPollArrange: safePollArrange,
         taskPollAdd: safePollAdd,
         taskSpread: safeSpread,
+        taskPrerequisiteEnabled: safePrerequisiteEnabled,
+        taskPrerequisiteConfigs: safePrerequisiteConfigs,
         taskMultiTextLabels: safeMultiTextLabels,
         taskMultiTextSignals: safeMultiTextSignals,
         taskMultiTextTags: safeMultiTextTags,
@@ -4133,6 +4156,69 @@ const EditSprint: React.FC = () => {
                                                                                     className="w-full"
                                                                                 />
                                                                             </div>
+
+                                                                            {((detail.metadataMode || 'receive') === 'receive' && detail.metadataFieldKey) && (() => {
+                                                                                const sourceStepConfig = findMetadataSourceStepAcrossSprints(
+                                                                                    detail.metadataFieldKey,
+                                                                                    [sprint, ...allCatalogSprints].filter(Boolean)
+                                                                                );
+                                                                                const isPrerequisiteOn = !!currentContent.taskPrerequisiteEnabled?.[index];
+
+                                                                                return (
+                                                                                    <div className="col-span-1 sm:col-span-2 w-full pt-3 mt-1 border-t border-purple-200/60 flex flex-col gap-2">
+                                                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1">
+                                                                                                    <span>📍</span> Original Source:
+                                                                                                </span>
+                                                                                                {sourceStepConfig && !sourceStepConfig.isFallback ? (
+                                                                                                    <button
+                                                                                                        type="button"
+                                                                                                        onClick={() => {
+                                                                                                            const nextEnabled = [...(currentContent.taskPrerequisiteEnabled || [])];
+                                                                                                            while (nextEnabled.length <= index) nextEnabled.push(false);
+                                                                                                            nextEnabled[index] = !nextEnabled[index];
+                                                                                                            updateCurrentContentField('taskPrerequisiteEnabled', nextEnabled);
+
+                                                                                                            const nextConfigs = [...(currentContent.taskPrerequisiteConfigs || [])];
+                                                                                                            while (nextConfigs.length <= index) nextConfigs.push(null);
+                                                                                                            nextConfigs[index] = nextEnabled[index] ? sourceStepConfig : null;
+                                                                                                            updateCurrentContentField('taskPrerequisiteConfigs', nextConfigs);
+                                                                                                        }}
+                                                                                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border shadow-xs ${
+                                                                                                            isPrerequisiteOn
+                                                                                                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                                                                                                                : 'bg-white hover:bg-purple-100 text-purple-950 border-purple-300'
+                                                                                                        }`}
+                                                                                                        title="Click to toggle ON/OFF: When active, participants who haven't completed this step in the original sprint will see and finish it before proceeding."
+                                                                                                    >
+                                                                                                        <span className={`w-2 h-2 rounded-full ${isPrerequisiteOn ? 'bg-white animate-pulse' : 'bg-purple-500'}`} />
+                                                                                                        <span className="font-extrabold tracking-tight">
+                                                                                                            {sourceStepConfig.sourceSprintTitle} • M{sourceStepConfig.sourceDay || 1} Step {(sourceStepConfig.sourceStepIndex ?? 0) + 1}
+                                                                                                        </span>
+                                                                                                        <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded font-black ${
+                                                                                                            isPrerequisiteOn ? 'bg-emerald-800 text-white' : 'bg-purple-100 text-purple-800'
+                                                                                                        }`}>
+                                                                                                            {isPrerequisiteOn ? 'ACTIVE (ON)' : 'SET ON'}
+                                                                                                        </span>
+                                                                                                    </button>
+                                                                                                ) : (
+                                                                                                    <span className="text-[11px] text-gray-500 italic bg-white/70 px-2.5 py-1 rounded-lg border border-gray-200">
+                                                                                                        {`{Metadata ${detail.metadataFieldKey} save} not found in other sprints yet`}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            {sourceStepConfig && !sourceStepConfig.isFallback && (
+                                                                                                <span className="text-[10px] text-gray-600 dark:text-gray-300 font-medium italic">
+                                                                                                    {isPrerequisiteOn 
+                                                                                                        ? '✓ Exact step will show in Sprint View for participants who missed original sprint'
+                                                                                                        : 'Click to require this step before proceeding in Sprint View'}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
                                                                         </div>
                                                                     )}
                                                                 </div>

@@ -73,15 +73,15 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
     {
       title: 'Your Rise',
       items: [
-        { label: 'My Rise', path: '/growth', icon: TrendingUp, badge: null },
-        { label: 'Hall of Rise', path: '/profile/hall-of-rise', icon: Award, badge: null },
-        { label: 'Impact', path: '/impact', icon: Target, badge: null },
+        { label: 'My Rise', path: '/growth', icon: TrendingUp, badge: null, showDot: false },
+        { label: 'Hall of Rise', path: '/profile/hall-of-rise', icon: Award, badge: null, showDot: false },
+        { label: 'Impact', path: '/impact', icon: Target, badge: null, showDot: false },
       ]
     },
     {
       title: 'Account',
       items: [
-        { label: 'Account Settings', path: '/profile/settings', icon: Settings, badge: null },
+        { label: 'Account Settings', path: '/profile/settings', icon: Settings, badge: null, showDot: false },
       ]
     }
   ];

@@ -25,8 +25,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { MetadataInterventionCard } from "../../components/MetadataInterventionCard";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint, extractRequiredReceiveMetadataFromStep, findMetadataSourceStepAcrossSprints, normalizeMetadataField } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint, findMetadataSourceStepAcrossSprints, MetadataInterventionStepConfig, extractRequiredReceiveMetadataFromStep, resolveUserMetadataValue } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -43,7 +42,7 @@ import BottomModalCoinCards from "../../components/BottomModalCoinCards";
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save, Loader2 } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import AiResearchModal from "../../components/AiResearchModal";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
@@ -1061,7 +1060,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   }, [user?.id, enrollmentId, sprint?.id]);
 
   const [allCatalogSprints, setAllCatalogSprints] = useState<Sprint[]>([]);
-  const [isSavingIntervention, setIsSavingIntervention] = useState(false);
+  const [localCompletedPrereqs, setLocalCompletedPrereqs] = useState<Record<string, string>>({});
+  const [prereqInput, setPrereqInput] = useState<Record<string, string>>({});
+  const [prereqPollMulti, setPrereqPollMulti] = useState<Record<string, string[]>>({});
+  const [prereqAddInput, setPrereqAddInput] = useState<Record<string, string>>({});
+  const [prereqMultiText, setPrereqMultiText] = useState<Record<string, Record<string, string>>>({});
+  const [isSavingPrereq, setIsSavingPrereq] = useState(false);
+  const [revealedPrereqHints, setRevealedPrereqHints] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let isMounted = true;
@@ -1070,38 +1075,40 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         setAllCatalogSprints(sprints);
       }
     }).catch(err => {
-      console.warn("Failed to load catalog sprints for metadata intervention:", err);
+      console.warn("Failed to load catalog sprints for metadata cross-referencing:", err);
     });
     return () => { isMounted = false; };
   }, []);
 
-  const handleSaveIntervention = async (fieldKey: string, val: string) => {
-    if (!val || !val.trim() || !user) return;
-    setIsSavingIntervention(true);
+  const handleCompletePrerequisiteStep = async (
+    prereqConfig: MetadataInterventionStepConfig,
+    value: string
+  ) => {
+    if (!value || !value.trim() || !user) return;
+    setIsSavingPrereq(true);
     try {
-      const fieldDef = normalizeMetadataField(fieldKey);
-      const fKey = fieldDef ? fieldDef.key : fieldKey;
+      const fKey = prereqConfig.fieldKey;
+      const cleanVal = value.trim();
 
-      const config = findMetadataSourceStepAcrossSprints(fKey, allCatalogSprints);
       await userIdentificationService.applyUserIdentificationTracking(
         user.id,
-        config.sourceSprintId ? { id: config.sourceSprintId, title: config.sourceSprintTitle || '' } : (sprint || { id: 'manual', title: 'User Profile' }),
-        config.sourceDay || 1,
-        [val.trim()]
+        prereqConfig.sourceSprintId ? { id: prereqConfig.sourceSprintId, title: prereqConfig.sourceSprintTitle || '' } : (sprint || { id: 'manual', title: 'User Profile' }),
+        prereqConfig.sourceDay || 1,
+        [cleanVal]
       );
 
       const userRef = doc(db, 'users', user.id);
       const updates: Record<string, any> = {
-        [`metadata.${fKey}`]: val.trim(),
-        [`userMetadata.${fKey}`]: val.trim(),
+        [`metadata.${fKey}`]: cleanVal,
+        [`userMetadata.${fKey}`]: cleanVal,
         [`identificationData.${fKey}`]: {
           field: fKey,
-          value: val.trim(),
-          sourceSprintId: config.sourceSprintId || sprint?.id || '',
-          sourceSprintTitle: config.sourceSprintTitle || sprint?.title || '',
+          value: cleanVal,
+          sourceSprintId: prereqConfig.sourceSprintId || sprint?.id || '',
+          sourceSprintTitle: prereqConfig.sourceSprintTitle || sprint?.title || '',
           capturedAt: new Date().toISOString()
         },
-        [fKey]: val.trim(),
+        [fKey]: cleanVal,
         lastIdentificationUpdate: new Date().toISOString()
       };
       await updateDoc(userRef, sanitizeData(updates));
@@ -1113,22 +1120,302 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           const merged = {
             ...parsed,
             ...updates,
-            metadata: { ...(parsed.metadata || {}), [fKey]: val.trim() },
-            userMetadata: { ...(parsed.userMetadata || {}), [fKey]: val.trim() }
+            metadata: { ...(parsed.metadata || {}), [fKey]: cleanVal },
+            userMetadata: { ...(parsed.userMetadata || {}), [fKey]: cleanVal }
           };
           localStorage.setItem('vectorise_user', JSON.stringify(merged));
           localStorage.setItem('vectorise_cached_user', JSON.stringify(merged));
         }
       } catch (e) {}
 
-      toast.success(`Saved your ${config.fieldLabel}!`);
+      setLocalCompletedPrereqs(prev => ({ ...prev, [fKey]: cleanVal }));
+      toast.success(`Completed prerequisite step!`);
       triggerHaptic(hapticPatterns.success);
     } catch (err) {
-      console.error("Failed to save metadata intervention:", err);
+      console.error("Failed to save prerequisite step:", err);
       toast.error("Failed to save. Please try again.");
     } finally {
-      setIsSavingIntervention(false);
+      setIsSavingPrereq(false);
     }
+  };
+
+  const renderPrerequisiteStep = (
+    config: MetadataInterventionStepConfig,
+    isFullBleedMode: boolean,
+    stepIdx: number
+  ) => {
+    const fKey = config.fieldKey;
+    const currentText = prereqInput[fKey] || '';
+    const currentChoices = prereqPollMulti[fKey] || [];
+    const currentSingleChoice = prereqInput[fKey] || '';
+    const currentAddText = prereqAddInput[fKey] || '';
+
+    let pollOptions: string[] = [];
+    if (Array.isArray(config.pollOptions)) {
+      pollOptions = config.pollOptions.filter(Boolean);
+    } else if (typeof config.pollOptions === 'string' && config.pollOptions) {
+      try {
+        const parsed = JSON.parse(config.pollOptions);
+        if (Array.isArray(parsed)) pollOptions = parsed.filter(Boolean);
+        else pollOptions = config.pollOptions.split(',').map(s => s.trim()).filter(Boolean);
+      } catch (e) {
+        pollOptions = config.pollOptions.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    }
+
+    const inputType = String(config.inputType || 'text').toLowerCase().trim();
+    const isPoll = inputType === 'poll' || pollOptions.length > 0;
+    const isTags = inputType === 'tags';
+    const isMultiText = inputType === 'multitext' && Array.isArray(config.multiTextLabels) && config.multiTextLabels.length > 0;
+
+    const handleFinishPrereq = async () => {
+      let finalVal = '';
+      if (isTags) {
+        finalVal = currentText;
+      } else if (isPoll) {
+        if (config.pollMultiSelect) {
+          let combined = [...currentChoices];
+          if (currentAddText.trim() && !combined.includes(currentAddText.trim())) {
+            combined.push(currentAddText.trim());
+          }
+          finalVal = JSON.stringify(combined);
+        } else {
+          finalVal = currentSingleChoice || currentAddText.trim();
+        }
+      } else if (isMultiText) {
+        finalVal = JSON.stringify(prereqMultiText[fKey] || {});
+      } else {
+        finalVal = currentText.trim();
+      }
+
+      if (!finalVal || !finalVal.trim()) {
+        toast.error('Please complete this step to continue.');
+        return;
+      }
+
+      await handleCompletePrerequisiteStep(config, finalVal);
+    };
+
+    return (
+      <motion.div
+        key={`prereq-${stepIdx}-${fKey}`}
+        initial={{ opacity: 0, x: 12 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -12 }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+        className={
+          isFullBleedMode
+            ? "w-full min-h-full bg-white dark:bg-zinc-900 px-6 sm:px-16 md:px-24 lg:px-32 py-12 md:py-20 text-left flex flex-col relative !transition-none"
+            : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
+        }
+      >
+        {/* Source Badge below navigation */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 dark:border-amber-800/40 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-1.5 shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0" />
+              <span>{config.sourceSprintTitle} • M{config.sourceDay || 1} Step {(config.sourceStepIndex ?? 0) + 1}</span>
+            </span>
+          </div>
+
+          <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md">
+            Prerequisite Step Required
+          </span>
+        </div>
+
+        {/* Prompt */}
+        <div
+          className={`text-gray-950 dark:text-white leading-tight ${
+            isFullBleedMode
+              ? "text-xl sm:text-2xl md:text-3xl font-black"
+              : "text-lg sm:text-xl md:text-2xl leading-relaxed font-black"
+          } ${config.footnote ? "mb-3" : "mb-6"}`}
+        >
+          <FormattedText text={config.prompt || config.cleanPrompt || `What is your ${config.fieldLabel}?`} />
+        </div>
+
+        {/* Footnote */}
+        {config.footnote && (
+          <div className="mb-6 flex flex-col gap-4">
+            <div className="text-left text-emerald-600 dark:text-emerald-400 font-bold leading-relaxed text-xs">
+              <FormattedText className="text-xs font-bold text-emerald-600" text={config.footnote} />
+            </div>
+          </div>
+        )}
+
+        {/* Hint & Ask AI */}
+        {(config.hint || config.askAi) && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between gap-3 w-full">
+              {config.hint && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRevealedPrereqHints((prev) => ({
+                      ...prev,
+                      [fKey]: !prev[fKey],
+                    }))
+                  }
+                  className={`flex items-center gap-1.5 ${
+                    isFullBleedMode
+                      ? "px-3 py-1.5 rounded-lg text-xs font-black"
+                      : "px-1.5 py-0.5 rounded text-[8px] font-extrabold"
+                  } uppercase tracking-widest transition-all ${
+                    revealedPrereqHints[fKey]
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"
+                  }`}
+                >
+                  <span>Hint</span>
+                </button>
+              )}
+            </div>
+
+            {config.hint && revealedPrereqHints[fKey] && (
+              <div
+                className={`mt-3 ${
+                  isFullBleedMode ? "p-4 rounded-xl text-xs font-medium" : "p-2.5 rounded-lg text-xs font-medium"
+                } bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic`}
+              >
+                <FormattedText className="text-xs font-medium italic text-amber-900/90" text={config.hint} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action input based on original step inputType */}
+        {isTags ? (
+          <TagInput
+            value={currentText}
+            onChange={(newVal) => setPrereqInput((prev) => ({ ...prev, [fKey]: newVal }))}
+            onNext={handleFinishPrereq}
+            placeholder="Type one answer at a time and press Enter to add more...."
+            isFullBleed={isFullBleedMode}
+          />
+        ) : isPoll ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2.5">
+              {pollOptions.map((opt, optIndex) => {
+                const isSelected = config.pollMultiSelect
+                  ? currentChoices.includes(opt)
+                  : currentSingleChoice === opt;
+                const isLast = optIndex === pollOptions.length - 1;
+
+                return (
+                  <div key={optIndex} className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (config.pollMultiSelect) {
+                          const exists = currentChoices.includes(opt);
+                          const nextChoices = exists
+                            ? currentChoices.filter((c) => c !== opt)
+                            : [...currentChoices, opt];
+                          setPrereqPollMulti((prev) => ({ ...prev, [fKey]: nextChoices }));
+                        } else {
+                          setPrereqInput((prev) => ({ ...prev, [fKey]: opt }));
+                        }
+                      }}
+                      className={`w-full p-4 rounded-2xl text-left font-bold text-sm transition-all border flex items-center justify-between cursor-pointer ${
+                        isSelected
+                          ? "bg-[#0E7850] text-white border-[#0E7850] shadow-md scale-[1.01]"
+                          : "bg-white dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-zinc-750"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-6 h-6 rounded-lg bg-black/5 dark:bg-white/10 flex items-center justify-center text-xs font-mono font-black">
+                          {String.fromCharCode(65 + optIndex)}
+                        </span>
+                        <span>{opt}</span>
+                        {config.pollAdd && isLast && (
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Add Option Active" />
+                        )}
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? "border-white bg-white/20" : "border-gray-300 dark:border-zinc-600"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                      </div>
+                    </button>
+
+                    {/* Inline add input if Add is enabled and last option is selected */}
+                    {config.pollAdd && isLast && isSelected && (
+                      <div className="pl-4 pt-1">
+                        <input
+                          type="text"
+                          value={currentAddText}
+                          onChange={(e) => setPrereqAddInput((prev) => ({ ...prev, [fKey]: e.target.value }))}
+                          placeholder="Type your custom answer here..."
+                          className="w-full p-3 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-[#0E7850]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : isMultiText ? (
+          <div className="space-y-4">
+            {config.multiTextLabels?.map((lbl, lIdx) => (
+              <div key={lIdx} className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                  {lbl}
+                </label>
+                <input
+                  type="text"
+                  value={prereqMultiText[fKey]?.[lbl] || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPrereqMultiText((prev) => ({
+                      ...prev,
+                      [fKey]: {
+                        ...(prev[fKey] || {}),
+                        [lbl]: val,
+                      },
+                    }));
+                  }}
+                  className="w-full p-3.5 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-[#0E7850]"
+                  placeholder={`Enter ${lbl}...`}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <textarea
+            value={currentText}
+            onChange={(e) => setPrereqInput((prev) => ({ ...prev, [fKey]: e.target.value }))}
+            rows={4}
+            className="w-full p-4 rounded-2xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-[#0E7850]"
+            placeholder="Type your answer here..."
+          />
+        )}
+
+        {/* Complete Step & Proceed button */}
+        <div className="mt-8 pt-4 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
+          <button
+            type="button"
+            disabled={isSavingPrereq}
+            onClick={handleFinishPrereq}
+            className="px-6 py-3 bg-[#0E7850] hover:bg-[#0c6342] text-white font-extrabold rounded-2xl text-sm shadow-md transition-all cursor-pointer flex items-center gap-2 active:scale-95 disabled:opacity-50"
+          >
+            {isSavingPrereq ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <span>Complete Step & Proceed</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
+      </motion.div>
+    );
   };
 
   const handleOpenRerun = () => {
@@ -5021,32 +5308,29 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             <AnimatePresence mode="wait">
                               {dayContent.taskPrompts.map((prompt: string, i: number) => {
                                 if (i !== activeTaskIndex) return null;
+
+                                const isPrereqEnabled = !!dayContent?.taskPrerequisiteEnabled?.[i];
+                                let prereqConfig = dayContent?.taskPrerequisiteConfigs?.[i];
+                                if (isPrereqEnabled && !prereqConfig) {
+                                  const receiveTokens = extractRequiredReceiveMetadataFromStep(dayContent, i, user, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                                  if (receiveTokens.length > 0) {
+                                    prereqConfig = findMetadataSourceStepAcrossSprints(receiveTokens[0].fieldKey, [sprint, ...allCatalogSprints].filter(Boolean));
+                                  }
+                                }
+                                const hasPrereq = isPrereqEnabled && prereqConfig && prereqConfig.fieldKey;
+                                const existingVal = hasPrereq ? (localCompletedPrereqs[prereqConfig.fieldKey] || resolveUserMetadataValue(prereqConfig.fieldKey, user, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)) : '';
+                                const needsPrereq = hasPrereq && (!existingVal || !existingVal.trim()) && !dayProgress?.completed;
+
+                                if (needsPrereq && prereqConfig) {
+                                  return renderPrerequisiteStep(prereqConfig, activeFullBleed, i);
+                                }
+
                                 const stepVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
                                 const effectiveInputType = getStepInputType(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const effectivePollOptions = getStepPollOptions(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const rawFootnote = dayContent?.taskFootnotes?.[i];
                                 const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
-
-                                const missingRequiredMetadata = !dayProgress?.completed 
-                                  ? extractRequiredReceiveMetadataFromStep(dayContent, i, user, taskInputs, sprint?.dailyContent, enrollment?.progress)
-                                  : [];
-
-                                if (missingRequiredMetadata.length > 0) {
-                                  const currentMissing = missingRequiredMetadata[0];
-                                  const interventionConfig = findMetadataSourceStepAcrossSprints(currentMissing.fieldKey, allCatalogSprints);
-
-                                  return (
-                                    <div key={`intervention-${i}-${currentMissing.fieldKey}`} className="w-full">
-                                      <MetadataInterventionCard
-                                        config={interventionConfig}
-                                        isFullBleed={activeFullBleed}
-                                        isSaving={isSavingIntervention}
-                                        onSave={(k, v) => handleSaveIntervention(k, v)}
-                                      />
-                                    </div>
-                                  );
-                                }
 
                                 return (
                                   <motion.div
@@ -6259,8 +6543,25 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                         );
                       })}
                       </AnimatePresence>
-                    ) : (
-                      <div 
+                    ) : (() => {
+                      const isPrereqEnabled = !!dayContent?.taskPrerequisiteEnabled?.[0];
+                      let prereqConfig = dayContent?.taskPrerequisiteConfigs?.[0];
+                      if (isPrereqEnabled && !prereqConfig) {
+                        const receiveTokens = extractRequiredReceiveMetadataFromStep(dayContent, 0, user, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                        if (receiveTokens.length > 0) {
+                          prereqConfig = findMetadataSourceStepAcrossSprints(receiveTokens[0].fieldKey, [sprint, ...allCatalogSprints].filter(Boolean));
+                        }
+                      }
+                      const hasPrereq = isPrereqEnabled && prereqConfig && prereqConfig.fieldKey;
+                      const existingVal = hasPrereq ? (localCompletedPrereqs[prereqConfig.fieldKey] || resolveUserMetadataValue(prereqConfig.fieldKey, user, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress)) : '';
+                      const needsPrereq = hasPrereq && (!existingVal || !existingVal.trim()) && !dayProgress?.completed;
+
+                      if (needsPrereq && prereqConfig) {
+                        return renderPrerequisiteStep(prereqConfig, activeFullBleed, 0);
+                      }
+
+                      return (
+                        <div 
                           className={activeFullBleed 
                             ? "w-full min-h-full bg-white dark:bg-zinc-900 px-6 sm:px-16 md:px-24 lg:px-32 py-12 md:py-20 text-left flex flex-col relative !transition-none" 
                             : "p-6 bg-primary/5 rounded-2xl border border-primary/10 relative group text-left !transition-none"
@@ -6311,26 +6612,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           </SectionHeading>
 
                         {(() => {
-                          const missingRequiredMetadata = !dayProgress?.completed 
-                            ? extractRequiredReceiveMetadataFromStep(dayContent, 0, user, taskInputs, sprint?.dailyContent, enrollment?.progress)
-                            : [];
-
-                          if (missingRequiredMetadata.length > 0) {
-                            const currentMissing = missingRequiredMetadata[0];
-                            const interventionConfig = findMetadataSourceStepAcrossSprints(currentMissing.fieldKey, allCatalogSprints);
-
-                            return (
-                              <div key={`intervention-0-${currentMissing.fieldKey}`} className="w-full mb-6">
-                                <MetadataInterventionCard
-                                  config={interventionConfig}
-                                  isFullBleed={activeFullBleed}
-                                  isSaving={isSavingIntervention}
-                                  onSave={(k, v) => handleSaveIntervention(k, v)}
-                                />
-                              </div>
-                            );
-                          }
-
                           const stepVerIdx = resolveStepVersionIndex(0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                           const rawPrompt = dayContent?.taskPrompt || dayContent?.taskPrompts?.[0] || "";
                           const effectivePrompt = getStepVersionValue(rawPrompt, stepVerIdx);
@@ -6355,10 +6636,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                           );
                         })()}
                         {(() => {
-                          const hasPendingIntervention = !dayProgress?.completed && 
-                            extractRequiredReceiveMetadataFromStep(dayContent, 0, user, taskInputs, sprint?.dailyContent, enrollment?.progress).length > 0;
-                          if (hasPendingIntervention) return null;
-
                           const resolvedHint = resolveTaskHintForUser(dayContent?.taskHints?.[0], 0, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
                           const isAskAiEnabled = Boolean(
                             (dayContent?.taskAskAis?.[0] !== undefined && dayContent?.taskAskAis?.[0] !== null) ||
@@ -6421,7 +6698,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             </div>
                           );
                         })()}
-                        {!dayProgress?.completed && extractRequiredReceiveMetadataFromStep(dayContent, 0, user, taskInputs, sprint?.dailyContent, enrollment?.progress).length === 0 &&
+                        {!dayProgress?.completed &&
                           (dayContent?.taskInputTypes?.[0] === "tags" ? (
                             <TagInput
                               value={taskInputs[0]}
@@ -6939,7 +7216,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                         </div>
                       </div>
-                    )}
+                      );
+                    })()}
 
                         </>
                       );

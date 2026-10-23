@@ -477,9 +477,11 @@ export interface DailyContent {
   taskFills?: (string | null | undefined)[];
   taskVideos?: (TaskVideoConfig | null | undefined)[];
   taskPollMultiSelect?: boolean[];
-  taskPollArrange?: boolean[];
   taskPollAdd?: boolean[];
+  taskPollArrange?: boolean[];
   taskSpread?: boolean[];
+  taskPrerequisiteEnabled?: boolean[];
+  taskPrerequisiteConfigs?: (any | null)[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
   proofType?: 'picker' | 'note' | 'confirmation';
