@@ -604,6 +604,24 @@ export function extractAllSaveMetadataFromStep(
     }
   }
 
+  // Also check if step has the Metadata Step Setting toggle ON with mode 'send'
+  if (dayContent?.taskMetadataEnabled?.[stepIndex]) {
+    const cfg = dayContent?.taskMetadataConfigs?.[stepIndex];
+    if (cfg?.mode === 'send' && cfg?.attribute) {
+      const fieldDef = normalizeMetadataField(cfg.attribute);
+      const targetKey = fieldDef ? fieldDef.key : cfg.attribute;
+      const dedupeKey = `${targetKey.toLowerCase()}_setting`;
+      if (!seenKeys.has(dedupeKey)) {
+        seenKeys.add(dedupeKey);
+        results.push({
+          fieldKey: targetKey,
+          fieldLabel: fieldDef ? fieldDef.label : (cfg.attribute || 'Metadata'),
+          mode: 'save'
+        });
+      }
+    }
+  }
+
   return results;
 }
 

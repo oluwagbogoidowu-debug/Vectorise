@@ -4,7 +4,7 @@ import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
 import FormattedText from '../../components/FormattedText';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint, resolveUserMetadataValue } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -2000,10 +2000,32 @@ const SprintPreview: React.FC = () => {
                                                     if (!Array.isArray(customOptions)) customOptions = [];
                                                     customOptions = customOptions.filter(Boolean);
 
+                                                    // Metadata Setting: If enabled and set to receive, display participant's saved metadata value as a poll option
+                                                    const isMetadataEnabled = !!day1Content?.taskMetadataEnabled?.[i];
+                                                    const metadataConfig = day1Content?.taskMetadataConfigs?.[i];
+                                                    let receivedMetadataOpt: string | null = null;
+                                                    if (isMetadataEnabled && (metadataConfig?.mode === 'receive' || !metadataConfig?.mode)) {
+                                                        const attrKey = metadataConfig?.attribute || 'primary_goal';
+                                                        const val = resolveUserMetadataValue(
+                                                            attrKey,
+                                                            user,
+                                                            day1Content,
+                                                            taskInputs,
+                                                            sprint?.dailyContent
+                                                        );
+                                                        if (val && typeof val === 'string' && val.trim().length > 0) {
+                                                            receivedMetadataOpt = val.trim();
+                                                        }
+                                                    }
+
                                                     // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.
                                                     // Always merge the dynamic tags from previous steps as choices, regardless of Tag Note active state
                                                     const linkedTags = getLinkedTagsForStep(i);
-                                                    pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+                                                    let mergedPollOptions = [...linkedTags, ...customOptions];
+                                                    if (receivedMetadataOpt && !mergedPollOptions.includes(receivedMetadataOpt)) {
+                                                        mergedPollOptions.push(receivedMetadataOpt);
+                                                    }
+                                                    pollOptions = Array.from(new Set(mergedPollOptions)).filter(Boolean);
 
                                                     const isMultiSelect = !!day1Content?.taskPollMultiSelect?.[i];
                                                     const isArrange = !!day1Content?.taskPollArrange?.[i];

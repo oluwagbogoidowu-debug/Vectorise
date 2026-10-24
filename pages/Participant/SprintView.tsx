@@ -2366,6 +2366,32 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         userIdentificationService
           .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, sanitizedInputs)
           .catch((e) => console.error("Auto user identification tracking failed on nav:", e));
+
+        // Persist metadata attributes for steps configured with Metadata send
+        if (dayContent) {
+          const metaUpdates: Record<string, any> = {};
+          dayContent.taskPrompts?.forEach((_: any, stepIdx: number) => {
+            if (dayContent.taskMetadataEnabled?.[stepIdx]) {
+              const cfg = dayContent.taskMetadataConfigs?.[stepIdx];
+              if (cfg && cfg.mode === 'send' && cfg.attribute) {
+                const rawVal = sanitizedInputs[stepIdx];
+                if (rawVal && typeof rawVal === 'string' && rawVal.trim().length > 0) {
+                  let clean = rawVal.trim();
+                  if (clean.startsWith('{') && clean.endsWith('}')) {
+                    const parsed = parseDualInputState(clean);
+                    clean = parsed.choice || (parsed.selectedChoices && parsed.selectedChoices[0]) || parsed.text || clean;
+                  }
+                  metaUpdates[`metadata.${cfg.attribute}`] = clean;
+                  metaUpdates[cfg.attribute] = clean;
+                }
+              }
+            }
+          });
+          if (Object.keys(metaUpdates).length > 0) {
+            const userRef = doc(db, "users", enrollment.user_id);
+            updateDoc(userRef, { ...metaUpdates, updated_at: timestamp }).catch((e) => console.error("Auto metadata send update failed on nav:", e));
+          }
+        }
       }
     } catch (err) {
       console.error("Immediately autosave failed on navigation:", err);
@@ -3796,6 +3822,32 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         userIdentificationService
           .applyUserIdentificationTracking(enrollment.user_id, sprint, viewingDay, sanitizedInputs)
           .catch((e) => console.error("Auto user identification tracking failed on completion:", e));
+
+        // Persist metadata attributes for steps configured with Metadata send
+        if (dayContent) {
+          const metaUpdates: Record<string, any> = {};
+          dayContent.taskPrompts?.forEach((_: any, stepIdx: number) => {
+            if (dayContent.taskMetadataEnabled?.[stepIdx]) {
+              const cfg = dayContent.taskMetadataConfigs?.[stepIdx];
+              if (cfg && cfg.mode === 'send' && cfg.attribute) {
+                const rawVal = sanitizedInputs[stepIdx];
+                if (rawVal && typeof rawVal === 'string' && rawVal.trim().length > 0) {
+                  let clean = rawVal.trim();
+                  if (clean.startsWith('{') && clean.endsWith('}')) {
+                    const parsed = parseDualInputState(clean);
+                    clean = parsed.choice || (parsed.selectedChoices && parsed.selectedChoices[0]) || parsed.text || clean;
+                  }
+                  metaUpdates[`metadata.${cfg.attribute}`] = clean;
+                  metaUpdates[cfg.attribute] = clean;
+                }
+              }
+            }
+          });
+          if (Object.keys(metaUpdates).length > 0) {
+            const userRef = doc(db, "users", enrollment.user_id);
+            updateDoc(userRef, { ...metaUpdates, updated_at: timestamp }).catch((e) => console.error("Auto metadata send update failed on completion:", e));
+          }
+        }
       }
 
       // Track user participation in core & activity tables
@@ -5512,10 +5564,33 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       if (!Array.isArray(customOptions)) customOptions = [];
                                       customOptions = customOptions.filter(Boolean);
 
+                                      // Metadata Setting: If enabled and set to receive, display participant's saved metadata value as a poll option
+                                      const isMetadataEnabled = !!dayContent?.taskMetadataEnabled?.[i];
+                                      const metadataConfig = dayContent?.taskMetadataConfigs?.[i];
+                                      let receivedMetadataOpt: string | null = null;
+                                      if (isMetadataEnabled && (metadataConfig?.mode === 'receive' || !metadataConfig?.mode)) {
+                                        const attrKey = metadataConfig?.attribute || 'primary_goal';
+                                        const val = resolveUserMetadataValue(
+                                          attrKey,
+                                          user,
+                                          dayContent,
+                                          taskInputs,
+                                          sprint?.dailyContent,
+                                          enrollment?.progress
+                                        );
+                                        if (val && typeof val === 'string' && val.trim().length > 0) {
+                                          receivedMetadataOpt = val.trim();
+                                        }
+                                      }
+
                                       // If Tag Note is ON, it does NOT receive tags. The poll acts like standard default.
                                       // Always merge the dynamic tags from previous steps as choices, regardless of Tag Note active state
                                       const linkedTags = getLinkedTagsForStep(i);
-                                      pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+                                      let mergedPollOptions = [...linkedTags, ...customOptions];
+                                      if (receivedMetadataOpt && !mergedPollOptions.includes(receivedMetadataOpt)) {
+                                        mergedPollOptions.push(receivedMetadataOpt);
+                                      }
+                                      pollOptions = Array.from(new Set(mergedPollOptions)).filter(Boolean);
 
                                       // MULTI-SELECT & ARRANGE SUPPORTED
                                       const isMultiSelect = !!dayContent.taskPollMultiSelect?.[i];
@@ -6726,6 +6801,29 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     dayContent.taskPollOptions?.[0] || "[]",
                                   );
                                 } catch (e) {}
+
+                                const isMetadataEnabled = !!dayContent?.taskMetadataEnabled?.[0];
+                                const metadataConfig = dayContent?.taskMetadataConfigs?.[0];
+                                let receivedMetadataOpt: string | null = null;
+                                if (isMetadataEnabled && (metadataConfig?.mode === 'receive' || !metadataConfig?.mode)) {
+                                  const attrKey = metadataConfig?.attribute || 'primary_goal';
+                                  const val = resolveUserMetadataValue(
+                                    attrKey,
+                                    user,
+                                    dayContent,
+                                    taskInputs,
+                                    sprint?.dailyContent,
+                                    enrollment?.progress
+                                  );
+                                  if (val && typeof val === 'string' && val.trim().length > 0) {
+                                    receivedMetadataOpt = val.trim();
+                                  }
+                                }
+                                if (receivedMetadataOpt && !pollOpts.includes(receivedMetadataOpt)) {
+                                  pollOpts.push(receivedMetadataOpt);
+                                }
+                                pollOpts = Array.from(new Set(pollOpts)).filter(Boolean);
+
                                 const isMultiSelect = !!dayContent?.taskPollMultiSelect?.[0];
                                 const isArrange = !!dayContent?.taskPollArrange?.[0];
 

@@ -452,6 +452,11 @@ export interface TaskVideoConfig {
   end?: string | number;
 }
 
+export interface TaskMetadataConfig {
+  attribute: string;
+  mode: 'receive' | 'send';
+}
+
 export interface DailyContent {
   day: number;
   lessonText: string;
@@ -482,6 +487,8 @@ export interface DailyContent {
   taskSpread?: boolean[];
   taskPrerequisiteEnabled?: boolean[];
   taskPrerequisiteConfigs?: (any | null)[];
+  taskMetadataEnabled?: boolean[];
+  taskMetadataConfigs?: (TaskMetadataConfig | null | undefined)[];
   submissionType?: 'text' | 'file' | 'both' | 'none';
   submissionPrompt?: string;
   proofType?: 'picker' | 'note' | 'confirmation';

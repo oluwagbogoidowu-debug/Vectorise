@@ -4620,6 +4620,40 @@ const EditSprint: React.FC = () => {
                                                                 </>
                                                             )}
                                                         </button>
+
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const isCurrentlyEnabled = !!currentContent.taskMetadataEnabled?.[index];
+                                                                const nextEnabled = [...(currentContent.taskMetadataEnabled || [])];
+                                                                while (nextEnabled.length <= index) nextEnabled.push(false);
+                                                                nextEnabled[index] = !isCurrentlyEnabled;
+                                                                updateCurrentContentField('taskMetadataEnabled', nextEnabled);
+
+                                                                const nextConfigs = [...(currentContent.taskMetadataConfigs || [])];
+                                                                while (nextConfigs.length <= index) nextConfigs.push(null);
+                                                                if (!isCurrentlyEnabled && !nextConfigs[index]) {
+                                                                    nextConfigs[index] = { attribute: 'primary_goal', mode: 'receive' };
+                                                                }
+                                                                updateCurrentContentField('taskMetadataConfigs', nextConfigs);
+                                                            }}
+                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskMetadataEnabled?.[index]) ? 'bg-purple-50 text-purple-700 border border-purple-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50/50'}`}
+                                                            title="Metadata Option: Configure dynamic metadata attribute receive or send (save) on this action step. When receive is on for a poll, displays as a poll option."
+                                                        >
+                                                            {(currentContent.taskMetadataEnabled?.[index]) ? (
+                                                                <>
+                                                                    <span className="text-[10px] text-purple-600 mr-0.5">●</span>
+                                                                    <Tag size={12} className="text-purple-600" />
+                                                                    <span>Metadata</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus size={14} />
+                                                                    <Tag size={12} />
+                                                                    <span>Metadata</span>
+                                                                </>
+                                                            )}
+                                                        </button>
                                                     </div>
 
                                                     {(currentContent.taskPrompts?.length || 3) > 1 && (
@@ -5024,6 +5058,152 @@ const EditSprint: React.FC = () => {
                                                     })()}
                                                 </div>
                                             )}
+                                            {(currentContent.taskMetadataEnabled?.[index]) && (
+                                                <div className="mt-2.5 p-3.5 bg-purple-50/40 border border-purple-200/80 rounded-2xl animate-fade-in text-left space-y-3">
+                                                    <div className="flex justify-between items-center pb-1 border-b border-purple-100">
+                                                        <label className="text-[9px] font-black text-purple-700 uppercase tracking-widest px-0.5 flex items-center gap-1.5">
+                                                            <Tag size={13} className="text-purple-700" /> Metadata Step Configuration
+                                                        </label>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => {
+                                                                const nextEnabled = [...(currentContent.taskMetadataEnabled || [])];
+                                                                nextEnabled[index] = false;
+                                                                updateCurrentContentField('taskMetadataEnabled', nextEnabled);
+                                                            }}
+                                                            className="text-gray-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
+                                                            title="Turn off Metadata for this step"
+                                                        >
+                                                            <X size={13} />
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                                                                Attribute Selection
+                                                            </label>
+                                                            <CustomSelect
+                                                                value={currentContent.taskMetadataConfigs?.[index]?.attribute || 'primary_goal'}
+                                                                onChange={(val) => {
+                                                                    const nextConfigs = [...(currentContent.taskMetadataConfigs || [])];
+                                                                    while (nextConfigs.length <= index) nextConfigs.push(null);
+                                                                    const current = nextConfigs[index] || { attribute: 'primary_goal', mode: 'receive' };
+                                                                    nextConfigs[index] = { ...current, attribute: String(val) };
+                                                                    updateCurrentContentField('taskMetadataConfigs', nextConfigs);
+                                                                }}
+                                                                options={getMetadataFields().map(f => ({
+                                                                    value: f.key,
+                                                                    label: `${f.label} (${f.placeholderSample})`
+                                                                }))}
+                                                                placeholder="Select Metadata Attribute..."
+                                                                className="w-full text-xs"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                                                                Action Mode
+                                                            </label>
+                                                            <CustomSelect
+                                                                value={currentContent.taskMetadataConfigs?.[index]?.mode || 'receive'}
+                                                                onChange={(val) => {
+                                                                    const nextConfigs = [...(currentContent.taskMetadataConfigs || [])];
+                                                                    while (nextConfigs.length <= index) nextConfigs.push(null);
+                                                                    const current = nextConfigs[index] || { attribute: 'primary_goal', mode: 'receive' };
+                                                                    nextConfigs[index] = { ...current, mode: String(val) as 'receive' | 'send' };
+                                                                    updateCurrentContentField('taskMetadataConfigs', nextConfigs);
+                                                                }}
+                                                                options={[
+                                                                    { value: 'receive', label: '📥 Receive (Display in poll options / step)' },
+                                                                    { value: 'send', label: '📤 Send / Save (Store participant response)' }
+                                                                ]}
+                                                                placeholder="Select Mode..."
+                                                                className="w-full text-xs"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {(currentContent.taskMetadataConfigs?.[index]?.mode || 'receive') === 'receive' && (
+                                                        <div className="p-2.5 bg-white/80 rounded-xl border border-purple-100 flex flex-col gap-1 text-[11px] text-purple-900">
+                                                            <p className="font-semibold flex items-center gap-1.5">
+                                                                <span>✨</span>
+                                                                {activeInputType === 'poll' 
+                                                                    ? "Poll Option Receive: Displays participant's saved attribute value as one of the poll choices. If nothing to display, only default configured options show."
+                                                                    : "Receive Mode: Pulls participant's saved metadata value for this attribute."}
+                                                            </p>
+                                                            {(() => {
+                                                                const attrKey = currentContent.taskMetadataConfigs?.[index]?.attribute || 'primary_goal';
+                                                                const sourceStepConfig = findMetadataSourceStepAcrossSprints(
+                                                                    attrKey,
+                                                                    [sprint, ...allCatalogSprints].filter(Boolean)
+                                                                );
+                                                                const isPrerequisiteOn = !!currentContent.taskPrerequisiteEnabled?.[index];
+
+                                                                return (
+                                                                    <div className="w-full pt-2 mt-1 border-t border-purple-100 flex flex-col gap-1.5">
+                                                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                            <span className="text-[10px] font-black uppercase tracking-wider text-purple-800 flex items-center gap-1">
+                                                                                <span>📍</span> Original Source Step:
+                                                                            </span>
+                                                                            {sourceStepConfig && !sourceStepConfig.isFallback ? (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const nextEnabled = [...(currentContent.taskPrerequisiteEnabled || [])];
+                                                                                        while (nextEnabled.length <= index) nextEnabled.push(false);
+                                                                                        nextEnabled[index] = !nextEnabled[index];
+                                                                                        updateCurrentContentField('taskPrerequisiteEnabled', nextEnabled);
+
+                                                                                        const nextConfigs = [...(currentContent.taskPrerequisiteConfigs || [])];
+                                                                                        while (nextConfigs.length <= index) nextConfigs.push(null);
+                                                                                        nextConfigs[index] = nextEnabled[index] ? sourceStepConfig : null;
+                                                                                        updateCurrentContentField('taskPrerequisiteConfigs', nextConfigs);
+                                                                                    }}
+                                                                                    className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border shadow-xs ${
+                                                                                        isPrerequisiteOn
+                                                                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                                                                                            : 'bg-white hover:bg-purple-100 text-purple-950 border-purple-300'
+                                                                                    }`}
+                                                                                    title="Click to toggle ON/OFF: When active, participants who haven't completed this step in the original sprint will see and finish it before proceeding."
+                                                                                >
+                                                                                    <span className={`w-2 h-2 rounded-full ${isPrerequisiteOn ? 'bg-white animate-pulse' : 'bg-purple-500'}`} />
+                                                                                    <span className="font-extrabold tracking-tight">
+                                                                                        {sourceStepConfig.sourceSprintTitle} • M{sourceStepConfig.sourceDay || 1} Step {(sourceStepConfig.sourceStepIndex ?? 0) + 1}
+                                                                                    </span>
+                                                                                    <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded font-black ${
+                                                                                        isPrerequisiteOn ? 'bg-emerald-800 text-white' : 'bg-purple-100 text-purple-800'
+                                                                                    }`}>
+                                                                                        {isPrerequisiteOn ? 'ACTIVE (ON)' : 'SET ON'}
+                                                                                    </span>
+                                                                                </button>
+                                                                            ) : (
+                                                                                <span className="text-[11px] text-gray-500 italic bg-white/70 px-2.5 py-0.5 rounded-lg border border-gray-200">
+                                                                                    {`Metadata [${attrKey}] save step not found in other sprints yet`}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        {sourceStepConfig && !sourceStepConfig.isFallback && (
+                                                                            <span className="text-[10px] text-gray-600 font-medium italic">
+                                                                                {isPrerequisiteOn 
+                                                                                    ? '✓ Exact step will show in Sprint View for participants who missed original sprint'
+                                                                                    : 'Click to require this step before proceeding in Sprint View'}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    )}
+
+                                                    {(currentContent.taskMetadataConfigs?.[index]?.mode === 'send') && (
+                                                        <div className="p-2.5 bg-white/80 rounded-xl border border-purple-100 text-[11px] text-purple-900 font-medium">
+                                                            <span>📤 When participant answers or completes this step, their response will be automatically stored to their profile as: </span>
+                                                            <span className="font-bold underline">{currentContent.taskMetadataConfigs?.[index]?.attribute || 'primary_goal'}</span>.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                             {(currentContent.taskHints?.[index] !== undefined && currentContent.taskHints?.[index] !== null) && (
                                                 <div className="mt-2 animate-fade-in">
                                                     <div className="flex justify-between items-center mb-1.5 flex-wrap gap-1">
@@ -5378,7 +5558,7 @@ const EditSprint: React.FC = () => {
                                                             >
                                                                 <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${currentContent.taskPollArrange?.[index] ? 'translate-x-4' : 'translate-x-0'}`} />
                                                             </button>
-                                                            <span className="text-xs font-black text-gray-700 select-none cursor-help">Arrange (Drag & Reposition)</span>
+                                                            <span className="text-xs font-black text-gray-700 select-none cursor-help">Arrange</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <button
@@ -6486,6 +6666,7 @@ const EditSprint: React.FC = () => {
           onClose={() => setShowAdvancedActionModal(false)}
           onSaveDraft={handleSaveDraft}
           saveStatus={saveStatus}
+          allCatalogSprints={allCatalogSprints}
         />
       )}
 

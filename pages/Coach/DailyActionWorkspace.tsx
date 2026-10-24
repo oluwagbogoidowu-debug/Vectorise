@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
-import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube, ChevronLeft, ChevronRight, Sliders, Tag } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt } from '../../src/utils/stepPlaceholderUtils';
-import { normalizeMultiTextDailyContent } from '../../services/sprintService';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints } from '../../src/utils/stepPlaceholderUtils';
+import { normalizeMultiTextDailyContent, sprintService } from '../../services/sprintService';
 
 const extractYouTubeId = (url: string): string | null => {
   if (!url) return null;
@@ -46,6 +46,7 @@ interface DailyActionWorkspaceProps {
   onClose: () => void;
   onSaveDraft?: () => Promise<void>;
   saveStatus?: 'idle' | 'saving' | 'saved';
+  allCatalogSprints?: Sprint[];
 }
 
 export default function DailyActionWorkspace({
@@ -56,7 +57,18 @@ export default function DailyActionWorkspace({
   onClose,
   onSaveDraft,
   saveStatus = 'idle',
+  allCatalogSprints,
 }: DailyActionWorkspaceProps) {
+  const [internalCatalogSprints, setInternalCatalogSprints] = useState<Sprint[]>([]);
+  useEffect(() => {
+    if (!allCatalogSprints || allCatalogSprints.length === 0) {
+      sprintService.getAdminSprints().then((sprints: Sprint[]) => {
+        if (sprints && Array.isArray(sprints)) setInternalCatalogSprints(sprints);
+      }).catch(() => {});
+    }
+  }, [allCatalogSprints]);
+  const catalogList = allCatalogSprints && allCatalogSprints.length > 0 ? allCatalogSprints : internalCatalogSprints;
+
   const [advancedGeneralInput, setAdvancedGeneralInput] = useState('');
   const [selectedText, setSelectedText] = useState('');
   const [activeStepIndices, setActiveStepIndices] = useState<Record<number, number>>({});
@@ -143,6 +155,11 @@ export default function DailyActionWorkspace({
     const safeFills = Array.isArray((content as any).taskFills) ? (content as any).taskFills : [];
     const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect) ? (content as any).taskPollMultiSelect : [];
     const safePollArrange = Array.isArray((content as any).taskPollArrange) ? (content as any).taskPollArrange : [];
+    const safePollAdd = Array.isArray((content as any).taskPollAdd) ? (content as any).taskPollAdd : [];
+    const safeMetadataEnabled = Array.isArray((content as any).taskMetadataEnabled) ? (content as any).taskMetadataEnabled : [];
+    const safeMetadataConfigs = Array.isArray((content as any).taskMetadataConfigs) ? (content as any).taskMetadataConfigs : [];
+    const safePrerequisiteEnabled = Array.isArray((content as any).taskPrerequisiteEnabled) ? (content as any).taskPrerequisiteEnabled : [];
+    const safePrerequisiteConfigs = Array.isArray((content as any).taskPrerequisiteConfigs) ? (content as any).taskPrerequisiteConfigs : [];
     const safeMultiTextLabels = Array.isArray((content as any).taskMultiTextLabels) ? (content as any).taskMultiTextLabels : [];
     const safeMultiTextSignals = Array.isArray((content as any).taskMultiTextSignals) ? (content as any).taskMultiTextSignals : [];
     const safeMultiTextTags = Array.isArray((content as any).taskMultiTextTags) ? (content as any).taskMultiTextTags : [];
@@ -158,6 +175,11 @@ export default function DailyActionWorkspace({
         taskFills: safeFills,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
+        taskPollAdd: safePollAdd,
+        taskMetadataEnabled: safeMetadataEnabled,
+        taskMetadataConfigs: safeMetadataConfigs,
+        taskPrerequisiteEnabled: safePrerequisiteEnabled,
+        taskPrerequisiteConfigs: safePrerequisiteConfigs,
         taskMultiTextLabels: safeMultiTextLabels,
         taskMultiTextSignals: safeMultiTextSignals,
         taskMultiTextTags: safeMultiTextTags,
@@ -262,6 +284,11 @@ export default function DailyActionWorkspace({
         taskPollOptions: spliceArr(dayContent.taskPollOptions as any),
         taskPollMultiSelect: spliceArr(dayContent.taskPollMultiSelect),
         taskPollArrange: spliceArr(dayContent.taskPollArrange),
+        taskPollAdd: spliceArr(dayContent.taskPollAdd),
+        taskMetadataEnabled: spliceArr(dayContent.taskMetadataEnabled),
+        taskMetadataConfigs: spliceArr(dayContent.taskMetadataConfigs),
+        taskPrerequisiteEnabled: spliceArr(dayContent.taskPrerequisiteEnabled),
+        taskPrerequisiteConfigs: spliceArr(dayContent.taskPrerequisiteConfigs),
         taskSpread: spliceArr(dayContent.taskSpread),
         taskLinkedToNext: spliceArr(dayContent.taskLinkedToNext),
         taskLinkedSources: spliceArr(dayContent.taskLinkedSources),
@@ -328,6 +355,11 @@ export default function DailyActionWorkspace({
       }
       dayContent.taskPollMultiSelect = reorderArr(dayContent.taskPollMultiSelect);
       dayContent.taskPollArrange = reorderArr(dayContent.taskPollArrange);
+      dayContent.taskPollAdd = reorderArr(dayContent.taskPollAdd);
+      dayContent.taskMetadataEnabled = reorderArr(dayContent.taskMetadataEnabled);
+      dayContent.taskMetadataConfigs = reorderArr(dayContent.taskMetadataConfigs);
+      dayContent.taskPrerequisiteEnabled = reorderArr(dayContent.taskPrerequisiteEnabled);
+      dayContent.taskPrerequisiteConfigs = reorderArr(dayContent.taskPrerequisiteConfigs);
       dayContent.taskSpread = reorderArr(dayContent.taskSpread);
       dayContent.taskLinkedToNext = reorderArr(dayContent.taskLinkedToNext);
       dayContent.taskLinkedSources = reorderArr(dayContent.taskLinkedSources);
@@ -631,6 +663,31 @@ export default function DailyActionWorkspace({
     while (arrange.length <= index) arrange.push(false);
     arrange[index] = !arrange[index];
     updateFieldForDay(dayNum, 'taskPollArrange', arrange);
+  };
+
+  const handleTogglePollAdd = (dayNum: number, index: number) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const addArr = [...(dayContent.taskPollAdd || [])];
+    while (addArr.length <= index) addArr.push(false);
+    addArr[index] = !addArr[index];
+    updateFieldForDay(dayNum, 'taskPollAdd', addArr);
+  };
+
+  const handleToggleStepMetadata = (dayNum: number, index: number) => {
+    const dayContent = getDailyContentForDay(dayNum);
+    const metaArr = [...(dayContent.taskMetadataEnabled || [])];
+    while (metaArr.length <= index) metaArr.push(false);
+    metaArr[index] = !metaArr[index];
+    updateFieldForDay(dayNum, 'taskMetadataEnabled', metaArr);
+
+    if (metaArr[index]) {
+      const cfgArr = [...(dayContent.taskMetadataConfigs || [])];
+      while (cfgArr.length <= index) cfgArr.push(null);
+      if (!cfgArr[index]) {
+        cfgArr[index] = { attribute: 'primary_goal', mode: 'receive' };
+        updateFieldForDay(dayNum, 'taskMetadataConfigs', cfgArr);
+      }
+    }
   };
 
   const handleToggleSpread = (dayNum: number, index: number) => {
@@ -1789,8 +1846,8 @@ export default function DailyActionWorkspace({
                         </div>
                       </div>
 
-                      {/* Bottom Row (Horizontal Line Below): Hint, Footnote, Video */}
-                      <div className="flex items-center gap-2 pt-1.5 border-t border-gray-50">
+                      {/* Bottom Row (Horizontal Line Below): Hint, Footnote, Ask AI, Video, Metadata */}
+                      <div className="flex items-center gap-2 pt-1.5 border-t border-gray-50 flex-wrap">
                         <button 
                           type="button"
                           onClick={() => {
@@ -1847,6 +1904,22 @@ export default function DailyActionWorkspace({
                         >
                           <Youtube size={12} className={dayContent.taskVideos?.[activeIdx] ? 'text-red-500' : ''} />
                           <span>Video</span>
+                        </button>
+
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setSelectedDay(dayNum);
+                            handleToggleStepMetadata(dayNum, activeIdx);
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${dayContent.taskMetadataEnabled?.[activeIdx] ? 'bg-amber-50 text-amber-700 border-amber-200 shadow-xs' : 'text-gray-400 hover:text-amber-700 hover:bg-amber-50/60 border-transparent'}`}
+                          title="Metadata: Configure whether this step receives user metadata (e.g. as a poll option) or sends/saves participant input to their profile metadata."
+                        >
+                          <Sliders size={11} className={dayContent.taskMetadataEnabled?.[activeIdx] ? 'text-amber-600' : ''} />
+                          <span>Metadata</span>
+                          {dayContent.taskMetadataEnabled?.[activeIdx] && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -2427,6 +2500,158 @@ export default function DailyActionWorkspace({
                       </div>
                     )}
 
+                    {/* Metadata Step Configuration Card */}
+                    {dayContent.taskMetadataEnabled?.[activeIdx] && (
+                      <div className="mt-2.5 p-3.5 bg-purple-50/40 border border-purple-200/80 rounded-2xl animate-fade-in text-left space-y-3">
+                        <div className="flex justify-between items-center pb-1 border-b border-purple-100">
+                          <label className="text-[9px] font-black text-purple-700 uppercase tracking-widest px-0.5 flex items-center gap-1.5">
+                            <Tag size={13} className="text-purple-700" /> Metadata Step Configuration
+                          </label>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              const nextEnabled = [...(dayContent.taskMetadataEnabled || [])];
+                              nextEnabled[activeIdx] = false;
+                              updateFieldForDay(dayNum, 'taskMetadataEnabled', nextEnabled);
+                            }}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1 cursor-pointer"
+                            title="Turn off Metadata for this step"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                              Attribute Selection
+                            </label>
+                            <CustomSelect
+                              value={dayContent.taskMetadataConfigs?.[activeIdx]?.attribute || 'primary_goal'}
+                              onChange={(val) => {
+                                setSelectedDay(dayNum);
+                                const nextConfigs = [...(dayContent.taskMetadataConfigs || [])];
+                                while (nextConfigs.length <= activeIdx) nextConfigs.push(null);
+                                const current = nextConfigs[activeIdx] || { attribute: 'primary_goal', mode: 'receive' };
+                                nextConfigs[activeIdx] = { ...current, attribute: String(val) };
+                                updateFieldForDay(dayNum, 'taskMetadataConfigs', nextConfigs);
+                              }}
+                              options={getMetadataFields().map(f => ({
+                                value: f.key,
+                                label: `${f.label} (${f.placeholderSample})`
+                              }))}
+                              placeholder="Select Metadata Attribute..."
+                              className="w-full text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                              Action Mode
+                            </label>
+                            <CustomSelect
+                              value={dayContent.taskMetadataConfigs?.[activeIdx]?.mode || 'receive'}
+                              onChange={(val) => {
+                                setSelectedDay(dayNum);
+                                const nextConfigs = [...(dayContent.taskMetadataConfigs || [])];
+                                while (nextConfigs.length <= activeIdx) nextConfigs.push(null);
+                                const current = nextConfigs[activeIdx] || { attribute: 'primary_goal', mode: 'receive' };
+                                nextConfigs[activeIdx] = { ...current, mode: String(val) as 'receive' | 'send' };
+                                updateFieldForDay(dayNum, 'taskMetadataConfigs', nextConfigs);
+                              }}
+                              options={[
+                                { value: 'receive', label: '📥 Receive (Display in poll options / step)' },
+                                { value: 'send', label: '📤 Send / Save (Store participant response)' }
+                              ]}
+                              placeholder="Select Mode..."
+                              className="w-full text-xs"
+                            />
+                          </div>
+                        </div>
+
+                        {(dayContent.taskMetadataConfigs?.[activeIdx]?.mode || 'receive') === 'receive' && (
+                          <div className="p-2.5 bg-white/80 rounded-xl border border-purple-100 flex flex-col gap-1 text-[11px] text-purple-900">
+                            <p className="font-semibold flex items-center gap-1.5">
+                              <span>✨</span>
+                              {activeInputType === 'poll' 
+                                ? "Poll Option Receive: Displays participant's saved attribute value as one of the poll choices. If nothing to display, only default configured options show."
+                                : "Receive Mode: Pulls participant's saved metadata value for this attribute."}
+                            </p>
+                            {(() => {
+                              const attrKey = dayContent.taskMetadataConfigs?.[activeIdx]?.attribute || 'primary_goal';
+                              const sourceStepConfig = findMetadataSourceStepAcrossSprints(
+                                attrKey,
+                                [sprint, ...catalogList].filter(Boolean)
+                              );
+                              const isPrerequisiteOn = !!dayContent.taskPrerequisiteEnabled?.[activeIdx];
+
+                              return (
+                                <div className="w-full pt-2 mt-1 border-t border-purple-100 flex flex-col gap-1.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-800 flex items-center gap-1">
+                                      <span>📍</span> Original Source Step:
+                                    </span>
+                                    {sourceStepConfig && !sourceStepConfig.isFallback ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          const nextEnabled = [...(dayContent.taskPrerequisiteEnabled || [])];
+                                          while (nextEnabled.length <= activeIdx) nextEnabled.push(false);
+                                          nextEnabled[activeIdx] = !nextEnabled[activeIdx];
+                                          updateFieldForDay(dayNum, 'taskPrerequisiteEnabled', nextEnabled);
+
+                                          const nextConfigs = [...(dayContent.taskPrerequisiteConfigs || [])];
+                                          while (nextConfigs.length <= activeIdx) nextConfigs.push(null);
+                                          nextConfigs[activeIdx] = nextEnabled[activeIdx] ? sourceStepConfig : null;
+                                          updateFieldForDay(dayNum, 'taskPrerequisiteConfigs', nextConfigs);
+                                        }}
+                                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border shadow-xs ${
+                                          isPrerequisiteOn
+                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                                            : 'bg-white hover:bg-purple-100 text-purple-950 border-purple-300'
+                                        }`}
+                                        title="Click to toggle ON/OFF: When active, participants who haven't completed this step in the original sprint will see and finish it before proceeding."
+                                      >
+                                        <span className={`w-2 h-2 rounded-full ${isPrerequisiteOn ? 'bg-white animate-pulse' : 'bg-purple-500'}`} />
+                                        <span className="font-extrabold tracking-tight">
+                                          {sourceStepConfig.sourceSprintTitle} • M{sourceStepConfig.sourceDay || 1} Step {(sourceStepConfig.sourceStepIndex ?? 0) + 1}
+                                        </span>
+                                        <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded font-black ${
+                                          isPrerequisiteOn ? 'bg-emerald-800 text-white' : 'bg-purple-100 text-purple-800'
+                                        }`}>
+                                          {isPrerequisiteOn ? 'ACTIVE (ON)' : 'SET ON'}
+                                        </span>
+                                      </button>
+                                    ) : (
+                                      <span className="text-[11px] text-gray-500 italic bg-white/70 px-2.5 py-0.5 rounded-lg border border-gray-200">
+                                        {`Metadata [${attrKey}] save step not found in other sprints yet`}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {sourceStepConfig && !sourceStepConfig.isFallback && (
+                                    <span className="text-[10px] text-gray-600 font-medium italic">
+                                      {isPrerequisiteOn 
+                                        ? '✓ Exact step will show in Sprint View for participants who missed original sprint'
+                                        : 'Click to require this step before proceeding in Sprint View'}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
+
+                        {(dayContent.taskMetadataConfigs?.[activeIdx]?.mode === 'send') && (
+                          <div className="p-2.5 bg-white/80 rounded-xl border border-purple-100 text-[11px] text-purple-900 font-medium">
+                            <span>📤 When participant answers or completes this step, their response will be automatically stored to their profile as: </span>
+                            <span className="font-bold underline">{dayContent.taskMetadataConfigs?.[activeIdx]?.attribute || 'primary_goal'}</span>.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Task Hint edit input */}
                     {dayContent.taskHints?.[activeIdx] !== undefined && dayContent.taskHints?.[activeIdx] !== null && (
                       <div className={`mt-2 animate-fade-in border border-amber-100 rounded-2xl p-3 bg-amber-50/5 ${isLastAssignedHint ? 'ring-2 ring-amber-500 ring-offset-2' : ''}`}>
@@ -2845,7 +3070,7 @@ export default function DailyActionWorkspace({
                           </div>
                         )}
 
-                        <div className="flex items-center gap-4 mb-2 bg-white p-2 rounded-xl border border-gray-100 shadow-2xs">
+                        <div className="flex items-center gap-4 mb-2 bg-white p-2.5 rounded-xl border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex-wrap">
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
@@ -2853,11 +3078,12 @@ export default function DailyActionWorkspace({
                                 setSelectedDay(dayNum);
                                 handleTogglePollMultiSelect(dayNum, activeIdx);
                               }}
-                              className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollMultiSelect?.[activeIdx] ? 'bg-purple-650 justify-end' : 'bg-gray-200 justify-start'}`}
+                              className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollMultiSelect?.[activeIdx] ? 'bg-primary justify-end' : 'bg-gray-200 justify-start'}`}
+                              title="Multi-Select: Toggle whether the participant can choose multiple options instead of a single choice."
                             >
-                              <span className="w-3 h-3 rounded-full bg-white shadow-xs" />
+                              <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${dayContent.taskPollMultiSelect?.[activeIdx] ? 'translate-x-4' : 'translate-x-0'}`} />
                             </button>
-                            <span className="text-[10px] font-bold text-gray-750 select-none">Multi-Select</span>
+                            <span className="text-xs font-black text-gray-700 select-none cursor-help">Multi-Select</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -2866,13 +3092,45 @@ export default function DailyActionWorkspace({
                                 setSelectedDay(dayNum);
                                 handleTogglePollArrange(dayNum, activeIdx);
                               }}
-                              className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollArrange?.[activeIdx] ? 'bg-indigo-600 justify-end' : 'bg-gray-200 justify-start'}`}
+                              className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollArrange?.[activeIdx] ? 'bg-indigo-600 justify-end' : 'bg-gray-200 justify-start'}`}
+                              title="Arrange: In Sprint View, participants drag options up/down to reposition and rank them."
                             >
-                              <span className="w-3 h-3 rounded-full bg-white shadow-xs" />
+                              <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${dayContent.taskPollArrange?.[activeIdx] ? 'translate-x-4' : 'translate-x-0'}`} />
                             </button>
-                            <span className="text-[10px] font-bold text-gray-750 select-none">Arrange</span>
+                            <span className="text-xs font-black text-gray-700 select-none cursor-help">Arrange</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                handleTogglePollAdd(dayNum, activeIdx);
+                              }}
+                              className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 ease-in-out ${dayContent.taskPollAdd?.[activeIdx] ? 'bg-rose-500 justify-end' : 'bg-gray-200 justify-start'}`}
+                              title="Add: When enabled, participants can add a custom answer under the last poll option (text input or tag input if multi-select is enabled)."
+                            >
+                              <span className={`w-4 h-4 rounded-full bg-white shadow-sm transform duration-200 ease-in-out ${dayContent.taskPollAdd?.[activeIdx] ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </button>
+                            <span className="text-xs font-black text-gray-700 select-none cursor-help flex items-center gap-1.5">
+                              Add
+                              {dayContent.taskPollAdd?.[activeIdx] && (
+                                <span className="w-2 h-2 rounded-full bg-red-500 inline-block animate-pulse" />
+                              )}
+                            </span>
                           </div>
                         </div>
+
+                        {(dayContent.taskMetadataEnabled?.[activeIdx] && (dayContent.taskMetadataConfigs?.[activeIdx]?.mode === 'receive' || !dayContent.taskMetadataConfigs?.[activeIdx]?.mode)) && (
+                          <div className="bg-amber-50/75 text-amber-900 border border-amber-200/80 rounded-xl p-2.5 text-xs font-semibold animate-fade-in flex flex-col gap-1 text-left">
+                            <div className="flex items-center gap-1.5 text-amber-800">
+                              <span>📥</span>
+                              <span className="font-extrabold uppercase tracking-wide text-[10px]">Metadata Option Linked</span>
+                            </div>
+                            <p className="font-medium text-amber-800/90 text-[11px] leading-relaxed">
+                              This poll receives the participant's saved <span className="font-bold underline">{dayContent.taskMetadataConfigs?.[activeIdx]?.attribute || 'primary_goal'}</span> as a choice. If the participant has no saved value, only your default options below will show.
+                            </p>
+                          </div>
+                        )}
 
                         <div className="space-y-1.5">
                           {(() => {
