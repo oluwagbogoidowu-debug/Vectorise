@@ -42,7 +42,7 @@ import BottomModalCoinCards from "../../components/BottomModalCoinCards";
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save, Loader2 } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save, Loader2, Lightbulb } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import AiResearchModal from "../../components/AiResearchModal";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
@@ -4958,6 +4958,67 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             ? ((taskInputs as any)[aiResearchStepIndex] as any[]).join(', ')
             : JSON.stringify((taskInputs as any)?.[aiResearchStepIndex] || '')
         }
+        stepInputType={(() => {
+          if (!dayContent) return 'text';
+          return getStepInputType(
+            dayContent,
+            aiResearchStepIndex,
+            taskInputs,
+            sprint?.dailyContent,
+            enrollment?.progress
+          );
+        })()}
+        pollOptions={(() => {
+          if (!dayContent) return [];
+          const stepVerIdx = resolveStepVersionIndex(
+            aiResearchStepIndex,
+            dayContent,
+            taskInputs,
+            sprint?.dailyContent,
+            enrollment?.progress
+          );
+          const rawOpts = dayContent?.taskPollOptions?.[aiResearchStepIndex];
+          const effectiveOpts = getStepVersionValue(rawOpts, stepVerIdx);
+          try {
+            const parsed = JSON.parse(effectiveOpts || rawOpts || '[]');
+            return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+          } catch {
+            return [];
+          }
+        })()}
+        isMultiSelect={!!dayContent?.taskPollMultiSelect?.[aiResearchStepIndex]}
+        onPickOption={(picked) => {
+          const stepIdx = aiResearchStepIndex;
+          const newInputs = [...taskInputs];
+          const isMulti = !!dayContent?.taskPollMultiSelect?.[stepIdx];
+
+          if (Array.isArray(picked)) {
+            newInputs[stepIdx] = JSON.stringify(picked);
+          } else if (isMulti) {
+            let existing: string[] = [];
+            const curVal = newInputs[stepIdx];
+            try {
+              if (typeof curVal === 'string' && curVal.trim().startsWith('[')) {
+                existing = JSON.parse(curVal);
+              } else if (curVal) {
+                existing = [String(curVal)];
+              }
+            } catch {
+              existing = [];
+            }
+            if (!Array.isArray(existing)) existing = [];
+            if (existing.includes(picked)) {
+              existing = existing.filter((o) => o !== picked);
+            } else {
+              existing = [...existing, picked];
+            }
+            newInputs[stepIdx] = JSON.stringify(existing);
+          } else {
+            newInputs[stepIdx] = picked;
+          }
+
+          setTaskInputs(newInputs);
+        }}
         onSaveToNote={(noteText) => {
           if (aiResearchStepIndex === expressNoteStepIndex) {
             setExpressNoteText(noteText);
@@ -5550,6 +5611,35 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 ) : effectiveInputType ===
                                   "poll" ? (
                                   <div className="space-y-3">
+                                    {/* AI Think & Suggest Options Banner - shown when Ask AI is configured for this step */}
+                                    {Boolean(
+                                      (dayContent?.taskAskAis?.[i] !== undefined && dayContent?.taskAskAis?.[i] !== null) ||
+                                      (dayContent?.taskAskAi?.[i] !== undefined && dayContent?.taskAskAi?.[i] !== null)
+                                    ) && (
+                                      <div className="flex items-center justify-between p-3 sm:p-3.5 bg-gradient-to-r from-purple-50 via-indigo-50/60 to-purple-50 dark:from-purple-950/40 dark:via-indigo-950/30 dark:to-purple-950/40 rounded-2xl border border-purple-200/70 dark:border-purple-800/50 mb-3 text-left shadow-xs">
+                                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                          <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                            <Sparkles className="w-4 h-4" />
+                                          </div>
+                                          <div className="min-w-0">
+                                            <p className="text-xs sm:text-sm font-black text-purple-950 dark:text-purple-100 truncate">
+                                              Let AI think through this question
+                                            </p>
+                                            <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium line-clamp-1">
+                                              Deep strategic thinking & up to 10 options you can pick from
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenAiResearch(i)}
+                                          className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shrink-0 transition-all active:scale-95 cursor-pointer shadow-xs flex items-center gap-1.5"
+                                        >
+                                          <Lightbulb className="w-3.5 h-3.5 text-yellow-300" />
+                                          <span>Think & Options</span>
+                                        </button>
+                                      </div>
+                                    )}
                                     {(() => {
                                       let pollOptions: string[] = [];
                                       let customOptions: string[] = [];
@@ -5637,6 +5727,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         selectedOpts = [String(rawInput)];
                                       }
                                       if (!Array.isArray(selectedOpts)) selectedOpts = [];
+
+                                      // If user picked an AI option or custom option, ensure it appears as an available pill
+                                      if (singleSelected && !pollOptions.includes(singleSelected)) {
+                                        pollOptions.push(singleSelected);
+                                      }
+                                      selectedOpts.forEach((opt) => {
+                                        if (opt && !pollOptions.includes(opt)) {
+                                          pollOptions.push(opt);
+                                        }
+                                      });
                                       const lastOption = pollOptions.length > 0 ? pollOptions[pollOptions.length - 1] : null;
 
                                       if (pollOptions.length > 6) {
@@ -6794,6 +6894,35 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                             />
                           ) : dayContent?.taskInputTypes?.[0] === "poll" ? (
                             <div className="space-y-3">
+                              {/* AI Think & Suggest Options Banner - single-step mode */}
+                              {Boolean(
+                                (dayContent?.taskAskAis?.[0] !== undefined && dayContent?.taskAskAis?.[0] !== null) ||
+                                (dayContent?.taskAskAi?.[0] !== undefined && dayContent?.taskAskAi?.[0] !== null)
+                              ) && (
+                                <div className="flex items-center justify-between p-3 sm:p-3.5 bg-gradient-to-r from-purple-50 via-indigo-50/60 to-purple-50 dark:from-purple-950/40 dark:via-indigo-950/30 dark:to-purple-950/40 rounded-2xl border border-purple-200/70 dark:border-purple-800/50 mb-3 text-left shadow-xs">
+                                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                    <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                      <Sparkles className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs sm:text-sm font-black text-purple-950 dark:text-purple-100 truncate">
+                                        Let AI think through this question
+                                      </p>
+                                      <p className="text-[11px] text-purple-700 dark:text-purple-300 font-medium line-clamp-1">
+                                        Deep strategic thinking & up to 10 options you can pick from
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenAiResearch(0)}
+                                    className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shrink-0 transition-all active:scale-95 cursor-pointer shadow-xs flex items-center gap-1.5"
+                                  >
+                                    <Lightbulb className="w-3.5 h-3.5 text-yellow-300" />
+                                    <span>Think & Options</span>
+                                  </button>
+                                </div>
+                              )}
                               {(() => {
                                 let pollOpts: string[] = [];
                                 try {
@@ -6856,6 +6985,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   selectedOpts = [];
                                 }
                                 if (!Array.isArray(selectedOpts)) selectedOpts = [];
+
+                                selectedOpts.forEach((opt) => {
+                                  if (opt && !pollOpts.includes(opt)) {
+                                    pollOpts.push(opt);
+                                  }
+                                });
 
                                 if (pollOpts.length > 6) {
                                   if (isMultiSelect) {

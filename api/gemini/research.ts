@@ -22,6 +22,9 @@ export default async function geminiResearchHandler(req: Request, res: Response)
     userAnswer,
     preset,
     history,
+    stepInputType,
+    pollOptions,
+    isMultiSelect,
   } = req.body || {};
 
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
@@ -42,6 +45,7 @@ export default async function geminiResearchHandler(req: Request, res: Response)
 
   // Construct a tailored, high-value prompt based on preset or user query
   let queryText = prompt?.trim() || "";
+  const isPollStep = stepInputType === "poll" || preset === "poll_options" || preset === "think_and_poll";
   const isResearchMode = preset === "research_this" || queryText.toLowerCase().includes("research");
 
   // Ensure stepPrompt has placeholders resolved if any raw tokens remain
@@ -53,7 +57,35 @@ export default async function geminiResearchHandler(req: Request, res: Response)
     );
   }
 
-  if (preset === "explain_this") {
+  if (preset === "poll_options" || preset === "think_and_poll" || (isPollStep && !preset && !queryText)) {
+    queryText = `This action step is a POLL question requiring the participant to choose an option.
+The question is: "${resolvedStepPrompt}"
+${footnote ? `Context / Footnote: "${footnote}"` : ""}
+${askAiGuidance ? `Coach Guidance: "${askAiGuidance}"` : ""}
+${Array.isArray(pollOptions) && pollOptions.filter(Boolean).length > 0 ? `Existing coach options: ${pollOptions.filter(Boolean).join(", ")}` : ""}
+
+You MUST execute two tasks:
+1. THINK THROUGH THE QUESTION: Provide a sharp, strategic breakdown of the question. Explain what core angles, nuances, tradeoffs, and considerations the participant should weigh to make an impactful decision in this sprint.
+2. GIVE UP TO 10 OPTIONS: Generate up to 10 distinct, realistic, practical, and diverse options that directly answer the question. Each option MUST be concise (1 to 8 words), natural, and directly selectable as a poll choice.
+
+Format your entire response as a valid JSON object matching this schema:
+{
+  "thinking": "Clear, insightful explanation thinking through the question and its key strategic considerations (2-3 concise paragraphs)",
+  "options": [
+    "Option 1",
+    "Option 2",
+    "Option 3",
+    "Option 4",
+    "Option 5",
+    "Option 6",
+    "Option 7",
+    "Option 8",
+    "Option 9",
+    "Option 10"
+  ]
+}
+Do NOT include numbers inside the option strings. Return valid JSON only.`;
+  } else if (preset === "explain_this") {
     queryText = `Explain this action step or concept clearly in the context of this sprint. Explain why it matters and how to approach it.`;
   } else if (preset === "examples") {
     queryText = `Give relevant, high-quality, practical examples showing how to successfully execute this action step in this domain.`;
@@ -254,10 +286,52 @@ Structure output in crisp, clean Markdown with headings and bullet points.`;
       }
 
       if (research) {
-        console.log(`[API Gemini Research] Successfully generated research using ${plan.label}`);
+        let parsedThinking = "";
+        let parsedOptions: string[] = [];
+
+        // Check if response contains JSON with thinking and options
+        try {
+          const jsonMatch = research.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || [null, research];
+          const jsonStr = (jsonMatch[1] || research).trim();
+          const firstBrace = jsonStr.indexOf('{');
+          const lastBrace = jsonStr.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            const parsed = JSON.parse(jsonStr.substring(firstBrace, lastBrace + 1));
+            if (parsed && typeof parsed === "object") {
+              if (typeof parsed.thinking === "string") parsedThinking = parsed.thinking.trim();
+              if (Array.isArray(parsed.options)) {
+                parsedOptions = parsed.options.map((o: any) => String(o).trim()).filter(Boolean).slice(0, 10);
+              }
+            }
+          }
+        } catch (e) {
+          // Non-strict JSON or raw markdown fallback
+        }
+
+        // Fallback parsing if options not in strict JSON
+        if (parsedOptions.length === 0 && (isPollStep || preset === "poll_options")) {
+          const lines = research.split('\n').map(l => l.trim());
+          const collected: string[] = [];
+          for (const line of lines) {
+            const listMatch = line.match(/^(?:(?:\d+[\.\)]|[-*•])\s+)(.*)$/);
+            if (listMatch) {
+              const cleanOpt = listMatch[1].replace(/^["']|["']$/g, '').trim();
+              if (cleanOpt && cleanOpt.length < 80 && !cleanOpt.toLowerCase().startsWith('thinking')) {
+                collected.push(cleanOpt);
+              }
+            }
+          }
+          if (collected.length >= 2) {
+            parsedOptions = collected.slice(0, 10);
+          }
+        }
+
+        console.log(`[API Gemini Research] Successfully generated research using ${plan.label}. Parsed options: ${parsedOptions.length}`);
         return res.status(200).json({
           success: true,
           research,
+          thinking: parsedThinking || undefined,
+          options: parsedOptions.length > 0 ? parsedOptions : undefined,
           modelUsed: plan.model,
         });
       }

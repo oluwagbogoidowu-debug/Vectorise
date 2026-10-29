@@ -14,6 +14,9 @@ export interface ResearchMessage {
   preset?: string;
   feedback?: 'up' | 'down' | null;
   feedbackComment?: string;
+  thinking?: string;
+  options?: string[];
+  pickedOption?: string | string[];
 }
 
 export interface ResearchTab {
@@ -38,6 +41,10 @@ export interface AiResearchModalProps {
   footnote?: string;
   askAiGuidance?: string;
   userAnswer?: string;
+  stepInputType?: string;
+  pollOptions?: string[];
+  isMultiSelect?: boolean;
+  onPickOption?: (option: string | string[]) => void;
   onSaveToNote?: (noteText: string) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
@@ -62,6 +69,10 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   footnote = '',
   askAiGuidance = '',
   userAnswer = '',
+  stepInputType,
+  pollOptions = [],
+  isMultiSelect = false,
+  onPickOption,
   onSaveToNote,
   onLoadingChange,
 }) => {
@@ -76,6 +87,39 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [savedToNoteId, setSavedToNoteId] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [pickedOptionsState, setPickedOptionsState] = useState<Record<string, string[]>>({});
+  const [pickToast, setPickToast] = useState<string | null>(null);
+  const autoTriggeredPollRef = useRef<string | null>(null);
+
+  // Helper to extract currently selected picks from userAnswer
+  const getInitialPicks = (): string[] => {
+    if (!userAnswer) return [];
+    if (typeof userAnswer === 'string' && userAnswer.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(userAnswer);
+        if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      } catch {}
+    }
+    return [String(userAnswer).trim()].filter(Boolean);
+  };
+
+  // Handle user picking an AI generated option
+  const handlePickOption = (msgId: string, opt: string) => {
+    if (isMultiSelect) {
+      const current = pickedOptionsState[msgId] !== undefined
+        ? pickedOptionsState[msgId]
+        : getInitialPicks();
+      const next = current.includes(opt) ? current.filter((o) => o !== opt) : [...current, opt];
+      setPickedOptionsState((prev) => ({ ...prev, [msgId]: next }));
+      onPickOption?.(next);
+      setPickToast(next.length > 0 ? `Selected (${next.length}) for Step ${stepIndex + 1}` : null);
+    } else {
+      setPickedOptionsState((prev) => ({ ...prev, [msgId]: [opt] }));
+      onPickOption?.(opt);
+      setPickToast(`Picked for Step ${stepIndex + 1}`);
+    }
+    setTimeout(() => setPickToast(null), 3000);
+  };
 
   const tabsStorageKey = `ai_research_tabs_v4_${sprintKey}_day_${moveDay}_step_${stepIndex}`;
 
@@ -161,6 +205,7 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     if (tab.label) return `${tab.id}. ${tab.label}`;
     const firstUserMsg = tab.messages.find((m) => m.role === 'user');
     if (firstUserMsg) {
+      if (firstUserMsg.preset === 'poll_options' || firstUserMsg.preset === 'think_and_poll') return `${tab.id}. Options`;
       if (firstUserMsg.preset === 'research_this') return `${tab.id}. Research`;
       if (firstUserMsg.preset === 'explain_this') return `${tab.id}. Explain`;
       if (firstUserMsg.preset === 'examples') return `${tab.id}. Examples`;
@@ -209,12 +254,6 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     };
   }, [onLoadingChange]);
 
-  if (!isOpen) return null;
-
-  const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
-  const questionCount = currentTab.messages.filter((m) => m.role === 'user').length;
-  const isTabLocked = questionCount >= MAX_QUESTIONS_PER_TAB;
-
   // Run research or follow-up question
   const handleRunResearch = async (presetOrPrompt?: string, isCustom = false) => {
     let activeTabId = activeTab;
@@ -232,7 +271,8 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
         }
 
         let presetLabel = 'Research';
-        if (presetOrPrompt === 'explain_this') presetLabel = 'Explain';
+        if (presetOrPrompt === 'poll_options' || presetOrPrompt === 'think_and_poll') presetLabel = 'Options';
+        else if (presetOrPrompt === 'explain_this') presetLabel = 'Explain';
         else if (presetOrPrompt === 'examples') presetLabel = 'Examples';
         else if (presetOrPrompt === 'improve_my_answer') presetLabel = 'Improve';
 
@@ -268,7 +308,10 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
     let computedLabel = targetTab.label;
 
     if (!isCustom) {
-      if (presetOrPrompt === 'explain_this') {
+      if (presetOrPrompt === 'poll_options' || presetOrPrompt === 'think_and_poll') {
+        displayPrompt = 'Think through the question and suggest poll options';
+        computedLabel = 'Options';
+      } else if (presetOrPrompt === 'explain_this') {
         displayPrompt = 'Explain this action step';
         computedLabel = 'Explain';
       } else if (presetOrPrompt === 'examples') {
@@ -316,6 +359,9 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
           footnote,
           askAiGuidance,
           userAnswer,
+          stepInputType,
+          pollOptions,
+          isMultiSelect,
           preset: !isCustom ? presetOrPrompt : undefined,
           prompt: isCustom ? promptToSend : undefined,
           history: historyPayload,
@@ -328,12 +374,17 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       }
 
       const generated = data.research || '';
+      const thinking = typeof data.thinking === 'string' && data.thinking.trim() ? data.thinking.trim() : undefined;
+      const options = Array.isArray(data.options) && data.options.length > 0 ? data.options : undefined;
+
       const newAssistantMessage: ResearchMessage = {
         id: assistantMessageId,
         role: 'assistant',
         content: generated,
         timestamp: Date.now(),
         preset: !isCustom ? presetOrPrompt : undefined,
+        thinking,
+        options,
       };
 
       const updatedTabs = workingTabs.map((t) => {
@@ -360,25 +411,35 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
         }
       }, 100);
     } catch (err: any) {
-      console.error('[AiResearchModal] Error:', err);
-      const rawMsg = err?.message || '';
-      const isTechOrQuotaError =
-        rawMsg.includes('429') ||
-        rawMsg.includes('quota') ||
-        rawMsg.includes('RESOURCE_EXHAUSTED') ||
-        rawMsg.includes('GoogleGenerativeAI') ||
-        rawMsg.includes('503');
-
-      const friendlyMsg = isTechOrQuotaError
-        ? 'The AI research assistant is currently experiencing high demand. Please tap Try Again in a few moments.'
-        : rawMsg || 'The AI research assistant is currently experiencing high demand. Please tap Try Again in a few moments.';
-
-      setError(friendlyMsg);
+      console.error('AI Research Error:', err);
+      setError(err?.message || 'Something went wrong while generating research. Please try again.');
     } finally {
       setIsLoading(false);
       onLoadingChange?.(false);
     }
   };
+
+  // Auto-run think through poll question if poll step and active tab has no messages
+  useEffect(() => {
+    if (!isOpen) {
+      autoTriggeredPollRef.current = null;
+      return;
+    }
+    const pollKey = `${sprintKey}_day_${moveDay}_step_${stepIndex}`;
+    if (stepInputType === 'poll' && autoTriggeredPollRef.current !== pollKey) {
+      const curTab = tabs.find((t) => t.id === activeTab) || tabs[0];
+      if (curTab && curTab.messages.length === 0 && !isLoading) {
+        autoTriggeredPollRef.current = pollKey;
+        handleRunResearch('poll_options');
+      }
+    }
+  }, [isOpen, stepInputType, sprintKey, moveDay, stepIndex, activeTab, tabs, isLoading]);
+
+  if (!isOpen) return null;
+
+  const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
+  const questionCount = currentTab.messages.filter((m) => m.role === 'user').length;
+  const isTabLocked = questionCount >= MAX_QUESTIONS_PER_TAB;
 
   const handleCopyText = (text: string, id: string) => {
     if (!text) return;
@@ -599,6 +660,18 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
       {/* Quick Research Starters (Chips) - Shown if current tab has room for questions */}
       {!isTabLocked && (
         <div className="flex items-center gap-2 overflow-x-auto pb-2 shrink-0 scrollbar-none">
+          {stepInputType === 'poll' && (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => handleRunResearch('poll_options')}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold border border-purple-500 shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+              <span>🧠 Think & Suggest Options</span>
+            </button>
+          )}
+
           <button
             type="button"
             disabled={isLoading}
@@ -686,12 +759,118 @@ export const AiResearchModal: React.FC<AiResearchModalProps> = ({
                 } else if (msg.role === 'assistant') {
                   const currentAnswerNumber = questionIndex;
                   const isInitialResearch = currentAnswerNumber === 1;
+                  const isRawJson = msg.content.trim().startsWith('{') || msg.content.trim().startsWith('```json');
+                  const hasThinking = typeof msg.thinking === 'string' && msg.thinking.trim().length > 0;
+                  const hasOptions = Array.isArray(msg.options) && msg.options.length > 0;
 
                   elements.push(
                     <div key={`a_${msg.id}`} className="space-y-4 animate-fade-in">
                       {/* Research Output Card */}
                       <div className="bg-gray-50/50 dark:bg-zinc-900/30 p-6 sm:p-8 rounded-3xl border border-gray-100 dark:border-zinc-800 text-gray-800 dark:text-zinc-200 relative group">
-                        <FormattedText text={msg.content} className="text-sm sm:text-base leading-relaxed" />
+                        
+                        {/* 1. Dedicated Thinking Breakdown Card */}
+                        {hasThinking && (
+                          <div className="mb-5 p-5 bg-gradient-to-br from-purple-50/80 via-white to-purple-50/40 dark:from-purple-950/40 dark:via-zinc-900/60 dark:to-purple-950/20 rounded-2xl border border-purple-200/80 dark:border-purple-800/60 shadow-xs text-left">
+                            <div className="flex items-center gap-2.5 mb-2.5">
+                              <div className="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs text-xs font-black">
+                                🧠
+                              </div>
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-purple-950 dark:text-purple-200">
+                                  AI Thinking Through The Question
+                                </h4>
+                                <p className="text-[10px] text-purple-700/80 dark:text-purple-400 font-medium">
+                                  Strategic breakdown, decision angles, and key considerations
+                                </p>
+                              </div>
+                            </div>
+                            <FormattedText text={msg.thinking!} className="text-xs sm:text-sm leading-relaxed text-gray-800 dark:text-zinc-200" />
+                          </div>
+                        )}
+
+                        {/* 2. Dedicated Interactive Option Picker (Up to 10 options) */}
+                        {hasOptions && (
+                          <div className="mb-5 p-5 bg-white dark:bg-zinc-900/90 rounded-2xl border-2 border-emerald-500/30 dark:border-emerald-600/30 shadow-xs text-left">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs text-xs font-black">
+                                  🎯
+                                </div>
+                                <div>
+                                  <h4 className="text-xs sm:text-sm font-black text-gray-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <span>Pick an Option (Up to 10 Generated)</span>
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                      {msg.options!.length} options
+                                    </span>
+                                  </h4>
+                                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                                    {isMultiSelect
+                                      ? "Click to select or toggle multiple choices for this step"
+                                      : "Click any option below to immediately pick it for this step"}
+                                  </p>
+                                </div>
+                              </div>
+                              {pickToast && (
+                                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-fade-in flex items-center gap-1 self-start sm:self-auto">
+                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  {pickToast}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {msg.options!.slice(0, 10).map((opt, optIdx) => {
+                                const currentPicks = pickedOptionsState[msg.id] !== undefined
+                                  ? pickedOptionsState[msg.id]
+                                  : getInitialPicks();
+                                const isSelected = currentPicks.includes(opt);
+
+                                return (
+                                  <button
+                                    key={optIdx}
+                                    type="button"
+                                    onClick={() => handlePickOption(msg.id, opt)}
+                                    className={`text-left p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.98] ${
+                                      isSelected
+                                        ? "bg-emerald-50 border-emerald-500 dark:bg-emerald-950/40 dark:border-emerald-500 text-emerald-950 dark:text-emerald-100 shadow-xs ring-1 ring-emerald-500/40"
+                                        : "bg-gray-50/70 hover:bg-emerald-50/40 border-gray-200 dark:bg-zinc-800/60 dark:hover:bg-zinc-800 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 hover:border-emerald-300"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <span className={`w-6 h-6 rounded-lg text-[10px] font-black flex items-center justify-center shrink-0 ${
+                                        isSelected
+                                          ? "bg-emerald-600 text-white"
+                                          : "bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-zinc-300"
+                                      }`}>
+                                        {optIdx + 1}
+                                      </span>
+                                      <span className="text-xs sm:text-sm font-bold leading-snug line-clamp-2">
+                                        {opt}
+                                      </span>
+                                    </div>
+                                    <div className="shrink-0">
+                                      {isSelected ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
+                                          <Check className="w-3 h-3 stroke-[3]" />
+                                          Picked
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white dark:bg-zinc-700 text-gray-500 dark:text-zinc-300 text-[10px] font-bold border border-gray-200 dark:border-zinc-600 hover:text-emerald-700">
+                                          Pick
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Standard text content (shown if not raw json or if there's no structured thinking) */}
+                        {(!hasThinking && !hasOptions) || (!isRawJson && !hasThinking) ? (
+                          <FormattedText text={msg.content} className="text-sm sm:text-base leading-relaxed" />
+                        ) : null}
 
                         {/* Inline Actions for this specific response */}
                         <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800/80">
