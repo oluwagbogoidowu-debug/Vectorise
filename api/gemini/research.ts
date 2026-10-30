@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import type { Request, Response } from "express";
 
 export default async function geminiResearchHandler(req: Request, res: Response) {
@@ -46,7 +46,8 @@ export default async function geminiResearchHandler(req: Request, res: Response)
   // Construct a tailored, high-value prompt based on preset or user query
   let queryText = prompt?.trim() || "";
   const isPollStep = stepInputType === "poll" || preset === "poll_options" || preset === "think_and_poll";
-  const isResearchMode = preset === "research_this" || queryText.toLowerCase().includes("research");
+  // Only enable heavy web search tools when explicitly requested to research the web
+  const isResearchMode = preset === "research_this" || (queryText.toLowerCase().startsWith("research ") || queryText.toLowerCase().startsWith("search web"));
 
   // Ensure stepPrompt has placeholders resolved if any raw tokens remain
   let resolvedStepPrompt = (stepPrompt || "").trim();
@@ -97,9 +98,10 @@ Do NOT include numbers inside the option strings. Return valid JSON only.`;
     queryText = `Help me complete this current action step with actionable guidance and insights.`;
   }
 
-  // Build comprehensive sprint curriculum from Move 1 to the end
+  // Build focused sprint curriculum around active move to eliminate prompt bloating and minimize processing latency
   let curriculumText = "";
   if (Array.isArray(dailyContent) && dailyContent.length > 0) {
+    const currentDayNum = Number(moveDay) || 1;
     const sortedContent = [...dailyContent].sort(
       (a, b) => (Number(a.day) || 0) - (Number(b.day) || 0)
     );
@@ -107,28 +109,31 @@ Do NOT include numbers inside the option strings. Return valid JSON only.`;
     curriculumText = sortedContent
       .map((dc) => {
         const dayNum = Number(dc.day) || 1;
-        const rawLesson = (dc.lessonText || "").trim();
-        const lessonSnippet = rawLesson ? rawLesson.slice(0, 1200) : "(No lesson text provided)";
-        
-        let stepsFormatted = "";
-        if (Array.isArray(dc.taskPrompts) && dc.taskPrompts.filter(Boolean).length > 0) {
-          stepsFormatted = dc.taskPrompts
-            .map((p: string, idx: number) => {
-              const fn = dc.taskFootnotes?.[idx] ? ` [Footnote: "${dc.taskFootnotes[idx]}"]` : "";
-              const h = dc.taskHints?.[idx] ? ` [Hint: "${dc.taskHints[idx]}"]` : "";
-              const aiNote = dc.taskAskAis?.[idx] ? ` [Coach AI Guide: "${dc.taskAskAis[idx]}"]` : "";
-              return `    • Step ${idx + 1}: ${p}${fn}${h}${aiNote}`;
-            })
-            .join("\n");
-        } else if (dc.taskPrompt) {
-          stepsFormatted = `    • Action Step: ${dc.taskPrompt}`;
-        } else {
-          stepsFormatted = `    • (No action steps defined)`;
+        const isCurrentMove = dayNum === currentDayNum;
+
+        // Current move: include concise lesson and active action steps
+        if (isCurrentMove) {
+          const rawLesson = (dc.lessonText || "").trim();
+          const lessonSnippet = rawLesson ? rawLesson.slice(0, 600) : "";
+          let stepsFormatted = "";
+          if (Array.isArray(dc.taskPrompts) && dc.taskPrompts.filter(Boolean).length > 0) {
+            stepsFormatted = dc.taskPrompts
+              .map((p: string, idx: number) => `    • Step ${idx + 1}: ${p}`)
+              .join("\n");
+          } else if (dc.taskPrompt) {
+            stepsFormatted = `    • Action Step: ${dc.taskPrompt}`;
+          }
+          return `--- MOVE ${dayNum} (ACTIVE MOVE) ---\n${lessonSnippet ? `Lesson: ${lessonSnippet}\n` : ""}Steps:\n${stepsFormatted}`;
         }
 
-        return `--- MOVE ${dayNum} ---\nLesson & Insights:\n${lessonSnippet}\nAction Steps:\n${stepsFormatted}`;
+        // Surrounding moves: keep ultra-light to avoid multi-second context ingestion overhead
+        if (dayNum < currentDayNum) {
+          return `• Move ${dayNum} (Completed)`;
+        }
+        return `• Move ${dayNum} (Upcoming)`;
       })
-      .join("\n\n");
+      .filter(Boolean)
+      .join("\n");
   }
 
   const outcomesFormatted = Array.isArray(sprintOutcomes) && sprintOutcomes.length > 0
@@ -259,6 +264,11 @@ Structure output in crisp, clean Markdown with headings and bullet points.`;
 
       if (plan.useSearch) {
         config.tools = [{ googleSearch: {} }];
+      }
+
+      // Configure low thinking level on Gemini 3.8 to eliminate reasoning token latency
+      if (plan.model.includes("3.8") || plan.model.includes("3.")) {
+        config.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
       }
 
       const response = await ai.models.generateContent({
