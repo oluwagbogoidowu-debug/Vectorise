@@ -576,6 +576,22 @@ export const normalizeMultiTextDailyContent = (day: any): any => {
         }
     }
 
+    // 5. taskThoughts: (string[] | string)[]
+    if (dayClone.taskThoughts) {
+        let thoughtsRaw = dayClone.taskThoughts;
+        if (typeof thoughtsRaw === 'string') {
+            try {
+                const parsed = JSON.parse(thoughtsRaw);
+                thoughtsRaw = Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                thoughtsRaw = [];
+            }
+        }
+        if (Array.isArray(thoughtsRaw)) {
+            dayClone.taskThoughts = thoughtsRaw;
+        }
+    }
+
     return dayClone;
 };
 

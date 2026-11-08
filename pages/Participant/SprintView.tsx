@@ -1891,6 +1891,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   // Day Completion State (Task Inputs)
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+  const [activeTagIndexMap, setActiveTagIndexMap] = useState<Record<number, number>>({});
   const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
   // Express Note State - available for every user in action step card
@@ -2699,7 +2700,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   };
 
   const isLinkedTextStep = (stepIndex: number): boolean => {
-    return false;
+    const tags = getLinkedTagsForStep(stepIndex);
+    return tags.length > 0;
   };
 
   const getLinkedItemsForTarget = (linkId: string | null | undefined): string[] => {
@@ -5497,6 +5499,45 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
+
+                              {/* Poll to Tag Selectable & Navigatable Tags above footnote */}
+                              {(() => {
+                                const tags = getLinkedTagsForStep(i);
+                                if (tags.length === 0) return null;
+                                const activeTagIdx = activeTagIndexMap[i] || 0;
+                                return (
+                                  <div className="mb-4 space-y-2 text-left animate-fade-in">
+                                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                      🏷️ Received Poll Option Tags (Select to view sub-step & input):
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {tags.map((tag, tIdx) => {
+                                        const isSel = activeTagIdx === tIdx;
+                                        return (
+                                          <button
+                                            key={tIdx}
+                                            type="button"
+                                            onClick={() => {
+                                              setActiveTagIndexMap(prev => ({ ...prev, [i]: tIdx }));
+                                            }}
+                                            className={`px-3 py-1.5 text-xs font-black rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                              isSel
+                                                ? 'bg-primary text-white border-primary shadow-sm ring-2 ring-primary/25'
+                                                : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-gray-50'
+                                            }`}
+                                          >
+                                            <span>🏷️ {tag}</span>
+                                            <span className={`text-[9px] px-1.5 py-0.5 rounded ${isSel ? 'bg-emerald-700 text-white' : 'bg-gray-100 dark:bg-zinc-700 text-gray-500'}`}>
+                                              Sub-step {Math.floor(i + 1)}.{tIdx + 1}
+                                            </span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
                                   <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-xs`}>

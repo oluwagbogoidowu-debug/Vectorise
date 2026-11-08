@@ -3987,6 +3987,52 @@ const EditSprint: React.FC = () => {
                                                 placeholder={`Action Step ${index + 1}...`} 
                                             />
 
+                                            {/* Poll to Tag Sub-Step Assignment (1.1, 1.2, 1.3...) */}
+                                            {(() => {
+                                                const pollIdx = findNearestPrecedingPoll(currentContent, index);
+                                                if (pollIdx === -1) return null;
+                                                const pollOpts = getAllStepPollOptions(currentContent, pollIdx);
+                                                if (!pollOpts || pollOpts.length === 0) return null;
+
+                                                return (
+                                                    <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2 text-left animate-fade-in mt-2">
+                                                        <div className="text-[10px] font-black text-purple-900 uppercase tracking-widest flex items-center gap-1.5">
+                                                            <span>🏷️ Received Poll Option Tags & Sub-Step Assignments (Step {index + 1}.1, .{index + 1}.2, .{index + 1}.3...):</span>
+                                                        </div>
+                                                        <p className="text-[11px] text-gray-600 font-medium">
+                                                            Click any tag below to assign it to sub-step version {index + 1}.{activeVerIdx + 1} (or switch version).
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-2 pt-1">
+                                                            {pollOpts.map((opt, optIdx) => {
+                                                                const isAssigned = activeVerIdx === optIdx;
+                                                                return (
+                                                                    <button
+                                                                        key={optIdx}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setActiveStepVersionMap(prev => ({ ...prev, [index]: optIdx }));
+                                                                            const vers = parseStepVersions(rawPrompt);
+                                                                            while (vers.length <= optIdx) vers.push('');
+                                                                            handleTaskPromptChange(index, serializeStepVersions(vers));
+                                                                        }}
+                                                                        className={`px-3 py-1.5 text-xs font-black rounded-lg border transition-all cursor-pointer flex items-center gap-2 ${
+                                                                            isAssigned 
+                                                                                ? 'bg-purple-700 text-white border-purple-700 shadow-sm ring-2 ring-purple-300' 
+                                                                                : 'bg-white text-gray-700 border-purple-200 hover:bg-purple-100/60'
+                                                                        }`}
+                                                                    >
+                                                                        <span>🏷️ {opt}</span>
+                                                                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${isAssigned ? 'bg-purple-900 text-purple-100' : 'bg-gray-100 text-gray-600'}`}>
+                                                                            Sub-step {index + 1}.{optIdx + 1} {isAssigned ? '(Active)' : ''}
+                                                                        </span>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
                                             {placeholderVal.hasPlaceholders && placeholderVal.isValid && (
                                                 <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
                                                     <div className="flex items-center gap-2">

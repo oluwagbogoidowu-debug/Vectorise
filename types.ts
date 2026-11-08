@@ -477,6 +477,7 @@ export interface DailyContent {
   taskTagNotes?: string[];
   taskTagNoteActive?: boolean[];
   taskFootnotes?: string[];
+  taskThoughts?: (string[] | string)[];
   taskAskAis?: (string | boolean | null | undefined)[];
   taskAskAi?: string[];
   taskFills?: (string | null | undefined)[];
