@@ -87,13 +87,4 @@
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-@keyframes thoughtProgress {
-  from {
-    width: 0%;
-  }
-  to {
-    width: 100%;
-  }
-}
-
 

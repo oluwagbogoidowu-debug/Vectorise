@@ -3,8 +3,7 @@ import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube, ChevronLeft, ChevronRight, Sliders, Tag } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
-import ThoughtTagEditor from '../../components/ThoughtTagEditor';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints, parseThoughtSentences, getStepThoughts } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints } from '../../src/utils/stepPlaceholderUtils';
 import { normalizeMultiTextDailyContent, sprintService } from '../../services/sprintService';
 
 const extractYouTubeId = (url: string): string | null => {
@@ -153,7 +152,6 @@ export default function DailyActionWorkspace({
     const safeNotes = Array.isArray((content as any).taskNotes) ? (content as any).taskNotes : [];
     const safeTagNotes = Array.isArray((content as any).taskTagNotes) ? (content as any).taskTagNotes : [];
     const safeFootnotes = Array.isArray((content as any).taskFootnotes) ? (content as any).taskFootnotes : [];
-    const safeThoughts = Array.isArray((content as any).taskThoughts) ? (content as any).taskThoughts : [];
     const safeFills = Array.isArray((content as any).taskFills) ? (content as any).taskFills : [];
     const safePollMultiSelect = Array.isArray((content as any).taskPollMultiSelect) ? (content as any).taskPollMultiSelect : [];
     const safePollArrange = Array.isArray((content as any).taskPollArrange) ? (content as any).taskPollArrange : [];
@@ -174,7 +172,6 @@ export default function DailyActionWorkspace({
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
-        taskThoughts: safeThoughts,
         taskFills: safeFills,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
@@ -215,9 +212,6 @@ export default function DailyActionWorkspace({
       const currentFootnotes = Array.isArray(dayContent.taskFootnotes) ? [...dayContent.taskFootnotes] : [];
       while (currentFootnotes.length < currentPrompts.length) currentFootnotes.push(null as any);
 
-      const currentThoughts = Array.isArray(dayContent.taskThoughts) ? [...dayContent.taskThoughts] : [];
-      while (currentThoughts.length < currentPrompts.length) currentThoughts.push([] as any);
-
       const currentFills = Array.isArray(dayContent.taskFills) ? [...dayContent.taskFills] : [];
       while (currentFills.length < currentPrompts.length) currentFills.push(null as any);
 
@@ -232,7 +226,6 @@ export default function DailyActionWorkspace({
           taskHints: currentHints,
           taskNotes: currentNotes,
           taskFootnotes: currentFootnotes,
-          taskThoughts: currentThoughts,
           taskFills: currentFills,
           taskPollOptionLinks: currentPollLinks
         };
@@ -246,7 +239,6 @@ export default function DailyActionWorkspace({
           taskHints: currentHints,
           taskNotes: currentNotes,
           taskFootnotes: currentFootnotes,
-          taskThoughts: currentThoughts,
           taskPollOptionLinks: currentPollLinks
         });
       }
@@ -283,7 +275,6 @@ export default function DailyActionWorkspace({
         taskTagNotes: spliceArr(dayContent.taskTagNotes),
         taskTagNoteActive: spliceArr(dayContent.taskTagNoteActive),
         taskFootnotes: spliceArr(dayContent.taskFootnotes),
-        taskThoughts: spliceArr(dayContent.taskThoughts),
         taskVideos: spliceArr(dayContent.taskVideos),
         taskPollOptionLinks: spliceArr(dayContent.taskPollOptionLinks),
         taskMultiTextLabels: spliceArr(dayContent.taskMultiTextLabels),
@@ -351,7 +342,6 @@ export default function DailyActionWorkspace({
       dayContent.taskTagNotes = reorderArr(dayContent.taskTagNotes);
       dayContent.taskTagNoteActive = reorderArr(dayContent.taskTagNoteActive);
       dayContent.taskFootnotes = reorderArr(dayContent.taskFootnotes);
-      dayContent.taskThoughts = reorderArr(dayContent.taskThoughts);
       dayContent.taskFills = reorderArr(dayContent.taskFills);
       dayContent.taskVideos = reorderArr(dayContent.taskVideos);
       dayContent.taskPollOptionLinks = reorderArr(dayContent.taskPollOptionLinks);
@@ -517,27 +507,6 @@ export default function DailyActionWorkspace({
     while (footnotes.length <= index) footnotes.push(null as any);
     footnotes[index] = value as any;
     updateFieldForDay(dayNum, 'taskFootnotes', footnotes);
-  };
-
-  const handleTaskThoughtsChange = (dayNum: number, index: number, thoughts: string[] | string | null | undefined) => {
-    const dayContent = getDailyContentForDay(dayNum);
-    const currentThoughts = Array.isArray(dayContent.taskThoughts) ? [...dayContent.taskThoughts] : [];
-    while (currentThoughts.length <= index) currentThoughts.push([] as any);
-    currentThoughts[index] = thoughts as any;
-    updateFieldForDay(dayNum, 'taskThoughts', currentThoughts);
-  };
-
-  const handleAssignSelectedToThought = (dayNum: number, index: number, textToAssign: string) => {
-    if (!textToAssign) return;
-    const sentences = parseThoughtSentences(textToAssign);
-    if (sentences.length === 0) return;
-    const dayContent = getDailyContentForDay(dayNum);
-    const currentThoughts = Array.isArray(dayContent.taskThoughts) ? [...dayContent.taskThoughts] : [];
-    const existing = Array.isArray(currentThoughts[index])
-      ? (currentThoughts[index] as string[])
-      : (typeof currentThoughts[index] === 'string' ? parseThoughtSentences(currentThoughts[index] as string) : []);
-    const merged = [...existing, ...sentences];
-    handleTaskThoughtsChange(dayNum, index, merged);
   };
 
   const handleTaskAskAiChange = (dayNum: number, index: number, value: string | null) => {
@@ -1640,24 +1609,6 @@ export default function DailyActionWorkspace({
                               <span>Assign Selected to Poll ({selectedText.split(/\r?\n/).filter(l => l.trim()).length} line{selectedText.split(/\r?\n/).filter(l => l.trim()).length === 1 ? '' : 's'})</span>
                             </button>
                           )}
-
-                          {selectedText && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                handleAssignSelectedToThought(dayNum, activeIdx, selectedText);
-                                setLastAssignedField(`thought-${activeIdx}`);
-                                setTimeout(() => setLastAssignedField(null), 1500);
-                                setSelectedText('');
-                              }}
-                              className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[9px] font-bold rounded-lg border border-teal-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                              title="Automatically convert selected sentences into Thought tags"
-                            >
-                              <Sparkles size={11} />
-                              <span>Assign to Thought ({parseThoughtSentences(selectedText).length} sentence{parseThoughtSentences(selectedText).length === 1 ? '' : 's'})</span>
-                            </button>
-                          )}
                           
                           {/* Step Relationships Link trigger */}
                           {(() => {
@@ -1923,24 +1874,6 @@ export default function DailyActionWorkspace({
                           className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskFootnotes?.[activeIdx] !== undefined && dayContent.taskFootnotes?.[activeIdx] !== null) ? 'bg-indigo-50 text-indigo-605 border border-indigo-100 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
                         >
                           <span>Footnote</span>
-                        </button>
-
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            const currentThought = dayContent.taskThoughts?.[activeIdx];
-                            if (currentThought === undefined || currentThought === null) {
-                              handleTaskThoughtsChange(dayNum, activeIdx, []);
-                            } else {
-                              handleTaskThoughtsChange(dayNum, activeIdx, null);
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskThoughts?.[activeIdx] !== undefined && dayContent.taskThoughts?.[activeIdx] !== null) ? 'bg-teal-50 text-teal-700 border-teal-200 shadow-xs' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
-                          title="Thought Option: Add sequential thought questions unveiled one at a time above footnote."
-                        >
-                          <Sparkles size={11} className={dayContent.taskThoughts?.[activeIdx] ? 'text-teal-600' : ''} />
-                          <span>Thought</span>
                         </button>
 
                         <button 
@@ -2435,31 +2368,6 @@ export default function DailyActionWorkspace({
                           rows={2} 
                           className={smallEditorInputClasses + " p-3 !py-2.5 w-full border-indigo-100 bg-indigo-50/20 text-gray-750 font-medium text-sm"} 
                           placeholder="Add a footnote..." 
-                        />
-                      </div>
-                    )}
-
-                    {/* Task Thought edit panel */}
-                    {dayContent.taskThoughts?.[activeIdx] !== undefined && dayContent.taskThoughts?.[activeIdx] !== null && (
-                      <div className={`mt-2 animate-fade-in ${lastAssignedField === `thought-${activeIdx}` ? 'ring-2 ring-teal-500 ring-offset-2' : ''}`}>
-                        <ThoughtTagEditor
-                          thoughts={Array.isArray(dayContent.taskThoughts[activeIdx]) ? (dayContent.taskThoughts[activeIdx] as string[]) : (typeof dayContent.taskThoughts[activeIdx] === 'string' ? parseThoughtSentences(dayContent.taskThoughts[activeIdx] as string) : [])}
-                          onChange={(newThoughts) => {
-                            setSelectedDay(dayNum);
-                            handleTaskThoughtsChange(dayNum, activeIdx, newThoughts);
-                          }}
-                          onClose={() => {
-                            setSelectedDay(dayNum);
-                            handleTaskThoughtsChange(dayNum, activeIdx, null);
-                          }}
-                          selectedText={selectedText}
-                          onAssignSelected={(text) => {
-                            setSelectedDay(dayNum);
-                            handleAssignSelectedToThought(dayNum, activeIdx, text);
-                            setLastAssignedField(`thought-${activeIdx}`);
-                            setTimeout(() => setLastAssignedField(null), 1500);
-                            setSelectedText('');
-                          }}
                         />
                       </div>
                     )}

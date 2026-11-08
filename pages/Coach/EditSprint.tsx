@@ -56,9 +56,7 @@ const parseTimeToSeconds = (timeStr?: string | number): number => {
 import { ChangesMadeCarousel } from '../../components/ChangesMadeCarousel';
 import LocalLogo from '../../components/LocalLogo';
 import { generateDayPDF } from '../../utils/pdfGenerator';
-import SprintThoughtViewer from '../../components/SprintThoughtViewer';
-import ThoughtTagEditor from '../../components/ThoughtTagEditor';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints, getStepThoughts, parseThoughtSentences } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
 const customPrompt = (window as any).prompt;
@@ -943,10 +941,6 @@ const EditSprint: React.FC = () => {
       ? (content as any).taskFootnotes
       : [];
 
-    const safeThoughts = Array.isArray((content as any).taskThoughts)
-      ? (content as any).taskThoughts
-      : [];
-
     const safeAskAis = Array.isArray((content as any).taskAskAis)
       ? (content as any).taskAskAis
       : Array.isArray((content as any).taskAskAi)
@@ -1038,7 +1032,6 @@ const EditSprint: React.FC = () => {
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
-        taskThoughts: safeThoughts,
         taskAskAis: safeAskAis,
         taskFills: safeFills,
         taskVideos: safeVideos,
@@ -1208,40 +1201,6 @@ const EditSprint: React.FC = () => {
             taskPrompt: '',
             taskPrompts: ['', '', ''],
             taskFootnotes: currentFootnotes,
-          });
-        }
-        return { ...prev, dailyContent: updatedDailyContent };
-    });
-    setSaveStatus('idle');
-  };
-
-  const handleTaskThoughtChange = (index: number, thoughts: string[] | string | null | undefined) => {
-    setSprint(prev => {
-        if (!prev) return null;
-        const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
-        let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
-        
-        const currentThoughts = existingContentIndex >= 0 
-            ? [...(updatedDailyContent[existingContentIndex].taskThoughts || [])]
-            : [];
-        
-        while (currentThoughts.length <= index) {
-            currentThoughts.push([] as any);
-        }
-        currentThoughts[index] = thoughts as any;
-        
-        if (existingContentIndex >= 0) {
-          updatedDailyContent[existingContentIndex] = { 
-              ...updatedDailyContent[existingContentIndex], 
-              taskThoughts: currentThoughts,
-          };
-        } else {
-          updatedDailyContent.push({
-            day: selectedDay,
-            lessonText: '',
-            taskPrompt: '',
-            taskPrompts: ['', '', ''],
-            taskThoughts: currentThoughts,
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -2129,10 +2088,6 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
 
-        let currentThoughts = existingContentIndex >= 0
-            ? [...(updatedDailyContent[existingContentIndex].taskThoughts || [])]
-            : [];
-
         let currentFills = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskFills || [])]
             : [];
@@ -2171,7 +2126,6 @@ const EditSprint: React.FC = () => {
         currentNotes.push(null as any);
         currentTagNotes.push('{}');
         currentFootnotes.push(null as any);
-        currentThoughts.push([] as any);
         currentFills.push(null as any);
         currentVideos.push(null as any);
         currentMultiTextLabels.push(null as any);
@@ -2190,7 +2144,6 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
-              taskThoughts: currentThoughts,
               taskFills: currentFills,
               taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
@@ -2211,7 +2164,6 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
-            taskThoughts: currentThoughts,
             taskFills: currentFills,
             taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
@@ -2267,10 +2219,6 @@ const EditSprint: React.FC = () => {
             ? [...(updatedDailyContent[existingContentIndex].taskFootnotes || [])]
             : [];
 
-        let currentThoughts = existingContentIndex >= 0
-            ? [...(updatedDailyContent[existingContentIndex].taskThoughts || [])]
-            : [];
-
         let currentFills = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskFills || [])]
             : [];
@@ -2316,7 +2264,6 @@ const EditSprint: React.FC = () => {
         while (currentNotes.length < maxNeeded) currentNotes.push(null as any);
         while (currentTagNotes.length < maxNeeded) currentTagNotes.push('{}');
         while (currentFootnotes.length < maxNeeded) currentFootnotes.push(null as any);
-        while (currentThoughts.length < maxNeeded) currentThoughts.push([] as any);
         while (currentFills.length < maxNeeded) currentFills.push(null as any);
         while (currentVideos.length < maxNeeded) currentVideos.push(null as any);
         while (currentMultiTextLabels.length < maxNeeded) currentMultiTextLabels.push(null as any);
@@ -2346,7 +2293,6 @@ const EditSprint: React.FC = () => {
         currentNotes.splice(index, deleteCount);
         currentTagNotes.splice(index, deleteCount);
         currentFootnotes.splice(index, deleteCount);
-        currentThoughts.splice(index, deleteCount);
         currentFills.splice(index, deleteCount);
         currentVideos.splice(index, deleteCount);
         currentMultiTextLabels.splice(index, deleteCount);
@@ -2371,7 +2317,6 @@ const EditSprint: React.FC = () => {
             currentNotes.push(null as any);
             currentTagNotes.push('{}');
             currentFootnotes.push(null as any);
-            currentThoughts.push([] as any);
             currentFills.push(null as any);
             currentVideos.push(null as any);
             currentMultiTextLabels.push(null as any);
@@ -2398,7 +2343,6 @@ const EditSprint: React.FC = () => {
               taskNotes: currentNotes,
               taskTagNotes: currentTagNotes,
               taskFootnotes: currentFootnotes,
-              taskThoughts: currentThoughts,
               taskFills: currentFills,
               taskVideos: currentVideos,
               taskMultiTextLabels: currentMultiTextLabels,
@@ -2422,7 +2366,6 @@ const EditSprint: React.FC = () => {
             taskNotes: currentNotes,
             taskTagNotes: currentTagNotes,
             taskFootnotes: currentFootnotes,
-            taskThoughts: currentThoughts,
             taskFills: currentFills,
             taskVideos: currentVideos,
             taskMultiTextLabels: currentMultiTextLabels,
@@ -4630,32 +4573,6 @@ const EditSprint: React.FC = () => {
                                                         <button 
                                                             type="button"
                                                             onClick={() => {
-                                                                const currentThought = currentContent.taskThoughts?.[index];
-                                                                if (currentThought === undefined || currentThought === null) {
-                                                                    handleTaskThoughtChange(index, []);
-                                                                } else {
-                                                                    handleTaskThoughtChange(index, null);
-                                                                }
-                                                            }}
-                                                            className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskThoughts?.[index] !== undefined && currentContent.taskThoughts?.[index] !== null) ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
-                                                            title="Thought Option: Add sequential thought questions unveiled one at a time above footnote."
-                                                        >
-                                                            {(currentContent.taskThoughts?.[index] !== undefined && currentContent.taskThoughts?.[index] !== null) ? (
-                                                                <>
-                                                                    <span className="text-[10px] text-teal-600 mr-0.5">●</span>
-                                                                    <span>Thought</span>
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Plus size={14} />
-                                                                    <span>Thought</span>
-                                                                </>
-                                                            )}
-                                                        </button>
-
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => {
                                                                 const currentAskAi = currentContent.taskAskAis?.[index];
                                                                 if (currentAskAi === undefined || currentAskAi === null) {
                                                                     handleTaskAskAiChange(index, '');
@@ -5020,15 +4937,6 @@ const EditSprint: React.FC = () => {
                                                         rows={2} 
                                                         className={footnoteInputClasses} 
                                                         placeholder="Add a footnote to show just below the question..." 
-                                                    />
-                                                </div>
-                                            )}
-                                            {(currentContent.taskThoughts?.[index] !== undefined && currentContent.taskThoughts?.[index] !== null) && (
-                                                <div className="mt-2 animate-fade-in">
-                                                    <ThoughtTagEditor
-                                                        thoughts={Array.isArray(currentContent.taskThoughts[index]) ? currentContent.taskThoughts[index] : (typeof currentContent.taskThoughts[index] === 'string' ? parseThoughtSentences(currentContent.taskThoughts[index]) : [])}
-                                                        onChange={(newThoughts) => handleTaskThoughtChange(index, newThoughts)}
-                                                        onClose={() => handleTaskThoughtChange(index, null)}
                                                     />
                                                 </div>
                                             )}
@@ -6189,16 +6097,6 @@ const EditSprint: React.FC = () => {
                                     <div className={`text-gray-950 font-black text-lg sm:text-xl md:text-2xl leading-relaxed ${currentContent.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                         <FormattedText text={formatInterpolatedText(prompt || "Submit your progress for this step.", currentContent, {}, sprint?.dailyContent)} />
                                     </div>
-                                    {getStepThoughts(currentContent, i).length > 0 && (
-                                        <div className="mb-3">
-                                            <SprintThoughtViewer
-                                                thoughts={getStepThoughts(currentContent, i)}
-                                                stepIndex={i}
-                                                dayContent={currentContent}
-                                                sprintDailyContent={sprint?.dailyContent}
-                                            />
-                                        </div>
-                                    )}
                                     {currentContent.taskFootnotes?.[i] && (
                                         <div className="mb-4 text-left text-emerald-600 font-bold text-sm sm:text-base leading-relaxed animate-fade-in">
                                             <FormattedText text={formatInterpolatedText(currentContent.taskFootnotes[i], currentContent, {}, sprint?.dailyContent)} />
@@ -6739,7 +6637,6 @@ const EditSprint: React.FC = () => {
                   handleContentChange('taskTagNotes', []);
                   handleContentChange('taskTagNoteActive', []);
                   handleContentChange('taskFootnotes', []);
-                  handleContentChange('taskThoughts', []);
                   handleContentChange('taskPollMultiSelect', []);
                   handleContentChange('taskPollArrange', []);
                   handleContentChange('taskPollAdd', []);

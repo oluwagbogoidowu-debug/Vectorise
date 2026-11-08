@@ -4,8 +4,7 @@ import { Sprint, DailyContent, UserRole, Participant } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import { sprintAnalyticsService } from '../../services/sprintAnalyticsService';
 import FormattedText from '../../components/FormattedText';
-import SprintThoughtViewer from '../../components/SprintThoughtViewer';
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint, resolveUserMetadataValue, getStepThoughts, parseThoughtSentences } from '../../src/utils/stepPlaceholderUtils';
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, DualInputState, isStepVisibleForSprint, resolveUserMetadataValue } from '../../src/utils/stepPlaceholderUtils';
 import LocalLogo from '../../components/LocalLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { createPortal } from 'react-dom';
@@ -150,12 +149,6 @@ const SprintPreview: React.FC = () => {
     });
 
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
-    const [completedThoughtsMap, setCompletedThoughtsMap] = useState<Record<number, boolean>>({});
-
-    useEffect(() => {
-        setCompletedThoughtsMap({});
-    }, [previewDay]);
-
     const [taskInputs, setTaskInputs] = useState<string[]>(() => {
         const params = new URLSearchParams(location.search);
         const dayParam = params.get('day');
@@ -1834,25 +1827,6 @@ const SprintPreview: React.FC = () => {
                                         <div className={`text-gray-950 text-lg sm:text-xl md:text-2xl leading-relaxed relative ${day1Content?.taskFootnotes?.[i] ? 'mb-2' : 'mb-4'}`}>
                                             <FormattedText text={formatInterpolatedText(prompt, day1Content, taskInputs, sprint?.dailyContent)} />
                                         </div>
-                                        {(() => {
-                                            const thoughts = getStepThoughts(day1Content, i, stepVerIdx);
-                                            if (thoughts.length === 0) return null;
-                                            return (
-                                                <div className="mb-4">
-                                                    <SprintThoughtViewer
-                                                        thoughts={thoughts}
-                                                        stepIndex={i}
-                                                        onComplete={() => {
-                                                            setCompletedThoughtsMap(prev => ({ ...prev, [i]: true }));
-                                                        }}
-                                                        isCompleted={Boolean(isDayCompleted || completedThoughtsMap[i])}
-                                                        dayContent={day1Content}
-                                                        taskInputs={taskInputs}
-                                                        sprintDailyContent={sprint?.dailyContent}
-                                                    />
-                                                </div>
-                                            );
-                                        })()}
                                         {effectiveFootnote && (
                                             <div className="mb-4 text-left text-emerald-600 font-bold text-xs leading-relaxed animate-fade-in">
                                                 <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent)} />
@@ -2650,23 +2624,19 @@ const SprintPreview: React.FC = () => {
                                                     }
                                                 }
 
-                                                const stepThoughts = getStepThoughts(day1Content, i, stepVerIdx);
-                                                const isThoughtDone = stepThoughts.length <= 1 || !!completedThoughtsMap[i] || isDayCompleted;
-                                                const isStepReady = stepCompleted && isThoughtDone;
-
                                                 return (
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            if (!isStepReady) return;
+                                                            if (!stepCompleted) return;
                                                             if (getNextVisibleStepIndex(i) !== -1) {
                                                                 setActiveTaskIndex(getNextVisibleStepIndex(i));
                                                             } else {
                                                                 handleCompletePreviewDay();
                                                             }
                                                         }}
-                                                        disabled={!isStepReady}
-                                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isStepReady ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                                        disabled={!stepCompleted}
+                                                        className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${stepCompleted ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
                                                     >
                                                         {getNextVisibleStepIndex(i) !== -1 ? 'Next Step' : 'Complete Action'}
                                                     </button>
