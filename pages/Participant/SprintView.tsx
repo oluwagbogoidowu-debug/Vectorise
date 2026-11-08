@@ -25,7 +25,8 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint, findMetadataSourceStepAcrossSprints, MetadataInterventionStepConfig, extractRequiredReceiveMetadataFromStep, resolveUserMetadataValue } from "../../src/utils/stepPlaceholderUtils";
+import SprintThoughtViewer from "../../components/SprintThoughtViewer";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint, findMetadataSourceStepAcrossSprints, MetadataInterventionStepConfig, extractRequiredReceiveMetadataFromStep, resolveUserMetadataValue, getStepThoughts, parseThoughtSentences } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -1067,6 +1068,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [prereqMultiText, setPrereqMultiText] = useState<Record<string, Record<string, string>>>({});
   const [isSavingPrereq, setIsSavingPrereq] = useState(false);
   const [revealedPrereqHints, setRevealedPrereqHints] = useState<Record<string, boolean>>({});
+  const [completedThoughtsMap, setCompletedThoughtsMap] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    setCompletedThoughtsMap({});
+  }, [viewingDay]);
 
   useEffect(() => {
     let isMounted = true;
@@ -4012,6 +4018,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return activePrompts.every((_: string, i: number) => {
       if (!isStepVisible(i)) return true;
 
+      const stepVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
+      const stepThoughts = getStepThoughts(dayContent, i, stepVerIdx);
+      if (stepThoughts.length > 1 && !completedThoughtsMap[i]) {
+        return false;
+      }
+
       const type = getStepInputType(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
       if (type === "note" || type === "none") return true;
 
@@ -4070,7 +4082,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       
       return val.trim().length > 0;
     });
-  }, [dayContent, taskInputs, sprint]);
+  }, [dayContent, taskInputs, sprint, completedThoughtsMap, viewingDay, enrollment?.progress]);
 
   const renderKebabMenuContent = () => (
     <>
@@ -5497,6 +5509,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
+                              {(() => {
+                                const thoughts = getStepThoughts(dayContent, i, stepVerIdx);
+                                if (thoughts.length === 0) return null;
+                                return (
+                                  <div className="mb-4">
+                                    <SprintThoughtViewer
+                                      thoughts={thoughts}
+                                      stepIndex={i}
+                                      onComplete={() => {
+                                        setCompletedThoughtsMap(prev => ({ ...prev, [i]: true }));
+                                      }}
+                                      isCompleted={Boolean(dayProgress?.completed || completedThoughtsMap[i])}
+                                      isFullBleed={activeFullBleed}
+                                      dayContent={dayContent}
+                                      taskInputs={taskInputs}
+                                      sprintDailyContent={sprint?.dailyContent}
+                                      enrollmentProgress={enrollment?.progress}
+                                      user={user}
+                                    />
+                                  </div>
+                                );
+                              })()}
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
                                   <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-xs`}>
@@ -6567,8 +6601,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                           }
                                         }
 
+                                        const stepThoughts = getStepThoughts(dayContent, i, stepVerIdx);
+                                        const isThoughtDone = stepThoughts.length <= 1 || !!completedThoughtsMap[i] || !!dayProgress?.completed;
                                         const isValid =
-                                          !!dayProgress?.completed || stepCompleted;
+                                          (!!dayProgress?.completed || stepCompleted) && isThoughtDone;
                                         return (
                                             <div className="flex items-center gap-2">
                                               <button
@@ -6800,6 +6836,28 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-xl sm:text-2xl md:text-3xl' : 'text-lg sm:text-xl md:text-2xl leading-relaxed'} ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
+                              {(() => {
+                                const thoughts = getStepThoughts(dayContent, 0, stepVerIdx);
+                                if (thoughts.length === 0) return null;
+                                return (
+                                  <div className="mb-4">
+                                    <SprintThoughtViewer
+                                      thoughts={thoughts}
+                                      stepIndex={0}
+                                      onComplete={() => {
+                                        setCompletedThoughtsMap(prev => ({ ...prev, [0]: true }));
+                                      }}
+                                      isCompleted={Boolean(dayProgress?.completed || completedThoughtsMap[0])}
+                                      isFullBleed={activeFullBleed}
+                                      dayContent={dayContent}
+                                      taskInputs={taskInputs}
+                                      sprintDailyContent={sprint?.dailyContent}
+                                      enrollmentProgress={enrollment?.progress}
+                                      user={user}
+                                    />
+                                  </div>
+                                );
+                              })()}
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
                                   <div className={`text-left text-emerald-600 font-bold leading-relaxed animate-fade-in text-xs`}>
