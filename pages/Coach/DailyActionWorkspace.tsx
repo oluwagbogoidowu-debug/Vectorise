@@ -4,7 +4,7 @@ import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookO
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
 import ThoughtTagEditor from '../../components/ThoughtTagEditor';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints, parseThoughtSentences, getStepThoughts } from '../../src/utils/stepPlaceholderUtils';
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints, parseThoughtSentences, getStepThoughts, hasStepListInput } from '../../src/utils/stepPlaceholderUtils';
 import { normalizeMultiTextDailyContent, sprintService } from '../../services/sprintService';
 
 const extractYouTubeId = (url: string): string | null => {
@@ -1925,23 +1925,25 @@ export default function DailyActionWorkspace({
                           <span>Footnote</span>
                         </button>
 
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            const currentThought = dayContent.taskThoughts?.[activeIdx];
-                            if (currentThought === undefined || currentThought === null) {
-                              handleTaskThoughtsChange(dayNum, activeIdx, []);
-                            } else {
-                              handleTaskThoughtsChange(dayNum, activeIdx, null);
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskThoughts?.[activeIdx] !== undefined && dayContent.taskThoughts?.[activeIdx] !== null) ? 'bg-teal-50 text-teal-700 border-teal-200 shadow-xs' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
-                          title="Thought Option: Add sequential thought questions unveiled one at a time above footnote."
-                        >
-                          <Sparkles size={11} className={dayContent.taskThoughts?.[activeIdx] ? 'text-teal-600' : ''} />
-                          <span>Thought</span>
-                        </button>
+                        {hasStepListInput(dayContent, activeIdx) && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              const currentThought = dayContent.taskThoughts?.[activeIdx];
+                              if (currentThought === undefined || currentThought === null) {
+                                handleTaskThoughtsChange(dayNum, activeIdx, []);
+                              } else {
+                                handleTaskThoughtsChange(dayNum, activeIdx, null);
+                              }
+                            }}
+                            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskThoughts?.[activeIdx] !== undefined && dayContent.taskThoughts?.[activeIdx] !== null) ? 'bg-teal-50 text-teal-700 border-teal-200 shadow-xs' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
+                            title="Thought Option: Display list items in Thought UX format."
+                          >
+                            <Sparkles size={11} className={dayContent.taskThoughts?.[activeIdx] ? 'text-teal-600' : ''} />
+                            <span>Thought</span>
+                          </button>
+                        )}
 
                         <button 
                           type="button"
@@ -2439,30 +2441,7 @@ export default function DailyActionWorkspace({
                       </div>
                     )}
 
-                    {/* Task Thought edit panel */}
-                    {dayContent.taskThoughts?.[activeIdx] !== undefined && dayContent.taskThoughts?.[activeIdx] !== null && (
-                      <div className={`mt-2 animate-fade-in ${lastAssignedField === `thought-${activeIdx}` ? 'ring-2 ring-teal-500 ring-offset-2' : ''}`}>
-                        <ThoughtTagEditor
-                          thoughts={Array.isArray(dayContent.taskThoughts[activeIdx]) ? (dayContent.taskThoughts[activeIdx] as string[]) : (typeof dayContent.taskThoughts[activeIdx] === 'string' ? parseThoughtSentences(dayContent.taskThoughts[activeIdx] as string) : [])}
-                          onChange={(newThoughts) => {
-                            setSelectedDay(dayNum);
-                            handleTaskThoughtsChange(dayNum, activeIdx, newThoughts);
-                          }}
-                          onClose={() => {
-                            setSelectedDay(dayNum);
-                            handleTaskThoughtsChange(dayNum, activeIdx, null);
-                          }}
-                          selectedText={selectedText}
-                          onAssignSelected={(text) => {
-                            setSelectedDay(dayNum);
-                            handleAssignSelectedToThought(dayNum, activeIdx, text);
-                            setLastAssignedField(`thought-${activeIdx}`);
-                            setTimeout(() => setLastAssignedField(null), 1500);
-                            setSelectedText('');
-                          }}
-                        />
-                      </div>
-                    )}
+
 
                     {/* Task Ask AI edit input */}
                     {dayContent.taskAskAis?.[activeIdx] !== undefined && dayContent.taskAskAis?.[activeIdx] !== null && (

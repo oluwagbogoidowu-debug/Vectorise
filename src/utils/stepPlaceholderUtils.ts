@@ -3604,3 +3604,15 @@ export const getStepThoughts = (dayContent: any, stepIndex: number, versionIdx: 
   return [];
 };
 
+export function hasStepListInput(content: any, index: number): boolean {
+  if (!content) return false;
+  const inputType = String(content.taskInputTypes?.[index] || '').trim().toLowerCase();
+  const hasPollOpts = Boolean(content.taskPollOptions?.[index] && content.taskPollOptions[index] !== '[]' && content.taskPollOptions[index] !== '');
+  const hasLinkedSrc = Boolean(Array.isArray(content.taskLinkedSources?.[index]) && content.taskLinkedSources[index].length > 0);
+  const isPoll = inputType === 'poll' || inputType.includes('poll');
+  const isTags = inputType === 'tags' || inputType.includes('tags');
+  const isMulti = Boolean(content.taskPollMultiSelect?.[index] || content.taskPollArrange?.[index]);
+  return isPoll || isTags || isMulti || hasPollOpts || hasLinkedSrc;
+}
+
+

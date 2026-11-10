@@ -145,10 +145,18 @@ export const ParticipantDrawerMenu: React.FC<ParticipantDrawerMenuProps> = ({ is
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 px-2 py-1 rounded-lg shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    navigate('/buy-coins');
+                  }}
+                  className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/40 px-2 py-1 rounded-lg shrink-0 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all cursor-pointer active:scale-95"
+                  title="Buy Coins"
+                >
                   <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                   <span className="text-[11px] font-black text-amber-700 dark:text-amber-300">{walletBalance}</span>
-                </div>
+                </button>
               </div>
             )}
 
