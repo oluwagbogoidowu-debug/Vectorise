@@ -161,6 +161,22 @@ export const MySprints: React.FC = () => {
         ];
     }, [activeChallenges, pausedSprints, queuedSprints]);
 
+    const completedSprints = useMemo(() => {
+        return enrollments
+            .filter(e => {
+                if (e.completed_at || e.status === 'completed') return true;
+                const progress = (e as any).progress || [];
+                if (progress.length > 0 && progress.every((p: any) => p.completed)) return true;
+                return false;
+            })
+            .map(e => ({
+                id: e.id,
+                enrollment: e,
+                sprint: allSprints.find(s => s.id === e.sprint_id)!,
+            }))
+            .filter(item => Boolean(item.sprint));
+    }, [enrollments, allSprints]);
+
     const handleRemoveFromQueue = async (sprintId: string, enrollmentId?: string, e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
         if (!user) return;
@@ -475,6 +491,71 @@ export const MySprints: React.FC = () => {
                             <span aria-hidden="true" className="group-hover:translate-x-0.5 transition-transform">&rarr;</span>
                         </Link>
                     </div>
+                </section>
+
+                {/* 3. COMPLETED SPRINTS (OPENS INTO SPRINT VIEW) */}
+                <section className="space-y-3 pt-6">
+                    <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 dark:text-gray-500">
+                                Completed Sprints
+                            </h2>
+                            {completedSprints.length > 0 && (
+                                <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/40 text-[#0E7850] dark:text-emerald-400 text-[8px] font-black uppercase tracking-wider rounded-full">
+                                    {completedSprints.length} Done
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {completedSprints.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {completedSprints.map(({ id, sprint, enrollment }) => {
+                                const coverImg = getSprintCoverImage(sprint);
+                                return (
+                                    <div
+                                        key={id}
+                                        onClick={() => navigate(`/participant/sprint/${enrollment.id}`)}
+                                        className="bg-white dark:bg-zinc-900 rounded-3xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800 hover:border-emerald-500/40 hover:shadow-md transition-all flex flex-col justify-between cursor-pointer group"
+                                    >
+                                        <div className="space-y-3">
+                                            <div className="relative w-full h-32 rounded-2xl overflow-hidden bg-gray-100 dark:bg-zinc-800">
+                                                <img 
+                                                    src={coverImg} 
+                                                    alt={sprint.title} 
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                                <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-600 text-white shadow-xs flex items-center gap-1">
+                                                    ✓ Completed
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                                                    {sprint.category || "Growth Journey"}
+                                                </span>
+                                                <h3 className="font-black text-sm text-gray-900 dark:text-white group-hover:text-emerald-600 transition-colors line-clamp-1">
+                                                    {sprint.title}
+                                                </h3>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+                                            <span className="text-[10px] font-bold text-gray-400">
+                                                {sprint.duration || 5} Days Completed
+                                            </span>
+                                            <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                                                Open Sprint View &rarr;
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-gray-200 dark:border-zinc-800 text-center">
+                            <p className="text-xs text-gray-400 font-medium">No completed sprints yet. Finish your active sprint to open it into sprint view!</p>
+                        </div>
+                    )}
                 </section>
             </main>
         </div>
