@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { db } from "../../services/firebase";
 import FormattedText from "../../components/FormattedText";
 import PagedSprintDescription from "../../components/PagedSprintDescription";
-import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint, findMetadataSourceStepAcrossSprints, MetadataInterventionStepConfig, extractRequiredReceiveMetadataFromStep, resolveUserMetadataValue } from "../../src/utils/stepPlaceholderUtils";
+import { formatInterpolatedText, resolveTaskHintForUser, resolveStepVersionIndex, getStepVersionValue, getStepInputType, getStepPollOptions, getAllStepPollOptions, isStepOrSubStepPoll, parsePollLinkInfo, resolveProgressiveStepSelections, StepPlaceholderMode, parsePlaceholderMode, getExplicitLinkedSteps, isMainActiveForStep, parseDualInputState, serializeDualInputState, isStepVisibleForSprint, findMetadataSourceStepAcrossSprints, MetadataInterventionStepConfig, extractRequiredReceiveMetadataFromStep, resolveUserMetadataValue, getStepThoughts, parseThoughtSentences } from "../../src/utils/stepPlaceholderUtils";
 import CustomSelect from "../../components/CustomSelect";
 import LocalLogo from "../../components/LocalLogo";
 import SprintCompletionModal from "../../components/SprintCompletionModal";
@@ -42,7 +42,7 @@ import BottomModalCoinCards from "../../components/BottomModalCoinCards";
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save, Loader2, Lightbulb } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save, Loader2, Lightbulb, ChevronRight } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import AiResearchModal from "../../components/AiResearchModal";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
@@ -1893,6 +1893,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
   const [activeTagIndexMap, setActiveTagIndexMap] = useState<Record<number, number>>({});
   const [activeTextTagIndexMap, setActiveTextTagIndexMap] = useState<Record<number, number>>({});
+  const [thoughtIndexMap, setThoughtIndexMap] = useState<Record<number, number>>({});
   const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
   // Express Note State - available for every user in action step card
@@ -5497,9 +5498,82 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   Action Step {getVisibleStepIndexOrder(i)}
                                 </SectionHeading>
 
-                              <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
+                              {/* Thought UX or Prompt */}
+                               {Boolean(dayContent?.taskThoughts?.[i]) ? (() => {
+                                 const stepVerIdx = resolveStepVersionIndex(dayContent?.taskPrompts?.[i], taskInputs[i]);
+                                 let thoughts = getStepThoughts(dayContent, i, stepVerIdx);
+                                 if (thoughts.length === 0) {
+                                   thoughts = parseThoughtSentences(effectivePrompt);
+                                 }
+                                 if (thoughts.length === 0) thoughts = [effectivePrompt];
+                                 
+                                 const currentThoughtIdx = thoughtIndexMap[i] || 0;
+                                 const currentThought = thoughts[currentThoughtIdx] || thoughts[0];
+                                 const totalThoughts = thoughts.length;
+
+                                 return (
+                                   <div className="mb-6 p-6 sm:p-8 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/40 rounded-2xl text-left shadow-xs space-y-4 animate-fade-in">
+                                     <div className="flex items-center justify-between text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-widest">
+                                       <div className="flex items-center gap-1.5">
+                                         <Sparkles className="w-4 h-4 text-emerald-600" />
+                                         <span>Thought</span>
+                                       </div>
+                                       {totalThoughts > 1 && (
+                                         <span className="bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                                           {currentThoughtIdx + 1} of {totalThoughts}
+                                         </span>
+                                       )}
+                                     </div>
+
+                                     {/* Main Thought Text - a bit larger than action steps */}
+                                     <div className="text-xl sm:text-2xl font-bold text-gray-950 dark:text-zinc-100 leading-relaxed tracking-tight py-2">
+                                       <FormattedText text={formatInterpolatedText(currentThought, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
+                                     </div>
+
+                                     {/* Pagination and Arrow Right */}
+                                     {totalThoughts > 1 && (
+                                       <div className="flex items-center justify-between pt-3 border-t border-emerald-200/50 dark:border-emerald-900/40">
+                                         {/* Pagination dots (...) */}
+                                         <div className="flex items-center gap-1.5">
+                                           {thoughts.map((_, tIdx) => (
+                                             <button
+                                               key={tIdx}
+                                               type="button"
+                                               onClick={() => setThoughtIndexMap(prev => ({ ...prev, [i]: tIdx }))}
+                                               className={`h-2 rounded-full transition-all cursor-pointer ${
+                                                 tIdx === currentThoughtIdx
+                                                   ? 'w-6 bg-emerald-600 dark:bg-emerald-400'
+                                                   : 'w-2 bg-emerald-200 dark:bg-emerald-900 hover:bg-emerald-300'
+                                               }`}
+                                               title={`Point ${tIdx + 1}`}
+                                             />
+                                           ))}
+                                         </div>
+
+                                         {/* Arrow Right to reveal next point */}
+                                         <button
+                                           type="button"
+                                           onClick={() => {
+                                             if (currentThoughtIdx < totalThoughts - 1) {
+                                               setThoughtIndexMap(prev => ({ ...prev, [i]: currentThoughtIdx + 1 }));
+                                             } else {
+                                               setThoughtIndexMap(prev => ({ ...prev, [i]: 0 }));
+                                             }
+                                           }}
+                                           className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer"
+                                         >
+                                           <span>{currentThoughtIdx < totalThoughts - 1 ? 'Next Point' : 'Restart'}</span>
+                                           <ChevronRight className="w-4 h-4 stroke-[3]" />
+                                         </button>
+                                       </div>
+                                     )}
+                                   </div>
+                                 );
+                             })() : (
+                               <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
+                             )}
 
                               {/* Poll to Tag Selectable & Navigatable Tags above footnote */}
                               {(() => {
@@ -5527,7 +5601,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                 : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-gray-50'
                                             }`}
                                           >
-                                            <span>🏷️ {tag}</span>
+                                            <span>{tag}</span>
                                             <span className={`text-[9px] px-1.5 py-0.5 rounded ${isSel ? 'bg-emerald-700 text-white' : 'bg-gray-100 dark:bg-zinc-700 text-gray-500'}`}>
                                               Sub-step {Math.floor(i + 1)}.{tIdx + 1}
                                             </span>
@@ -6248,7 +6322,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                                         : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-gray-50"
                                                     }`}
                                                   >
-                                                    <span>🏷️ {tag}</span>
+                                                    <span>{tag}</span>
                                                   </button>
                                                 );
                                               })}

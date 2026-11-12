@@ -881,7 +881,7 @@ const EditSprint: React.FC = () => {
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [sprintId, navigate, user]);
+  }, [sprintId, navigate, user?.id]);
 
   useEffect(() => {
     if (!user || !sprint) return;
@@ -903,7 +903,7 @@ const EditSprint: React.FC = () => {
       }
     };
     loadVersions();
-  }, [user, sprint?.id, sprint?.parentSprintId]);
+  }, [user?.id, sprint?.id, sprint?.parentSprintId]);
 
 
 
