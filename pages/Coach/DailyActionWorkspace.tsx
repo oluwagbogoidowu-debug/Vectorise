@@ -1770,34 +1770,7 @@ export default function DailyActionWorkspace({
                                     )}
                                   </button>
                                 )}
-                                {showPollBranchLink && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll') {
-                                        setActiveLinkSelectorIndex(null);
-                                      } else {
-                                        setActiveLinkSelectorIndex(activeIdx);
-                                        setActiveLinkSelectorType('poll');
-                                      }
-                                    }}
-                                    title={currentPollLink ? `Branching Link Active: ${currentPollLink}. Click to edit or disconnect.` : "Link Poll Branching: Connect this step to a specific option in a preceding poll."}
-                                    className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : currentPollLink ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
-                                  >
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M6 3v12" />
-                                      <circle cx="18" cy="6" r="3" />
-                                      <circle cx="6" cy="18" r="3" />
-                                      <path d="M18 9a9 9 0 0 1-9 9" />
-                                    </svg>
-                                    {currentPollLink && (
-                                      <span className="ml-0.5 text-[9px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[12px]">
-                                        ✓
-                                      </span>
-                                    )}
-                                  </button>
-                                )}
+                                
                                 {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
                                   <button 
                                     type="button"

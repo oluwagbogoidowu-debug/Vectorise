@@ -4425,33 +4425,7 @@ const EditSprint: React.FC = () => {
                                                                                 )}
                                                                             </button>
                                                                         )}
-                                                                        {showPollBranchLink && (
-                                                                            <button 
-                                                                                type="button"
-                                                                                onClick={() => {
-                                                                                    if (activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll') {
-                                                                                        setActiveLinkSelectorIndex(null);
-                                                                                    } else {
-                                                                                        setActiveLinkSelectorIndex(index);
-                                                                                        setActiveLinkSelectorType('poll');
-                                                                                    }
-                                                                                }}
-                                                                                title={currentPollLink ? `Branching Link Active: ${currentPollLink}. Click to edit or disconnect.` : "Link Poll Branching: Click to connect this step to a specific option in a preceding poll."}
-                                                                                className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === index && activeLinkSelectorType === 'poll' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : currentPollLink ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
-                                                                            >
-                                                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                                    <path d="M6 3v12" />
-                                                                                    <circle cx="18" cy="6" r="3" />
-                                                                                    <circle cx="6" cy="18" r="3" />
-                                                                                    <path d="M18 9a9 9 0 0 1-9 9" />
-                                                                                </svg>
-                                                                                {currentPollLink && (
-                                                                                    <span className="ml-1 text-[10px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[14px]">
-                                                                                        ✓
-                                                                                    </span>
-                                                                                )}
-                                                                            </button>
-                                                                        )}
+                                                                        
                                                                         {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
                                                                             <button 
                                                                                 type="button"

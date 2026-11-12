@@ -1892,6 +1892,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [taskInputs, setTaskInputs] = useState<string[]>(["", "", ""]);
   const [activeTaskIndex, setActiveTaskIndex] = useState(0);
   const [activeTagIndexMap, setActiveTagIndexMap] = useState<Record<number, number>>({});
+  const [activeTextTagIndexMap, setActiveTextTagIndexMap] = useState<Record<number, number>>({});
   const [confirmMarkStepIndex, setConfirmMarkStepIndex] = useState<number | null>(null);
 
   // Express Note State - available for every user in action step card
@@ -6211,44 +6212,71 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     </div>
                                   ) : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                     <div className="space-y-4 animate-fade-in text-left">
-                                      {getLinkedTagsForStep(i).map((tag, tagIndex) => {
+                                      {(() => {
+                                        const tags = getLinkedTagsForStep(i);
+                                        const activeTagIdx = activeTextTagIndexMap[i] || 0;
+                                        const activeTag = tags[activeTagIdx] || tags[0];
                                         let currentAnswers: Record<string, string> = {};
                                         if (taskInputs[i]) {
                                           try {
                                             if (taskInputs[i].startsWith("{")) {
                                               currentAnswers = JSON.parse(taskInputs[i]);
                                             } else {
-                                              currentAnswers = { [getLinkedTagsForStep(i)[0] || "default"]: taskInputs[i] };
+                                              currentAnswers = { [tags[0] || "default"]: taskInputs[i] };
                                             }
                                           } catch (e) {
                                             currentAnswers = {};
                                           }
                                         }
-                                        const tagVal = currentAnswers[tag] || "";
+                                        const tagVal = currentAnswers[activeTag] || "";
                                         return (
-                                          <div key={tagIndex} className="space-y-2 pl-3 border-l-2 border-primary/20">
-                                            <div className="flex items-center">
-                                              <span className={`inline-flex items-center ${isFullBleed ? 'px-3.5 py-1.5 text-xs sm:text-sm font-black' : 'px-2.5 py-1 text-[10px] font-black'} uppercase tracking-wider bg-primary/10 text-primary rounded-lg`}>
-                                                🏷️ {tag}
-                                              </span>
+                                          <div className="space-y-4">
+                                            {/* Straight line of tags */}
+                                            <div className="flex flex-wrap gap-2 items-center">
+                                              {tags.map((tag, tIdx) => {
+                                                const isSel = activeTagIdx === tIdx;
+                                                return (
+                                                  <button
+                                                    key={tIdx}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setActiveTextTagIndexMap(prev => ({ ...prev, [i]: tIdx }));
+                                                    }}
+                                                    className={`px-3.5 py-2 text-xs sm:text-sm font-black rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                                      isSel
+                                                        ? "bg-primary text-white border-primary shadow-sm ring-2 ring-primary/25"
+                                                        : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-gray-50"
+                                                    }`}
+                                                  >
+                                                    <span>🏷️ {tag}</span>
+                                                  </button>
+                                                );
+                                              })}
                                             </div>
-                                            <AutoGrowingTextarea
-                                              value={tagVal}
-                                              onChange={(val) => {
-                                                const newAnswers = { ...currentAnswers, [tag]: val };
-                                                const newInputs = [...taskInputs];
-                                                newInputs[i] = JSON.stringify(newAnswers);
-                                                setTaskInputs(newInputs);
-                                              }}
-                                              placeholder={`Your answer for ${tag}...`}
-                                              isFullBleed={isFullBleed}
-                                              className={`w-full ${isFullBleed ? 'px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl' : 'px-4 py-3 text-sm rounded-xl'} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
-                                            />
+
+                                            {/* Unique text input for the clicked tag */}
+                                            <div className="space-y-2 pt-2 border-t border-gray-100">
+                                              <div className="text-xs font-black text-gray-500 uppercase tracking-wider">
+                                                Answer for <span className="text-primary font-black">&quot;{activeTag}&quot;</span>:
+                                              </div>
+                                              <AutoGrowingTextarea
+                                                value={tagVal}
+                                                onChange={(val) => {
+                                                  const newAnswers = { ...currentAnswers, [activeTag]: val };
+                                                  const newInputs = [...taskInputs];
+                                                  newInputs[i] = JSON.stringify(newAnswers);
+                                                  setTaskInputs(newInputs);
+                                                }}
+                                                placeholder={`Your answer for ${activeTag}...`}
+                                                isFullBleed={isFullBleed}
+                                                className={`w-full ${isFullBleed ? "px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl" : "px-4 py-3 text-sm rounded-xl"} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
+                                              />
+                                            </div>
                                           </div>
                                         );
-                                      })}
+                                      })()}
                                     </div>
-                                  ) : isMultiTextStep(i) ? (
+                                   ) : isMultiTextStep(i) ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       {getResolvedMultiTextFields(i).map((field) => {
                                         let currentAnswers: Record<string, string> = {};
