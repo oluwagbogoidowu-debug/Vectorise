@@ -3,8 +3,8 @@ import { Sprint, DailyContent } from '../../types';
 import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube, ChevronLeft, ChevronRight, Sliders, Tag } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
-import ThoughtTagEditor from '../../components/ThoughtTagEditor';
-import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints, parseThoughtSentences, getStepThoughts, hasStepListInput } from '../../src/utils/stepPlaceholderUtils';
+
+import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, formatInterpolatedText, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints } from '../../src/utils/stepPlaceholderUtils';
 import { normalizeMultiTextDailyContent, sprintService } from '../../services/sprintService';
 
 const extractYouTubeId = (url: string): string | null => {
@@ -174,7 +174,7 @@ export default function DailyActionWorkspace({
         taskNotes: safeNotes,
         taskTagNotes: safeTagNotes,
         taskFootnotes: safeFootnotes,
-        taskThoughts: safeThoughts,
+        
         taskFills: safeFills,
         taskPollMultiSelect: safePollMultiSelect,
         taskPollArrange: safePollArrange,
@@ -232,7 +232,7 @@ export default function DailyActionWorkspace({
           taskHints: currentHints,
           taskNotes: currentNotes,
           taskFootnotes: currentFootnotes,
-          taskThoughts: currentThoughts,
+          
           taskFills: currentFills,
           taskPollOptionLinks: currentPollLinks
         };
@@ -246,7 +246,7 @@ export default function DailyActionWorkspace({
           taskHints: currentHints,
           taskNotes: currentNotes,
           taskFootnotes: currentFootnotes,
-          taskThoughts: currentThoughts,
+          
           taskPollOptionLinks: currentPollLinks
         });
       }
@@ -283,7 +283,7 @@ export default function DailyActionWorkspace({
         taskTagNotes: spliceArr(dayContent.taskTagNotes),
         taskTagNoteActive: spliceArr(dayContent.taskTagNoteActive),
         taskFootnotes: spliceArr(dayContent.taskFootnotes),
-        taskThoughts: spliceArr(dayContent.taskThoughts),
+        
         taskVideos: spliceArr(dayContent.taskVideos),
         taskPollOptionLinks: spliceArr(dayContent.taskPollOptionLinks),
         taskMultiTextLabels: spliceArr(dayContent.taskMultiTextLabels),
@@ -519,27 +519,8 @@ export default function DailyActionWorkspace({
     updateFieldForDay(dayNum, 'taskFootnotes', footnotes);
   };
 
-  const handleTaskThoughtsChange = (dayNum: number, index: number, thoughts: string[] | string | null | undefined) => {
-    const dayContent = getDailyContentForDay(dayNum);
-    const currentThoughts = Array.isArray(dayContent.taskThoughts) ? [...dayContent.taskThoughts] : [];
-    while (currentThoughts.length <= index) currentThoughts.push([] as any);
-    currentThoughts[index] = thoughts as any;
-    updateFieldForDay(dayNum, 'taskThoughts', currentThoughts);
-  };
-
-  const handleAssignSelectedToThought = (dayNum: number, index: number, textToAssign: string) => {
-    if (!textToAssign) return;
-    const sentences = parseThoughtSentences(textToAssign);
-    if (sentences.length === 0) return;
-    const dayContent = getDailyContentForDay(dayNum);
-    const currentThoughts = Array.isArray(dayContent.taskThoughts) ? [...dayContent.taskThoughts] : [];
-    const existing = Array.isArray(currentThoughts[index])
-      ? (currentThoughts[index] as string[])
-      : (typeof currentThoughts[index] === 'string' ? parseThoughtSentences(currentThoughts[index] as string) : []);
-    const merged = [...existing, ...sentences];
-    handleTaskThoughtsChange(dayNum, index, merged);
-  };
-
+  
+  
   const handleTaskAskAiChange = (dayNum: number, index: number, value: string | null) => {
     const dayContent = getDailyContentForDay(dayNum);
     const askAis = [...(dayContent.taskAskAis || [])];
@@ -1378,286 +1359,7 @@ export default function DailyActionWorkspace({
                     <div className={`space-y-1.5 ${isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 p-1 rounded-2xl' : ''}`}>
                       <div className="flex justify-between items-center">
                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">Action Step Prompt</span>
-                        {selectedText && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedDay(dayNum);
-                              handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, selectedText));
-                              setLastAssignedField(`prompt-${activeIdx}`);
-                              setTimeout(() => setLastAssignedField(null), 1500);
-                              setSelectedText('');
-                            }}
-                            className="px-2 py-0.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[9px] font-bold rounded border border-purple-200 flex items-center gap-0.5"
-                          >
-                            Assign Selected
-                          </button>
-                        )}
-                      </div>
-                      <textarea 
-                        value={prompt} 
-                        onChange={e => {
-                          setSelectedDay(dayNum);
-                          handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, e.target.value));
-                        }} 
-                        rows={2} 
-                        className={smallEditorInputClasses + " p-3 !py-3 w-full font-medium text-sm"} 
-                        placeholder={`Describe Action Step ${activeIdx + 1}...`} 
-                      />
-
-                      {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
-                        <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
-                            <span>
-                              <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(currentPlaceholderVal.validStepLabels || currentPlaceholderVal.validStepRefs.map(n => `Step ${n}`)).map(s => `{${s}}`).join(', ')}</code> will expand into choice(s) collected from Step {currentPlaceholderVal.validStepLabels?.map(l => l.replace(/^(?:D\d+\s+)?Step\s*/i, '')).join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}.
-                            </span>
-                          </div>
-
-                          {currentPlaceholderVal.placeholderDetails && currentPlaceholderVal.placeholderDetails.length > 0 && (
-                            <div className="flex flex-col gap-2 pt-2 border-t border-red-200/60">
-                              {currentPlaceholderVal.placeholderDetails.map((detail, dIdx) => (
-                                <div key={dIdx} className="flex flex-wrap items-center justify-between gap-2 bg-white/80 p-2 rounded-lg border border-red-100">
-                                  <div className="flex items-center gap-1.5">
-                                    {detail.isMetadata ? (
-                                      <span className="text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs font-mono">
-                                        ✨ {detail.token || detail.rawLabel}
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] font-black text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
-                                        {detail.token || `{Step ${detail.stepNum}}`}
-                                      </span>
-                                    )}
-                                    <span className="text-[10px] text-gray-500 italic">
-                                      ({detail.mode === 'list' 
-                                        ? 'List mode: bulleted list' 
-                                        : detail.mode === 'hide' 
-                                        ? 'Hide mode: logic linked, input hidden' 
-                                        : detail.mode === 'sentence' 
-                                        ? 'Sentence mode: starts input with sentence case' 
-                                        : detail.mode === 'main'
-                                        ? 'Main mode: second level single active connection'
-                                        : 'Normal mode: inline lowercase text'})
-                                    </span>
-                                  </div>
-                                  <div className="inline-flex p-0.5 bg-gray-100 rounded-lg shrink-0 flex-wrap gap-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedDay(dayNum);
-                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'normal');
-                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
-                                      }}
-                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                                        detail.mode === 'normal'
-                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
-                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-                                      }`}
-                                      title="Normal Tag: Displays data inline as lowercase text"
-                                    >
-                                      Normal
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedDay(dayNum);
-                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'sentence');
-                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
-                                      }}
-                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                                        detail.mode === 'sentence'
-                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
-                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-                                      }`}
-                                      title="Sentence Tag: Starts received input with sentence case"
-                                    >
-                                      Sentence (s)
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedDay(dayNum);
-                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'list');
-                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
-                                      }}
-                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                                        detail.mode === 'list'
-                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
-                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-                                      }`}
-                                      title="List Tag: Separates data into a bulleted list"
-                                    >
-                                      List
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedDay(dayNum);
-                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'main');
-                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
-                                      }}
-                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                                        detail.mode === 'main'
-                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
-                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-                                      }`}
-                                      title="Main Tag: Second layer connection narrowing multi-select to single active choice"
-                                    >
-                                      Main
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedDay(dayNum);
-                                        const updatedPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'hide');
-                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
-                                      }}
-                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                                        detail.mode === 'hide'
-                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
-                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-                                      }`}
-                                      title="Hide Tag: Logic linked to step, but hides input from display text"
-                                    >
-                                      Hide (h)
-                                    </button>
-                                  </div>
-
-                                  {detail.isMetadata && (
-                                    <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 mt-1.5 border-t border-purple-100/90 bg-purple-50/40 -mx-1 px-3 py-2.5 rounded-2xl">
-                                      <div className="flex flex-col gap-1.5 min-w-[200px]">
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5 px-1">
-                                          <span>🏷️</span> Attribute:
-                                        </label>
-                                        <CustomSelect
-                                          value={detail.metadataFieldKey || ''}
-                                          onChange={(val) => {
-                                            setSelectedDay(dayNum);
-                                            const selectedKey = String(val);
-                                            const allFields = getMetadataFields();
-                                            const fieldDef = allFields.find(f => f.key === selectedKey);
-                                            const updatedPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
-                                              fieldKey: selectedKey,
-                                              fieldLabel: fieldDef?.label || (selectedKey ? selectedKey : ''),
-                                              mode: detail.metadataMode || 'receive',
-                                              formatMode: detail.mode
-                                            });
-                                            handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
-                                          }}
-                                          options={[
-                                            { value: '', label: '✨ General Metadata' },
-                                            ...getMetadataFields().map(f => ({
-                                              value: f.key,
-                                              label: `${f.label} (${f.placeholderSample})`
-                                            }))
-                                          ]}
-                                          placeholder="Select Attribute..."
-                                          className="w-full"
-                                        />
-                                      </div>
-
-                                      <div className="flex flex-col gap-1.5 min-w-[200px]">
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5 px-1">
-                                          <span>🔄</span> Action:
-                                        </label>
-                                        <CustomSelect
-                                          value={detail.metadataMode || 'receive'}
-                                          onChange={(val) => {
-                                            setSelectedDay(dayNum);
-                                            const selectedMode = String(val) as 'save' | 'receive';
-                                            const updatedPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
-                                              fieldKey: detail.metadataFieldKey,
-                                              fieldLabel: detail.metadataFieldLabel,
-                                              mode: selectedMode,
-                                              formatMode: detail.mode
-                                            });
-                                            handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, updatedPrompt));
-                                          }}
-                                          options={[
-                                            { value: 'receive', label: '📥 Receive (Read / Expand into prompt)' },
-                                            { value: 'save', label: '📤 Send / Save (Store participant response)' }
-                                          ]}
-                                          placeholder="Select Action..."
-                                          className="w-full"
-                                        />
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (
-                        <div className="p-3 bg-red-100/90 border border-red-300 rounded-xl text-xs text-red-900 font-bold flex items-center gap-2 mt-2 animate-shake shadow-xs">
-                          <span className="text-base leading-none">🔴</span>
-                          <span>{currentPlaceholderVal.errorMsg}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Input Type Selector and Helper toggles */}
-                    <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
-                      {/* Top Row: Input Type Selector + Type-Specific buttons */}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
-                          <div className="flex p-0.5 bg-gray-100 rounded-lg">
-                            {(['text', 'tags', 'poll', 'mark', 'none'] as const).map((type) => {
-                              const isSelected = (!activeInputType && type === 'text') || activeInputType === type;
-                              return (
-                                <button 
-                                  key={type}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedDay(dayNum);
-                                    handleTaskPromptTypeChange(dayNum, activeIdx, type);
-                                  }}
-                                  className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all uppercase cursor-pointer ${
-                                    isSelected 
-                                      ? 'bg-white text-purple-600 shadow-xs' 
-                                      : 'text-gray-400 hover:text-gray-600'
-                                  }`}
-                                >
-                                  {type}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {selectedText && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                handleAssignSelectedToPoll(dayNum, activeIdx, selectedText);
-                              }}
-                              className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[9px] font-bold rounded-lg border border-purple-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                              title="Automatically convert selected text lines into Poll Options"
-                            >
-                              <ListFilter size={11} />
-                              <span>Assign Selected to Poll ({selectedText.split(/\r?\n/).filter(l => l.trim()).length} line{selectedText.split(/\r?\n/).filter(l => l.trim()).length === 1 ? '' : 's'})</span>
-                            </button>
-                          )}
-
-                          {selectedText && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                handleAssignSelectedToThought(dayNum, activeIdx, selectedText);
-                                setLastAssignedField(`thought-${activeIdx}`);
-                                setTimeout(() => setLastAssignedField(null), 1500);
-                                setSelectedText('');
-                              }}
-                              className="px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-[9px] font-bold rounded-lg border border-teal-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                              title="Automatically convert selected sentences into Thought tags"
-                            >
-                              <Sparkles size={11} />
-                              <span>Assign to Thought ({parseThoughtSentences(selectedText).length} sentence{parseThoughtSentences(selectedText).length === 1 ? '' : 's'})</span>
-                            </button>
-                          )}
+                        
                           
                           {/* Step Relationships Link trigger */}
                           {(() => {
@@ -1898,25 +1600,7 @@ export default function DailyActionWorkspace({
                           <span>Footnote</span>
                         </button>
 
-                        {hasStepListInput(dayContent, activeIdx) && (
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              setSelectedDay(dayNum);
-                              const currentThought = dayContent.taskThoughts?.[activeIdx];
-                              if (currentThought === undefined || currentThought === null) {
-                                handleTaskThoughtsChange(dayNum, activeIdx, []);
-                              } else {
-                                handleTaskThoughtsChange(dayNum, activeIdx, null);
-                              }
-                            }}
-                            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskThoughts?.[activeIdx] !== undefined && dayContent.taskThoughts?.[activeIdx] !== null) ? 'bg-teal-50 text-teal-700 border-teal-200 shadow-xs' : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'}`}
-                            title="Thought Option: Display list items in Thought UX format."
-                          >
-                            <Sparkles size={11} className={dayContent.taskThoughts?.[activeIdx] ? 'text-teal-600' : ''} />
-                            <span>Thought</span>
-                          </button>
-                        )}
+                        
 
                         <button 
                           type="button"

@@ -3534,85 +3534,11 @@ export function getHintTokensForBridgeNote(
  * Parses pasted bulk text or highlighted text into individual thought questions/prompts.
  * Automatically breaks multi-line or paragraph text into individual sentences and cleans prefixes.
  */
-export const parseThoughtSentences = (text: string): string[] => {
-  if (!text || typeof text !== 'string') return [];
-  const trimmed = text.trim();
-  if (!trimmed) return [];
-
-  // Check if multiline first
-  const rawLines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  const results: string[] = [];
-
-  for (const line of rawLines) {
-    // Strip bullet / number prefixes (e.g. "1. ", "- ", "* ")
-    const cleaned = line
-      .replace(/^(\d+[\.\)\-:]|\*|\-|\+|•|–|—|▪|▫|◦|✓|✔)\s*/, '')
-      .replace(/^["'“](.*)["'”]$/, '$1')
-      .trim();
-    if (!cleaned) continue;
-
-    // Split on . ! ? followed by space and capital letter or end of string
-    const sentenceSplit = cleaned
-      .split(/(?<=[.!?])\s+(?=[A-Z0-9"']|$)/g)
-      .map(s => s.trim().replace(/^["'“]|["'”]$/g, '').trim())
-      .filter(Boolean);
-
-    if (sentenceSplit.length > 1) {
-      results.push(...sentenceSplit);
-    } else {
-      results.push(cleaned);
-    }
-  }
-
-  return results.filter(s => s.length > 0);
-};
 
 /**
  * Retrieves the normalized array of thought questions for an action step.
  * Supports array of strings, JSON strings, newline strings, and versioning.
  */
-export const getStepThoughts = (dayContent: any, stepIndex: number, versionIdx: number = 0): string[] => {
-  if (!dayContent || !dayContent.taskThoughts) return [];
-  const raw = dayContent.taskThoughts[stepIndex];
-  if (!raw) return [];
 
-  let effective: any = raw;
-  if (typeof raw === 'string') {
-    effective = getStepVersionValue(raw, versionIdx, raw);
-  }
-
-  if (Array.isArray(effective)) {
-    return effective.map(s => String(s || '').trim()).filter(Boolean);
-  }
-
-  if (typeof effective === 'string') {
-    const trimmed = effective.trim();
-    if (trimmed.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          return parsed.map(s => String(s || '').trim()).filter(Boolean);
-        }
-      } catch (e) {}
-    }
-    if (trimmed.includes('\n')) {
-      return trimmed.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-    }
-    return [trimmed].filter(Boolean);
-  }
-
-  return [];
-};
-
-export function hasStepListInput(content: any, index: number): boolean {
-  if (!content) return false;
-  const inputType = String(content.taskInputTypes?.[index] || '').trim().toLowerCase();
-  const hasPollOpts = Boolean(content.taskPollOptions?.[index] && content.taskPollOptions[index] !== '[]' && content.taskPollOptions[index] !== '');
-  const hasLinkedSrc = Boolean(Array.isArray(content.taskLinkedSources?.[index]) && content.taskLinkedSources[index].length > 0);
-  const isPoll = inputType === 'poll' || inputType.includes('poll');
-  const isTags = inputType === 'tags' || inputType.includes('tags');
-  const isMulti = Boolean(content.taskPollMultiSelect?.[index] || content.taskPollArrange?.[index]);
-  return isPoll || isTags || isMulti || hasPollOpts || hasLinkedSrc;
-}
 
 
