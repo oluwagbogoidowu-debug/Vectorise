@@ -1731,39 +1731,29 @@ const SprintPreview: React.FC = () => {
                 <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
                     {/* Action Step */}
                     <div className="space-y-6 relative">
-                        
-                                        {effectiveFootnote && (
-                                            <div className="mb-4 text-left text-emerald-600 font-bold text-xs leading-relaxed animate-fade-in">
-                                                <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent)} />
-                                            </div>
-                                        )}
-                                        
-                                        </div>
+                        {(day1Content?.taskPrompts || [day1Content?.taskPrompt || '']).map((prompt: string, i: number) => {
+                            if (i !== activeTaskIndex) return null;
+                            const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
+                            const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
+                            const rawFootnote = day1Content?.taskFootnotes?.[i];
+                            const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
+
+                            return (
+                                <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative text-left">
+                                    <SectionHeading showDot={!isDayCompleted}>
+                                        Action Step {i + 1}
+                                    </SectionHeading>
+                                    <div className="text-gray-950 text-lg sm:text-xl md:text-2xl leading-relaxed relative mb-4">
+                                        <FormattedText text={formatInterpolatedText(effectivePrompt, day1Content, taskInputs, sprint?.dailyContent)} />
                                     </div>
-                                    
-                                    {activePrompts.length > 1 && (
-                                        <div className="flex justify-center items-center gap-2 mt-8">
-                                            {activePrompts.map((_, idx) => {
-                                                if (!isStepVisible(idx)) return null;
-                                                const canClick = isDayCompleted || idx <= activeTaskIndex;
-                                                return (
-                                                    <button
-                                                        type="button"
-                                                        key={idx} 
-                                                        onClick={() => {
-                                                            if (canClick) {
-                                                                setActiveTaskIndex(idx);
-                                                            }
-                                                        }}
-                                                        className={`h-1.5 rounded-full transition-all duration-300 ${canClick ? 'cursor-pointer' : 'cursor-not-allowed'} ${idx === activeTaskIndex ? 'w-8 bg-primary' : (isDayCompleted || idx < activeTaskIndex) ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'}`}
-                                                    />
-                                                );
-                                            })}
+                                    {effectiveFootnote && (
+                                        <div className="mb-4 text-left text-emerald-600 font-bold text-xs leading-relaxed animate-fade-in">
+                                            <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent)} />
                                         </div>
                                     )}
-                                </>
+                                </div>
                             );
-                        })()}
+                        })}
                     </div>
                 </div>
             </div>

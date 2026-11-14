@@ -215,9 +215,6 @@ export default function DailyActionWorkspace({
       const currentFootnotes = Array.isArray(dayContent.taskFootnotes) ? [...dayContent.taskFootnotes] : [];
       while (currentFootnotes.length < currentPrompts.length) currentFootnotes.push(null as any);
 
-      const currentThoughts = Array.isArray(dayContent.taskThoughts) ? [...dayContent.taskThoughts] : [];
-      while (currentThoughts.length < currentPrompts.length) currentThoughts.push([] as any);
-
       const currentFills = Array.isArray(dayContent.taskFills) ? [...dayContent.taskFills] : [];
       while (currentFills.length < currentPrompts.length) currentFills.push(null as any);
 
@@ -351,7 +348,6 @@ export default function DailyActionWorkspace({
       dayContent.taskTagNotes = reorderArr(dayContent.taskTagNotes);
       dayContent.taskTagNoteActive = reorderArr(dayContent.taskTagNoteActive);
       dayContent.taskFootnotes = reorderArr(dayContent.taskFootnotes);
-      dayContent.taskThoughts = reorderArr(dayContent.taskThoughts);
       dayContent.taskFills = reorderArr(dayContent.taskFills);
       dayContent.taskVideos = reorderArr(dayContent.taskVideos);
       dayContent.taskPollOptionLinks = reorderArr(dayContent.taskPollOptionLinks);
@@ -1648,154 +1644,6 @@ export default function DailyActionWorkspace({
                           )}
                         </button>
                       </div>
-                    </div>
-
-                    {/* Poll Option Branching Selector */}
-                    {(() => {
-                      const precedingPolls = (dayContent.taskInputTypes || [])
-                        .map((type, idx) => ({ type, idx }))
-                        .filter(item => item.idx < activeIdx && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
-
-                      if (precedingPolls.length === 0) return null;
-
-                      const currentLink = dayContent.taskPollOptionLinks?.[activeIdx];
-                      const isSelectedByIcon = activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll';
-
-                      if (!currentLink && !isSelectedByIcon) return null;
-
-                      let targetPollIdx = -1;
-                      if (currentLink && currentLink.includes(":")) {
-                        const parts = currentLink.split(":");
-                        targetPollIdx = parseInt(parts[0].replace("step", ""), 10);
-                      } else if (currentLink) {
-                        targetPollIdx = findNearestPrecedingPoll(dayContent, activeIdx);
-                      } else {
-                        targetPollIdx = selectedPollTarget[activeIdx] !== undefined 
-                          ? selectedPollTarget[activeIdx] 
-                          : findNearestPrecedingPoll(dayContent, activeIdx);
-                      }
-
-                      if (!precedingPolls.some(p => p.idx === targetPollIdx)) {
-                        targetPollIdx = precedingPolls[precedingPolls.length - 1]?.idx ?? -1;
-                      }
-                      if (targetPollIdx === -1) return null;
-
-                      let pollOptions: string[] = getAllStepPollOptions(dayContent, targetPollIdx);
-                      pollOptions = pollOptions.filter(Boolean);
-
-                      return (
-                        <div className="mt-3 p-3 bg-purple-50/45 border border-purple-100 rounded-xl space-y-2.5 text-left animate-fade-in relative z-20">
-                          <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <svg className="w-3.5 h-3.5 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M6 3v12" />
-                                <circle cx="18" cy="6" r="3" />
-                                <circle cx="6" cy="18" r="3" />
-                                <path d="M18 9a9 9 0 0 1-9 9" />
-                              </svg>
-                              <span>Branching Path Link (Step {activeIdx + 1})</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {currentLink && (
-                                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-purple-100 text-purple-800">
-                                  Linked: {currentLink}
-                                </span>
-                              )}
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'poll') {
-                                    setActiveLinkSelectorIndex(null);
-                                  }
-                                  if (currentLink) {
-                                    handleSetPollOptionLink(dayNum, activeIdx, null);
-                                  }
-                                }}
-                                className="text-gray-400 hover:text-gray-600 text-[10px] font-bold cursor-pointer"
-                                title="Close / Disconnect link"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          </div>
-
-                          {precedingPolls.length > 1 && (
-                            <div className="space-y-1">
-                              <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">
-                                Select preceding Poll Step to link from:
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {precedingPolls.map(p => {
-                                  const isTarget = targetPollIdx === p.idx;
-                                  const rawPrompt = dayContent.taskPrompts?.[p.idx] || (p.idx === 0 ? dayContent.taskPrompt : '') || `Step ${p.idx + 1}`;
-                                  const pVersions = parseStepVersions(rawPrompt);
-                                  const promptText = pVersions[0] || rawPrompt;
-                                  const subCount = pVersions.length;
-                                  return (
-                                    <button
-                                      key={p.idx}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedPollTarget(prev => ({ ...prev, [activeIdx]: p.idx }));
-                                      }}
-                                      className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${isTarget ? 'bg-purple-700 text-white border-purple-700 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                                    >
-                                      Step {p.idx + 1} Poll {subCount > 1 ? `(${subCount} sub-steps)` : `(${promptText.slice(0, 15)}${promptText.length > 15 ? '...' : ''})`}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          <p className="text-[10px] text-gray-500 leading-normal font-medium">
-                            Choose if this step should only show when a specific option is clicked in Step {targetPollIdx + 1} Poll. If unlinked, it shows as a normal sequential step.
-                          </p>
-
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                handleSetPollOptionLink(dayNum, activeIdx, null);
-                              }}
-                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${!currentLink ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                            >
-                              Normal Progression (Always)
-                            </button>
-                            {pollOptions.map((opt, optIdx) => {
-                              const tag = `poll ${optIdx + 1}`;
-                              const fullLinkValue = `step${targetPollIdx}:${tag}`;
-                              const isSelected = currentLink === fullLinkValue || (targetPollIdx === findNearestPrecedingPoll(dayContent, activeIdx) && currentLink === tag);
-                              let linkedStepIndex = -1;
-                              if (dayContent.taskPollOptionLinks) {
-                                dayContent.taskPollOptionLinks.forEach((l: string | null | undefined, sIdx: number) => {
-                                  if (sIdx !== activeIdx && l) {
-                                    if (l === fullLinkValue || l === `step${targetPollIdx}:${tag}` || (targetPollIdx === findNearestPrecedingPoll(dayContent, sIdx) && l === tag)) {
-                                      linkedStepIndex = sIdx;
-                                    }
-                                  }
-                                });
-                              }
-                              return (
-                                <button
-                                  key={optIdx}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedDay(dayNum);
-                                    handleSetPollOptionLink(dayNum, activeIdx, fullLinkValue);
-                                  }}
-                                  className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
-                                >
-                                  If Option {optIdx + 1}: "{opt}" {linkedStepIndex !== -1 ? `(Linked to Step ${linkedStepIndex + 1})` : ''}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
                     {/* Multi-Link selector inside card */}
                     {(() => {
                       const rawPrecedingSteps = (dayContent.taskInputTypes || [])

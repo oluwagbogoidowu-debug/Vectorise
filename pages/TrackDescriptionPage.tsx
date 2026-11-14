@@ -202,6 +202,7 @@ const TrackDescriptionPage: React.FC = () => {
 
     const [guestEmail, setGuestEmail] = useState('');
     const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+    const [isProcessingSinglePayment, setIsProcessingSinglePayment] = useState(false);
     const [emailError, setEmailError] = useState('');
 
     const [imageError, setImageError] = useState(false);
@@ -379,6 +380,61 @@ const TrackDescriptionPage: React.FC = () => {
             setEmailError(msg);
             toast.error(msg);
             setIsProcessingPayment(false);
+        }
+    };
+
+    const handleJoinSingleSprint = async () => {
+        if (!sprints || sprints.length === 0 || !track) return;
+        const firstSprint = sprints[0];
+        
+        let effectiveEmail = '';
+        let traceId = '';
+        let userName = '';
+
+        if (user) {
+            effectiveEmail = (user.email || '').trim().toLowerCase();
+            traceId = user.id;
+            userName = user.name || 'Vectorise User';
+        } else {
+            if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+                setEmailError("Please enter a valid email to proceed to payment.");
+                return;
+            }
+            effectiveEmail = guestEmail.trim().toLowerCase();
+            traceId = `guest_${effectiveEmail.replace(/[^a-zA-Z0-9]/g, '')}`;
+            userName = 'Vectorise Guest';
+        }
+
+        setIsProcessingSinglePayment(true);
+        setEmailError('');
+
+        const singlePrice = Math.round(getSprintCashPrice(firstSprint) || 1000);
+
+        try {
+            analyticsTracker.trackEvent('single_sprint_payment_initiated', { sprint_id: firstSprint.id, amount: singlePrice }, user?.id, effectiveEmail);
+
+            const payload = {
+                userId: traceId,
+                email: effectiveEmail,
+                sprintId: firstSprint.id,
+                trackId: track.id,
+                amount: singlePrice,
+                currency: firstSprint.currency || "NGN",
+                name: userName
+            };
+
+            const checkoutUrl = await paymentService.initializeFlutterwave(payload);
+            if (checkoutUrl) {
+                window.location.href = checkoutUrl;
+            } else {
+                throw new Error("Payment link not received.");
+            }
+        } catch (err: any) {
+            console.error("Error initiating single sprint payment:", err);
+            const msg = err.message || "Unable to reach the payment gateway. Please try again.";
+            setEmailError(msg);
+            toast.error(msg);
+            setIsProcessingSinglePayment(false);
         }
     };
 
