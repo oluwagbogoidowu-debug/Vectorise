@@ -1351,6 +1351,57 @@ export default function DailyActionWorkspace({
                         </div>
                       </div>
 
+                      {/* Action Step Input Type Selector */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                              <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
+                              <div className="flex items-center gap-1">
+                                  <div className="flex p-0.5 bg-gray-100 rounded-lg">
+                                      <button 
+                                          type="button"
+                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'text')}
+                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!activeInputType || activeInputType === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                          title="Text Input: Instructs the participant to enter a freeform text response or reflection."
+                                      >
+                                          Text
+                                      </button>
+                                      <button 
+                                          type="button"
+                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'tags')}
+                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                          title="Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."
+                                      >
+                                          Tags
+                                      </button>
+                                      <button 
+                                          type="button"
+                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'poll')}
+                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                          title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
+                                      >
+                                          Poll
+                                      </button>
+                                      <button 
+                                          type="button"
+                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'mark')}
+                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                          title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
+                                      >
+                                          Mark
+                                      </button>
+                                      <button 
+                                          type="button"
+                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'none')}
+                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                          title="None: Action step with no input field — participants simply read and press next."
+                                      >
+                                          None
+                                      </button>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
                     {/* Prompt Input with direct selection assign */}
                     <div className={`space-y-1.5 ${isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 p-1 rounded-2xl' : ''}`}>
                       <div className="flex justify-between items-center">
