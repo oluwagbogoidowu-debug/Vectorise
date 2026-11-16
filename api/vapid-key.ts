@@ -1,4 +1,4 @@
-import { VAPID_PUBLIC_KEY } from '../utils/vapid';
+import { VAPID_PUBLIC_KEY } from '../utils/vapid.js';
 import type { Request, Response } from 'express';
 
 export default function handler(req: Request, res: Response) {
