@@ -5552,9 +5552,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 const activeTagIdx = activeTagIndexMap[i] || 0;
                                 return (
                                   <div className="mb-4 space-y-2 text-left animate-fade-in">
-                                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                      🏷️ Received Poll Option Tags (Select to view sub-step & input):
-                                    </div>
+                                    
                                     <div className="flex flex-wrap gap-2">
                                       {tags.map((tag, tIdx) => {
                                         const isSel = activeTagIdx === tIdx;
@@ -5572,9 +5570,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                             }`}
                                           >
                                             <span>{tag}</span>
-                                            <span className={`text-[9px] px-1.5 py-0.5 rounded ${isSel ? 'bg-emerald-700 text-white' : 'bg-gray-100 dark:bg-zinc-700 text-gray-500'}`}>
-                                              Sub-step {Math.floor(i + 1)}.{tIdx + 1}
-                                            </span>
+                                            
                                           </button>
                                         );
                                       })}
