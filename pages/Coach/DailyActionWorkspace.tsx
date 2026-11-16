@@ -1404,8 +1404,22 @@ export default function DailyActionWorkspace({
 
                     {/* Prompt Input with direct selection assign */}
                     <div className={`space-y-1.5 ${isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 p-1 rounded-2xl' : ''}`}>
+                      <div className="flex flex-col space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">Action Step Prompt</span>
+                        </div>
+                        <textarea 
+                            value={prompt} 
+                            onChange={e => {
+                                setSelectedDay(dayNum);
+                                handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, e.target.value));
+                            }} 
+                            rows={2} 
+                            className="w-full px-3 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none text-gray-900 font-medium placeholder:text-gray-400 resize-y transition-all shadow-3xs" 
+                            placeholder={`Action Step ${activeIdx + 1}...`} 
+                        />
+                      </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">Action Step Prompt</span>
                         
                           
                           {/* Step Relationships Link trigger */}
