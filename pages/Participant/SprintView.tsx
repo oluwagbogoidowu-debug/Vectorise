@@ -2997,45 +2997,63 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
     if (!dayContent) return "";
 
-    // 1. Check if taskLinkedSources has sources for this step
-    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex])) {
-      const sources = dayContent.taskLinkedSources[stepIndex];
-      if (sources.length === 0) return "";
-      const texts: string[] = [];
-      sources.forEach(srcIndex => {
-        if (srcIndex >= 0) {
-          if (srcIndex < currentInputs.length && currentInputs[srcIndex]) {
-            const val = currentInputs[srcIndex];
-            if (val) {
-              if (val.startsWith("{")) {
-                try {
-                  const parsed = JSON.parse(val);
-                  const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-                  texts.push(parts.join("\n"));
-                } catch (e) {
-                  texts.push(val);
-                }
-              } else if (val.startsWith("[")) {
-                try {
-                  const parsed = JSON.parse(val);
-                  if (Array.isArray(parsed)) {
-                    texts.push(parsed.join(", "));
-                  } else {
-                    texts.push(val);
-                  }
-                } catch (e) {
-                  texts.push(val);
-                }
+    const isSpreadEnabled = dayContent.taskSpread?.[stepIndex] || (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0);
+    if (!isSpreadEnabled) return "";
+
+    let sources: number[] = [];
+    if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
+      sources = dayContent.taskLinkedSources[stepIndex];
+    } else if (stepIndex > 0) {
+      sources = [stepIndex];
+    }
+
+    const texts: string[] = [];
+    sources.forEach(srcRef => {
+      let srcIndex = srcRef > 0 ? srcRef - 1 : srcRef;
+      if (srcRef > 0 && srcRef <= currentInputs.length) {
+        srcIndex = srcRef - 1;
+      }
+      if (srcIndex >= 0 && srcIndex < currentInputs.length && currentInputs[srcIndex]) {
+        const val = currentInputs[srcIndex];
+        if (val) {
+          if (val.startsWith("{")) {
+            try {
+              const parsed = JSON.parse(val);
+              const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
+              texts.push(parts.join(", "));
+            } catch (e) {
+              texts.push(val);
+            }
+          } else if (val.startsWith("[")) {
+            try {
+              const parsed = JSON.parse(val);
+              if (Array.isArray(parsed)) {
+                texts.push(parsed.join(", "));
               } else {
                 texts.push(val);
               }
+            } catch (e) {
+              texts.push(val);
             }
+          } else {
+            texts.push(val);
           }
         }
-      });
-      return texts.join("\n\n");
-    }
+      }
+    });
 
+    return texts.join(", ");
+  };
+
+  const getSpreadTagsForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
+    if (!dayContent) return "";
+    const isSpreadEnabled = dayContent.taskSpread?.[stepIndex] || (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0);
+    if (!isSpreadEnabled) return "";
+
+    const tags = getLinkedTagsForStep(stepIndex);
+    if (tags && tags.length > 0) {
+      return JSON.stringify(tags);
+    }
     return "";
   };
 
@@ -3312,6 +3330,30 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
       if (candidateInputs.length > 0) {
         loaded = Array.from({ length: promptsLength }, (_, idx) => candidateInputs[idx] || "");
+      }
+    }
+
+    for (let idx = 0; idx < promptsLength; idx++) {
+      if (!loaded[idx] || loaded[idx].trim() === "") {
+        const inputType = String(dayContent?.taskInputTypes?.[idx] || "").trim().toLowerCase();
+        const isSpreadActive = dayContent?.taskSpread?.[idx] || (Array.isArray(dayContent?.taskLinkedSources?.[idx]) && dayContent.taskLinkedSources[idx].length > 0);
+        if (isSpreadActive) {
+          if (inputType === "tags") {
+            const spreadTags = getSpreadTagsForLoadedInputs(idx, loaded);
+            if (spreadTags) loaded[idx] = spreadTags;
+          } else {
+            const spreadText = getSpreadTextForLoadedInputs(idx, loaded);
+            const fillText = dayContent?.taskFills?.[idx] ? formatInterpolatedText(dayContent.taskFills[idx], dayContent, loaded, sprint?.dailyContent, undefined, user) : "";
+            if (fillText) {
+              loaded[idx] = fillText;
+            } else if (spreadText) {
+              loaded[idx] = spreadText;
+            }
+          }
+        } else {
+          const fillText = dayContent?.taskFills?.[idx] ? formatInterpolatedText(dayContent.taskFills[idx], dayContent, loaded, sprint?.dailyContent, undefined, user) : "";
+          if (fillText) loaded[idx] = fillText;
+        }
       }
     }
 

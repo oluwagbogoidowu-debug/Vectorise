@@ -1547,45 +1547,63 @@ const SprintPreview: React.FC = () => {
     const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
         if (!day1Content) return "";
 
-        // 1. Check if the taskLinkedSources has sources
-        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex])) {
-            const sources = day1Content.taskLinkedSources[stepIndex];
-            if (sources.length === 0) return "";
-            const texts: string[] = [];
-            sources.forEach(srcIndex => {
-                if (srcIndex >= 0) {
-                    if (srcIndex < currentInputs.length && currentInputs[srcIndex]) {
-                        const val = currentInputs[srcIndex];
-                        if (val) {
-                            if (val.startsWith("{")) {
-                                try {
-                                    const parsed = JSON.parse(val);
-                                    const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-                                    texts.push(parts.join("\n"));
-                                } catch (e) {
-                                    texts.push(val);
-                                }
-                            } else if (val.startsWith("[")) {
-                                try {
-                                    const parsed = JSON.parse(val);
-                                    if (Array.isArray(parsed)) {
-                                        texts.push(parsed.join(", "));
-                                    } else {
-                                        texts.push(val);
-                                    }
-                                } catch (e) {
-                                    texts.push(val);
-                                }
+        const isSpreadEnabled = day1Content.taskSpread?.[stepIndex] || (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0);
+        if (!isSpreadEnabled) return "";
+
+        let sources: number[] = [];
+        if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
+            sources = day1Content.taskLinkedSources[stepIndex];
+        } else if (stepIndex > 0) {
+            sources = [stepIndex];
+        }
+
+        const texts: string[] = [];
+        sources.forEach(srcRef => {
+            let srcIndex = srcRef > 0 ? srcRef - 1 : srcRef;
+            if (srcRef > 0 && srcRef <= currentInputs.length) {
+                srcIndex = srcRef - 1;
+            }
+            if (srcIndex >= 0 && srcIndex < currentInputs.length && currentInputs[srcIndex]) {
+                const val = currentInputs[srcIndex];
+                if (val) {
+                    if (val.startsWith("{")) {
+                        try {
+                            const parsed = JSON.parse(val);
+                            const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
+                            texts.push(parts.join(", "));
+                        } catch (e) {
+                            texts.push(val);
+                        }
+                    } else if (val.startsWith("[")) {
+                        try {
+                            const parsed = JSON.parse(val);
+                            if (Array.isArray(parsed)) {
+                                texts.push(parsed.join(", "));
                             } else {
                                 texts.push(val);
                             }
+                        } catch (e) {
+                            texts.push(val);
                         }
+                    } else {
+                        texts.push(val);
                     }
                 }
-            });
-            return texts.join("\n\n");
-        }
+            }
+        });
 
+        return texts.join(", ");
+    };
+
+    const getSpreadTagsForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
+        if (!day1Content) return "";
+        const isSpreadEnabled = day1Content.taskSpread?.[stepIndex] || (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0);
+        if (!isSpreadEnabled) return "";
+
+        const tags = getLinkedTagsForStep(stepIndex);
+        if (tags && tags.length > 0) {
+            return JSON.stringify(tags);
+        }
         return "";
     };
 
@@ -1594,15 +1612,23 @@ const SprintPreview: React.FC = () => {
         
         const type = String(day1Content.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
         const isText = type === "text" || type === "" || type === "undefined";
+        const isTags = type === "tags";
         
-        if (isText && !isMultiTextStep(activeTaskIndex)) {
+        if ((isText || isTags) && !isMultiTextStep(activeTaskIndex)) {
             const currentValue = taskInputs[activeTaskIndex];
-            if (!currentValue || currentValue.trim() === "") {
+            if (!currentValue || currentValue.trim() === "" || currentValue === "[]") {
                 const rawFill = day1Content.taskFills?.[activeTaskIndex];
                 const fillValue = rawFill ? formatInterpolatedText(rawFill, day1Content, taskInputs, sprint?.dailyContent, undefined, user) : "";
-                const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
-                const prefillVal = fillValue || spreadValue;
-                if (prefillVal && prefillVal.trim() !== "") {
+                
+                let prefillVal = "";
+                if (isTags) {
+                    prefillVal = getSpreadTagsForLoadedInputs(activeTaskIndex, taskInputs);
+                } else {
+                    const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
+                    prefillVal = fillValue || spreadValue;
+                }
+
+                if (prefillVal && prefillVal.trim() !== "" && prefillVal !== "[]") {
                     setTaskInputs(prev => {
                         if (prev[activeTaskIndex] === prefillVal) return prev;
                         const updated = [...prev];
