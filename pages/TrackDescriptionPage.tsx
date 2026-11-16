@@ -686,8 +686,22 @@ const TrackDescriptionPage: React.FC = () => {
                                     {isProcessingPayment ? "Redirecting to Payment..." : "Unlock Track Bundle"}
                                     {!isProcessingPayment && <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />}
                                 </Button>
-                                
-                                <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
+
+                                 {sprints.length > 0 && (
+                                     <div className="text-center pt-3 pb-1">
+                                         <button
+                                             type="button"
+                                             onClick={handleJoinSingleSprint}
+                                             disabled={isProcessingSinglePayment}
+                                             className="text-xs font-bold text-gray-500 hover:text-primary transition-colors cursor-pointer disabled:opacity-50 underline"
+                                         >
+                                             {isProcessingSinglePayment 
+                                                 ? "Processing..." 
+                                                 : `Start with "${sprints[0].title}"`
+                                             }
+                                         </button>
+                                     </div>
+                                 )}<div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
                                     <ShieldCheck className="w-3 h-3 text-gray-400" />
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secure Checkout</span>
                                 </div>
