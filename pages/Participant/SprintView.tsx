@@ -5654,13 +5654,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                       onClick={() => {
                                         setIsFullBleed(!isFullBleed);
                                       }}
-                                      className="p-3 rounded-2xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-md !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
+                                      className="p-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
                                       title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                                     >
                                       {isFullBleed ? (
-                                        <Minimize2 className="h-4 w-4" />
+                                        <Minimize2 className="h-3 w-3" />
                                       ) : (
-                                        <Maximize2 className="h-3 w-3" />
+                                        <Maximize2 className="h-2.5 w-2.5" />
                                       )}
                                     </button>
                                   )}
@@ -6971,13 +6971,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   setIsFullBleed(!isFullBleed);
                                 }
                               }}
-                              className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
+                              className="p-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm !transition-all !duration-75 cursor-pointer flex items-center justify-center active:scale-95"
                               title={isFullBleed ? "Exit Full-bleed" : "Full-bleed Focus"}
                             >
                               {isFullBleed ? (
-                                <Minimize2 className="h-4 w-4" />
+                                <Minimize2 className="h-3 w-3" />
                               ) : (
-                                <Maximize2 className="h-4 w-4" />
+                                <Maximize2 className="h-2.5 w-2.5" />
                               )}
                             </button>
                           </div>
