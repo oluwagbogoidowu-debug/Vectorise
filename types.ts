@@ -226,6 +226,9 @@ export interface ParticipantSprint {
   currentRun?: number;
   runNumber?: number;
   pastRuns?: ParticipantSprintRun[];
+  startedFromPreview?: boolean;
+  paymentUnlocked?: boolean;
+  coins_paid?: number;
   progress: {
     day: number;
     completed: boolean;

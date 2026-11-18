@@ -88,7 +88,7 @@ const PaymentSuccess: React.FC = () => {
                                     if (enrollmentSnap.exists()) {
                                         const enrollmentData = enrollmentSnap.data() as any;
                                         const updatedProgress = (enrollmentData.progress || []).map((p: any) => 
-                                            p.day === 1 ? {
+                                            p.day === 1 && !p.completed ? {
                                                 ...p,
                                                 answers: [pending.firstActionInput],
                                                 submission: pending.firstActionInput
@@ -109,6 +109,32 @@ const PaymentSuccess: React.FC = () => {
                         if (data.coinPackageId) {
                             // Coin purchase flow
                             if (data.sprintId) {
+                                // If the user is unlocking Move 3+ of a preview-started sprint, return to DaySuccessPage with the payment intervention open
+                                if (finalUserId && !finalUserId.startsWith('guest_')) {
+                                    try {
+                                        const enrollmentId = `enrollment_${finalUserId}_${data.sprintId}`;
+                                        const enrSnap = await getDoc(doc(db, 'users', finalUserId, 'enrollments', enrollmentId));
+                                        if (enrSnap.exists()) {
+                                            const enrData = enrSnap.data() as any;
+                                            if (enrData.startedFromPreview === true && enrData.paymentUnlocked !== true) {
+                                                navigate('/participant/day-success', {
+                                                    state: {
+                                                        day: 2,
+                                                        sprintId: data.sprintId,
+                                                        enrollmentId,
+                                                        enrollment: { id: enrSnap.id, ...enrData },
+                                                        openPaymentIntervention: true
+                                                    },
+                                                    replace: true
+                                                });
+                                                return;
+                                            }
+                                        }
+                                    } catch (e) {
+                                        console.warn("[PaymentSuccess] Could not check preview enrollment on coin return:", e);
+                                    }
+                                }
+
                                 navigate('/onboarding/sprint-payment', { 
                                     state: { 
                                         sprintId: data.sprintId

@@ -37,7 +37,10 @@ export default async (req: any, res: any) => {
         sprintId: data.sprintId,
         trackId: data.trackId,
         userId: data.userId,
-        email: data.email
+        email: data.email,
+        activeEnrollmentId: data.activeEnrollmentId || null,
+        coinPackageId: data.coinPackageId || null,
+        coins: data.coins || null
       });
     }
 
@@ -84,6 +87,60 @@ export default async (req: any, res: any) => {
 
         const { userId, sprintId, trackId, coinPackageId, coins } = freshData;
 
+        // Helper to resolve sprint details doc during read phase
+        const readSprintMeta = async (sId: string) => {
+          let sprintSnap = await transaction.get(db.collection('experiences').doc('Sprint').collection('items').doc(sId).collection('sprintdetails').doc('info'));
+          if (!sprintSnap.exists) {
+            sprintSnap = await transaction.get(db.collection('experiences').doc('RiseBlog').collection('items').doc(sId).collection('sprintdetails').doc('info'));
+          }
+          if (!sprintSnap.exists) {
+            sprintSnap = await transaction.get(db.collection('experiences').doc('Ignite').collection('items').doc(sId).collection('sprintdetails').doc('info'));
+          }
+          if (!sprintSnap.exists) {
+            sprintSnap = await transaction.get(db.collection('experiences').doc('Challenge').collection('items').doc(sId).collection('sprintdetails').doc('info'));
+          }
+          if (!sprintSnap.exists) {
+            sprintSnap = await transaction.get(db.collection('experiences').doc(sId).collection('sprintdetails').doc('info'));
+          }
+          return sprintSnap;
+        };
+
+        // Pre-read all needed docs BEFORE writing in the transaction
+        let existingEnrollmentsSnap: any = null;
+        let trackSnap: any = null;
+        const trackItemsMeta: Array<{ sId: string; duration: number; coachId: string; existingSnap: any }> = [];
+        let singleDuration = 7;
+        let singleCoachId = '';
+        let existingSingleEnrSnap: any = null;
+
+        if (!userId.startsWith('guest_') && !(coinPackageId && coins)) {
+          existingEnrollmentsSnap = await transaction.get(db.collection('users').doc(userId).collection('enrollments').where('status', '==', 'active'));
+          if (trackId) {
+            trackSnap = await transaction.get(db.collection('tracks').doc(trackId));
+            if (trackSnap.exists) {
+              const sprintIds = trackSnap.data()?.sprintIds || [];
+              for (const sId of sprintIds) {
+                const enrollmentId = `enrollment_${userId}_${sId}`;
+                const existingEnrSnap = await transaction.get(db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId));
+                const sprintSnap = await readSprintMeta(sId);
+                trackItemsMeta.push({
+                  sId,
+                  duration: sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7,
+                  coachId: sprintSnap.exists ? (sprintSnap.data()?.coachId || '') : '',
+                  existingSnap: existingEnrSnap
+                });
+              }
+            }
+          } else if (sprintId) {
+            const enrollmentId = `enrollment_${userId}_${sprintId}`;
+            existingSingleEnrSnap = await transaction.get(db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId));
+            const sprintSnap = await readSprintMeta(sprintId);
+            singleDuration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
+            singleCoachId = sprintSnap.exists ? (sprintSnap.data()?.coachId || '') : '';
+          }
+        }
+
+        // Write Phase
         transaction.update(paymentRef, {
           status: 'successful', // Set status to "successful"
           transaction_id: flw_tx.id, // Save transaction_id
@@ -93,7 +150,6 @@ export default async (req: any, res: any) => {
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // Business logic: Handle Coins or Enrollment
         let activeEnrollmentId = null;
         if (!userId.startsWith('guest_')) {
           if (coinPackageId && coins) {
@@ -114,100 +170,104 @@ export default async (req: any, res: any) => {
               paymentRef: tx_ref
             });
           } else {
-            // Check for existing active enrollments
-            const existingEnrollmentsSnap = await transaction.get(db.collection('users').doc(userId).collection('enrollments').where('status', '==', 'active'));
-            const hasActiveSprint = !existingEnrollmentsSnap.empty;
+            const hasActiveSprint = existingEnrollmentsSnap ? !existingEnrollmentsSnap.empty : false;
 
-            if (trackId) {
-              // Handle Track Enrollment
-              const trackSnap = await transaction.get(db.collection('tracks').doc(trackId));
-              if (trackSnap.exists) {
-                const trackData = trackSnap.data();
-                const sprintIds = trackData?.sprintIds || [];
-                
-                let firstSprintActivated = false;
+            if (trackId && trackSnap?.exists) {
+              let firstSprintActivated = false;
 
-                for (const sId of sprintIds) {
-                  const enrollmentId = `enrollment_${userId}_${sId}`;
-                  let sprintSnap = await transaction.get(db.collection('experiences').doc('Sprint').collection('items').doc(sId).collection('sprintdetails').doc('info'));
-                  if (!sprintSnap.exists) {
-                    sprintSnap = await transaction.get(db.collection('experiences').doc('RiseBlog').collection('items').doc(sId).collection('sprintdetails').doc('info'));
-                  }
-                  if (!sprintSnap.exists) {
-                    sprintSnap = await transaction.get(db.collection('experiences').doc('Ignite').collection('items').doc(sId).collection('sprintdetails').doc('info'));
-                  }
-                  if (!sprintSnap.exists) {
-                    sprintSnap = await transaction.get(db.collection('experiences').doc('Challenge').collection('items').doc(sId).collection('sprintdetails').doc('info'));
-                  }
-                  if (!sprintSnap.exists) {
-                    sprintSnap = await transaction.get(db.collection('experiences').doc(sId).collection('sprintdetails').doc('info'));
-                  }
-                  const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
-                  const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
+              for (const item of trackItemsMeta) {
+                const enrollmentId = `enrollment_${userId}_${item.sId}`;
+                const enrRef = db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId);
+                const existingData = item.existingSnap?.exists ? item.existingSnap.data() : null;
+                const isInProgressExisting = Boolean(
+                  existingData &&
+                  existingData.status !== 'completed' &&
+                  Array.isArray(existingData.progress) &&
+                  existingData.progress.some((p: any) => !p.completed)
+                );
 
-                  // Logic: If no active sprint exists, activate the first one in the track.
-                  // Otherwise, queue it.
+                if (isInProgressExisting) {
+                  transaction.update(enrRef, {
+                    paymentUnlocked: true,
+                    price_paid: Number(flw_tx.amount || freshData.amount || 0),
+                    currency: flw_tx.currency || freshData.currency || 'NGN',
+                    payment_source: 'cash',
+                    last_activity_at: new Date().toISOString()
+                  });
+                  if (!activeEnrollmentId && existingData.status === 'active') {
+                    activeEnrollmentId = enrollmentId;
+                  }
+                } else {
                   const shouldBeActive = !hasActiveSprint && !firstSprintActivated;
                   if (shouldBeActive) {
-                      firstSprintActivated = true;
-                      activeEnrollmentId = enrollmentId;
+                    firstSprintActivated = true;
+                    activeEnrollmentId = enrollmentId;
                   }
 
-                  transaction.set(db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId), {
+                  transaction.set(enrRef, {
                     id: enrollmentId,
-                    sprint_id: sId,
+                    sprint_id: item.sId,
                     track_id: trackId,
                     user_id: userId,
-                    coach_id: coachId,
+                    coach_id: item.coachId,
                     started_at: new Date().toISOString(),
+                    paymentUnlocked: true,
                     status: shouldBeActive ? 'active' : 'queued',
-                    progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
+                    progress: Array.from({ length: item.duration }, (_, i) => ({ day: i + 1, completed: false }))
                   }, { merge: true });
-
-                  transaction.update(db.collection('users').doc(userId), {
-                      enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sId)
-                  });
                 }
-                
+
                 transaction.update(db.collection('users').doc(userId), {
-                  enrolledTrackIds: admin.firestore.FieldValue.arrayUnion(trackId)
+                  enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(item.sId)
                 });
               }
-            } else if (sprintId) {
-              // Handle Single Sprint Enrollment
-              const enrollmentId = `enrollment_${userId}_${sprintId}`;
-              
-              let sprintSnap = await transaction.get(db.collection('experiences').doc('Sprint').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
-              if (!sprintSnap.exists) {
-                sprintSnap = await transaction.get(db.collection('experiences').doc('RiseBlog').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
-              }
-              if (!sprintSnap.exists) {
-                sprintSnap = await transaction.get(db.collection('experiences').doc('Ignite').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
-              }
-              if (!sprintSnap.exists) {
-                sprintSnap = await transaction.get(db.collection('experiences').doc('Challenge').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
-              }
-              if (!sprintSnap.exists) {
-                sprintSnap = await transaction.get(db.collection('experiences').doc(sprintId).collection('sprintdetails').doc('info'));
-              }
-              const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
-              const coachId = sprintSnap.exists ? sprintSnap.data()?.coachId : '';
-
-              const shouldBeActive = !hasActiveSprint;
-              if (shouldBeActive) activeEnrollmentId = enrollmentId;
-
-              transaction.set(db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId), {
-                id: enrollmentId,
-                sprint_id: sprintId,
-                user_id: userId,
-                coach_id: coachId,
-                started_at: new Date().toISOString(),
-                status: shouldBeActive ? 'active' : 'queued',
-                progress: Array.from({ length: duration }, (_, i) => ({ day: i + 1, completed: false }))
-              }, { merge: true });
 
               transaction.update(db.collection('users').doc(userId), {
-                  enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
+                enrolledTrackIds: admin.firestore.FieldValue.arrayUnion(trackId)
+              });
+            } else if (sprintId) {
+              const enrollmentId = `enrollment_${userId}_${sprintId}`;
+              const enrRef = db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId);
+              const existingData = existingSingleEnrSnap?.exists ? existingSingleEnrSnap.data() : null;
+              const isInProgressExisting = Boolean(
+                existingData &&
+                existingData.status !== 'completed' &&
+                Array.isArray(existingData.progress) &&
+                existingData.progress.some((p: any) => !p.completed)
+              );
+
+              if (isInProgressExisting) {
+                // Preserve Move 1 & Move 2 answers/progress while unlocking Move 3+
+                activeEnrollmentId = enrollmentId;
+                transaction.update(enrRef, {
+                  paymentUnlocked: true,
+                  price_paid: Number(flw_tx.amount || freshData.amount || 0),
+                  currency: flw_tx.currency || freshData.currency || 'NGN',
+                  payment_source: 'cash',
+                  status: 'active',
+                  last_activity_at: new Date().toISOString()
+                });
+              } else {
+                const shouldBeActive = !hasActiveSprint;
+                if (shouldBeActive) activeEnrollmentId = enrollmentId;
+
+                transaction.set(enrRef, {
+                  id: enrollmentId,
+                  sprint_id: sprintId,
+                  user_id: userId,
+                  coach_id: singleCoachId,
+                  started_at: new Date().toISOString(),
+                  price_paid: Number(flw_tx.amount || freshData.amount || 0),
+                  currency: flw_tx.currency || freshData.currency || 'NGN',
+                  payment_source: 'cash',
+                  paymentUnlocked: true,
+                  status: shouldBeActive ? 'active' : 'queued',
+                  progress: Array.from({ length: singleDuration }, (_, i) => ({ day: i + 1, completed: false }))
+                }, { merge: true });
+              }
+
+              transaction.update(db.collection('users').doc(userId), {
+                enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
               });
             }
           }
@@ -215,7 +275,7 @@ export default async (req: any, res: any) => {
 
         // Update payment record with activeEnrollmentId if found
         if (activeEnrollmentId) {
-            transaction.update(paymentRef, { activeEnrollmentId });
+          transaction.update(paymentRef, { activeEnrollmentId });
         }
       });
 
@@ -229,7 +289,9 @@ export default async (req: any, res: any) => {
           userId: data.userId,
           email: data.email,
           transaction_id: flw_tx.id,
-          activeEnrollmentId: finalPaymentData.activeEnrollmentId
+          activeEnrollmentId: finalPaymentData.activeEnrollmentId || null,
+          coinPackageId: data.coinPackageId || null,
+          coins: data.coins || null
       });
     } else if (verifyData.status === 'success' && verifyData.data && verifyData.data.status === 'failed') {
       // 4. If status is not successful: mark as "failed"
@@ -246,7 +308,9 @@ export default async (req: any, res: any) => {
         sprintId: data.sprintId,
         trackId: data.trackId,
         userId: data.userId,
-        email: data.email
+        email: data.email,
+        coinPackageId: data.coinPackageId || null,
+        coins: data.coins || null
     });
 
   } catch (error: any) {

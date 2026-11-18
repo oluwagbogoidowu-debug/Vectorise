@@ -1064,3 +1064,60 @@ export function getSprintCashPrice(sprint?: Sprint | null): number {
     return sprint.price || 0;
 }
 
+export interface SprintPaymentModeInfo {
+    isCoinSprint: boolean;
+    isCashSprint: boolean;
+    coinCost: number;
+    cashCost: number;
+    isPaidSprint: boolean;
+}
+
+export function getSprintPaymentMode(sprint?: Sprint | null): SprintPaymentModeInfo {
+    if (!sprint) {
+        return {
+            isCoinSprint: false,
+            isCashSprint: false,
+            coinCost: 0,
+            cashCost: 0,
+            isPaidSprint: false
+        };
+    }
+
+    let isCoinSprint = false;
+    if (sprint.pricingType === 'credits') {
+        isCoinSprint = true;
+    } else if (sprint.pricingType === 'cash') {
+        isCoinSprint = false;
+    } else if ((sprint.pointCost ?? 0) > 0 && !(sprint.price && sprint.price > 0)) {
+        isCoinSprint = true;
+    } else if ((sprint.pointCost ?? 0) > 0 && (sprint.price === undefined || sprint.price === null)) {
+        isCoinSprint = true;
+    }
+
+    const coinCost = Number(sprint.pointCost ?? 0);
+    const cashCost = Number(sprint.price ?? 0);
+    const isPaidSprint = isCoinSprint ? coinCost > 0 : cashCost > 0;
+
+    return {
+        isCoinSprint,
+        isCashSprint: !isCoinSprint,
+        coinCost,
+        cashCost,
+        isPaidSprint
+    };
+}
+
+export function doesPreviewEnrollmentRequirePayment(
+    enrollment?: ParticipantSprint | null,
+    sprint?: Sprint | null
+): boolean {
+    if (!enrollment || !sprint) return false;
+    if (enrollment.startedFromPreview !== true) return false;
+    if (enrollment.paymentUnlocked === true) return false;
+    if (Number(enrollment.price_paid || 0) > 0) return false;
+    if (Number(enrollment.coins_paid || 0) > 0) return false;
+    if (enrollment.payment_source === 'coin' || enrollment.payment_source === 'cash') return false;
+
+    const { isPaidSprint } = getSprintPaymentMode(sprint);
+    return isPaidSprint;
+}

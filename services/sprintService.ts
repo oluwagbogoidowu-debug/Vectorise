@@ -2051,7 +2051,10 @@ export const sprintService = {
             referral?: string | null,
             firstActionInput?: string, 
             taskInputs?: string[],
-            completed?: boolean
+            completed?: boolean,
+            startedFromPreview?: boolean,
+            paymentUnlocked?: boolean,
+            coinsPaid?: number
         }
     ) => {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
@@ -2114,7 +2117,9 @@ export const sprintService = {
                     started_at: now,
                     completed_at: null,
                     progress: freshProgress,
-                    last_activity_at: now
+                    last_activity_at: now,
+                    ...(commercial?.startedFromPreview !== undefined ? { startedFromPreview: commercial.startedFromPreview } : {}),
+                    ...(commercial?.paymentUnlocked !== undefined ? { paymentUnlocked: commercial.paymentUnlocked } : commercial?.startedFromPreview ? { paymentUnlocked: false } : {})
                 };
 
                 await updateDoc(enrollmentRef, sanitizeData(updatedData));
@@ -2158,13 +2163,31 @@ export const sprintService = {
                 });
                 const resolvedStatus = hasOtherActive ? existingData.status : 'active';
 
-                await updateDoc(enrollmentRef, {
+                const alreadyPaid = existingData.paymentUnlocked === true ||
+                    Number(existingData.price_paid || 0) > 0 ||
+                    Number(existingData.coins_paid || 0) > 0 ||
+                    existingData.payment_source === 'coin' ||
+                    existingData.payment_source === 'cash';
+
+                const previewFields: Partial<ParticipantSprint> = {};
+                if (commercial?.paymentUnlocked === true) {
+                    previewFields.paymentUnlocked = true;
+                } else if (commercial?.startedFromPreview && !alreadyPaid) {
+                    previewFields.startedFromPreview = true;
+                    if (existingData.paymentUnlocked === undefined) {
+                        previewFields.paymentUnlocked = false;
+                    }
+                }
+
+                await updateDoc(enrollmentRef, sanitizeData({
                     status: resolvedStatus,
                     progress: updatedProgress,
-                    last_activity_at: now
-                });
+                    last_activity_at: now,
+                    ...previewFields
+                }));
                 existingData.status = resolvedStatus;
                 existingData.progress = updatedProgress;
+                Object.assign(existingData, previewFields);
             }
             try {
                 const userRef = doc(db, 'users', userId);
@@ -2190,6 +2213,10 @@ export const sprintService = {
         });
 
         const effectiveDuration = duration && duration > 0 ? duration : 5;
+        const isPaidDirect = (commercial?.pricePaid && commercial.pricePaid > 0) ||
+            (commercial?.coinsPaid && commercial.coinsPaid > 0) ||
+            commercial?.source === 'coin' ||
+            commercial?.source === 'cash';
         const newEnrollment: ParticipantSprint = {
             id: enrollmentId,
             sprint_id: sprintId,
@@ -2205,6 +2232,9 @@ export const sprintService = {
             sentNudges: [],
             soundDisabled: false,
             notificationsDisabled: false,
+            ...(commercial?.startedFromPreview ? { startedFromPreview: true } : {}),
+            paymentUnlocked: commercial?.paymentUnlocked ?? (isPaidDirect ? true : !commercial?.startedFromPreview),
+            ...(commercial?.coinsPaid ? { coins_paid: commercial.coinsPaid } : {}),
             progress: Array.from({ length: effectiveDuration }, (_, i) => ({
                 day: i + 1,
                 completed: (i === 0 && hasInputs) ? true : false,

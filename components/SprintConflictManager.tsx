@@ -209,7 +209,9 @@ export const SprintConflictManager: React.FC = () => {
         started_at: now,
         completed_at: null,
         progress: freshProgress,
-        last_activity_at: now
+        last_activity_at: now,
+        startedFromPreview: true,
+        paymentUnlocked: false
       };
 
       // Ensure all other enrollments for this user are placed in queued status
@@ -243,6 +245,7 @@ export const SprintConflictManager: React.FC = () => {
           bridgeNote: d1Content?.bridgeNote,
           sprintId: sprint.id,
           sprint: sprint,
+          enrollment: { ...existingEnrollment, ...updatedData },
           enrollmentId: existingEnrollment.id,
           taskInputs: cleanInputs,
           redirectToDaySuccess: true
@@ -267,7 +270,8 @@ export const SprintConflictManager: React.FC = () => {
 
       const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration || 7, {
         firstActionInput: primarySubmission,
-        taskInputs: cleanInputs
+        taskInputs: cleanInputs,
+        startedFromPreview: true
       });
 
       // Explicitly set target enrollment to active, and queue any other active sprints
@@ -294,6 +298,7 @@ export const SprintConflictManager: React.FC = () => {
           progress: updatedProgress,
           last_activity_at: new Date().toISOString()
         });
+        enrollment.progress = updatedProgress;
       }
 
       await userService.addUserEnrollment(user.id, sprint.id);
@@ -316,6 +321,7 @@ export const SprintConflictManager: React.FC = () => {
           bridgeNote: d1Content?.bridgeNote,
           sprintId: sprint.id,
           sprint: sprint,
+          enrollment: enrollment,
           enrollmentId: enrollment?.id,
           taskInputs: cleanInputs,
           redirectToDaySuccess: true
@@ -360,11 +366,22 @@ export const SprintConflictManager: React.FC = () => {
         };
       }
 
+      const alreadyPaid = existingEnrollment.paymentUnlocked === true ||
+        Number(existingEnrollment.price_paid || 0) > 0 ||
+        Number(existingEnrollment.coins_paid || 0) > 0 ||
+        existingEnrollment.payment_source === 'coin' ||
+        existingEnrollment.payment_source === 'cash';
+
       const enrollmentRef = doc(db, 'users', user.id, 'enrollments', existingEnrollment.id);
+      const previewPatch = alreadyPaid
+        ? {}
+        : { startedFromPreview: true, paymentUnlocked: existingEnrollment.paymentUnlocked ?? false };
+
       await updateDoc(enrollmentRef, {
         status: 'active',
         progress: existingProgress,
-        last_activity_at: now
+        last_activity_at: now,
+        ...previewPatch
       });
 
       // Ensure all other enrollments are queued
@@ -396,6 +413,7 @@ export const SprintConflictManager: React.FC = () => {
           bridgeNote: d1Content?.bridgeNote,
           sprintId: sprint.id,
           sprint: sprint,
+          enrollment: { ...existingEnrollment, status: 'active', progress: existingProgress, ...previewPatch },
           enrollmentId: existingEnrollment.id,
           taskInputs: cleanInputs,
           redirectToDaySuccess: true

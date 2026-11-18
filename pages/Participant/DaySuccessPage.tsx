@@ -12,7 +12,9 @@ import { toast } from 'sonner';
 import { triggerHaptic, hapticPatterns } from '../../utils/haptics';
 import { pushNotificationService } from '../../services/pushNotificationService';
 import { formatInterpolatedText } from '../../src/utils/stepPlaceholderUtils';
-import { UserRole } from '../../types';
+import { ParticipantSprint, Sprint, UserRole } from '../../types';
+import { doesPreviewEnrollmentRequirePayment } from '../../utils/sprintUtils';
+import { PreviewPaymentBottomModal } from '../../components/PreviewPaymentBottomModal';
 
 const DaySuccessPage: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +27,11 @@ const DaySuccessPage: React.FC = () => {
   const initialCompletionNote = location.state?.completionNote || location.state?.dayContent?.completionNote;
 
   const [resolvedEnrollmentId, setResolvedEnrollmentId] = useState<string | null>(location.state?.enrollmentId || null);
+  const [liveSprint, setLiveSprint] = useState<Sprint | null>(location.state?.sprint || null);
+  const [liveEnrollment, setLiveEnrollment] = useState<ParticipantSprint | null>(location.state?.enrollment || null);
+  const [showPaymentIntervention, setShowPaymentIntervention] = useState<boolean>(
+    Boolean(location.state?.openPaymentIntervention)
+  );
 
   // No day success page at the completion of a sprint: redirect immediately to next sprint / completion
   useEffect(() => {
@@ -110,16 +117,20 @@ const DaySuccessPage: React.FC = () => {
         const primarySubmission = inputsToSave.find(a => a && String(a).trim().length > 0) || inputsToSave[0] || "";
         const now = new Date().toISOString();
 
+        const hadPendingPreview = Boolean(localStorage.getItem('pending_first_action'));
+
         if (!enrollment) {
           enrollment = await sprintService.enrollUser(user.id, targetSprintId, location.state?.sprint?.duration || 7, {
             firstActionInput: primarySubmission,
             taskInputs: inputsToSave,
-            completed: true
-          } as any);
+            completed: true,
+            ...(hadPendingPreview ? { startedFromPreview: true } : {})
+          });
         }
 
         if (enrollment) {
           setResolvedEnrollmentId(enrollment.id);
+          setLiveEnrollment(enrollment);
           const enrollmentRef = doc(db, "users", user.id, "enrollments", enrollment.id);
           const snap = await getDoc(enrollmentRef);
           if (snap.exists()) {
@@ -160,14 +171,28 @@ const DaySuccessPage: React.FC = () => {
   }, [user, completedDay, location.state]);
 
   useEffect(() => {
-    if (!resolvedEnrollmentId && user) {
-      const targetSprintId = location.state?.sprintId || location.state?.sprint?.id;
+    if (!user) return;
+    const targetSprintId = location.state?.sprintId || location.state?.sprint?.id;
+
+    if (resolvedEnrollmentId) {
+      getDoc(doc(db, 'users', user.id, 'enrollments', resolvedEnrollmentId))
+        .then((snap) => {
+          if (snap.exists()) {
+            setLiveEnrollment({ id: snap.id, ...(snap.data() as any) } as ParticipantSprint);
+          }
+        })
+        .catch((err) => console.error("Error fetching live enrollment in DaySuccessPage:", err));
+      return;
+    }
+
+    if (targetSprintId || !resolvedEnrollmentId) {
       sprintService.getUserEnrollments(user.id).then(enrollments => {
         const found = targetSprintId 
           ? enrollments.find(e => e.sprint_id === targetSprintId)
           : enrollments[0];
         if (found) {
           setResolvedEnrollmentId(found.id);
+          setLiveEnrollment(found);
         }
       }).catch(err => console.error("Error resolving enrollment in DaySuccessPage:", err));
     }
@@ -216,20 +241,23 @@ const DaySuccessPage: React.FC = () => {
   const [liveBridgeNote, setLiveBridgeNote] = useState<string | null>(initialBridgeNote || null);
   const [liveCompletionNote, setLiveCompletionNote] = useState<string | null>(initialCompletionNote || null);
 
-  // Subscribe to real-time updates for the sprint's bridge note and completion note for the completed day
+  // Subscribe to real-time updates for the sprint's metadata, bridge note, and completion note
   useEffect(() => {
     const targetSprintId = location.state?.sprintId || (user as any)?.enrolledSprintIds?.[0] || localStorage.getItem('vectorise_last_sprint');
     if (!targetSprintId) return;
 
-    const unsubscribe = sprintService.subscribeToSprint(targetSprintId, (sprint) => {
-      if (sprint && Array.isArray(sprint.dailyContent)) {
-        const dContent = sprint.dailyContent.find((dc: any) => dc.day === completedDay);
-        if (dContent) {
-          if (typeof dContent.bridgeNote === 'string' && dContent.bridgeNote.trim()) {
-            setLiveBridgeNote(dContent.bridgeNote);
-          }
-          if (typeof dContent.completionNote === 'string' && dContent.completionNote.trim()) {
-            setLiveCompletionNote(dContent.completionNote);
+    const unsubscribe = sprintService.subscribeToSprint(targetSprintId, (sprintData) => {
+      if (sprintData) {
+        setLiveSprint(sprintData);
+        if (Array.isArray(sprintData.dailyContent)) {
+          const dContent = sprintData.dailyContent.find((dc: any) => dc.day === completedDay);
+          if (dContent) {
+            if (typeof dContent.bridgeNote === 'string' && dContent.bridgeNote.trim()) {
+              setLiveBridgeNote(dContent.bridgeNote);
+            }
+            if (typeof dContent.completionNote === 'string' && dContent.completionNote.trim()) {
+              setLiveCompletionNote(dContent.completionNote);
+            }
           }
         }
       }
@@ -310,12 +338,13 @@ const DaySuccessPage: React.FC = () => {
     }
   }, []);
 
-  const handleStepUp = () => {
+  const handleStepUp = async () => {
     triggerHaptic(hapticPatterns.light);
-    const sprintId = location.state?.sprintId || location.state?.sprint?.id;
+    const sprintId = location.state?.sprintId || liveSprint?.id || location.state?.sprint?.id;
     const returnToPreviewUrl = location.state?.returnToPreviewUrl;
-    const enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
-    const sprintDuration = location.state?.sprint?.duration || location.state?.enrollment?.progress?.length || 5;
+    let enrollmentId = location.state?.enrollmentId || resolvedEnrollmentId;
+    const effectiveSprint: Sprint | null = liveSprint || location.state?.sprint || null;
+    const sprintDuration = effectiveSprint?.duration || liveEnrollment?.progress?.length || location.state?.enrollment?.progress?.length || 5;
     const isFinished = completedDay >= sprintDuration;
     const nextDay = isFinished ? sprintDuration : completedDay + 1;
 
@@ -335,7 +364,7 @@ const DaySuccessPage: React.FC = () => {
       navigate(`${targetUrl}?day=${nextDay}`, {
         replace: true,
         state: {
-          sprint: location.state?.sprint,
+          sprint: effectiveSprint,
           enrollment: location.state?.enrollment,
           targetDay: nextDay,
           isPreview: true,
@@ -356,6 +385,52 @@ const DaySuccessPage: React.FC = () => {
       return;
     }
 
+    // After Move 2 Bridge Note display: if user started this paid sprint through Sprint Preview before login
+    // and hasn't unlocked payment yet, show the bottom nav bar payment intervention (coin or cash).
+    if (completedDay >= 2 && user) {
+      let currentEnrollment: ParticipantSprint | null = liveEnrollment || location.state?.enrollment || null;
+      let resolvedSprint: Sprint | null = effectiveSprint;
+
+      if (!currentEnrollment && enrollmentId) {
+        try {
+          const snap = await getDoc(doc(db, 'users', user.id, 'enrollments', enrollmentId));
+          if (snap.exists()) {
+            currentEnrollment = { id: snap.id, ...(snap.data() as any) } as ParticipantSprint;
+            setLiveEnrollment(currentEnrollment);
+          }
+        } catch (err) {
+          console.error("[DaySuccessPage] Error loading enrollment before step up:", err);
+        }
+      } else if (!currentEnrollment && sprintId) {
+        try {
+          const enrollments = await sprintService.getUserEnrollments(user.id);
+          const found = enrollments.find((e) => e.sprint_id === sprintId);
+          if (found) {
+            currentEnrollment = found;
+            enrollmentId = found.id;
+            setResolvedEnrollmentId(found.id);
+            setLiveEnrollment(found);
+          }
+        } catch (err) {
+          console.error("[DaySuccessPage] Error resolving enrollment before step up:", err);
+        }
+      }
+
+      if (!resolvedSprint && sprintId) {
+        try {
+          resolvedSprint = await sprintService.getSprintById(sprintId);
+          if (resolvedSprint) setLiveSprint(resolvedSprint);
+        } catch (err) {
+          console.error("[DaySuccessPage] Error resolving sprint before step up:", err);
+        }
+      }
+
+      if (doesPreviewEnrollmentRequirePayment(currentEnrollment, resolvedSprint)) {
+        setShowPaymentIntervention(true);
+        return;
+      }
+    }
+
     // For authenticated users: ALWAYS route to the real normal SprintView!
     if (enrollmentId) {
       navigate(`/participant/sprint/${enrollmentId}?day=${nextDay}`, { 
@@ -371,6 +446,12 @@ const DaySuccessPage: React.FC = () => {
       sprintService.getUserEnrollments(user.id).then(async (enrollments) => {
         const found = sprintId ? enrollments.find(e => e.sprint_id === sprintId) : enrollments[0];
         if (found) {
+          if (completedDay >= 2 && doesPreviewEnrollmentRequirePayment(found, effectiveSprint)) {
+            setResolvedEnrollmentId(found.id);
+            setLiveEnrollment(found);
+            setShowPaymentIntervention(true);
+            return;
+          }
           navigate(`/participant/sprint/${found.id}?day=${nextDay}`, { 
             replace: true,
             state: { 
@@ -689,6 +770,31 @@ const DaySuccessPage: React.FC = () => {
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>
+
+      {/* Bottom Payment Intervention Modal after Move 2 Bridge Note for Preview-Started Paid Sprints */}
+      <PreviewPaymentBottomModal
+        isOpen={showPaymentIntervention}
+        onClose={() => setShowPaymentIntervention(false)}
+        sprint={liveSprint || location.state?.sprint || null}
+        enrollment={liveEnrollment || location.state?.enrollment || null}
+        targetMoveDay={Math.min(sprintDuration, completedDay + 1)}
+        onUnlocked={(patch) => {
+          setShowPaymentIntervention(false);
+          if (patch) {
+            setLiveEnrollment((prev) => (prev ? { ...prev, ...patch } : prev));
+          }
+          const targetId = location.state?.enrollmentId || resolvedEnrollmentId || (user && (liveSprint?.id || location.state?.sprintId) ? `enrollment_${user.id}_${liveSprint?.id || location.state?.sprintId}` : null);
+          const nextDay = Math.min(sprintDuration, completedDay + 1);
+          if (targetId) {
+            navigate(`/participant/sprint/${targetId}?day=${nextDay}`, {
+              replace: true,
+              state: { targetDay: nextDay }
+            });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        }}
+      />
     </div>
   );
 };

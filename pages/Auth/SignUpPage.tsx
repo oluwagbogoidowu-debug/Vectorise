@@ -466,21 +466,23 @@ const SignUpPage: React.FC = () => {
                                              sprint.sprintType === 'Expert' ||
                                              sprint.category === 'Core Platform Sprint' || 
                                              sprint.category === 'Growth Fundamentals';
-                      const isCoinBased = sprint.pricingType === 'credits' || (sprint.pointCost !== undefined && sprint.pointCost >= 0);
-                      if (fromPayment || isFoundational || isCoinBased || sprint.price === 0) {
-                          const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
-                          let pendingFirstAction = null;
-                          try {
-                              if (pendingFirstActionRaw) {
-                                  pendingFirstAction = JSON.parse(pendingFirstActionRaw);
-                              }
-                          } catch (err) {
-                              console.error("Error parsing pending_first_action in SignUpPage:", err);
+                      const pendingFirstActionRaw = localStorage.getItem('pending_first_action');
+                      let pendingFirstAction = null;
+                      try {
+                          if (pendingFirstActionRaw) {
+                              pendingFirstAction = JSON.parse(pendingFirstActionRaw);
                           }
-
+                      } catch (err) {
+                          console.error("Error parsing pending_first_action in SignUpPage:", err);
+                      }
+                      const hasPendingPreview = Boolean(pendingFirstAction && (!pendingFirstAction.sprintId || pendingFirstAction.sprintId === targetSprintId));
+                      const isCoinBased = sprint.pricingType === 'credits' || (sprint.pointCost !== undefined && sprint.pointCost >= 0);
+                      if (fromPayment || isFoundational || isCoinBased || sprint.price === 0 || hasPendingPreview) {
                           const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration, {
                               firstActionInput: pendingFirstAction?.firstActionInput,
-                              taskInputs: pendingFirstAction?.taskInputs
+                              taskInputs: pendingFirstAction?.taskInputs,
+                              startedFromPreview: !fromPayment && hasPendingPreview,
+                              ...(fromPayment ? { paymentUnlocked: true } : {})
                           });
 
                           if (enrollment && enrollment.id) {
@@ -501,13 +503,15 @@ const SignUpPage: React.FC = () => {
                               coinsUnlocked: 10,
                               bridgeNote: d1Content?.bridgeNote,
                               sprintId: targetSprintId,
+                              sprint: sprint,
+                              enrollment: enrollment,
                               enrollmentId: enrollment?.id
                           };
                           toast.success("Account created successfully!");
                           navigate('/participant/day-success', { state: daySuccessState, replace: true });
                           return;
                       } else {
-                          // Cash-paid sprint: navigate to payment page to save progress and continue
+                          // Cash-paid sprint (not from preview trial): navigate to payment page
                           toast.success("Account created! Complete payment to save your progress and continue.");
                           navigate('/onboarding/sprint-payment', {
                               state: {

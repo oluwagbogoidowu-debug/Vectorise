@@ -353,8 +353,9 @@ const SprintPreview: React.FC = () => {
                         isNavigatingToSuccessRef.current = true;
                         const enrollment = await sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
                             firstActionInput: firstInput,
-                            taskInputs: localAllDayInputs[1] || effectiveInputs
-                        } as any);
+                            taskInputs: localAllDayInputs[1] || effectiveInputs,
+                            startedFromPreview: true
+                        });
 
                         if (enrollment && enrollment.progress) {
                             const updatedProgress = [...enrollment.progress];
@@ -376,6 +377,7 @@ const SprintPreview: React.FC = () => {
                                 progress: updatedProgress,
                                 last_activity_at: new Date().toISOString()
                             });
+                            enrollment.progress = updatedProgress;
                         }
                         await userService.addUserEnrollment(user.id, targetSprintId);
                         localStorage.removeItem('pending_first_action');
@@ -389,6 +391,7 @@ const SprintPreview: React.FC = () => {
                                 bridgeNote: currentDayContent?.bridgeNote || day1Content?.bridgeNote,
                                 sprintId: targetSprintId,
                                 sprint: targetSprint,
+                                enrollment: enrollment,
                                 enrollmentId: enrollment?.id,
                                 taskInputs: effectiveInputs,
                                 isPreview: false,
@@ -753,11 +756,12 @@ const SprintPreview: React.FC = () => {
 
             if (targetSprint) {
                 const firstInput = effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "";
-                // Auto enroll and complete Day 1 in database
+                // Auto enroll and complete Day 1 in database (mark startedFromPreview for Move 2 -> Move 3 payment gate)
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
-                    taskInputs: effectiveInputs
-                } as any);
+                    taskInputs: effectiveInputs,
+                    startedFromPreview: true
+                });
 
                 await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
 
@@ -775,6 +779,7 @@ const SprintPreview: React.FC = () => {
                         progress: updatedProgress,
                         last_activity_at: new Date().toISOString()
                     });
+                    enrollment.progress = updatedProgress;
                 }
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:GoogleSignIn] Confirmed target enrollment created/updated:", enrollment.id);
@@ -793,6 +798,7 @@ const SprintPreview: React.FC = () => {
                         bridgeNote: d1Content?.bridgeNote,
                         sprintId: targetSprint.id,
                         sprint: targetSprint,
+                        enrollment: enrollment,
                         enrollmentId: enrollment?.id,
                         taskInputs: effectiveInputs,
                         answers: effectiveInputs,
@@ -889,35 +895,18 @@ const SprintPreview: React.FC = () => {
             };
             await userService.createUserDocument(firebaseUser.uid, newUser);
 
-            const isCashSprint = targetSprint?.pricingType === 'cash' || (targetSprint?.price && targetSprint.price > 0 && targetSprint.pricingType !== 'credits');
-
-            if (isCashSprint && targetSprint) {
-                // For cash sprints: preserve pending_first_action and redirect to payment page
-                toast.success("Account created! Complete payment to save your progress and continue.");
-                setShowLockModal(false);
-                navigate('/onboarding/sprint-payment', {
-                    state: {
-                        sprintId: targetSprint.id,
-                        sprint: targetSprint,
-                        fromPreview: true,
-                        prefilledEmail: authEmail.trim().toLowerCase(),
-                        taskInputs: effectiveInputs
-                    },
-                    replace: true
-                });
-                return;
-            }
-
             let enrollmentId = "";
+            let createdEnrollmentObj: any = null;
             const d1Content = Array.isArray(targetSprint?.dailyContent) ? targetSprint.dailyContent.find(dc => dc.day === 1) : undefined;
             let day1BridgeNote = d1Content?.bridgeNote;
             if (targetSprint) {
                 const firstInput = effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "";
-                // Auto enroll and complete Day 1 in database
+                // Auto enroll and complete Day 1 in database (allow Move 2 before payment gate on Move 3)
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
-                    taskInputs: effectiveInputs
-                } as any);
+                    taskInputs: effectiveInputs,
+                    startedFromPreview: true
+                });
 
                 await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
 
@@ -935,12 +924,18 @@ const SprintPreview: React.FC = () => {
                         progress: updatedProgress,
                         last_activity_at: new Date().toISOString()
                     });
+                    enrollment.progress = updatedProgress;
                 }
+                createdEnrollmentObj = enrollment;
                 enrollmentId = enrollment?.id || "";
                 setCreatedEnrollmentId(enrollmentId);
                 if (enrollment && enrollment.id) {
                     console.log("[SprintPreview:EmailSignUp] Confirmed target enrollment created/updated:", enrollment.id);
+                    localStorage.removeItem('pending_first_action');
                     localStorage.removeItem('vectorise_last_sprint');
+                    if (effectiveInputs.length > 0) {
+                        userIdentificationService.applyUserIdentificationTracking(firebaseUser.uid, targetSprint, 1, effectiveInputs).catch(console.warn);
+                    }
                 }
             }
 
@@ -950,6 +945,7 @@ const SprintPreview: React.FC = () => {
                 coinsUnlocked: 10,
                 bridgeNote: day1BridgeNote,
                 enrollmentId,
+                enrollment: createdEnrollmentObj,
                 sprintId: targetSprint?.id || targetSprintId,
                 sprint: targetSprint,
                 taskInputs: effectiveInputs,
@@ -1028,11 +1024,12 @@ const SprintPreview: React.FC = () => {
 
             if (targetSprint) {
                 const firstInput = effectiveInputs.find(t => t && t.trim().length > 0) || effectiveInputs[0] || "";
-                // Auto enroll and complete Day 1 in database
+                // Auto enroll and complete Day 1 in database (mark startedFromPreview for Move 2 -> Move 3 payment gate)
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
-                    taskInputs: effectiveInputs
-                } as any);
+                    taskInputs: effectiveInputs,
+                    startedFromPreview: true
+                });
 
                 await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
 
@@ -1050,6 +1047,7 @@ const SprintPreview: React.FC = () => {
                         progress: updatedProgress,
                         last_activity_at: new Date().toISOString()
                     });
+                    enrollment.progress = updatedProgress;
                 }
                 setCreatedEnrollmentId(enrollment.id);
                 if (enrollment && enrollment.id) {
@@ -1068,6 +1066,7 @@ const SprintPreview: React.FC = () => {
                     coinsUnlocked: 10, 
                     bridgeNote: d1Content?.bridgeNote || day1Content?.bridgeNote,
                     enrollmentId: enrollment.id,
+                    enrollment: enrollment,
                     sprintId: targetSprint.id,
                     sprint: targetSprint,
                     taskInputs: effectiveInputs,

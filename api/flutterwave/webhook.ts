@@ -43,66 +43,117 @@ export default async (req: any, res: any) => {
       return res.status(400).json({ error: "Integrity mismatch" });
     }
 
-    const { userId, sprintId } = paymentData || {};
+    const { userId, sprintId, coinPackageId, coins } = paymentData || {};
 
     await db.runTransaction(async (transaction: any) => {
+      // Read phase first
+      let existingEnrSnap: any = null;
+      let sprintSnap: any = null;
+      let hasActive = false;
+
+      if (!userId.startsWith('guest_') && !coinPackageId && sprintId) {
+        const enrollmentId = `enrollment_${userId}_${sprintId}`;
+        const enrollmentRef = db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId);
+        existingEnrSnap = await transaction.get(enrollmentRef);
+
+        const activeEnrollments = await transaction.get(
+          db.collection('users').doc(userId).collection('enrollments').where('status', '==', 'active')
+        );
+        hasActive = !activeEnrollments.empty;
+
+        sprintSnap = await transaction.get(db.collection('experiences').doc('Sprint').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+        if (!sprintSnap.exists) {
+          sprintSnap = await transaction.get(db.collection('experiences').doc('RiseBlog').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+        }
+        if (!sprintSnap.exists) {
+          sprintSnap = await transaction.get(db.collection('experiences').doc('Ignite').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+        }
+        if (!sprintSnap.exists) {
+          sprintSnap = await transaction.get(db.collection('experiences').doc('Challenge').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+        }
+        if (!sprintSnap.exists) {
+          sprintSnap = await transaction.get(db.collection('experiences').doc(sprintId).collection('sprintdetails').doc('info'));
+        }
+      }
+
+      // Write phase
       transaction.update(paymentRef, {
         status: 'success',
         paidAt: admin.firestore.FieldValue.serverTimestamp(),
         amount: Number(amount),
         currency: currency,
         provider_transaction_id: flw_id,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...(!userId.startsWith('guest_') && !coinPackageId && sprintId ? { activeEnrollmentId: `enrollment_${userId}_${sprintId}` } : {})
       });
 
       // If it's a guest, we don't create the enrollment yet.
       if (userId.startsWith('guest_')) return;
 
       const userRef = db.collection('users').doc(userId);
+
+      if (coinPackageId && coins) {
+        transaction.update(userRef, {
+          walletBalance: admin.firestore.FieldValue.increment(Number(coins))
+        });
+        const transactionId = `coin_purchase_${tx_ref}`;
+        transaction.set(userRef.collection('transactions').doc(transactionId), {
+          id: transactionId,
+          amount: Number(coins),
+          type: 'credit',
+          description: `Purchased ${coins} Coins Package`,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          status: 'completed',
+          paymentRef: tx_ref
+        });
+        return;
+      }
+
+      if (!sprintId) return;
+
       transaction.update(userRef, {
         enrolledSprintIds: admin.firestore.FieldValue.arrayUnion(sprintId)
       });
 
       const enrollmentId = `enrollment_${userId}_${sprintId}`;
       const enrollmentRef = db.collection('users').doc(userId).collection('enrollments').doc(enrollmentId);
-      
-      // Check for active enrollments
-      const activeEnrollments = await db.collection('users').doc(userId).collection('enrollments')
-        .where('status', '==', 'active')
-        .get();
-      
-      const hasActive = !activeEnrollments.empty;
+      const existingData = existingEnrSnap?.exists ? existingEnrSnap.data() : null;
+      const isInProgressExisting = Boolean(
+        existingData &&
+        existingData.status !== 'completed' &&
+        Array.isArray(existingData.progress) &&
+        existingData.progress.some((p: any) => !p.completed)
+      );
 
-      let sprintSnap = await transaction.get(db.collection('experiences').doc('Sprint').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
-      if (!sprintSnap.exists) {
-        sprintSnap = await transaction.get(db.collection('experiences').doc('RiseBlog').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
+      if (isInProgressExisting) {
+        transaction.update(enrollmentRef, {
+          paymentUnlocked: true,
+          price_paid: Number(amount),
+          currency: currency,
+          payment_source: 'cash',
+          status: 'active',
+          last_activity_at: new Date().toISOString()
+        });
+      } else {
+        const duration = sprintSnap?.exists ? (sprintSnap.data()?.duration || 7) : 7;
+        transaction.set(enrollmentRef, {
+          id: enrollmentId,
+          sprint_id: sprintId,
+          user_id: userId,
+          coach_id: sprintSnap?.data()?.coachId || '',
+          started_at: new Date().toISOString(),
+          price_paid: Number(amount),
+          currency: currency,
+          payment_source: 'cash',
+          paymentUnlocked: true,
+          status: hasActive ? 'queued' : 'active',
+          last_activity_at: new Date().toISOString(),
+          progress: Array.from({ length: duration }, (_, i) => ({ 
+            day: i + 1, 
+            completed: false 
+          }))
+        }, { merge: true });
       }
-      if (!sprintSnap.exists) {
-        sprintSnap = await transaction.get(db.collection('experiences').doc('Ignite').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
-      }
-      if (!sprintSnap.exists) {
-        sprintSnap = await transaction.get(db.collection('experiences').doc('Challenge').collection('items').doc(sprintId).collection('sprintdetails').doc('info'));
-      }
-      if (!sprintSnap.exists) {
-        sprintSnap = await transaction.get(db.collection('experiences').doc(sprintId).collection('sprintdetails').doc('info'));
-      }
-      const duration = sprintSnap.exists ? (sprintSnap.data()?.duration || 7) : 7;
-
-      transaction.set(enrollmentRef, {
-        id: enrollmentId,
-        sprint_id: sprintId,
-        user_id: userId,
-        coach_id: sprintSnap.data()?.coachId || '',
-        started_at: new Date().toISOString(),
-        price_paid: Number(amount),
-        currency: currency,
-        status: hasActive ? 'queued' : 'active',
-        last_activity_at: new Date().toISOString(),
-        progress: Array.from({ length: duration }, (_, i) => ({ 
-          day: i + 1, 
-          completed: false 
-        }))
-      }, { merge: true });
     });
 
     await db.collection('users').doc(userId).collection('notifications').add({

@@ -36,9 +36,10 @@ import ActionStepConfirmModal from "../../components/ActionStepConfirmModal";
 import { ArrangePollOptions } from "../../src/components/ArrangePollOptions";
 import { Participant } from "../../types";
 import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, getSoundSettings, setSoundSettings } from "../../utils/haptics";
-import { getEffectiveSprintPricing } from "../../utils/sprintUtils";
+import { getEffectiveSprintPricing, doesPreviewEnrollmentRequirePayment } from "../../utils/sprintUtils";
 import { paymentService } from "../../services/paymentService";
 import BottomModalCoinCards from "../../components/BottomModalCoinCards";
+import PreviewPaymentBottomModal from "../../components/PreviewPaymentBottomModal";
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
@@ -1008,6 +1009,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [isRestartModalOpen, setIsRestartModalOpen] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isRerunModalOpen, setIsRerunModalOpen] = useState(false);
+  const [isPreviewPaymentModalOpen, setIsPreviewPaymentModalOpen] = useState(false);
   const [isProcessingRerun, setIsProcessingRerun] = useState(false);
   const [isRerunActivePromptOpen, setIsRerunActivePromptOpen] = useState(false);
   const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
@@ -3648,11 +3650,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   }, [now, notificationsEnabled, enrollment, sprint]);
 
   const dayLockDetails = useMemo(() => {
-    if (isPreview) return { isLocked: false, unlockTime: 0 };
+    if (isPreview) return { isLocked: false, unlockTime: 0, requiresPayment: false };
     if (!enrollment || !sprint || !enrollment.progress)
-      return { isLocked: false, unlockTime: 0 };
+      return { isLocked: false, unlockTime: 0, requiresPayment: false };
 
-    if (viewingDay === 1) return { isLocked: false, unlockTime: 0 };
+    if (viewingDay === 1) return { isLocked: false, unlockTime: 0, requiresPayment: false };
 
     const prevDay = enrollment.progress.find((p) => p.day === viewingDay - 1);
 
@@ -3660,11 +3662,27 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       return {
         isLocked: true,
         unlockTime: 0,
+        requiresPayment: false,
         reason: "Complete previous move first.",
       };
 
-    return { isLocked: false, unlockTime: 0 };
-  }, [enrollment, sprint, viewingDay]);
+    if (viewingDay >= 3 && doesPreviewEnrollmentRequirePayment(enrollment, sprint)) {
+      return {
+        isLocked: true,
+        unlockTime: 0,
+        requiresPayment: true,
+        reason: `You've completed Moves 1 & 2! Complete payment to unlock Move ${viewingDay} through Move ${sprint.duration || 7}.`,
+      };
+    }
+
+    return { isLocked: false, unlockTime: 0, requiresPayment: false };
+  }, [isPreview, enrollment, sprint, viewingDay]);
+
+  useEffect(() => {
+    if (dayLockDetails.requiresPayment) {
+      setIsPreviewPaymentModalOpen(true);
+    }
+  }, [dayLockDetails.requiresPayment]);
 
   useEffect(() => {
     if (dayLockDetails.isLocked && dayLockDetails.unlockTime) {
@@ -3945,7 +3963,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               enrollmentId: enrollment.id,
               sprintId: enrollment.sprint_id,
               sprint: sprint,
-              enrollment: enrollment
+              enrollment: { ...enrollment, progress: updatedProgress, last_activity_at: timestamp }
             } 
           });
         }
@@ -4041,7 +4059,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             enrollmentId: enrollment.id,
             sprintId: enrollment.sprint_id,
             sprint: sprint,
-            enrollment: enrollment
+            enrollment: { ...enrollment, progress: updatedProgress, last_activity_at: timestamp }
           } 
         });
       }
@@ -4908,6 +4926,19 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           </div>
         )}
       </AnimatePresence>
+      <PreviewPaymentBottomModal
+        isOpen={isPreviewPaymentModalOpen}
+        onClose={() => setIsPreviewPaymentModalOpen(false)}
+        sprint={sprint}
+        enrollment={enrollment}
+        targetMoveDay={viewingDay >= 3 ? viewingDay : 3}
+        onUnlocked={(patch) => {
+          setIsPreviewPaymentModalOpen(false);
+          if (patch) {
+            setEnrollment((prev) => (prev ? { ...prev, ...patch } : prev));
+          }
+        }}
+      />
       <ParticipantDrawerMenu
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
@@ -5309,12 +5340,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   <button
                     type="button"
                     onClick={() => {
+                      if (dayLockDetails.requiresPayment) {
+                        setIsPreviewPaymentModalOpen(true);
+                        return;
+                      }
                       const firstIncomplete = enrollment.progress?.find((p) => !p.completed)?.day || 1;
                       setViewingDay(firstIncomplete);
                     }}
                     className="w-full py-4 bg-[#0E7850] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#0b5d3e] transition-all shadow-lg shadow-[#0E7850]/20 active:scale-95 cursor-pointer"
                   >
-                    Go to Active Move
+                    {dayLockDetails.requiresPayment ? `Unlock Move ${viewingDay} & Continue` : "Go to Active Move"}
                   </button>
                 </div>
               </div>
@@ -5531,12 +5566,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   <button
                     type="button"
                     onClick={() => {
+                      if (dayLockDetails.requiresPayment) {
+                        setIsPreviewPaymentModalOpen(true);
+                        return;
+                      }
                       const firstIncomplete = enrollment.progress?.find((p) => !p.completed)?.day || 1;
                       setViewingDay(firstIncomplete);
                     }}
                     className="w-full py-4 bg-[#0E7850] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#0b5d3e] transition-all shadow-lg shadow-[#0E7850]/20 active:scale-95 cursor-pointer"
                   >
-                    Go to Active Move
+                    {dayLockDetails.requiresPayment ? `Unlock Move ${viewingDay} & Continue` : "Go to Active Move"}
                   </button>
                 </div>
               </div>
