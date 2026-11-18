@@ -183,6 +183,7 @@ const SprintPreview: React.FC = () => {
             } catch (e) {}
         }
 
+        lastSpreadStepKeyRef.current = "";
         setPreviewDay(newDay);
         setActiveTaskIndex(0);
         const dayInputs = updatedInputs[newDay] || [];
@@ -194,6 +195,7 @@ const SprintPreview: React.FC = () => {
         const dayParam = params.get('day');
         const target = dayParam ? parseInt(dayParam, 10) : Number(location.state?.targetDay);
         if (target && !isNaN(target) && target >= 1) {
+            lastSpreadStepKeyRef.current = "";
             setPreviewDay(target);
             setActiveTaskIndex(0);
             const saved = allDayInputs[target] || [];
@@ -240,6 +242,7 @@ const SprintPreview: React.FC = () => {
     const [soundEnabled] = useState(() => getSoundSettings());
     const [loadingSprint, setLoadingSprint] = useState<boolean>(!location.state?.sprint);
     const prevTaskIndexRef = useRef(0);
+    const lastSpreadStepKeyRef = useRef<string>("");
 
     const day1Content = useMemo(() => {
         return Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === previewDay) : undefined;
@@ -1287,8 +1290,9 @@ const SprintPreview: React.FC = () => {
         }
     }, [taskInputs, activeTaskIndex, day1Content]);
 
-    const getLinkedTagsForStep = (stepIndex: number): string[] => {
+    const getLinkedTagsForStep = (stepIndex: number, overrideInputs?: string[]): string[] => {
         if (!day1Content) return [];
+        const effectiveInputs = overrideInputs || taskInputs;
 
         const allTags: string[] = [];
 
@@ -1338,13 +1342,13 @@ const SprintPreview: React.FC = () => {
                 if (typeof srcIndex !== 'number') return;
                 if (srcIndex >= 0) {
                     const rawSrcType = day1Content.taskInputTypes?.[srcIndex];
-                    const srcType = getStepInputType(day1Content, srcIndex, taskInputs, sprint?.dailyContent);
+                    const srcType = getStepInputType(day1Content, srcIndex, effectiveInputs, sprint?.dailyContent);
                     if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
-                        const val = taskInputs && taskInputs[srcIndex];
+                        const val = effectiveInputs && effectiveInputs[srcIndex];
                         if (val) {
                             allTags.push(...parseAnswerValues(val, srcType));
                         } else {
-                            const configuredOpts = getAllStepPollOptions(day1Content, srcIndex, taskInputs, sprint?.dailyContent);
+                            const configuredOpts = getAllStepPollOptions(day1Content, srcIndex, effectiveInputs, sprint?.dailyContent);
                             if (configuredOpts.length > 0) {
                                 allTags.push(...configuredOpts);
                             }
@@ -1363,13 +1367,13 @@ const SprintPreview: React.FC = () => {
                         
                     if (targetDayContent) {
                         const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
-                        const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent);
+                        const targetType = getStepInputType(targetDayContent, targetStepIdx, effectiveInputs, sprint?.dailyContent);
                         if (isStepOrSubStepPoll(rawTargetType) || targetType === "poll" || targetType === "tags" || targetType.includes("tags") || targetType === "dual") {
                             const val = targetProgress?.answers?.[targetStepIdx] || allDayInputs[targetDay]?.[targetStepIdx];
                             if (val) {
                                 allTags.push(...parseAnswerValues(val, targetType));
                             } else {
-                                const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent);
+                                const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, effectiveInputs, sprint?.dailyContent);
                                 if (configuredOpts.length > 0) {
                                     allTags.push(...configuredOpts);
                                 }
@@ -1389,13 +1393,12 @@ const SprintPreview: React.FC = () => {
             const pollLinkInfo = parsePollLinkInfo(pollLinkRaw);
             if (pollLinkInfo && pollLinkInfo.targetPollIdx >= 0) {
                 const tIdx = pollLinkInfo.targetPollIdx;
-                const rawSrcType = day1Content.taskInputTypes?.[tIdx];
-                const srcType = getStepInputType(day1Content, tIdx, taskInputs, sprint?.dailyContent);
-                const val = taskInputs && taskInputs[tIdx];
+                const srcType = getStepInputType(day1Content, tIdx, effectiveInputs, sprint?.dailyContent);
+                const val = effectiveInputs && effectiveInputs[tIdx];
                 if (val) {
                     allTags.push(...parseAnswerValues(val, srcType));
                 } else {
-                    const configuredOpts = getAllStepPollOptions(day1Content, tIdx, taskInputs, sprint?.dailyContent);
+                    const configuredOpts = getAllStepPollOptions(day1Content, tIdx, effectiveInputs, sprint?.dailyContent);
                     if (configuredOpts.length > 0) {
                         if (pollLinkInfo.optNum !== undefined && configuredOpts[pollLinkInfo.optNum - 1]) {
                             allTags.push(configuredOpts[pollLinkInfo.optNum - 1]);
@@ -1414,13 +1417,13 @@ const SprintPreview: React.FC = () => {
         if (stepIndex > 0 && day1Content.taskLinkedToNext?.[stepIndex - 1] === true) {
             const prevIdx = stepIndex - 1;
             const rawSrcType = day1Content.taskInputTypes?.[prevIdx];
-            const srcType = getStepInputType(day1Content, prevIdx, taskInputs, sprint?.dailyContent);
+            const srcType = getStepInputType(day1Content, prevIdx, effectiveInputs, sprint?.dailyContent);
             if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
-                const val = taskInputs && taskInputs[prevIdx];
+                const val = effectiveInputs && effectiveInputs[prevIdx];
                 if (val) {
                     allTags.push(...parseAnswerValues(val, srcType));
                 } else {
-                    const configuredOpts = getAllStepPollOptions(day1Content, prevIdx, taskInputs, sprint?.dailyContent);
+                    const configuredOpts = getAllStepPollOptions(day1Content, prevIdx, effectiveInputs, sprint?.dailyContent);
                     if (configuredOpts.length > 0) {
                         allTags.push(...configuredOpts);
                     }
@@ -1445,13 +1448,12 @@ const SprintPreview: React.FC = () => {
                 const targetStepIdx = sNum - 1;
                 
                 if (dNum === currentDay) {
-                    const rawSrcType = day1Content.taskInputTypes?.[targetStepIdx];
-                    const srcType = getStepInputType(day1Content, targetStepIdx, taskInputs, sprint?.dailyContent);
-                    const val = taskInputs && taskInputs[targetStepIdx];
+                    const srcType = getStepInputType(day1Content, targetStepIdx, effectiveInputs, sprint?.dailyContent);
+                    const val = effectiveInputs && effectiveInputs[targetStepIdx];
                     if (val) {
                         allTags.push(...parseAnswerValues(val, srcType));
                     } else {
-                        const configuredOpts = getAllStepPollOptions(day1Content, targetStepIdx, taskInputs, sprint?.dailyContent);
+                        const configuredOpts = getAllStepPollOptions(day1Content, targetStepIdx, effectiveInputs, sprint?.dailyContent);
                         if (configuredOpts.length > 0) {
                             allTags.push(...configuredOpts);
                         }
@@ -1462,13 +1464,12 @@ const SprintPreview: React.FC = () => {
                         ? sprint.dailyContent.find((dc: any) => Number(dc.day) === dNum)
                         : undefined;
                     if (targetDayContent) {
-                        const rawTargetType = targetDayContent.taskInputTypes?.[targetStepIdx];
-                        const targetType = getStepInputType(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent);
+                        const targetType = getStepInputType(targetDayContent, targetStepIdx, effectiveInputs, sprint?.dailyContent);
                         const val = targetProgress?.answers?.[targetStepIdx] || allDayInputs[dNum]?.[targetStepIdx];
                         if (val) {
                             allTags.push(...parseAnswerValues(val, targetType));
                         } else {
-                            const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, taskInputs, sprint?.dailyContent);
+                            const configuredOpts = getAllStepPollOptions(targetDayContent, targetStepIdx, effectiveInputs, sprint?.dailyContent);
                             if (configuredOpts.length > 0) {
                                 allTags.push(...configuredOpts);
                             }
@@ -1547,60 +1548,90 @@ const SprintPreview: React.FC = () => {
     const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
         if (!day1Content) return "";
 
-        const isSpreadEnabled = day1Content.taskSpread?.[stepIndex] || (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0);
+        const isSpreadEnabled = Boolean(day1Content.taskSpread?.[stepIndex]);
         if (!isSpreadEnabled) return "";
 
         let sources: number[] = [];
         if (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0) {
             sources = day1Content.taskLinkedSources[stepIndex];
         } else if (stepIndex > 0) {
-            sources = [stepIndex];
+            sources = [stepIndex - 1];
         }
+
+        const extractReadableValues = (val: any): string[] => {
+            if (!val) return [];
+            const trimmed = typeof val === 'string' ? val.trim() : '';
+            if (typeof val === 'string') {
+                if (!trimmed) return [];
+                if (trimmed.startsWith("{")) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (parsed && typeof parsed === 'object') {
+                            const collected: string[] = [];
+                            if (Array.isArray(parsed.choices)) collected.push(...parsed.choices.filter(Boolean).map((v: any) => String(v).trim()));
+                            if (Array.isArray(parsed.selectedChoices)) collected.push(...parsed.selectedChoices.filter(Boolean).map((v: any) => String(v).trim()));
+                            if (typeof parsed.choice === 'string' && parsed.choice.trim()) collected.push(parsed.choice.trim());
+                            if (typeof parsed.text === 'string' && parsed.text.trim()) collected.push(parsed.text.trim());
+                            if (typeof parsed.answer === 'string' && parsed.answer.trim()) collected.push(parsed.answer.trim());
+                            if (collected.length > 0) return Array.from(new Set(collected)).filter(Boolean);
+                            return Object.values(parsed).filter(Boolean).map(v => String(v).trim()).filter(Boolean);
+                        }
+                    } catch (e) {
+                        return [trimmed];
+                    }
+                }
+                if (trimmed.startsWith("[")) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (Array.isArray(parsed)) {
+                            return parsed.filter(Boolean).map((v: any) => String(v).trim()).filter(Boolean);
+                        }
+                    } catch (e) {
+                        return [trimmed];
+                    }
+                }
+                return [trimmed];
+            }
+            if (Array.isArray(val)) {
+                return val.filter(Boolean).map((v: any) => String(v).trim()).filter(Boolean);
+            }
+            return [String(val).trim()].filter(Boolean);
+        };
 
         const texts: string[] = [];
         sources.forEach(srcRef => {
-            let srcIndex = srcRef > 0 ? srcRef - 1 : srcRef;
-            if (srcRef > 0 && srcRef <= currentInputs.length) {
-                srcIndex = srcRef - 1;
+            if (typeof srcRef !== 'number') return;
+            let val: any = "";
+            if (srcRef >= 0) {
+                val = currentInputs[srcRef] || allDayInputs[previewDay]?.[srcRef];
+            } else {
+                const absVal = Math.abs(srcRef);
+                const targetDay = Math.floor(absVal / 100);
+                const targetStepIdx = absVal % 100;
+                const targetProgress = (sprint as any)?.enrollment?.progress?.find((p: any) => Number(p.day) === targetDay);
+                val = targetProgress?.answers?.[targetStepIdx] || allDayInputs[targetDay]?.[targetStepIdx];
             }
-            if (srcIndex >= 0 && srcIndex < currentInputs.length && currentInputs[srcIndex]) {
-                const val = currentInputs[srcIndex];
-                if (val) {
-                    if (val.startsWith("{")) {
-                        try {
-                            const parsed = JSON.parse(val);
-                            const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-                            texts.push(parts.join(", "));
-                        } catch (e) {
-                            texts.push(val);
-                        }
-                    } else if (val.startsWith("[")) {
-                        try {
-                            const parsed = JSON.parse(val);
-                            if (Array.isArray(parsed)) {
-                                texts.push(parsed.join(", "));
-                            } else {
-                                texts.push(val);
-                            }
-                        } catch (e) {
-                            texts.push(val);
-                        }
-                    } else {
-                        texts.push(val);
-                    }
-                }
+            if (val) {
+                texts.push(...extractReadableValues(val));
             }
         });
 
-        return texts.join(", ");
+        if (texts.length === 0) {
+            const linkedTags = getLinkedTagsForStep(stepIndex, currentInputs);
+            if (linkedTags.length > 0) {
+                return linkedTags.join(", ");
+            }
+        }
+
+        return Array.from(new Set(texts)).filter(Boolean).join(", ");
     };
 
     const getSpreadTagsForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
         if (!day1Content) return "";
-        const isSpreadEnabled = day1Content.taskSpread?.[stepIndex] || (Array.isArray(day1Content.taskLinkedSources?.[stepIndex]) && day1Content.taskLinkedSources[stepIndex].length > 0);
+        const isSpreadEnabled = Boolean(day1Content.taskSpread?.[stepIndex]);
         if (!isSpreadEnabled) return "";
 
-        const tags = getLinkedTagsForStep(stepIndex);
+        const tags = getLinkedTagsForStep(stepIndex, currentInputs);
         if (tags && tags.length > 0) {
             return JSON.stringify(tags);
         }
@@ -1609,28 +1640,35 @@ const SprintPreview: React.FC = () => {
 
     useEffect(() => {
         if (!day1Content || !taskInputs) return;
-        
+
+        const visitKey = `${previewDay}-${activeTaskIndex}`;
+        if (lastSpreadStepKeyRef.current === visitKey) return;
+        lastSpreadStepKeyRef.current = visitKey;
+
         const type = String(day1Content.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
         const isText = type === "text" || type === "" || type === "undefined";
         const isTags = type === "tags";
-        
+        const isSpreadActive = Boolean(day1Content.taskSpread?.[activeTaskIndex]);
+
         if ((isText || isTags) && !isMultiTextStep(activeTaskIndex)) {
             const currentValue = taskInputs[activeTaskIndex];
             if (!currentValue || currentValue.trim() === "" || currentValue === "[]") {
-                const rawFill = day1Content.taskFills?.[activeTaskIndex];
-                const fillValue = rawFill ? formatInterpolatedText(rawFill, day1Content, taskInputs, sprint?.dailyContent, undefined, user) : "";
-                
                 let prefillVal = "";
                 if (isTags) {
-                    prefillVal = getSpreadTagsForLoadedInputs(activeTaskIndex, taskInputs);
+                    if (isSpreadActive) {
+                        prefillVal = getSpreadTagsForLoadedInputs(activeTaskIndex, taskInputs);
+                    }
                 } else {
-                    const spreadValue = getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs);
+                    const rawFill = day1Content.taskFills?.[activeTaskIndex];
+                    const fillValue = rawFill ? formatInterpolatedText(rawFill, day1Content, taskInputs, sprint?.dailyContent, undefined, user) : "";
+                    const spreadValue = isSpreadActive ? getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs) : "";
                     prefillVal = fillValue || spreadValue;
                 }
 
                 if (prefillVal && prefillVal.trim() !== "" && prefillVal !== "[]") {
                     setTaskInputs(prev => {
-                        if (prev[activeTaskIndex] === prefillVal) return prev;
+                        const cur = prev[activeTaskIndex];
+                        if (cur && cur.trim() !== "" && cur !== "[]") return prev;
                         const updated = [...prev];
                         updated[activeTaskIndex] = prefillVal;
                         return updated;
@@ -1638,7 +1676,7 @@ const SprintPreview: React.FC = () => {
                 }
             }
         }
-    }, [activeTaskIndex, day1Content, taskInputs, sprint?.dailyContent, user]);
+    }, [activeTaskIndex, previewDay, day1Content, taskInputs, sprint?.dailyContent, user]);
 
     if (isNavigatingToSuccessRef.current || isSubmittingAuth || (user && !isCoachPreview)) {
         return (

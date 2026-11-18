@@ -4511,9 +4511,9 @@ const EditSprint: React.FC = () => {
                                                                 )}
                                                             </button>
                                                         )}
-                                                        {(!currentContent.taskInputTypes?.[index] || currentContent.taskInputTypes[index] === 'text') && isLinkedFromPrevious && (
+                                                        {(!activeInputType || activeInputType === 'text' || activeInputType === 'tags') && isLinkedFromPrevious && (
                                                             <button 
-                                                                type="button"
+                                                                type="button" 
                                                                 onClick={() => handleToggleSpread(index)}
                                                                 className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskSpread?.[index]) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
                                                                 title="Spread Option: Receive input from previous linked step to edit/revise."
@@ -4723,21 +4723,21 @@ const EditSprint: React.FC = () => {
 
                                                 const precedingTagSteps = rawPrecedingSteps.filter(item => {
                                                     if (isTargetPoll) {
-                                                        return item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
+                                                        return item.type === 'poll' || isStepOrSubStepPoll(item.rawType) || item.type === 'tags';
                                                     } else if (isTargetTag) {
-                                                        return item.type === 'tags';
+                                                        return item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                                                     } else {
-                                                        return item.type === 'text' || !item.type;
+                                                        return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                                                     }
                                                 });
 
                                                 const precedingDaysSteps = rawPrecedingDaysSteps.filter(item => {
                                                     if (isTargetPoll) {
-                                                        return item.type === 'poll';
+                                                        return item.type === 'poll' || item.type === 'tags';
                                                     } else if (isTargetTag) {
-                                                        return item.type === 'tags';
+                                                        return item.type === 'tags' || item.type === 'poll';
                                                     } else {
-                                                        return item.type === 'text' || !item.type;
+                                                        return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll';
                                                     }
                                                 });
 
@@ -4755,10 +4755,10 @@ const EditSprint: React.FC = () => {
                                                             <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center justify-between">
                                                                 <span>
                                                                     {isTargetPoll
-                                                                        ? "Link this question to receive choices/options from preceding poll steps:"
+                                                                        ? "Link this question to receive choices/options from preceding poll or tag steps:"
                                                                         : isTargetTag
-                                                                            ? "Link this question to receive choices/options from preceding tag steps:"
-                                                                            : "Link this question to pull dynamic content/responses from preceding text steps:"}
+                                                                            ? "Link this question to receive choices/options from preceding tag or poll steps:"
+                                                                            : "Link this question to pull dynamic responses/tags from preceding steps:"}
                                                                 </span>
                                                                 {((currentContent.taskLinkedSources?.[index]?.length || 0) > 0) && (
                                                                     <button 

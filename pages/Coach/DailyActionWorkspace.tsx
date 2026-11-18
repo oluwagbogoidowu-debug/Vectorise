@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprint, DailyContent } from '../../types';
-import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube, ChevronLeft, ChevronRight, Sliders, Tag } from 'lucide-react';
+import { Plus, Trash2, X, Sparkles, Layers, Save, CheckCircle2, ArrowLeft, BookOpen, ListFilter, Youtube, ChevronLeft, ChevronRight, Sliders, Tag, Type as TypeIcon } from 'lucide-react';
 import LocalLogo from '../../components/LocalLogo';
 import CustomSelect from '../../components/CustomSelect';
 
@@ -866,6 +866,62 @@ export default function DailyActionWorkspace({
     return result;
   };
 
+  const getAvailableConnectedTagsForDay = (dayNum: number, stepIndex: number): string[] => {
+    const dContent = getDailyContentForDay(dayNum);
+    if (!dContent) return [];
+
+    const linkedSources = dContent.taskLinkedSources?.[stepIndex] || [];
+    const allTags: string[] = [];
+
+    let legacyLinkedIndex = -1;
+    for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+      if (dContent.taskLinkedToNext?.[prevIndex]) {
+        legacyLinkedIndex = prevIndex;
+        break;
+      }
+    }
+
+    const activeSources = linkedSources.length > 0
+      ? linkedSources
+      : (legacyLinkedIndex >= 0 ? [legacyLinkedIndex] : []);
+
+    activeSources.forEach(srcIndex => {
+      if (srcIndex < 0) {
+        const absVal = Math.abs(srcIndex);
+        const targetDay = Math.floor(absVal / 100);
+        const targetStepIndex = absVal % 100;
+        const targetDayContent = Array.isArray(sprint?.dailyContent)
+          ? sprint.dailyContent.find((dc) => dc.day === targetDay)
+          : undefined;
+        if (targetDayContent) {
+          const type = String(targetDayContent.taskInputTypes?.[targetStepIndex] || '').trim().toLowerCase();
+          if (isStepOrSubStepPoll(type) || type === 'tags') {
+            const opts = getAllStepPollOptions(targetDayContent, targetStepIndex);
+            if (opts.length > 0) {
+              allTags.push(...opts);
+            } else if (type === 'tags') {
+              allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
+            }
+          }
+        }
+      } else {
+        const type = String(dContent.taskInputTypes?.[srcIndex] || '').trim().toLowerCase();
+        if (isStepOrSubStepPoll(type) || type === 'tags') {
+          const opts = getAllStepPollOptions(dContent, srcIndex);
+          if (opts.length > 0) {
+            allTags.push(...opts);
+          } else if (type === 'tags') {
+            allTags.push("Mindset Shift", "Process Scale", "Goal Alignment");
+          }
+        }
+      }
+    });
+
+    return Array.from(new Set(allTags)).filter(Boolean);
+  };
+
+  const baseInputClasses = "w-full rounded-2xl shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none text-sm font-medium transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
+  const promptInputClasses = `${baseInputClasses} p-4 bg-white border border-gray-100 text-black`;
   const smallEditorInputClasses = "w-full p-3 bg-white border border-gray-150 rounded-xl shadow-xs focus:ring-4 focus:ring-purple-100 focus:border-purple-400 outline-none text-sm font-medium text-gray-950 transition-all placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 disabled:italic";
 
   return (
@@ -1193,147 +1249,849 @@ export default function DailyActionWorkspace({
                 {(() => {
                   const currentPlaceholderVal = validateStepPlaceholders(prompt, activeIdx, dayContent.taskInputTypes || [], dayContent.taskPollOptions, dayNum, sprint?.dailyContent);
                   return (
-                    /* Day Action Step edit Workspace inside card */
-                    <div className="flex-grow flex flex-col space-y-4">
-                      {/* Step title & Sub-context step versioning */}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-black bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg flex items-center gap-1">
-                            Action Step {activeIdx + 1}
-                          </span>
+                    /* Day Action Step edit Workspace inside card - Universal EditSprint design */
+                    <div className="flex-grow flex flex-col space-y-2">
+                      {/* Prominent numbering inline badge with + 1 2 sub-context step versioning */}
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-xs font-black bg-primary/10 text-primary px-3 py-1.5 rounded-lg flex items-center gap-1">
+                          Action Step {activeIdx + 1}
+                        </span>
 
-                          {/* Sub-context version tabs: + 1 2 3 */}
-                          <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
-                            {stepVersions.map((_, vIdx) => (
-                              <button
-                                key={vIdx}
-                                type="button"
-                                onClick={() => setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: vIdx }))}
-                                className={`px-2 py-0.5 text-[10px] font-black rounded transition-all ${
-                                  activeVerIdx === vIdx
-                                    ? 'bg-purple-600 text-white shadow-xs'
-                                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
-                                }`}
-                              >
-                                {vIdx + 1}
-                              </button>
-                            ))}
+                        {/* Sub-context version tabs: + 1 2 3 */}
+                        <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+                          {stepVersions.map((_, vIdx) => (
                             <button
+                              key={vIdx}
                               type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                const newVersions = [...stepVersions, ''];
-                                const newVerIdx = newVersions.length - 1;
-                                setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
-                                handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
-
-                                // Also initialize/sync taskInputTypes for new version index
-                                const types = [...(dayContent.taskInputTypes || [])];
-                                while (types.length <= activeIdx) types.push('text');
-                                const rawType = types[activeIdx] || 'text';
-                                const baseType = getStepVersionValue(rawType, 0, 'text');
-                                types[activeIdx] = updateStepVersionValue(rawType, newVerIdx, baseType) as any;
-                                updateFieldForDay(dayNum, 'taskInputTypes', types);
-                              }}
-                              className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-purple-600 hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
-                              title="Add sub-context version (e.g. version for Option 1, Option 2...)"
+                              onClick={() => setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: vIdx }))}
+                              className={`px-2 py-0.5 text-[10px] font-black rounded transition-all ${
+                                activeVerIdx === vIdx
+                                  ? 'bg-primary text-white shadow-xs'
+                                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                              }`}
                             >
-                              <Plus size={11} strokeWidth={3} />
+                              {vIdx + 1}
                             </button>
-                            {stepVersions.length > 1 && (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedDay(dayNum);
-                                    const pollIdx = findNearestPrecedingPoll(dayContent, activeIdx);
-                                    if (pollIdx === -1) {
-                                      alert("No preceding poll step found to auto-populate options from.");
-                                      return;
-                                    }
-                                    const pollOpts = getAllStepPollOptions(dayContent, pollIdx);
-                                    if (!pollOpts || pollOpts.length === 0) {
-                                      alert("Preceding step has no poll options configured.");
-                                      return;
-                                    }
-                                    const allRawPrompt = dayContent.taskPrompts?.[activeIdx] || '';
-                                    const hasH = /\{[^}]+\s+h\}/i.test(allRawPrompt);
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              const newVersions = [...stepVersions, ''];
+                              const newVerIdx = newVersions.length - 1;
+                              setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
+                              handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
 
-                                    const newVersions = pollOpts.map((_, oIdx) => {
-                                      return `{Step ${pollIdx + 1} Op ${oIdx + 1}${hasH ? ' h' : ''}}`;
-                                    });
-                                    setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: 0 }));
-                                    handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+                              const types = [...(dayContent.taskInputTypes || [])];
+                              while (types.length <= activeIdx) types.push('text');
+                              const rawType = types[activeIdx] || 'text';
+                              const baseType = getStepVersionValue(rawType, 0, 'text');
+                              types[activeIdx] = updateStepVersionValue(rawType, newVerIdx, baseType) as any;
+                              updateFieldForDay(dayNum, 'taskInputTypes', types);
+                            }}
+                            className="px-1.5 py-0.5 text-[10px] font-bold text-gray-500 hover:text-primary hover:bg-white rounded transition-all cursor-pointer flex items-center gap-0.5"
+                            title="Add sub-context version (e.g. version for Option 1, Option 2...)"
+                          >
+                            <Plus size={11} strokeWidth={3} />
+                          </button>
+                          {stepVersions.length > 1 && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  const pollIdx = findNearestPrecedingPoll(dayContent, activeIdx);
+                                  if (pollIdx === -1) {
+                                    alert("No preceding poll step found to auto-populate options from.");
+                                    return;
+                                  }
+                                  const pollOpts = getAllStepPollOptions(dayContent, pollIdx);
+                                  if (!pollOpts || pollOpts.length === 0) {
+                                    alert("Preceding step has no poll options configured.");
+                                    return;
+                                  }
+                                  const allRawPrompt = dayContent.taskPrompts?.[activeIdx] || '';
+                                  const hasH = /\{[^}]+\s+h\}/i.test(allRawPrompt);
 
-                                    const types = [...(dayContent.taskInputTypes || [])];
-                                    while (types.length <= activeIdx) types.push('text');
-                                    const rawType = types[activeIdx] || 'text';
-                                    const baseType = getStepVersionValue(rawType, 0, 'text');
-                                    const newTypesArr = pollOpts.map(() => baseType);
-                                    types[activeIdx] = serializeStepVersions(newTypesArr) as any;
+                                  const generatedVersions = pollOpts.map((_, oIdx) => {
+                                    return `{Step ${pollIdx + 1} Op ${oIdx + 1}${hasH ? ' h' : ''}}`;
+                                  });
+                                  const newVersions = [...stepVersions, ...generatedVersions];
+                                  const newTargetIdx = stepVersions.length;
+                                  setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newTargetIdx }));
+                                  handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+
+                                  const types = [...(dayContent.taskInputTypes || [])];
+                                  while (types.length <= activeIdx) types.push('text');
+                                  const rawType = types[activeIdx] || 'text';
+                                  const baseType = getStepVersionValue(rawType, 0, 'text');
+                                  const newTypesArr = pollOpts.map(() => baseType);
+                                  types[activeIdx] = serializeStepVersions(newTypesArr) as any;
+                                  updateFieldForDay(dayNum, 'taskInputTypes', types);
+                                }}
+                                className="px-1.5 py-0.5 text-[10px] text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded transition-all cursor-pointer flex items-center gap-0.5 font-bold"
+                                title="Auto-populate sub-steps for each option of preceding poll step (Op 1, Op 2...)"
+                              >
+                                <Sparkles size={10} />
+                                <span>Auto</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  const removeVerFromRaw = (rawStr?: string | null) => {
+                                    const vers = parseStepVersions(rawStr);
+                                    if (vers.length <= 1) return vers[0] || '';
+                                    const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                    return serializeStepVersions(filtered);
+                                  };
+
+                                  const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
+                                  const newVerIdx = Math.max(0, activeVerIdx - 1);
+                                  setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
+                                  handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
+
+                                  const types = [...(dayContent.taskInputTypes || [])];
+                                  if (types[activeIdx] !== undefined) {
+                                    types[activeIdx] = removeVerFromRaw(types[activeIdx]) as any;
                                     updateFieldForDay(dayNum, 'taskInputTypes', types);
-                                  }}
-                                  className="px-1.5 py-0.5 text-[10px] text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded transition-all cursor-pointer flex items-center gap-0.5 font-bold"
-                                  title="Auto-populate sub-steps for each option of preceding poll step (Op 1, Op 2...)"
-                                >
-                                  <Sparkles size={10} />
-                                  <span>Auto</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedDay(dayNum);
-                                    const removeVerFromRaw = (rawStr?: string | null) => {
-                                      const vers = parseStepVersions(rawStr);
-                                      if (vers.length <= 1) return vers[0] || '';
-                                      const filtered = vers.filter((_, vIdx) => vIdx !== activeVerIdx);
-                                      return serializeStepVersions(filtered);
-                                    };
+                                  }
 
-                                    const newVersions = stepVersions.filter((_, vIdx) => vIdx !== activeVerIdx);
-                                    const newVerIdx = Math.max(0, activeVerIdx - 1);
-                                    setActiveStepVersionMap(prev => ({ ...prev, [stepVerKey]: newVerIdx }));
-                                    handleTaskPromptChange(dayNum, activeIdx, serializeStepVersions(newVersions));
-
-                                    const types = [...(dayContent.taskInputTypes || [])];
-                                    if (types[activeIdx] !== undefined) {
-                                      types[activeIdx] = removeVerFromRaw(types[activeIdx]) as any;
-                                      updateFieldForDay(dayNum, 'taskInputTypes', types);
-                                    }
-
-                                    const opts = [...(dayContent.taskPollOptions || [])];
-                                    if (opts[activeIdx] !== undefined) {
-                                      opts[activeIdx] = removeVerFromRaw(opts[activeIdx]);
-                                      updateFieldForDay(dayNum, 'taskPollOptions', opts);
-                                    }
-                                  }}
-                                  className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
-                                  title="Remove current context version"
-                                >
-                                  <Trash2 size={10} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
-                            <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={`Dynamic text logic linked to Step ${currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}`}>
-                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
-                              <span>Dynamic Logic (Step {currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')})</span>
-                            </span>
-                          )}
-                          {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (
-                            <span className="text-[10px] font-black text-red-700 bg-red-100 border border-red-300 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={currentPlaceholderVal.errorMsg}>
-                              <span className="w-2 h-2 rounded-full bg-red-600 ring-2 ring-red-300 animate-ping shrink-0"></span>
-                              <span>🔴 Error: Invalid Logic Placeholder</span>
-                            </span>
+                                  const opts = [...(dayContent.taskPollOptions || [])];
+                                  if (opts[activeIdx] !== undefined) {
+                                    opts[activeIdx] = removeVerFromRaw(opts[activeIdx]);
+                                    updateFieldForDay(dayNum, 'taskPollOptions', opts);
+                                  }
+                                }}
+                                className="px-1 py-0.5 text-[10px] text-red-400 hover:text-red-600 rounded transition-all cursor-pointer"
+                                title="Remove current context version"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            </div>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          {/* Trash Step Button if total steps > 1 */}
+                        {isLinkedFromPrevious && (
+                          <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-primary shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            <span>Linked Follow-Up</span>
+                          </span>
+                        )}
+
+                        {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
+                          <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={`Dynamic text logic linked to Step ${currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}`}>
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                            <span>Dynamic Logic (Step {currentPlaceholderVal.validStepLabels?.join(', ') || currentPlaceholderVal.validStepRefs.join(', ')})</span>
+                          </span>
+                        )}
+                        {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (
+                          <span className="text-[10px] font-black text-red-700 bg-red-100 border border-red-300 px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow-xs" title={currentPlaceholderVal.errorMsg}>
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-600 ring-2 ring-red-300 animate-ping shrink-0"></span>
+                            <span>🔴 Error: Invalid Logic Placeholder</span>
+                          </span>
+                        )}
+
+                        {selectedText && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDay(dayNum);
+                              handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, selectedText));
+                              setLastAssignedField(`prompt-${activeIdx}`);
+                              setTimeout(() => setLastAssignedField(null), 1500);
+                              setSelectedText('');
+                            }}
+                            className="ml-auto px-2 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 text-[9px] font-black uppercase tracking-wider rounded-md border border-purple-200 transition-all cursor-pointer"
+                          >
+                            Assign Selected to Prompt
+                          </button>
+                        )}
+                      </div>
+
+                      <div className={isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 rounded-2xl' : ''}>
+                        <textarea 
+                          value={prompt} 
+                          onChange={e => {
+                            setSelectedDay(dayNum);
+                            handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, e.target.value));
+                          }} 
+                          rows={2} 
+                          className={promptInputClasses} 
+                          placeholder={`Action Step ${activeIdx + 1}...`} 
+                        />
+                      </div>
+
+                      {currentPlaceholderVal.hasPlaceholders && currentPlaceholderVal.isValid && (
+                        <div className="p-3 bg-red-50/80 border border-red-200/80 rounded-xl text-xs text-red-800 font-semibold flex flex-col gap-2 mt-2 animate-fade-in shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                            <span>
+                              <strong>Dynamic Logic Active:</strong> Placeholder <code className="bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-700 font-mono text-[11px]">{(currentPlaceholderVal.validStepLabels || currentPlaceholderVal.validStepRefs.map(n => `Step ${n}`)).map(s => `{${s}}`).join(', ')}</code> will expand into choice(s) collected from Step {currentPlaceholderVal.validStepLabels?.map(l => l.replace(/^(?:D\d+\s+)?Step\s*/i, '')).join(', ') || currentPlaceholderVal.validStepRefs.join(', ')}.
+                            </span>
+                          </div>
+
+                          {currentPlaceholderVal.placeholderDetails && currentPlaceholderVal.placeholderDetails.length > 0 && (
+                            <div className="flex flex-col gap-2 pt-2 border-t border-red-200/60">
+                              {currentPlaceholderVal.placeholderDetails.map((detail, dIdx) => (
+                                <div key={dIdx} className="flex flex-wrap items-center justify-between gap-2 bg-white/80 p-2 rounded-lg border border-red-100">
+                                  <div className="flex items-center gap-1.5">
+                                    {detail.isMetadata ? (
+                                      <span className="text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs font-mono">
+                                        ✨ {detail.token || detail.rawLabel}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-black text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
+                                        {detail.token || `{Step ${detail.stepNum}}`}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] text-gray-500 italic">
+                                      ({detail.mode === 'list' 
+                                        ? 'List mode: bulleted list' 
+                                        : detail.mode === 'hide' 
+                                        ? 'Hide mode: logic linked, input hidden' 
+                                        : detail.mode === 'sentence' 
+                                        ? 'Sentence mode: starts input with sentence case' 
+                                        : detail.mode === 'main'
+                                        ? 'Main mode: second level single active connection'
+                                        : 'Normal mode: inline lowercase text'})
+                                    </span>
+                                  </div>
+                                  <div className="inline-flex p-0.5 bg-gray-100 rounded-lg shrink-0 flex-wrap gap-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'normal');
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                      }}
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'normal'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="Normal Tag: Displays data inline as lowercase text"
+                                    >
+                                      Normal
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'sentence');
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                      }}
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'sentence'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="Sentence Tag: Starts received input with sentence case"
+                                    >
+                                      Sentence (s)
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'list');
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                      }}
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'list'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="List Tag: Separates data into a bulleted list"
+                                    >
+                                      List
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'main');
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                      }}
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'main'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="Main Tag: Second layer connection narrowing multi-select to single active choice"
+                                    >
+                                      Main
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedDay(dayNum);
+                                        const newPrompt = togglePlaceholderMode(prompt, detail.stepNum, 'hide');
+                                        handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                      }}
+                                      className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                                        detail.mode === 'hide'
+                                          ? (detail.isMetadata ? 'bg-purple-600 text-white shadow-xs' : 'bg-red-600 text-white shadow-xs')
+                                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
+                                      }`}
+                                      title="Hide Tag: Logic linked to step, but hides input from display text"
+                                    >
+                                      Hide (h)
+                                    </button>
+                                  </div>
+
+                                  {detail.isMetadata && (
+                                    <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 mt-1.5 border-t border-purple-100/90 bg-purple-50/40 -mx-1 px-3 py-2.5 rounded-2xl">
+                                      <div className="flex flex-col gap-1.5 min-w-[200px]">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5 px-1">
+                                          <span>🏷️</span> Attribute:
+                                        </label>
+                                        <CustomSelect
+                                          value={detail.metadataFieldKey || ''}
+                                          onChange={(val) => {
+                                            setSelectedDay(dayNum);
+                                            const selectedKey = String(val);
+                                            const allFields = getMetadataFields();
+                                            const fieldDef = allFields.find(f => f.key === selectedKey);
+                                            const newPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
+                                              fieldKey: selectedKey,
+                                              fieldLabel: fieldDef?.label || (selectedKey ? selectedKey : ''),
+                                              mode: detail.metadataMode || 'receive',
+                                              formatMode: detail.mode
+                                            });
+                                            handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                          }}
+                                          options={[
+                                            { value: '', label: '✨ General Metadata' },
+                                            ...getMetadataFields().map(f => ({
+                                              value: f.key,
+                                              label: `${f.label} (${f.placeholderSample})`
+                                            }))
+                                          ]}
+                                          placeholder="Select Attribute..."
+                                          className="w-full"
+                                        />
+                                      </div>
+
+                                      <div className="flex flex-col gap-1.5 min-w-[200px]">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5 px-1">
+                                          <span>🔄</span> Action:
+                                        </label>
+                                        <CustomSelect
+                                          value={detail.metadataMode || 'receive'}
+                                          onChange={(val) => {
+                                            setSelectedDay(dayNum);
+                                            const selectedMode = String(val) as 'save' | 'receive';
+                                            const newPrompt = updateMetadataTokenInPrompt(prompt, detail.token, {
+                                              fieldKey: detail.metadataFieldKey,
+                                              fieldLabel: detail.metadataFieldLabel,
+                                              mode: selectedMode,
+                                              formatMode: detail.mode
+                                            });
+                                            handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, newPrompt));
+                                          }}
+                                          options={[
+                                            { value: 'receive', label: '📥 Receive (Read / Expand into prompt)' },
+                                            { value: 'save', label: '📤 Send / Save (Store participant response)' }
+                                          ]}
+                                          placeholder="Select Action..."
+                                          className="w-full"
+                                        />
+                                      </div>
+
+                                      {((detail.metadataMode || 'receive') === 'receive' && detail.metadataFieldKey) && (() => {
+                                        const sourceStepConfig = findMetadataSourceStepAcrossSprints(
+                                          detail.metadataFieldKey,
+                                          [sprint, ...catalogList].filter(Boolean)
+                                        );
+                                        const isPrerequisiteOn = !!dayContent.taskPrerequisiteEnabled?.[activeIdx];
+
+                                        return (
+                                          <div className="col-span-1 sm:col-span-2 w-full pt-3 mt-1 border-t border-purple-200/60 flex flex-col gap-2">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1">
+                                                  <span>📍</span> Original Source:
+                                                </span>
+                                                {sourceStepConfig && !sourceStepConfig.isFallback ? (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setSelectedDay(dayNum);
+                                                      const nextEnabled = [...(dayContent.taskPrerequisiteEnabled || [])];
+                                                      while (nextEnabled.length <= activeIdx) nextEnabled.push(false);
+                                                      nextEnabled[activeIdx] = !nextEnabled[activeIdx];
+                                                      updateFieldForDay(dayNum, 'taskPrerequisiteEnabled', nextEnabled);
+
+                                                      const nextConfigs = [...(dayContent.taskPrerequisiteConfigs || [])];
+                                                      while (nextConfigs.length <= activeIdx) nextConfigs.push(null);
+                                                      nextConfigs[activeIdx] = nextEnabled[activeIdx] ? sourceStepConfig : null;
+                                                      updateFieldForDay(dayNum, 'taskPrerequisiteConfigs', nextConfigs);
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border shadow-xs ${
+                                                      isPrerequisiteOn
+                                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                                                        : 'bg-white hover:bg-purple-100 text-purple-950 border-purple-300'
+                                                    }`}
+                                                    title="Click to toggle ON/OFF: When active, participants who haven't completed this step in the original sprint will see and finish it before proceeding."
+                                                  >
+                                                    <span className={`w-2 h-2 rounded-full ${isPrerequisiteOn ? 'bg-white animate-pulse' : 'bg-purple-500'}`} />
+                                                    <span className="font-extrabold tracking-tight">
+                                                      {sourceStepConfig.sourceSprintTitle} • M{sourceStepConfig.sourceDay || 1} Step {(sourceStepConfig.sourceStepIndex ?? 0) + 1}
+                                                    </span>
+                                                    <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded font-black ${
+                                                      isPrerequisiteOn ? 'bg-emerald-800 text-white' : 'bg-purple-100 text-purple-800'
+                                                    }`}>
+                                                      {isPrerequisiteOn ? 'ACTIVE (ON)' : 'SET ON'}
+                                                    </span>
+                                                  </button>
+                                                ) : (
+                                                  <span className="text-[11px] text-gray-500 italic bg-white/70 px-2.5 py-1 rounded-lg border border-gray-200">
+                                                    {`{Metadata ${detail.metadataFieldKey} save} not found in other sprints yet`}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              {sourceStepConfig && !sourceStepConfig.isFallback && (
+                                                <span className="text-[10px] text-gray-600 dark:text-gray-300 font-medium italic">
+                                                  {isPrerequisiteOn 
+                                                    ? '✓ Exact step will show in Sprint View for participants who missed original sprint'
+                                                    : 'Click to require this step before proceeding in Sprint View'}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {currentPlaceholderVal.hasPlaceholders && !currentPlaceholderVal.isValid && (
+                        <div className="p-3 bg-red-100/90 border border-red-300 rounded-xl text-xs text-red-900 font-bold flex items-center gap-2 mt-2 animate-shake shadow-xs">
+                          <span className="text-base leading-none">🔴</span>
+                          <span>{currentPlaceholderVal.errorMsg}</span>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-2 mt-2.5 pt-2 border-t border-gray-100">
+                        {/* Top Row: Input Type + Specific Input Type buttons */}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
+                            <div className="flex items-center gap-1">
+                              <div className="flex p-0.5 bg-gray-100 rounded-lg">
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleTaskPromptTypeChange(dayNum, activeIdx, 'text');
+                                  }}
+                                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!activeInputType || activeInputType === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                  title="Text Input: Instructs the participant to enter a freeform text response or reflection."
+                                >
+                                  Text
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleTaskPromptTypeChange(dayNum, activeIdx, 'tags');
+                                  }}
+                                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                  title="Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."
+                                >
+                                  Tags
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleTaskPromptTypeChange(dayNum, activeIdx, 'poll');
+                                  }}
+                                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                  title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
+                                >
+                                  Poll
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleTaskPromptTypeChange(dayNum, activeIdx, 'mark');
+                                  }}
+                                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                  title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
+                                >
+                                  Mark
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleTaskPromptTypeChange(dayNum, activeIdx, 'none');
+                                  }}
+                                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                  title="None: Action step with no input field — participants simply read and press next."
+                                >
+                                  None
+                                </button>
+                              </div>
+                              {(() => {
+                                const precedingTagSteps = (dayContent.taskInputTypes || [])
+                                  .map((type, idx) => {
+                                    const rawType = String(type || '');
+                                    const isPoll = isStepOrSubStepPoll(rawType);
+                                    const isTags = rawType.includes('tags');
+                                    let resolvedType = 'text';
+                                    if (isPoll) resolvedType = 'poll';
+                                    else if (isTags) resolvedType = 'tags';
+                                    return { type: resolvedType, rawType, idx };
+                                  })
+                                  .filter(item => item.idx < activeIdx);
+
+                                const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
+                                const showSingleLink = activeInputType === 'tags';
+
+                                const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
+                                const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
+                                const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
+
+                                const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags');
+                                const precedingDaysPollOnlySteps = precedingDaysSteps.filter(item => item.type === 'poll');
+                                const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
+
+                                const hasPrecedingForTagLink = activeInputType === 'poll' || activeInputType === 'tags'
+                                  ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0)
+                                  : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
+                                const hasPrecedingTexts = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0 || precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
+
+                                const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
+                                const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
+                                const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
+
+                                return (
+                                  <div className="flex items-center gap-1.5 ml-2">
+                                    {showSingleLink && (
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          handleToggleLinkToNext(dayNum, activeIdx);
+                                        }}
+                                        title={dayContent.taskLinkedToNext?.[activeIdx] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this step to feed its selected tags/options as active choices or follow-ups for the exact next question."}
+                                        className={`p-1.5 rounded-md transition-all flex items-center justify-center ${dayContent.taskLinkedToNext?.[activeIdx] ? 'bg-primary text-white shadow-sm' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                      >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                      </button>
+                                    )}
+                                    {showTagLink && (
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'tag') {
+                                            setActiveLinkSelectorIndex(null);
+                                          } else {
+                                            setActiveLinkSelectorIndex(activeIdx);
+                                            setActiveLinkSelectorType('tag');
+                                          }
+                                        }}
+                                        title={
+                                          activeInputType === 'poll'
+                                            ? (hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding poll step(s). Click to configure or link more dynamic poll source questions.` : "Link Poll Sources: Pull selected options from previous poll steps to populate this question dynamically.")
+                                            : (hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding tag step(s). Click to configure or link more dynamic tag source questions.` : "Link Tag Sources: Pull selected tags from previous tag steps to populate this question dynamically.")
+                                        }
+                                        className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'tag' ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20' : hasSelectedSources ? 'bg-primary/20 text-primary border border-primary/30 font-bold' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                      >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M6 20h.01M21 12.1a1 1 0 01-.29.7l-7 7a1 1 0 01-1.4 0l-7-7A1 1 0 015 12.1V5a2 2 0 012-2h7.1a1 1 0 01.7.3l7 7a1 1 0 01.29.7z" />
+                                        </svg>
+                                        {hasSelectedSources && (
+                                          <span className="ml-1 text-[10px] font-black bg-primary text-white rounded-full px-1 min-w-[14px]">
+                                            {dayContent.taskLinkedSources?.[activeIdx]?.length}
+                                          </span>
+                                        )}
+                                      </button>
+                                    )}
+                                    {showTextLink && (
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'text') {
+                                            setActiveLinkSelectorIndex(null);
+                                          } else {
+                                            setActiveLinkSelectorIndex(activeIdx);
+                                            setActiveLinkSelectorType('text');
+                                          }
+                                        }}
+                                        title={hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding step(s). Click to configure or link more text source questions.` : "Text to Text Link: Pull responses from previous text/tag/poll steps to auto-spread/fill this question."}
+                                        className={`p-1.5 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'text' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20' : hasSelectedSources ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold' : 'bg-emerald-50/50 text-emerald-500 border border-emerald-100 hover:bg-emerald-100/80 hover:text-emerald-600'}`}
+                                      >
+                                        <TypeIcon className="w-4 h-4" />
+                                        {hasSelectedSources && (
+                                          <span className="ml-1 text-[10px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[14px]">
+                                            {dayContent.taskLinkedSources?.[activeIdx]?.length}
+                                          </span>
+                                        )}
+                                      </button>
+                                    )}
+
+                                    {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedDay(dayNum);
+                                          handleTogglePollArrange(dayNum, activeIdx);
+                                        }}
+                                        title={dayContent.taskPollArrange?.[activeIdx] ? "Arrange Poll Active: In Sprint View, participants drag options up/down to reposition and rank them. Click to disable." : "Arrange Poll: In Sprint View, participants drag options up/down to reposition and rank them."}
+                                        className={`p-1.5 rounded-md transition-all flex items-center justify-center ${dayContent.taskPollArrange?.[activeIdx] ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200' : 'bg-gray-100 text-gray-400 hover:text-gray-600'}`}
+                                      >
+                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <polyline points="7 15 12 20 17 15" />
+                                          <polyline points="7 9 12 4 17 9" />
+                                          <line x1="12" y1="4" x2="12" y2="20" />
+                                        </svg>
+                                        {dayContent.taskPollArrange?.[activeIdx] && (
+                                          <span className="ml-1 text-[10px] font-black bg-indigo-800 text-white rounded-full px-1 min-w-[14px]">
+                                            ✓
+                                          </span>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* Specific Input Type buttons (Multi Text, Fill, Spread) */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {(!activeInputType || activeInputType === 'text') && (
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  const currentLabels = dayContent.taskMultiTextLabels?.[activeIdx];
+                                  if (!currentLabels || currentLabels.length === 0) {
+                                    const connectedTags = getAvailableConnectedTagsForDay(dayNum, activeIdx);
+                                    const labelsToUse = connectedTags.length > 0 ? connectedTags : ['Label 1'];
+                                    handleTaskMultiTextLabelsChange(dayNum, activeIdx, labelsToUse);
+                                  } else {
+                                    handleTaskMultiTextLabelsChange(dayNum, activeIdx, null as any);
+                                  }
+                                }}
+                                className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskMultiTextLabels?.[activeIdx] && dayContent.taskMultiTextLabels[activeIdx].length > 0) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                title="Multi Text Option: Add multiple labeled text inputs for participants to answer contextually."
+                              >
+                                {(dayContent.taskMultiTextLabels?.[activeIdx] && dayContent.taskMultiTextLabels[activeIdx].length > 0) ? (
+                                  <>
+                                    <span className="text-[10px] text-primary mr-0.5">●</span>
+                                    <span>Multi Text</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus size={14} />
+                                    <span>Multi Text</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            {(!activeInputType || activeInputType === 'text') && (!dayContent.taskMultiTextLabels?.[activeIdx] || dayContent.taskMultiTextLabels[activeIdx].filter((l: any) => l && String(l).trim()).length === 0) && (
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  const currentFill = dayContent.taskFills?.[activeIdx];
+                                  if (currentFill === undefined || currentFill === null) {
+                                    handleTaskFillChange(dayNum, activeIdx, '');
+                                  } else {
+                                    handleTaskFillChange(dayNum, activeIdx, null as any);
+                                  }
+                                }}
+                                className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskFills?.[activeIdx] !== undefined && dayContent.taskFills?.[activeIdx] !== null) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                title="Fill Option: Pre-fill the participant's text input with pre-written text or prior responses (e.g. m1 step 3 op 1) so they can edit and continue."
+                              >
+                                {(dayContent.taskFills?.[activeIdx] !== undefined && dayContent.taskFills?.[activeIdx] !== null) ? (
+                                  <>
+                                    <span className="text-[10px] text-emerald-500 mr-0.5">●</span>
+                                    <span>Fill</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus size={14} />
+                                    <span>Fill</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            {(!activeInputType || activeInputType === 'text' || activeInputType === 'tags') && isLinkedFromPrevious && (
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDay(dayNum);
+                                  handleToggleSpread(dayNum, activeIdx);
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskSpread?.[activeIdx]) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
+                                title="Spread Option: Receive input from previous linked step to edit/revise."
+                              >
+                                {dayContent.taskSpread?.[activeIdx] ? (
+                                  <>
+                                    <span className="text-[10px] text-primary mr-0.5">●</span>
+                                    <span>Spread</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles size={14} />
+                                    <span>Spread</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bottom Row (Horizontal Line Below): Hint, Footnote, Ask AI, Video, Metadata + Delete action */}
+                        <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                const currentHint = dayContent.taskHints?.[activeIdx];
+                                if (currentHint === undefined || currentHint === null) {
+                                  handleTaskHintChange(dayNum, activeIdx, '');
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskHints?.[activeIdx] !== undefined && dayContent.taskHints?.[activeIdx] !== null) ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                              title="Hint Option: Toggle an optional expandable hint or helper prompt to guide the participant if they get stuck."
+                            >
+                              {(dayContent.taskHints?.[activeIdx] !== undefined && dayContent.taskHints?.[activeIdx] !== null) ? (
+                                <>
+                                  <span className="text-[10px] text-amber-500 mr-0.5">●</span>
+                                  <span>Hint</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  <span>Hint</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                const currentFootnote = dayContent.taskFootnotes?.[activeIdx];
+                                if (currentFootnote === undefined || currentFootnote === null) {
+                                  handleTaskFootnoteChange(dayNum, activeIdx, '');
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskFootnotes?.[activeIdx] !== undefined && dayContent.taskFootnotes?.[activeIdx] !== null) ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                              title="Footnote Option: Add normal text that appears just below the question step."
+                            >
+                              {(dayContent.taskFootnotes?.[activeIdx] !== undefined && dayContent.taskFootnotes?.[activeIdx] !== null) ? (
+                                <>
+                                  <span className="text-[10px] text-indigo-500 mr-0.5">●</span>
+                                  <span>Footnote</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  <span>Footnote</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                const currentAskAi = dayContent.taskAskAis?.[activeIdx];
+                                if (currentAskAi === undefined || currentAskAi === null) {
+                                  handleTaskAskAiChange(dayNum, activeIdx, '');
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskAskAis?.[activeIdx] !== undefined && dayContent.taskAskAis?.[activeIdx] !== null) ? 'bg-purple-50 text-purple-600 border border-purple-200' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50/50'}`}
+                              title="Ask AI Option: Enable Ask AI assistance for participants on this action step with optional custom context."
+                            >
+                              {(dayContent.taskAskAis?.[activeIdx] !== undefined && dayContent.taskAskAis?.[activeIdx] !== null) ? (
+                                <>
+                                  <span className="text-[10px] text-purple-500 mr-0.5">●</span>
+                                  <Sparkles size={12} className="text-purple-600" />
+                                  <span>Ask AI</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  <span>Ask AI</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                const currentVideo = dayContent.taskVideos?.[activeIdx];
+                                if (currentVideo === undefined || currentVideo === null) {
+                                  handleTaskVideoChange(dayNum, activeIdx, { url: '', start: '', end: '' });
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskVideos?.[activeIdx] !== undefined && dayContent.taskVideos?.[activeIdx] !== null) ? 'bg-red-50 text-red-600 border border-red-100' : 'text-gray-400 hover:text-red-600 hover:bg-red-50/50'}`}
+                              title="YouTube Video: Attach a YouTube video to this action step with custom start and end points."
+                            >
+                              {(dayContent.taskVideos?.[activeIdx] !== undefined && dayContent.taskVideos?.[activeIdx] !== null) ? (
+                                <>
+                                  <span className="text-[10px] text-red-500 mr-0.5">●</span>
+                                  <Youtube size={13} className="text-red-500" />
+                                  <span>Video</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  <Youtube size={13} />
+                                  <span>Video</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setSelectedDay(dayNum);
+                                handleToggleStepMetadata(dayNum, activeIdx);
+                              }}
+                              className={`flex items-center gap-1.5 pl-3 pr-2 py-1 text-xs font-bold rounded-lg transition-all ${dayContent.taskMetadataEnabled?.[activeIdx] ? 'bg-purple-50 text-purple-700 border border-purple-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50/50'}`}
+                              title="Metadata Option: Configure dynamic metadata attribute receive or send (save) on this action step. When receive is on for a poll, displays as a poll option."
+                            >
+                              {dayContent.taskMetadataEnabled?.[activeIdx] ? (
+                                <>
+                                  <span className="text-[10px] text-purple-600 mr-0.5">●</span>
+                                  <Tag size={12} className="text-purple-600" />
+                                  <span>Metadata</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Plus size={14} />
+                                  <Tag size={12} />
+                                  <span>Metadata</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
                           {totalSteps > 1 && (
-                            <button
+                            <button 
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1342,373 +2100,15 @@ export default function DailyActionWorkspace({
                                   handleRemoveStepForDay(dayNum, activeIdx);
                                 }
                               }}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete this action step"
+                              className="p-1 px-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50/50 rounded-lg transition-colors flex items-center justify-center ml-1 cursor-pointer"
+                              title="Remove Step: Permanently delete this action step from today's active curriculum list."
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={13} strokeWidth={2} />
                             </button>
                           )}
                         </div>
                       </div>
 
-                      {/* Action Step Input Type Selector */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                              <label className="text-[8px] font-bold text-gray-400 uppercase tracking-wider shrink-0 leading-tight">Input<br />Type</label>
-                              <div className="flex items-center gap-1">
-                                  <div className="flex p-0.5 bg-gray-100 rounded-lg">
-                                      <button 
-                                          type="button"
-                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'text')}
-                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${(!activeInputType || activeInputType === 'text') ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                          title="Text Input: Instructs the participant to enter a freeform text response or reflection."
-                                      >
-                                          Text
-                                      </button>
-                                      <button 
-                                          type="button"
-                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'tags')}
-                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'tags' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                          title="Tags Input: Participants select multi-choice labels/tags to categorize their state or choices."
-                                      >
-                                          Tags
-                                      </button>
-                                      <button 
-                                          type="button"
-                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'poll')}
-                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'poll' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                          title="Poll Input: A multiple-choice poll. Standard polls use static choices; linked follow-ups use dynamic tags chosen earlier."
-                                      >
-                                          Poll
-                                      </button>
-                                      <button 
-                                          type="button"
-                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'mark')}
-                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'mark' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                          title="Mark Complete Input: A simple checklist item that participants can mark as finished once they execute the action step."
-                                      >
-                                          Mark
-                                      </button>
-                                      <button 
-                                          type="button"
-                                          onClick={() => handleTaskPromptTypeChange(dayNum, activeIdx, 'none')}
-                                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${activeInputType === 'none' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                          title="None: Action step with no input field — participants simply read and press next."
-                                      >
-                                          None
-                                      </button>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-
-                    {/* Prompt Input with direct selection assign */}
-                    <div className={`space-y-1.5 ${isLastAssignedPrompt ? 'ring-2 ring-purple-500 ring-offset-2 p-1 rounded-2xl' : ''}`}>
-                      <div className="flex flex-col space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest pl-1">Action Step Prompt</span>
-                        </div>
-                        <textarea 
-                            value={prompt} 
-                            onChange={e => {
-                                setSelectedDay(dayNum);
-                                handleTaskPromptChange(dayNum, activeIdx, updateStepVersionValue(rawPrompt, activeVerIdx, e.target.value));
-                            }} 
-                            rows={2} 
-                            className="w-full px-3 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none text-gray-900 font-medium placeholder:text-gray-400 resize-y transition-all shadow-3xs" 
-                            placeholder={`Action Step ${activeIdx + 1}...`} 
-                        />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        
-                          
-                          {/* Step Relationships Link trigger */}
-                          {(() => {
-                            const precedingTagSteps = (dayContent.taskInputTypes || [])
-                              .map((type, idx) => {
-                                const rawType = String(type || '');
-                                const isPoll = isStepOrSubStepPoll(rawType);
-                                const isTags = rawType.includes('tags');
-                                let resolvedType = 'text';
-                                if (isPoll) resolvedType = 'poll';
-                                else if (isTags) resolvedType = 'tags';
-                                return { type: resolvedType, rawType, idx };
-                              })
-                              .filter(item => item.idx < activeIdx);
-                            
-                            const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
-                            const showSingleLink = activeInputType === 'tags';
-                            
-                            const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
-                            const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
-                            const precedingTextOnlySteps = precedingTagSteps.filter(item => item.type === 'text' || !item.type);
-
-                            const precedingDaysTagOnlySteps = precedingDaysSteps.filter(item => item.type === 'tags');
-                            const precedingDaysPollOnlySteps = precedingDaysSteps.filter(item => item.type === 'poll');
-                            const precedingDaysTextOnlySteps = precedingDaysSteps.filter(item => item.type === 'text' || !item.type);
-
-                            const hasPrecedingForTagLink = activeInputType === 'poll'
-                              ? (precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0)
-                              : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
-                            const hasPrecedingTexts = precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
-
-                            const precedingPollSteps = (dayContent.taskInputTypes || [])
-                              .map((type, idx) => ({ type, idx }))
-                              .filter(item => item.idx < activeIdx && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!dayContent.taskInputTypes || dayContent.taskInputTypes.length === 0))));
-
-                            const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
-                            const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
-                            const showPollBranchLink = precedingPollSteps.length > 0;
-                            const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
-                            const currentPollLink = dayContent.taskPollOptionLinks?.[activeIdx];
-
-                            return (
-                              <div className="flex items-center gap-1.5 ml-1">
-                                {showSingleLink && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      handleToggleLinkToNext(dayNum, activeIdx);
-                                    }}
-                                    title={dayContent.taskLinkedToNext?.[activeIdx] ? "Link Active: This step is linked to dynamically populate choices or follow-ups for the exact next step. Click to disconnect." : "Link Step: Link this step to feed its selected tags/options as active choices or follow-ups for the exact next question."}
-                                    className={`p-1 rounded-md transition-all flex items-center justify-center ${dayContent.taskLinkedToNext?.[activeIdx] ? 'bg-purple-600 text-white shadow-sm' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                  </button>
-                                )}
-                                {showTagLink && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'tag') {
-                                        setActiveLinkSelectorIndex(null);
-                                      } else {
-                                        setActiveLinkSelectorIndex(activeIdx);
-                                        setActiveLinkSelectorType('tag');
-                                      }
-                                    }}
-                                    title={
-                                      activeInputType === 'poll'
-                                        ? (hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding poll step(s). Click to configure or link more dynamic poll source questions.` : "Link Poll Sources: Pull selected options from previous poll steps to populate this question dynamically.")
-                                        : (hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding tag step(s). Click to configure or link more dynamic tag source questions.` : "Link Tag Sources: Pull selected tags from previous tag steps to populate this question dynamically.")
-                                    }
-                                    className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'tag' ? 'bg-purple-650 text-white shadow-sm ring-2 ring-purple-100' : hasSelectedSources ? 'bg-purple-100 text-purple-700 border border-purple-200 font-bold' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M6 20h.01M21 12.1a1 1 0 01-.29.7l-7 7a1 1 0 01-1.4 0l-7-7A1 1 0 015 12.1V5a2 2 0 012-2h7.1a1 1 0 01.7.3l7 7a1 1 0 01.29.7z" />
-                                    </svg>
-                                    {hasSelectedSources && (
-                                      <span className="ml-0.5 text-[9px] font-black bg-purple-600 text-white rounded-full px-1 min-w-[12px]">
-                                        {dayContent.taskLinkedSources?.[activeIdx]?.length}
-                                      </span>
-                                    )}
-                                  </button>
-                                )}
-                                {showTextLink && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      if (activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'text') {
-                                        setActiveLinkSelectorIndex(null);
-                                      } else {
-                                        setActiveLinkSelectorIndex(activeIdx);
-                                        setActiveLinkSelectorType('text');
-                                      }
-                                    }}
-                                    title={hasSelectedSources ? `Connected to ${dayContent.taskLinkedSources?.[activeIdx]?.length} preceding step(s). Click to configure or link more text source questions.` : "Text to Text Link: Pull responses from previous text steps to auto-spread/fill this question."}
-                                    className={`p-1 rounded-md transition-all flex items-center justify-center ${activeLinkSelectorIndex === activeIdx && activeLinkSelectorType === 'text' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/20' : hasSelectedSources ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 font-bold' : 'bg-emerald-50/50 text-emerald-500 border border-emerald-100 hover:bg-emerald-100/80 hover:text-emerald-600'}`}
-                                  >
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="4 7 4 4 20 4 20 7" />
-                                      <line x1="9" y1="20" x2="15" y2="20" />
-                                      <line x1="12" y1="4" x2="12" y2="20" />
-                                    </svg>
-                                    {hasSelectedSources && (
-                                      <span className="ml-0.5 text-[9px] font-black bg-emerald-600 text-white rounded-full px-1 min-w-[12px]">
-                                        {dayContent.taskLinkedSources?.[activeIdx]?.length}
-                                      </span>
-                                    )}
-                                  </button>
-                                )}
-                                
-                                {(activeInputType === 'poll' || isStepOrSubStepPoll(activeInputType)) && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDay(dayNum);
-                                      handleTogglePollArrange(dayNum, activeIdx);
-                                    }}
-                                    title={dayContent.taskPollArrange?.[activeIdx] ? "Arrange Poll Active: In Sprint View, participants drag options up/down to reposition and rank them. Click to disable." : "Arrange Poll: In Sprint View, participants drag options up/down to reposition and rank them."}
-                                    className={`p-1 rounded-md transition-all flex items-center justify-center ${dayContent.taskPollArrange?.[activeIdx] ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200' : 'bg-gray-150 text-gray-400 hover:text-gray-650'}`}
-                                  >
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="7 15 12 20 17 15" />
-                                      <polyline points="7 9 12 4 17 9" />
-                                      <line x1="12" y1="4" x2="12" y2="20" />
-                                    </svg>
-                                    {dayContent.taskPollArrange?.[activeIdx] && (
-                                      <span className="ml-0.5 text-[9px] font-black bg-indigo-800 text-white rounded-full px-1 min-w-[12px]">
-                                        ✓
-                                      </span>
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-
-                        {/* Input Type Specific buttons (Multi Text, Fill, Spread) */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {(!dayContent.taskInputTypes?.[activeIdx] || dayContent.taskInputTypes[activeIdx] === 'text') && (
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                const currentLabels = dayContent.taskMultiTextLabels?.[activeIdx];
-                                if (!currentLabels || currentLabels.length === 0) {
-                                  handleTaskMultiTextLabelsChange(dayNum, activeIdx, ['Label 1']);
-                                } else {
-                                  handleTaskMultiTextLabelsChange(dayNum, activeIdx, null as any);
-                                }
-                              }}
-                              className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskMultiTextLabels?.[activeIdx] && dayContent.taskMultiTextLabels[activeIdx].length > 0) ? 'bg-purple-100 text-purple-705 border border-purple-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                              title="Multi Text fields configuration"
-                            >
-                              <span>Multi Text</span>
-                            </button>
-                          )}
-
-                          {(!dayContent.taskInputTypes?.[activeIdx] || dayContent.taskInputTypes[activeIdx] === 'text') && (!dayContent.taskMultiTextLabels?.[activeIdx] || dayContent.taskMultiTextLabels[activeIdx].filter((l: any) => l && String(l).trim()).length === 0) && (
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                const currentFill = dayContent.taskFills?.[activeIdx];
-                                if (currentFill === undefined || currentFill === null) {
-                                  handleTaskFillChange(dayNum, activeIdx, '');
-                                } else {
-                                  handleTaskFillChange(dayNum, activeIdx, null as any);
-                                }
-                              }}
-                              className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskFills?.[activeIdx] !== undefined && dayContent.taskFills?.[activeIdx] !== null) ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                              title="Fill Option: Pre-fill the participant's text input with pre-written text or prior responses so they can edit and continue."
-                            >
-                              {(dayContent.taskFills?.[activeIdx] !== undefined && dayContent.taskFills?.[activeIdx] !== null) ? (
-                                <>
-                                  <span className="text-[10px] text-emerald-500 mr-0.5">●</span>
-                                  <span>Fill</span>
-                                </>
-                              ) : (
-                                <span>Fill</span>
-                              )}
-                            </button>
-                          )}
-
-                          {(!dayContent.taskInputTypes?.[activeIdx] || dayContent.taskInputTypes[activeIdx] === 'text') && isLinkedFromPrevious && (
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setSelectedDay(dayNum);
-                                handleToggleSpread(dayNum, activeIdx);
-                              }}
-                              className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskSpread?.[activeIdx]) ? 'bg-purple-100 text-purple-705 border border-purple-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                              title="Spread Option: Receive input from previous linked step to edit/revise."
-                            >
-                              {dayContent.taskSpread?.[activeIdx] ? (
-                                <>
-                                  <span className="text-[10px] text-purple-600 mr-0.5">●</span>
-                                  <span>Spread</span>
-                                </>
-                              ) : (
-                                <span>Spread</span>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Bottom Row (Horizontal Line Below): Hint, Footnote, Ask AI, Video, Metadata */}
-                      <div className="flex items-center gap-2 pt-1.5 border-t border-gray-50 flex-wrap">
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            const currentHint = dayContent.taskHints?.[activeIdx];
-                            if (currentHint === undefined || currentHint === null) {
-                              handleTaskHintChange(dayNum, activeIdx, '');
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskHints?.[activeIdx] !== undefined && dayContent.taskHints?.[activeIdx] !== null) ? 'bg-amber-50 text-amber-605 border border-amber-100 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                        >
-                          <span>Hint</span>
-                        </button>
-
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            const currentFootnote = dayContent.taskFootnotes?.[activeIdx];
-                            if (currentFootnote === undefined || currentFootnote === null) {
-                              handleTaskFootnoteChange(dayNum, activeIdx, '');
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskFootnotes?.[activeIdx] !== undefined && dayContent.taskFootnotes?.[activeIdx] !== null) ? 'bg-indigo-50 text-indigo-605 border border-indigo-100 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                        >
-                          <span>Footnote</span>
-                        </button>
-
-                        
-
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            const currentAskAi = dayContent.taskAskAis?.[activeIdx];
-                            if (currentAskAi === undefined || currentAskAi === null) {
-                              handleTaskAskAiChange(dayNum, activeIdx, '');
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskAskAis?.[activeIdx] !== undefined && dayContent.taskAskAis?.[activeIdx] !== null) ? 'bg-purple-50 text-purple-600 border-purple-200 shadow-xs' : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'}`}
-                        >
-                          <Sparkles size={11} className={dayContent.taskAskAis?.[activeIdx] ? 'text-purple-600' : ''} />
-                          <span>Ask AI</span>
-                        </button>
-
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            const currentVideo = dayContent.taskVideos?.[activeIdx];
-                            if (currentVideo === undefined || currentVideo === null) {
-                              handleTaskVideoChange(dayNum, activeIdx, { url: '', start: '', end: '' });
-                            }
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${(dayContent.taskVideos?.[activeIdx] !== undefined && dayContent.taskVideos?.[activeIdx] !== null) ? 'bg-red-50 text-red-600 border border-red-100 shadow-xs' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
-                        >
-                          <Youtube size={12} className={dayContent.taskVideos?.[activeIdx] ? 'text-red-500' : ''} />
-                          <span>Video</span>
-                        </button>
-
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setSelectedDay(dayNum);
-                            handleToggleStepMetadata(dayNum, activeIdx);
-                          }}
-                          className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${dayContent.taskMetadataEnabled?.[activeIdx] ? 'bg-amber-50 text-amber-700 border-amber-200 shadow-xs' : 'text-gray-400 hover:text-amber-700 hover:bg-amber-50/60 border-transparent'}`}
-                          title="Metadata: Configure whether this step receives user metadata (e.g. as a poll option) or sends/saves participant input to their profile metadata."
-                        >
-                          <Sliders size={11} className={dayContent.taskMetadataEnabled?.[activeIdx] ? 'text-amber-600' : ''} />
-                          <span>Metadata</span>
-                          {dayContent.taskMetadataEnabled?.[activeIdx] && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-                          )}
-                        </button>
-                      </div>
                     {/* Multi-Link selector inside card */}
                     {(() => {
                       const rawPrecedingSteps = (dayContent.taskInputTypes || [])
@@ -1738,21 +2138,21 @@ export default function DailyActionWorkspace({
 
                       const precedingMatchingSteps = rawPrecedingSteps.filter(item => {
                         if (isTargetPoll) {
-                          return item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
+                          return item.type === 'poll' || isStepOrSubStepPoll(item.rawType) || item.type === 'tags';
                         } else if (isTargetTag) {
-                          return item.type === 'tags';
+                          return item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                         } else {
-                          return item.type === 'text' || !item.type;
+                          return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                         }
                       });
 
                       const precedingDaysMatchingSteps = rawPrecedingDaysSteps.filter(item => {
                         if (isTargetPoll) {
-                          return item.type === 'poll';
+                          return item.type === 'poll' || item.type === 'tags';
                         } else if (isTargetTag) {
-                          return item.type === 'tags';
+                          return item.type === 'tags' || item.type === 'poll';
                         } else {
-                          return item.type === 'text' || !item.type;
+                          return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll';
                         }
                       });
 
@@ -1766,14 +2166,14 @@ export default function DailyActionWorkspace({
                         const isEarlierExpanded = !expandedStepEarlierDays || !expandedStepEarlierDays[activeIdx] ? false : expandedStepEarlierDays[activeIdx];
 
                         return (
-                          <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-2.5 text-left text-[11px]">
-                            <div className="text-[9px] font-black text-gray-550 uppercase tracking-wider flex items-center justify-between">
+                          <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl animate-fade-in relative z-30 space-y-3 text-left">
+                            <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider flex items-center justify-between">
                               <span>
                                 {isTargetPoll
-                                  ? "Link choices/options from preceding poll steps:"
+                                  ? "Link this question to receive choices/options from preceding poll or tag steps:"
                                   : isTargetTag
-                                    ? "Link choices/options from preceding tag steps:"
-                                    : "Link dynamic responses from preceding text steps:"}
+                                    ? "Link this question to receive choices/options from preceding tag or poll steps:"
+                                    : "Link this question to pull dynamic responses/tags from preceding steps:"}
                               </span>
                               {((dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0) && (
                                 <button 
@@ -1782,26 +2182,27 @@ export default function DailyActionWorkspace({
                                     setSelectedDay(dayNum);
                                     handleClearSourceLinks(dayNum, activeIdx);
                                   }}
-                                  className="p-1 px-2 bg-red-50 hover:bg-red-100 text-red-500 rounded border border-red-100 transition-colors cursor-pointer text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5 ml-auto mr-2"
-                                  title="Clear all links: Disconnect all linked source steps from this question."
+                                  className="p-1 px-2.5 bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-lg border border-red-100 transition-colors cursor-pointer text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ml-auto mr-4"
+                                  title="Delete all links: Disconnect all linked dynamic source steps from this question."
                                 >
-                                  <Trash2 size={8} /> Clear
+                                  <Trash2 size={10} />
+                                  <span>Delete Links</span>
                                 </button>
                               )}
                               <button 
                                 type="button" 
                                 onClick={() => setActiveLinkSelectorIndex(null)}
-                                className="text-gray-400 hover:text-gray-600 font-bold ml-1"
+                                className="text-gray-400 hover:text-gray-600 text-xs font-bold"
                               >
-                                ✕
+                                ✕ Close
                               </button>
                             </div>
 
                             {/* Today's Preceding Steps */}
                             {precedingMatchingSteps.length > 0 && (
-                              <div className="space-y-1">
-                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Today's Preceding Steps:</div>
-                                <div className="flex flex-wrap gap-1.5">
+                              <div className="space-y-1.5">
+                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Today's Preceding Steps:</div>
+                                <div className="flex flex-wrap gap-2">
                                   {precedingMatchingSteps.map(step => {
                                     const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(step.idx);
                                     return (
@@ -1812,14 +2213,18 @@ export default function DailyActionWorkspace({
                                           setSelectedDay(dayNum);
                                           handleToggleSourceLink(dayNum, activeIdx, step.idx);
                                         }}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1 transition-all ${
+                                        className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
                                           isLinked 
-                                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs' 
-                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                            ? 'bg-primary text-white border-primary shadow-sm' 
+                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
                                         }`}
                                       >
                                         <span>Step {step.idx + 1}</span>
-                                        {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                                        {isLinked ? (
+                                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                        ) : (
+                                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                        )}
                                       </button>
                                     );
                                   })}
@@ -1829,9 +2234,9 @@ export default function DailyActionWorkspace({
 
                             {/* Yesterday's steps */}
                             {yesterdaySteps.length > 0 && (
-                              <div className="space-y-1 pt-1 border-t border-gray-200/50">
-                                <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Previous (Move {yesterdayNum}):</div>
-                                <div className="flex flex-wrap gap-1.5">
+                              <div className="space-y-1.5 pt-1.5 border-t border-gray-200/50">
+                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Previous (Move {yesterdayNum}):</div>
+                                <div className="flex flex-wrap gap-2">
                                   {yesterdaySteps.map(step => {
                                     const encodedVal = -(step.day * 100 + step.stepIdx);
                                     const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(encodedVal);
@@ -1843,14 +2248,18 @@ export default function DailyActionWorkspace({
                                           setSelectedDay(dayNum);
                                           handleToggleSourceLink(dayNum, activeIdx, encodedVal);
                                         }}
-                                        className={`px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1 transition-all ${
+                                        className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
                                           isLinked 
-                                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs' 
-                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                            ? 'bg-primary text-white border-primary shadow-sm' 
+                                            : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
                                         }`}
                                       >
                                         <span>Move {step.day} - Step {step.stepIdx + 1}</span>
-                                        {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                                        {isLinked ? (
+                                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                        ) : (
+                                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                        )}
                                       </button>
                                     );
                                   })}
@@ -1860,23 +2269,23 @@ export default function DailyActionWorkspace({
 
                             {/* Earlier days */}
                             {hasEarlier && (
-                              <div className="pt-1 border-t border-gray-200/50">
+                              <div className="pt-1.5 border-t border-gray-200/50">
                                 {!isEarlierExpanded ? (
                                   <button
                                     type="button"
                                     onClick={() => setExpandedStepEarlierDays(prev => ({ ...prev, [activeIdx]: true }))}
-                                    className="text-[9px] font-bold text-purple-600 hover:underline flex items-center gap-1"
+                                    className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
                                   >
                                     ... show more previous moves
                                   </button>
                                 ) : (
-                                  <div className="space-y-2 pt-1">
+                                  <div className="space-y-3">
                                     {Array.from(new Set(earlierSteps.map(s => s.day))).sort((a, b) => b - a).map(pDayNum => {
                                       const daySteps = earlierSteps.filter(s => s.day === pDayNum);
                                       return (
-                                        <div key={pDayNum} className="space-y-1">
-                                          <div className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Move {pDayNum}:</div>
-                                          <div className="flex flex-wrap gap-1.5">
+                                        <div key={pDayNum} className="space-y-1.5">
+                                          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Move {pDayNum}:</div>
+                                          <div className="flex flex-wrap gap-2">
                                             {daySteps.map(step => {
                                               const encodedVal = -(step.day * 100 + step.stepIdx);
                                               const isLinked = dayContent.taskLinkedSources?.[activeIdx]?.includes(encodedVal);
@@ -1888,14 +2297,18 @@ export default function DailyActionWorkspace({
                                                     setSelectedDay(dayNum);
                                                     handleToggleSourceLink(dayNum, activeIdx, encodedVal);
                                                   }}
-                                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border inline-flex items-center gap-1 transition-all ${
+                                                  className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all border flex items-center gap-1.5 ${
                                                     isLinked 
-                                                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs' 
-                                                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                                      ? 'bg-primary text-white border-primary shadow-sm' 
+                                                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50'
                                                   }`}
                                                 >
                                                   <span>Move {step.day} - Step {step.stepIdx + 1}</span>
-                                                  {isLinked && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                                                  {isLinked ? (
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                                  ) : (
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                  )}
                                                 </button>
                                               );
                                             })}
@@ -1907,6 +2320,10 @@ export default function DailyActionWorkspace({
                                 )}
                               </div>
                             )}
+
+                            <p className="text-[9px] font-bold text-gray-400 mt-2 italic">
+                              Click preceding step numbers to toggle. Any tags/options defined in those steps will feed into this step.
+                            </p>
                           </div>
                         );
                       }

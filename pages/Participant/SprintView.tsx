@@ -2207,6 +2207,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const loadedDayRef = useRef<number | null>(null);
   const loadedEnrollmentIdRef = useRef<string | null>(null);
   const lastSavedInputsRef = useRef<string>("");
+  const lastSpreadStepKeyRef = useRef<string>("");
 
   const normalizeStepAnswerForStorage = (
   rawAnswer: any,
@@ -2461,9 +2462,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
   }, [taskInputs, activeTaskIndex, dayContent]);
 
-  const getLinkedTagsForStep = (stepIndex: number): string[] => {
+  const getLinkedTagsForStep = (stepIndex: number, overrideInputs?: string[]): string[] => {
     if (!dayContent) return [];
 
+    const activeInputs = overrideInputs || taskInputs;
     const allTags: string[] = [];
 
     const parseAnswerValues = (val: any, srcType: string): string[] => {
@@ -2514,7 +2516,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           const rawSrcType = dayContent.taskInputTypes?.[srcIndex];
           const srcType = getStepInputType(dayContent, srcIndex, taskInputs, sprint?.dailyContent, enrollment?.progress);
           if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
-            const val = (taskInputs && taskInputs[srcIndex]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[srcIndex];
+            const val = (activeInputs && activeInputs[srcIndex]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[srcIndex];
             if (val) {
               allTags.push(...parseAnswerValues(val, srcType));
             } else {
@@ -2565,11 +2567,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         const tIdx = pollLinkInfo.targetPollIdx;
         const rawSrcType = dayContent.taskInputTypes?.[tIdx];
         const srcType = getStepInputType(dayContent, tIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
-        const val = (taskInputs && taskInputs[tIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[tIdx];
+        const val = (activeInputs && activeInputs[tIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[tIdx];
         if (val) {
           allTags.push(...parseAnswerValues(val, srcType));
         } else {
-          const configuredOpts = getAllStepPollOptions(dayContent, tIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+          const configuredOpts = getAllStepPollOptions(dayContent, tIdx, activeInputs, sprint?.dailyContent, enrollment?.progress);
           if (configuredOpts.length > 0) {
             if (pollLinkInfo.optNum !== undefined && configuredOpts[pollLinkInfo.optNum - 1]) {
               allTags.push(configuredOpts[pollLinkInfo.optNum - 1]);
@@ -2588,9 +2590,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (stepIndex > 0 && dayContent.taskLinkedToNext?.[stepIndex - 1] === true) {
       const prevIdx = stepIndex - 1;
       const rawSrcType = dayContent.taskInputTypes?.[prevIdx];
-      const srcType = getStepInputType(dayContent, prevIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
+      const srcType = getStepInputType(dayContent, prevIdx, activeInputs, sprint?.dailyContent, enrollment?.progress);
       if (isStepOrSubStepPoll(rawSrcType) || srcType === "poll" || srcType === "tags" || srcType.includes("tags") || srcType === "dual") {
-        const val = (taskInputs && taskInputs[prevIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[prevIdx];
+        const val = (activeInputs && activeInputs[prevIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === Number(dayContent.day || 1))?.answers?.[prevIdx];
         if (val) {
           allTags.push(...parseAnswerValues(val, srcType));
         } else {
@@ -2620,8 +2622,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         
         if (dNum === currentDay) {
           const rawSrcType = dayContent.taskInputTypes?.[targetStepIdx];
-          const srcType = getStepInputType(dayContent, targetStepIdx, taskInputs, sprint?.dailyContent, enrollment?.progress);
-          const val = (taskInputs && taskInputs[targetStepIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === dNum)?.answers?.[targetStepIdx];
+          const srcType = getStepInputType(dayContent, targetStepIdx, activeInputs, sprint?.dailyContent, enrollment?.progress);
+          const val = (activeInputs && activeInputs[targetStepIdx]) || enrollment?.progress?.find((p: any) => Number(p.day) === dNum)?.answers?.[targetStepIdx];
           if (val) {
             allTags.push(...parseAnswerValues(val, srcType));
           } else {
@@ -2997,60 +2999,90 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
     if (!dayContent) return "";
 
-    const isSpreadEnabled = dayContent.taskSpread?.[stepIndex] || (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0);
+    const isSpreadEnabled = Boolean(dayContent.taskSpread?.[stepIndex]);
     if (!isSpreadEnabled) return "";
 
     let sources: number[] = [];
     if (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0) {
       sources = dayContent.taskLinkedSources[stepIndex];
     } else if (stepIndex > 0) {
-      sources = [stepIndex];
+      sources = [stepIndex - 1];
     }
+
+    const extractReadableValues = (val: any): string[] => {
+      if (!val) return [];
+      const trimmed = typeof val === 'string' ? val.trim() : '';
+      if (typeof val === 'string') {
+        if (!trimmed) return [];
+        if (trimmed.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === 'object') {
+              const collected: string[] = [];
+              if (Array.isArray(parsed.choices)) collected.push(...parsed.choices.filter(Boolean).map((v: any) => String(v).trim()));
+              if (Array.isArray(parsed.selectedChoices)) collected.push(...parsed.selectedChoices.filter(Boolean).map((v: any) => String(v).trim()));
+              if (typeof parsed.choice === 'string' && parsed.choice.trim()) collected.push(parsed.choice.trim());
+              if (typeof parsed.text === 'string' && parsed.text.trim()) collected.push(parsed.text.trim());
+              if (typeof parsed.answer === 'string' && parsed.answer.trim()) collected.push(parsed.answer.trim());
+              if (collected.length > 0) return Array.from(new Set(collected)).filter(Boolean);
+              return Object.values(parsed).filter(Boolean).map(v => String(v).trim()).filter(Boolean);
+            }
+          } catch (e) {
+            return [trimmed];
+          }
+        }
+        if (trimmed.startsWith("[")) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed.filter(Boolean).map((v: any) => String(v).trim()).filter(Boolean);
+            }
+          } catch (e) {
+            return [trimmed];
+          }
+        }
+        return [trimmed];
+      }
+      if (Array.isArray(val)) {
+        return val.filter(Boolean).map((v: any) => String(v).trim()).filter(Boolean);
+      }
+      return [String(val).trim()].filter(Boolean);
+    };
 
     const texts: string[] = [];
     sources.forEach(srcRef => {
-      let srcIndex = srcRef > 0 ? srcRef - 1 : srcRef;
-      if (srcRef > 0 && srcRef <= currentInputs.length) {
-        srcIndex = srcRef - 1;
+      if (typeof srcRef !== 'number') return;
+      let val: any = "";
+      if (srcRef >= 0) {
+        val = currentInputs[srcRef] || dayProgress?.answers?.[srcRef];
+      } else {
+        const absVal = Math.abs(srcRef);
+        const targetDay = Math.floor(absVal / 100);
+        const targetStepIdx = absVal % 100;
+        const targetProgress = enrollment?.progress?.find((p) => Number(p.day) === targetDay);
+        val = targetProgress?.answers?.[targetStepIdx];
       }
-      if (srcIndex >= 0 && srcIndex < currentInputs.length && currentInputs[srcIndex]) {
-        const val = currentInputs[srcIndex];
-        if (val) {
-          if (val.startsWith("{")) {
-            try {
-              const parsed = JSON.parse(val);
-              const parts = Object.values(parsed).filter(Boolean).map(v => String(v));
-              texts.push(parts.join(", "));
-            } catch (e) {
-              texts.push(val);
-            }
-          } else if (val.startsWith("[")) {
-            try {
-              const parsed = JSON.parse(val);
-              if (Array.isArray(parsed)) {
-                texts.push(parsed.join(", "));
-              } else {
-                texts.push(val);
-              }
-            } catch (e) {
-              texts.push(val);
-            }
-          } else {
-            texts.push(val);
-          }
-        }
+      if (val) {
+        texts.push(...extractReadableValues(val));
       }
     });
 
-    return texts.join(", ");
+    if (texts.length === 0) {
+      const linkedTags = getLinkedTagsForStep(stepIndex, currentInputs);
+      if (linkedTags.length > 0) {
+        return linkedTags.join(", ");
+      }
+    }
+
+    return Array.from(new Set(texts)).filter(Boolean).join(", ");
   };
 
   const getSpreadTagsForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
     if (!dayContent) return "";
-    const isSpreadEnabled = dayContent.taskSpread?.[stepIndex] || (Array.isArray(dayContent.taskLinkedSources?.[stepIndex]) && dayContent.taskLinkedSources[stepIndex].length > 0);
+    const isSpreadEnabled = Boolean(dayContent.taskSpread?.[stepIndex]);
     if (!isSpreadEnabled) return "";
 
-    const tags = getLinkedTagsForStep(stepIndex);
+    const tags = getLinkedTagsForStep(stepIndex, currentInputs);
     if (tags && tags.length > 0) {
       return JSON.stringify(tags);
     }
@@ -3334,16 +3366,16 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
 
     for (let idx = 0; idx < promptsLength; idx++) {
-      if (!loaded[idx] || loaded[idx].trim() === "") {
+      if (!loaded[idx] || loaded[idx].trim() === "" || loaded[idx] === "[]") {
         const inputType = String(dayContent?.taskInputTypes?.[idx] || "").trim().toLowerCase();
-        const isSpreadActive = dayContent?.taskSpread?.[idx] || (Array.isArray(dayContent?.taskLinkedSources?.[idx]) && dayContent.taskLinkedSources[idx].length > 0);
+        const isSpreadActive = Boolean(dayContent?.taskSpread?.[idx]);
         if (isSpreadActive) {
           if (inputType === "tags") {
             const spreadTags = getSpreadTagsForLoadedInputs(idx, loaded);
             if (spreadTags) loaded[idx] = spreadTags;
           } else {
             const spreadText = getSpreadTextForLoadedInputs(idx, loaded);
-            const fillText = dayContent?.taskFills?.[idx] ? formatInterpolatedText(dayContent.taskFills[idx], dayContent, loaded, sprint?.dailyContent, undefined, user) : "";
+            const fillText = dayContent?.taskFills?.[idx] ? formatInterpolatedText(dayContent.taskFills[idx], dayContent, loaded, sprint?.dailyContent, enrollment?.progress, user) : "";
             if (fillText) {
               loaded[idx] = fillText;
             } else if (spreadText) {
@@ -3351,12 +3383,13 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             }
           }
         } else {
-          const fillText = dayContent?.taskFills?.[idx] ? formatInterpolatedText(dayContent.taskFills[idx], dayContent, loaded, sprint?.dailyContent, undefined, user) : "";
+          const fillText = dayContent?.taskFills?.[idx] ? formatInterpolatedText(dayContent.taskFills[idx], dayContent, loaded, sprint?.dailyContent, enrollment?.progress, user) : "";
           if (fillText) loaded[idx] = fillText;
         }
       }
     }
 
+    lastSpreadStepKeyRef.current = "";
     setTaskInputs(loaded);
     setActiveTaskIndex(0);
     setIsFullBleed(false);
@@ -3369,6 +3402,48 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }
     lastSavedInputsRef.current = JSON.stringify(loaded);
   }, [viewingDay, enrollment, sprint, dayProgress, dayContent]);
+
+  // Reactive Spread / Fill prefill when navigating onto a step within the day
+  useEffect(() => {
+    if (!dayContent || !taskInputs || dayProgress?.completed) return;
+    if (loadedDayRef.current !== viewingDay) return;
+
+    const visitKey = `${viewingDay}-${activeTaskIndex}`;
+    if (lastSpreadStepKeyRef.current === visitKey) return;
+    lastSpreadStepKeyRef.current = visitKey;
+
+    const type = String(dayContent.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
+    const isText = type === "text" || type === "" || type === "undefined";
+    const isTags = type === "tags";
+    const isSpreadActive = Boolean(dayContent.taskSpread?.[activeTaskIndex]);
+
+    if ((isText || isTags) && !isMultiTextStep(activeTaskIndex)) {
+      const currentValue = taskInputs[activeTaskIndex];
+      if (!currentValue || currentValue.trim() === "" || currentValue === "[]") {
+        let prefillVal = "";
+        if (isTags) {
+          if (isSpreadActive) {
+            prefillVal = getSpreadTagsForLoadedInputs(activeTaskIndex, taskInputs);
+          }
+        } else {
+          const rawFill = dayContent.taskFills?.[activeTaskIndex];
+          const fillValue = rawFill ? formatInterpolatedText(rawFill, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user) : "";
+          const spreadValue = isSpreadActive ? getSpreadTextForLoadedInputs(activeTaskIndex, taskInputs) : "";
+          prefillVal = fillValue || spreadValue;
+        }
+
+        if (prefillVal && prefillVal.trim() !== "" && prefillVal !== "[]") {
+          setTaskInputs(prev => {
+            const cur = prev[activeTaskIndex];
+            if (cur && cur.trim() !== "" && cur !== "[]") return prev;
+            const updated = [...prev];
+            updated[activeTaskIndex] = prefillVal;
+            return updated;
+          });
+        }
+      }
+    }
+  }, [activeTaskIndex, viewingDay, dayContent, taskInputs, enrollment?.progress, dayProgress?.completed, sprint?.dailyContent, user]);
 
   // Debounced autosave hook for participant inputs
   useEffect(() => {
@@ -4083,7 +4158,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         return val.trim().length > 0;
       }
       
-      if (isLinkedTextStep(i)) {
+      if (!dayContent?.taskSpread?.[i] && isLinkedTextStep(i)) {
         const tags = getLinkedTagsForStep(i);
         if (tags.length > 0) {
           try {
@@ -5547,6 +5622,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
                               {/* Poll to Tag Selectable & Navigatable Tags above footnote */}
                               {(() => {
+                                if (dayContent?.taskSpread?.[i] && (effectiveInputType === "tags" || effectiveInputType === "text" || !effectiveInputType)) return null;
                                 const tags = getLinkedTagsForStep(i);
                                 if (tags.length === 0) return null;
                                 const activeTagIdx = activeTagIndexMap[i] || 0;
@@ -6250,7 +6326,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         );
                                       })()}
                                     </div>
-                                  ) : isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                  ) : !dayContent?.taskSpread?.[i] && isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
                                     <div className="space-y-4 animate-fade-in text-left">
                                       {(() => {
                                         const tags = getLinkedTagsForStep(i);
@@ -6655,7 +6731,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                         } else if (!isNote && !isNone && !!val) {
                                           if (isTags || (effectiveInputType === "poll" && !!dayContent.taskPollMultiSelect?.[i])) {
                                             stepCompleted = val !== "[]" && val !== "";
-                                          } else if (isLinkedTextStep(i)) {
+                                          } else if (!dayContent?.taskSpread?.[i] && isLinkedTextStep(i)) {
                                             const tags = getLinkedTagsForStep(i);
                                             if (tags.length > 0) {
                                               try {
