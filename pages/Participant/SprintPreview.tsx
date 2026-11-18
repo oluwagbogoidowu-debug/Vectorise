@@ -29,6 +29,7 @@ import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import { ArrangePollOptions } from '../../src/components/ArrangePollOptions';
 import { userIdentificationService } from '../../services/userIdentificationService';
 import TagInput from '../../components/TagInput';
+import { FullBleedProgressNoteSlide } from '../../components/FullBleedProgressNoteSlide';
 
 const AutoGrowingTextarea: React.FC<{
   value: string;
@@ -237,6 +238,11 @@ const SprintPreview: React.FC = () => {
     const isDayCompleted = completedDays.includes(previewDay);
     const isCoachPreview = location.pathname.startsWith('/coach') || (user as any)?.role === 'coach' || user?.role === UserRole.COACH || (user as any)?.isCoach || (user as any)?.accountType === 'coach';
     const [showLockModal, setShowLockModal] = useState(false);
+    const [pendingProgressNoteSlide, setPendingProgressNoteSlide] = useState<{
+        day: number;
+        formattedNote: string;
+        onContinue: () => void;
+    } | null>(null);
     const [revealedHints, setRevealedHints] = useState<Record<number, boolean>>({});
     const [isInsightExpanded, setIsInsightExpanded] = useState(true);
     const [showBottomCancelConfirm, setShowBottomCancelConfirm] = useState(false);
@@ -437,8 +443,9 @@ const SprintPreview: React.FC = () => {
 
     const handleCompletePreviewDay = async () => {
         const isCoachPreview = location.pathname.startsWith('/coach') || (user as any)?.role === 'coach' || user?.role === UserRole.COACH || (user as any)?.isCoach || (user as any)?.accountType === 'coach';
+        const currentDayContent = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === previewDay) : day1Content;
 
-        // When unauthenticated user (not yet signed up) reaches Move 1 completion, strictly bring up the bottom sign up modal bar to continue
+        // When unauthenticated user (not yet signed up) reaches Move 1 completion, show Progress Note slide if set, then bring up bottom sign up modal bar
         if (!user && !isCoachPreview && previewDay >= 1) {
             const sId = sprint?.id || sprintId;
             const effectiveInputs = getEffectiveTaskInputs();
@@ -458,8 +465,32 @@ const SprintPreview: React.FC = () => {
             };
             localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
 
-            setShowLockModal(true);
-            setBottomModalStep(1);
+            const rawProgressNote = (currentDayContent?.progressNote || day1Content?.progressNote || '').trim();
+            const formattedProgressNote = rawProgressNote
+                ? formatInterpolatedText(
+                    rawProgressNote,
+                    currentDayContent || day1Content,
+                    effectiveInputs,
+                    sprint?.dailyContent,
+                    nextAllInputs,
+                    user
+                  )
+                : '';
+
+            const openAuthBottomBar = () => {
+                setShowLockModal(true);
+                setBottomModalStep(1);
+            };
+
+            if (formattedProgressNote && formattedProgressNote.trim()) {
+                setPendingProgressNoteSlide({
+                    day: previewDay,
+                    formattedNote: formattedProgressNote,
+                    onContinue: openAuthBottomBar,
+                });
+            } else {
+                openAuthBottomBar();
+            }
             return;
         }
 
@@ -522,12 +553,12 @@ const SprintPreview: React.FC = () => {
             }
         }
 
-        const currentDayContent = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(dc => dc.day === previewDay) : undefined;
-
         const daySuccessState = { 
             day: previewDay, 
             coinsUnlocked: user ? 10 * nextCompleted.length : 10, 
             bridgeNote: currentDayContent?.bridgeNote || day1Content?.bridgeNote,
+            taskInputs: effectiveInputs,
+            allDaysInputs: nextAllInputs,
             sprintId: sprint?.id || sprintId,
             sprint: sprint,
             enrollmentId: enrollmentId,
@@ -539,7 +570,32 @@ const SprintPreview: React.FC = () => {
         if (targetTrackId && previewDay === 1) {
             sprintAnalyticsService.trackMove1Success(targetTrackId, user?.id);
         }
-        navigate('/participant/day-success', { state: daySuccessState, replace: true });
+
+        const rawProgressNote = (currentDayContent?.progressNote || day1Content?.progressNote || '').trim();
+        const formattedProgressNote = rawProgressNote
+            ? formatInterpolatedText(
+                rawProgressNote,
+                currentDayContent || day1Content,
+                effectiveInputs,
+                sprint?.dailyContent,
+                nextAllInputs,
+                user
+              )
+            : '';
+
+        const proceedToDaySuccess = () => {
+            navigate('/participant/day-success', { state: daySuccessState, replace: true });
+        };
+
+        if (formattedProgressNote && formattedProgressNote.trim()) {
+            setPendingProgressNoteSlide({
+                day: previewDay,
+                formattedNote: formattedProgressNote,
+                onContinue: proceedToDaySuccess,
+            });
+        } else {
+            proceedToDaySuccess();
+        }
     };
 
     const prefilledEmail = location.state?.prefilledEmail || localStorage.getItem('guest_email');
@@ -3477,6 +3533,17 @@ const SprintPreview: React.FC = () => {
                 </AnimatePresence>,
                 document.body
             )}
+            <FullBleedProgressNoteSlide
+                isOpen={!!pendingProgressNoteSlide}
+                day={pendingProgressNoteSlide?.day || previewDay}
+                noteText={pendingProgressNoteSlide?.formattedNote || ''}
+                isCoachPreview={isCoachPreview}
+                onContinue={() => {
+                    const next = pendingProgressNoteSlide?.onContinue;
+                    setPendingProgressNoteSlide(null);
+                    if (next) next();
+                }}
+            />
             <ActionStepConfirmModal
                 isOpen={confirmMarkStepIndex !== null}
                 onConfirm={() => {

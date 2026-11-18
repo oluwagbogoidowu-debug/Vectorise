@@ -501,6 +501,7 @@ export interface DailyContent {
   mirrorFraming?: string[];
   mirrorParaphrases?: string[];
   mirrorDisabledSteps?: boolean[];
+  progressNote?: string;
   bridgeNote?: string;
   completionNote?: string;
 }

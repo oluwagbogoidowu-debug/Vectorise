@@ -5807,6 +5807,156 @@ const EditSprint: React.FC = () => {
                         </>
                     )}
 
+                    {/* Progress Note Section - Shown as full-bleed last slide after clicking Done in action step */}
+                    {(() => {
+                        const progressTokens = getHintTokensForBridgeNote(selectedDay, sprint.dailyContent, currentContent);
+                        const stepCodingTokens = progressTokens.filter(t => t.stepNum > 0);
+                        const metadataCodingTokens = progressTokens.filter(
+                            t => t.stepNum === 0 && (t.token === '{Metadata}' || t.token.toLowerCase().includes('receive'))
+                        );
+                        const progressValidation = validateStepPlaceholders(
+                            currentContent.progressNote || '',
+                            999,
+                            currentContent.taskInputTypes || [],
+                            currentContent.taskPollOptions,
+                            selectedDay,
+                            sprint.dailyContent,
+                            true
+                        );
+                        const previewProgressText = formatInterpolatedText(
+                            currentContent.progressNote || '',
+                            currentContent,
+                            null,
+                            sprint.dailyContent
+                        );
+                        const insertIntoProgressNote = (token: string) => {
+                            const textarea = document.getElementById('edit-sprint-progress-note-textarea') as HTMLTextAreaElement | null;
+                            const currentVal = currentContent.progressNote || '';
+                            if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
+                                const before = currentVal.slice(0, start);
+                                const after = currentVal.slice(end);
+                                const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+                                const needsTrailingSpace = after.length > 0 && !/^\s/.test(after);
+                                const inserted = `${needsLeadingSpace ? ' ' : ''}${token}${needsTrailingSpace ? ' ' : ''}`;
+                                const nextVal = before + inserted + after;
+                                handleContentChange('progressNote', nextVal);
+                                const nextCursorPos = before.length + inserted.length;
+                                requestAnimationFrame(() => {
+                                    const el = document.getElementById('edit-sprint-progress-note-textarea') as HTMLTextAreaElement | null;
+                                    if (el) {
+                                        el.focus();
+                                        el.setSelectionRange(nextCursorPos, nextCursorPos);
+                                    }
+                                });
+                            } else {
+                                insertHintToken(currentVal, (val) => handleContentChange('progressNote', val), token);
+                            }
+                        };
+
+                        return (
+                            <div className="bg-white border border-gray-100 rounded-[2rem] p-6 shadow-sm space-y-3 mt-6" id="tour-step-progress-note">
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+                                        <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                                            Progress Note (Last Action Step Slide Before Bridge)
+                                        </span>
+                                    </div>
+                                    {progressValidation.hasPlaceholders && (
+                                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${progressValidation.isValid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                            {progressValidation.isValid ? 'Valid dynamic placeholders' : 'Invalid placeholder'}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                                    Shown as a full-bleed slide right after participants click Done in Move {selectedDay}'s action step. Clicking Continue takes them to the Bridge Card or Move Success page. Inject Metadata and M-Step coding below.
+                                </p>
+
+                                {isAdmin && !isFoundational && originalSprint && (
+                                    <DiffHighlight 
+                                        label="Progress Note" 
+                                        original={Array.isArray(originalSprint.dailyContent) ? originalSprint.dailyContent.find(c => c.day === selectedDay)?.progressNote : undefined} 
+                                        updated={currentContent.progressNote} 
+                                    />
+                                )}
+                                <textarea
+                                    id="edit-sprint-progress-note-textarea"
+                                    value={currentContent.progressNote || ''}
+                                    onChange={(e) => handleContentChange('progressNote', e.target.value)}
+                                    rows={3}
+                                    className={editorInputClasses}
+                                    placeholder="Write a progress reflection summarizing their action step (e.g. You chose {M1 Step 1} for {Metadata Primary Goal receive})..."
+                                />
+
+                                {/* Inject M-Step Coding & Metadata Tokens */}
+                                <div className="bg-gray-50/80 border border-gray-100 rounded-2xl p-3 space-y-2.5">
+                                    {stepCodingTokens.length > 0 && (
+                                        <div className="space-y-1.5">
+                                            <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 block">
+                                                Inject Move / Step Coding:
+                                            </span>
+                                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                                {stepCodingTokens.map((tk) => (
+                                                    <button
+                                                        key={tk.token}
+                                                        type="button"
+                                                        onClick={() => insertIntoProgressNote(tk.token)}
+                                                        className="px-2 py-1 text-[10px] font-bold bg-white hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 border border-gray-200 hover:border-emerald-300 rounded-lg transition-all cursor-pointer font-mono shadow-2xs"
+                                                        title={`Insert ${tk.token} at cursor`}
+                                                    >
+                                                        + {tk.token}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {metadataCodingTokens.length > 0 && (
+                                        <div className="space-y-1.5 pt-1 border-t border-gray-200/60">
+                                            <span className="text-[9px] font-black uppercase tracking-wider text-purple-700 block">
+                                                Inject Metadata:
+                                            </span>
+                                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                                {metadataCodingTokens.map((tk) => (
+                                                    <button
+                                                        key={tk.token}
+                                                        type="button"
+                                                        onClick={() => insertIntoProgressNote(tk.token)}
+                                                        className="px-2 py-1 text-[10px] font-bold bg-purple-50/70 hover:bg-purple-100 text-purple-800 border border-purple-200/80 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                                        title={`Insert ${tk.token} at cursor`}
+                                                    >
+                                                        + {tk.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Validation warning if invalid */}
+                                {!progressValidation.isValid && progressValidation.invalidReason && (
+                                    <p className="text-[10px] text-rose-600 font-bold bg-rose-50 p-2.5 rounded-xl border border-rose-100">
+                                        {progressValidation.invalidReason}
+                                    </p>
+                                )}
+
+                                {/* Live Interpolated Preview */}
+                                {currentContent.progressNote && currentContent.progressNote.trim() && (
+                                    <div className="bg-emerald-50/40 border border-emerald-100/60 rounded-xl p-3 text-left">
+                                        <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
+                                            Participant Slide Preview:
+                                        </span>
+                                        <p className="text-xs text-gray-800 italic font-medium whitespace-pre-line">
+                                            "{previewProgressText || currentContent.progressNote}"
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
+
                     {/* Bridge Note Section - Only for moves before the last move of the sprint */}
                     {selectedDay < (sprint.duration || 7) && (() => {
                         const bridgeTokens = getHintTokensForBridgeNote(selectedDay, sprint.dailyContent, currentContent);

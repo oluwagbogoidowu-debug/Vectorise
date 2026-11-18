@@ -280,7 +280,8 @@ const DaySuccessPage: React.FC = () => {
         dayContent,
         location.state?.taskInputs,
         location.state?.sprint?.dailyContent || location.state?.allDaysContent,
-        location.state?.enrollment?.progress || location.state?.allDaysInputs
+        location.state?.enrollment?.progress || location.state?.allDaysInputs,
+        user
       )
     : '';
 
@@ -295,7 +296,8 @@ const DaySuccessPage: React.FC = () => {
         dayContent,
         location.state?.taskInputs,
         location.state?.sprint?.dailyContent || location.state?.allDaysContent,
-        location.state?.enrollment?.progress || location.state?.allDaysInputs
+        location.state?.enrollment?.progress || location.state?.allDaysInputs,
+        user
       )
     : '';
 

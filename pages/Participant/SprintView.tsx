@@ -40,6 +40,7 @@ import { getEffectiveSprintPricing, doesPreviewEnrollmentRequirePayment } from "
 import { paymentService } from "../../services/paymentService";
 import BottomModalCoinCards from "../../components/BottomModalCoinCards";
 import PreviewPaymentBottomModal from "../../components/PreviewPaymentBottomModal";
+import { FullBleedProgressNoteSlide } from "../../components/FullBleedProgressNoteSlide";
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
@@ -996,6 +997,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
+  const [pendingProgressNoteSlide, setPendingProgressNoteSlide] = useState<{
+    day: number;
+    formattedNote: string;
+    onContinue: () => void;
+  } | null>(null);
   const [isDayCompletionModalOpen, setIsDayCompletionModalOpen] =
     useState(false);
   const [isMirrorReportModalOpen, setIsMirrorReportModalOpen] = useState(false);
@@ -3854,33 +3860,57 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           sprintAnalyticsService.trackMove1Success(currentSprintId, user?.id);
         }
 
-        if (isLastDay && updatedProgress.every((p) => p.completed)) {
-          if (currentSprintId) {
-            sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
-          }
-          setIsCompletionModalOpen(true);
-        } else {
-          navigate('/participant/day-success', { 
-            state: { 
-              day: viewingDay, 
-              coinsUnlocked: viewingDay === 1 ? 10 : 0, 
-              bridgeNote: dayContent?.bridgeNote,
-              sprintId: sprint?.id || previewSprintId,
-              sprint: sprint,
-              enrollment: updatedEnrollment,
-              taskInputs: taskInputs,
-              isPreview: true,
-              returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
-            } 
-          });
-        }
+        const rawPreviewProgressNote = dayContent?.progressNote?.trim();
+        const formattedPreviewProgressNote = rawPreviewProgressNote
+          ? formatInterpolatedText(
+              rawPreviewProgressNote,
+              dayContent,
+              sanitizedInputs,
+              sprint?.dailyContent,
+              updatedProgress,
+              user
+            )
+          : '';
 
-        if (dayContent?.mirrorActive) {
-          if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
-          mirrorTimerRef.current = setTimeout(() => {
-            setIsDayCompletionModalOpen(false);
-            setIsMirrorReportModalOpen(true);
-          }, 7000);
+        const proceedPreviewTransition = () => {
+          if (isLastDay && updatedProgress.every((p) => p.completed)) {
+            if (currentSprintId) {
+              sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
+            }
+            setIsCompletionModalOpen(true);
+          } else {
+            navigate('/participant/day-success', { 
+              state: { 
+                day: viewingDay, 
+                coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+                bridgeNote: dayContent?.bridgeNote,
+                sprintId: sprint?.id || previewSprintId,
+                sprint: sprint,
+                enrollment: updatedEnrollment,
+                taskInputs: taskInputs,
+                isPreview: true,
+                returnToPreviewUrl: `/coach/sprint/preview/${sprint?.id || previewSprintId}`
+              } 
+            });
+          }
+
+          if (dayContent?.mirrorActive) {
+            if (mirrorTimerRef.current) clearTimeout(mirrorTimerRef.current);
+            mirrorTimerRef.current = setTimeout(() => {
+              setIsDayCompletionModalOpen(false);
+              setIsMirrorReportModalOpen(true);
+            }, 7000);
+          }
+        };
+
+        if (formattedPreviewProgressNote && formattedPreviewProgressNote.trim()) {
+          setPendingProgressNoteSlide({
+            day: viewingDay,
+            formattedNote: formattedPreviewProgressNote,
+            onContinue: proceedPreviewTransition,
+          });
+        } else {
+          proceedPreviewTransition();
         }
 
         setIsSubmitting(false);
@@ -3951,21 +3981,46 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
         triggerHaptic(hapticPatterns.success);
 
-        if (isLastDay && updatedProgress.every((p) => p.completed)) {
-          setIsCompletionModalOpen(true);
-        } else {
-          navigate('/participant/day-success', { 
-            state: { 
-              day: viewingDay, 
-              coinsUnlocked: viewingDay === 1 ? 10 : 0, 
-              bridgeNote: dayContent?.bridgeNote,
-              completionNote: dayContent?.completionNote,
-              enrollmentId: enrollment.id,
-              sprintId: enrollment.sprint_id,
-              sprint: sprint,
-              enrollment: { ...enrollment, progress: updatedProgress, last_activity_at: timestamp }
-            } 
+        const rawOfflineProgressNote = dayContent?.progressNote?.trim();
+        const formattedOfflineProgressNote = rawOfflineProgressNote
+          ? formatInterpolatedText(
+              rawOfflineProgressNote,
+              dayContent,
+              sanitizedInputs,
+              sprint?.dailyContent,
+              updatedProgress,
+              user
+            )
+          : '';
+
+        const proceedOfflineTransition = () => {
+          if (isLastDay && updatedProgress.every((p) => p.completed)) {
+            setIsCompletionModalOpen(true);
+          } else {
+            navigate('/participant/day-success', { 
+              state: { 
+                day: viewingDay, 
+                coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+                bridgeNote: dayContent?.bridgeNote,
+                completionNote: dayContent?.completionNote,
+                taskInputs: sanitizedInputs,
+                enrollmentId: enrollment.id,
+                sprintId: enrollment.sprint_id,
+                sprint: sprint,
+                enrollment: { ...enrollment, progress: updatedProgress, last_activity_at: timestamp }
+              } 
+            });
+          }
+        };
+
+        if (formattedOfflineProgressNote && formattedOfflineProgressNote.trim()) {
+          setPendingProgressNoteSlide({
+            day: viewingDay,
+            formattedNote: formattedOfflineProgressNote,
+            onContinue: proceedOfflineTransition,
           });
+        } else {
+          proceedOfflineTransition();
         }
 
         setIsSubmitting(false);
@@ -4046,22 +4101,47 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         sprintAnalyticsService.trackMove1Success(enrollment.sprint_id, user.id);
       }
 
-      if (isLastDay && updatedProgress.every((p) => p.completed)) {
-        sprintAnalyticsService.trackSprintCompletion(enrollment.sprint_id, user.id);
-        setIsCompletionModalOpen(true);
-      } else {
-        navigate('/participant/day-success', { 
-          state: { 
-            day: viewingDay, 
-            coinsUnlocked: viewingDay === 1 ? 10 : 0, 
-            bridgeNote: dayContent?.bridgeNote,
-            completionNote: dayContent?.completionNote,
-            enrollmentId: enrollment.id,
-            sprintId: enrollment.sprint_id,
-            sprint: sprint,
-            enrollment: { ...enrollment, progress: updatedProgress, last_activity_at: timestamp }
-          } 
+      const rawOnlineProgressNote = dayContent?.progressNote?.trim();
+      const formattedOnlineProgressNote = rawOnlineProgressNote
+        ? formatInterpolatedText(
+            rawOnlineProgressNote,
+            dayContent,
+            sanitizedInputs,
+            sprint?.dailyContent,
+            updatedProgress,
+            user
+          )
+        : '';
+
+      const proceedOnlineTransition = () => {
+        if (isLastDay && updatedProgress.every((p) => p.completed)) {
+          sprintAnalyticsService.trackSprintCompletion(enrollment.sprint_id, user.id);
+          setIsCompletionModalOpen(true);
+        } else {
+          navigate('/participant/day-success', { 
+            state: { 
+              day: viewingDay, 
+              coinsUnlocked: viewingDay === 1 ? 10 : 0, 
+              bridgeNote: dayContent?.bridgeNote,
+              completionNote: dayContent?.completionNote,
+              taskInputs: sanitizedInputs,
+              enrollmentId: enrollment.id,
+              sprintId: enrollment.sprint_id,
+              sprint: sprint,
+              enrollment: { ...enrollment, progress: updatedProgress, last_activity_at: timestamp }
+            } 
+          });
+        }
+      };
+
+      if (formattedOnlineProgressNote && formattedOnlineProgressNote.trim()) {
+        setPendingProgressNoteSlide({
+          day: viewingDay,
+          formattedNote: formattedOnlineProgressNote,
+          onContinue: proceedOnlineTransition,
         });
+      } else {
+        proceedOnlineTransition();
       }
 
       // Trigger push permission request if it's the first submission or based on logic
@@ -4558,6 +4638,18 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         sprint={sprint}
         coach={coach}
         runNumber={currentRunNumber}
+      />
+      <FullBleedProgressNoteSlide
+        isOpen={!!pendingProgressNoteSlide}
+        day={pendingProgressNoteSlide?.day || viewingDay}
+        noteText={pendingProgressNoteSlide?.formattedNote || ''}
+        isCoachPreview={isPreview}
+        onExitPreview={isPreview ? handleExitPreview : undefined}
+        onContinue={() => {
+          const next = pendingProgressNoteSlide?.onContinue;
+          setPendingProgressNoteSlide(null);
+          if (next) next();
+        }}
       />
       <ActionStepConfirmModal
         isOpen={confirmMarkStepIndex !== null}

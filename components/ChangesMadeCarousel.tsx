@@ -189,6 +189,28 @@ export function detectSprintChanges(original: Sprint | null, current: Sprint): S
       }
     }
 
+    // Check Progress Note
+    const origProgress = normalize(origDay?.progressNote);
+    const currProgress = normalize(currDay?.progressNote);
+    if (origProgress !== currProgress) {
+      const snippet = extractContextSnippet(origProgress, currProgress);
+      items.push({
+        id: `move-${dayNum}-progress`,
+        category: 'bridge',
+        day: dayNum,
+        title: `Move ${dayNum} Progress Note Changes Made`,
+        badge: `Move ${dayNum} • Progress Note`,
+        originalValue: origProgress,
+        updatedValue: currProgress,
+        originalSnippet: snippet.originalSnippet,
+        updatedSnippet: snippet.updatedSnippet,
+        isFullText: snippet.isFullText,
+        linesBeforeHidden: snippet.linesBeforeHidden,
+        linesAfterHidden: snippet.linesAfterHidden,
+        changeType: !origProgress ? 'added' : !currProgress ? 'removed' : 'modified',
+      });
+    }
+
     // Check Bridge Note
     const origBridge = normalize(origDay?.bridgeNote);
     const currBridge = normalize(currDay?.bridgeNote);

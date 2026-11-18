@@ -3457,6 +3457,154 @@ export default function DailyActionWorkspace({
                 );
               })()}
 
+                  {/* Progress Note Section - Shown as full-bleed last slide after clicking Done in action step */}
+                  {(() => {
+                    const progressTokens = getHintTokensForBridgeNote(dayNum, sprint?.dailyContent, dayContent);
+                    const stepCodingTokens = progressTokens.filter(t => t.stepNum > 0);
+                    const metadataCodingTokens = progressTokens.filter(
+                      t => t.stepNum === 0 && (t.token === '{Metadata}' || t.token.toLowerCase().includes('receive'))
+                    );
+                    const progressValidation = validateStepPlaceholders(
+                      dayContent.progressNote || '',
+                      999,
+                      dayContent.taskInputTypes || [],
+                      dayContent.taskPollOptions,
+                      dayNum,
+                      sprint?.dailyContent,
+                      true
+                    );
+                    const previewProgressText = formatInterpolatedText(
+                      dayContent.progressNote || '',
+                      dayContent,
+                      null,
+                      sprint?.dailyContent
+                    );
+                    const textareaId = `smart-progress-note-textarea-${dayNum}`;
+                    const insertIntoSmartProgressNote = (token: string) => {
+                      setSelectedDay(dayNum);
+                      const textarea = document.getElementById(textareaId) as HTMLTextAreaElement | null;
+                      const currentVal = dayContent.progressNote || '';
+                      if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const before = currentVal.slice(0, start);
+                        const after = currentVal.slice(end);
+                        const needsLeadingSpace = before.length > 0 && !/\s$/.test(before);
+                        const needsTrailingSpace = after.length > 0 && !/^\s/.test(after);
+                        const inserted = `${needsLeadingSpace ? ' ' : ''}${token}${needsTrailingSpace ? ' ' : ''}`;
+                        const nextVal = before + inserted + after;
+                        updateFieldForDay(dayNum, 'progressNote', nextVal);
+                        const nextCursorPos = before.length + inserted.length;
+                        requestAnimationFrame(() => {
+                          const el = document.getElementById(textareaId) as HTMLTextAreaElement | null;
+                          if (el) {
+                            el.focus();
+                            el.setSelectionRange(nextCursorPos, nextCursorPos);
+                          }
+                        });
+                      } else {
+                        insertHintToken(currentVal, (val) => updateFieldForDay(dayNum, 'progressNote', val), token);
+                      }
+                    };
+
+                    return (
+                      <div className="mt-6 pt-6 border-t border-gray-150 space-y-3">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                            <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1">
+                              Progress Note (Last Slide Before Bridge)
+                            </span>
+                          </div>
+                          {progressValidation.hasPlaceholders && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${progressValidation.isValid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                              {progressValidation.isValid ? 'Valid dynamic placeholders' : 'Invalid placeholder'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                          Shown full-bleed after clicking Done on Move {dayNum}'s action step. Clicking Continue takes them to the Bridge Card or Move Success page. Inject Metadata and M-Step coding below.
+                        </p>
+
+                        <textarea
+                          id={textareaId}
+                          value={dayContent.progressNote || ''}
+                          onChange={(e) => {
+                            setSelectedDay(dayNum);
+                            updateFieldForDay(dayNum, 'progressNote', e.target.value);
+                          }}
+                          rows={3}
+                          className="w-full px-4 py-3 bg-emerald-50/15 border border-emerald-100 rounded-2xl text-xs font-medium focus:ring-4 focus:ring-emerald-100/50 focus:border-emerald-300 outline-none transition-all resize-none"
+                          placeholder="Write a progress reflection (e.g. Great work on {M1 Step 1} for {Metadata Primary Goal receive})..."
+                        />
+
+                        {/* Inject M-Step Coding & Metadata Tokens */}
+                        <div className="bg-gray-50/80 border border-gray-100 rounded-2xl p-3 space-y-2.5">
+                          {stepCodingTokens.length > 0 && (
+                            <div className="space-y-1.5">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-gray-500 block">
+                                Inject Move / Step Coding:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                {stepCodingTokens.map((tk) => (
+                                  <button
+                                    key={tk.token}
+                                    type="button"
+                                    onClick={() => insertIntoSmartProgressNote(tk.token)}
+                                    className="px-2 py-1 text-[10px] font-bold bg-white hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 border border-gray-200 hover:border-emerald-300 rounded-lg transition-all cursor-pointer font-mono shadow-2xs"
+                                    title={`Insert ${tk.token} at cursor`}
+                                  >
+                                    + {tk.token}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {metadataCodingTokens.length > 0 && (
+                            <div className="space-y-1.5 pt-1 border-t border-gray-200/60">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-purple-700 block">
+                                Inject Metadata:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                {metadataCodingTokens.map((tk) => (
+                                  <button
+                                    key={tk.token}
+                                    type="button"
+                                    onClick={() => insertIntoSmartProgressNote(tk.token)}
+                                    className="px-2 py-1 text-[10px] font-bold bg-purple-50/70 hover:bg-purple-100 text-purple-800 border border-purple-200/80 rounded-lg transition-all cursor-pointer shadow-2xs"
+                                    title={`Insert ${tk.token} at cursor`}
+                                  >
+                                    + {tk.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Validation warning if invalid */}
+                        {!progressValidation.isValid && progressValidation.invalidReason && (
+                          <p className="text-[10px] text-rose-600 font-bold bg-rose-50 p-2 rounded-xl border border-rose-100">
+                            {progressValidation.invalidReason}
+                          </p>
+                        )}
+
+                        {/* Live Interpolated Preview */}
+                        {dayContent.progressNote && dayContent.progressNote.trim() && (
+                          <div className="bg-emerald-50/40 border border-emerald-100/60 rounded-xl p-3 text-left">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
+                              Participant Slide Preview:
+                            </span>
+                            <p className="text-xs text-gray-800 italic font-medium whitespace-pre-line">
+                              "{previewProgressText || dayContent.progressNote}"
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Bridge Note Section - Only for days before the last day of the sprint */}
                   {dayNum < (sprint?.duration || 7) && (() => {
                     const bridgeTokens = getHintTokensForBridgeNote(dayNum, sprint?.dailyContent, dayContent);
