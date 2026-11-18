@@ -1293,6 +1293,10 @@ const SprintPreview: React.FC = () => {
     const getLinkedTagsForStep = (stepIndex: number, overrideInputs?: string[]): string[] => {
         if (!day1Content) return [];
         const effectiveInputs = overrideInputs || taskInputs;
+        const targetStepType = getStepInputType(day1Content, stepIndex, effectiveInputs, sprint?.dailyContent);
+        if (targetStepType === 'none' || targetStepType === 'mark' || targetStepType === 'note') {
+            return [];
+        }
 
         const allTags: string[] = [];
 
@@ -1548,6 +1552,9 @@ const SprintPreview: React.FC = () => {
     const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
         if (!day1Content) return "";
 
+        const targetStepType = getStepInputType(day1Content, stepIndex, currentInputs, sprint?.dailyContent);
+        if (targetStepType === 'none' || targetStepType === 'mark' || targetStepType === 'note') return "";
+
         const isSpreadEnabled = Boolean(day1Content.taskSpread?.[stepIndex]);
         if (!isSpreadEnabled) return "";
 
@@ -1628,7 +1635,9 @@ const SprintPreview: React.FC = () => {
 
     const getSpreadTagsForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
         if (!day1Content) return "";
-        const isSpreadEnabled = Boolean(day1Content.taskSpread?.[stepIndex]);
+        const targetStepType = getStepInputType(day1Content, stepIndex, currentInputs, sprint?.dailyContent);
+        if (targetStepType !== 'tags') return "";
+        const isSpreadEnabled = day1Content.taskSpread?.[stepIndex] !== false;
         if (!isSpreadEnabled) return "";
 
         const tags = getLinkedTagsForStep(stepIndex, currentInputs);
@@ -1648,7 +1657,9 @@ const SprintPreview: React.FC = () => {
         const type = String(day1Content.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
         const isText = type === "text" || type === "" || type === "undefined";
         const isTags = type === "tags";
-        const isSpreadActive = Boolean(day1Content.taskSpread?.[activeTaskIndex]);
+        const isSpreadActive = isTags
+            ? day1Content.taskSpread?.[activeTaskIndex] !== false
+            : Boolean(day1Content.taskSpread?.[activeTaskIndex]);
 
         if ((isText || isTags) && !isMultiTextStep(activeTaskIndex)) {
             const currentValue = taskInputs[activeTaskIndex];

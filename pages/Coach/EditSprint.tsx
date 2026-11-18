@@ -654,9 +654,11 @@ const EditSprint: React.FC = () => {
                 const typeStr = String(type || '');
                 const isPoll = isStepOrSubStepPoll(typeStr);
                 const isTags = typeStr.includes('tags');
+                const isMarkOrNone = typeStr === 'mark' || typeStr === 'none' || typeStr === 'note';
                 let resolvedType = 'text';
                 if (isPoll) resolvedType = 'poll';
                 else if (isTags) resolvedType = 'tags';
+                else if (isMarkOrNone) resolvedType = typeStr;
 
                 const rawPrompt = dc.taskPrompts?.[idx] || (idx === 0 ? dc.taskPrompt : '') || `Step ${idx + 1}`;
                 const promptVersions = parseStepVersions(rawPrompt);
@@ -1671,6 +1673,9 @@ const EditSprint: React.FC = () => {
   };
 
   const handleTaskPromptTypeChange = (index: number, type: 'text' | 'tags' | 'poll' | 'note' | 'mark' | 'none') => {
+    if ((type === 'none' || type === 'mark') && activeLinkSelectorIndex === index) {
+        setActiveLinkSelectorIndex(null);
+    }
     setSprint(prev => {
         if (!prev) return null;
         const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === selectedDay) : -1;
@@ -1699,7 +1704,8 @@ const EditSprint: React.FC = () => {
             if (!Array.isArray(currentOptsArr)) currentOptsArr = [];
             
             // If linked from previous (follow-up poll), default to 0 options, otherwise at least 4
-            const isFollowUpPoll = index > 0 && updatedDailyContent[existingContentIndex]?.taskLinkedToNext?.[index - 1];
+            const isFollowUpPoll = (index > 0 && updatedDailyContent[existingContentIndex]?.taskLinkedToNext?.[index - 1]) ||
+                (Array.isArray(updatedDailyContent[existingContentIndex]?.taskLinkedSources?.[index]) && updatedDailyContent[existingContentIndex]!.taskLinkedSources![index].length > 0);
             
             if (isFollowUpPoll) {
                 currentOptsArr = currentOptsArr.filter(opt => opt && opt.trim() !== '');
@@ -1713,39 +1719,53 @@ const EditSprint: React.FC = () => {
             currentOptions[index] = updateStepVersionValue(rawOpts, activeVerIdx, JSON.stringify(currentOptsArr));
         }
 
-        // Clean up connections if any step was removed from 'tags'
         let currentLinked = existingContentIndex >= 0
             ? [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])]
             : [];
         let currentSources = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
             ? updatedDailyContent[existingContentIndex].taskLinkedSources.map(sources => Array.isArray(sources) ? [...sources] : [])
             : [];
+        let currentSpread = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskSpread)
+            ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
+            : [];
+        let currentPollLinks = existingContentIndex >= 0 && Array.isArray(updatedDailyContent[existingContentIndex].taskPollOptionLinks)
+            ? [...(updatedDailyContent[existingContentIndex].taskPollOptionLinks || [])]
+            : [];
 
-        // Clean up the index element's own relationships if they no longer apply
-        if (type !== 'tags') {
-            if (currentLinked.length > index) {
-                currentLinked[index] = false;
-            }
+        // Outgoing link-to-next is only available for tags steps
+        if (type !== 'tags' && currentLinked.length > index) {
+            currentLinked[index] = false;
         }
-        if (type !== 'poll') {
-            while (currentSources.length <= index) {
-                currentSources.push([]);
-            }
+
+        // None and Mark Complete steps cannot receive tag, poll, or text linking
+        if (type === 'none' || type === 'mark' || type === 'note') {
+            while (currentSources.length <= index) currentSources.push([]);
             currentSources[index] = [];
+            if (index > 0 && currentLinked.length > index - 1) {
+                currentLinked[index - 1] = false;
+            }
+            while (currentSpread.length <= index) currentSpread.push(false);
+            currentSpread[index] = false;
+            if (currentPollLinks.length > index) {
+                currentPollLinks[index] = undefined;
+            }
+        } else if (type === 'tags') {
+            const hasIncoming = (index > 0 && Boolean(currentLinked[index - 1])) || (Array.isArray(currentSources[index]) && currentSources[index].length > 0);
+            if (hasIncoming) {
+                while (currentSpread.length <= index) currentSpread.push(false);
+                currentSpread[index] = true;
+            }
         }
 
         for (let i = 0; i < currentTypes.length; i++) {
             const effType = getStepVersionValue(currentTypes[i], activeVerIdx, 'text');
-            if (effType !== 'tags') {
-                if (currentLinked.length > i) {
-                    currentLinked[i] = false;
-                }
-                currentSources = currentSources.map(sources => {
-                    if (Array.isArray(sources)) {
-                        return sources.filter(srcIdx => srcIdx !== i);
-                    }
-                    return [];
-                });
+            if (effType !== 'tags' && currentLinked.length > i) {
+                currentLinked[i] = false;
+            }
+            if (effType === 'none' || effType === 'mark' || effType === 'note') {
+                currentSources = currentSources.map(sources =>
+                    Array.isArray(sources) ? sources.filter(srcIdx => srcIdx !== i) : []
+                );
             }
         }
         
@@ -1755,7 +1775,9 @@ const EditSprint: React.FC = () => {
               taskInputTypes: currentTypes,
               taskPollOptions: currentOptions,
               taskLinkedToNext: currentLinked,
-              taskLinkedSources: currentSources
+              taskLinkedSources: currentSources,
+              taskSpread: currentSpread,
+              taskPollOptionLinks: currentPollLinks
           };
         } else {
           updatedDailyContent.push({
@@ -1766,7 +1788,9 @@ const EditSprint: React.FC = () => {
             taskInputTypes: currentTypes,
             taskPollOptions: currentOptions,
             taskLinkedToNext: currentLinked,
-            taskLinkedSources: currentSources
+            taskLinkedSources: currentSources,
+            taskSpread: currentSpread,
+            taskPollOptionLinks: currentPollLinks
           });
         }
         return { ...prev, dailyContent: updatedDailyContent };
@@ -1841,23 +1865,39 @@ const EditSprint: React.FC = () => {
         
         let updatedDailyContent = [...prev.dailyContent];
         let currentLinked = [...(updatedDailyContent[existingContentIndex].taskLinkedToNext || [])];
-        
-        while (currentLinked.length <= index) currentLinked.push(false);
-        const newState = !currentLinked[index];
-        currentLinked[index] = newState;
-        
         let currentPrompts = [...(updatedDailyContent[existingContentIndex].taskPrompts || [])];
         let currentTypes = [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])];
         let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
+        let currentSpread = Array.isArray(updatedDailyContent[existingContentIndex].taskSpread)
+            ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
+            : [];
+
+        while (currentLinked.length <= index) currentLinked.push(false);
+        const newState = !currentLinked[index];
+
+        const nextStepExists = currentPrompts.length > index + 1;
+        const nextType = nextStepExists ? getStepVersionValue(currentTypes[index + 1] || 'text', 0, 'text') : null;
+        if (newState && (nextType === 'none' || nextType === 'mark' || nextType === 'note')) {
+            return prev;
+        }
+
+        currentLinked[index] = newState;
         
         if (newState) {
-            if (currentPrompts.length <= index + 1) {
+            if (!nextStepExists) {
                 currentPrompts.push('');
                 currentTypes.push('poll');
                 currentOptions.push(JSON.stringify(['']));
-            } else {
-                currentTypes[index + 1] = 'poll';
-                currentOptions[index + 1] = JSON.stringify(['']);
+            } else if (nextType === 'tags') {
+                while (currentSpread.length <= index + 1) currentSpread.push(false);
+                currentSpread[index + 1] = true;
+            } else if (nextType === 'poll') {
+                while (currentOptions.length <= index + 1) currentOptions.push('[]');
+                let optsArr: string[] = [];
+                try { optsArr = JSON.parse(currentOptions[index + 1] || '[]'); } catch (e) {}
+                if (!Array.isArray(optsArr) || optsArr.length === 0) {
+                    currentOptions[index + 1] = JSON.stringify(['']);
+                }
             }
         }
         
@@ -1866,7 +1906,8 @@ const EditSprint: React.FC = () => {
             taskLinkedToNext: currentLinked,
             taskPrompts: currentPrompts,
             taskInputTypes: currentTypes,
-            taskPollOptions: currentOptions
+            taskPollOptions: currentOptions,
+            taskSpread: currentSpread
         };
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -1880,6 +1921,16 @@ const EditSprint: React.FC = () => {
         if (existingContentIndex < 0) return prev;
         
         let updatedDailyContent = [...prev.dailyContent];
+        let currentTypes = [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])];
+        while (currentTypes.length <= stepIndex) {
+            currentTypes.push('text');
+        }
+        const activeVerIdx = activeStepVersionMap[stepIndex] || 0;
+        const targetType = getStepVersionValue(currentTypes[stepIndex] || 'text', activeVerIdx, 'text');
+        if (targetType === 'none' || targetType === 'mark' || targetType === 'note') {
+            return prev;
+        }
+
         let currentSources = Array.isArray(updatedDailyContent[existingContentIndex].taskLinkedSources)
             ? [...(updatedDailyContent[existingContentIndex].taskLinkedSources || [])]
             : [];
@@ -1895,17 +1946,18 @@ const EditSprint: React.FC = () => {
             sourcesForStep.push(sourceIndex);
         }
         currentSources[stepIndex] = sourcesForStep;
-        
-        let currentTypes = [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])];
-        while (currentTypes.length <= stepIndex) {
-            currentTypes.push('text');
-        }
-        if (sourcesForStep.length > 0 && currentTypes[stepIndex] === 'tags') {
-            currentTypes[stepIndex] = 'poll';
+
+        let currentSpread = Array.isArray(updatedDailyContent[existingContentIndex].taskSpread)
+            ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
+            : [];
+        if (targetType === 'tags') {
+            while (currentSpread.length <= stepIndex) currentSpread.push(false);
+            const hasPrevLink = stepIndex > 0 && Boolean(updatedDailyContent[existingContentIndex].taskLinkedToNext?.[stepIndex - 1]);
+            currentSpread[stepIndex] = sourcesForStep.length > 0 || hasPrevLink;
         }
         
         let currentOptions = [...(updatedDailyContent[existingContentIndex].taskPollOptions || [])];
-        if (currentTypes[stepIndex] === 'poll') {
+        if (targetType === 'poll') {
             while (currentOptions.length <= stepIndex) currentOptions.push('[]');
             let optsArr: string[] = [];
             try { optsArr = JSON.parse(currentOptions[stepIndex] || '[]'); } catch (e) {}
@@ -1919,7 +1971,8 @@ const EditSprint: React.FC = () => {
             ...updatedDailyContent[existingContentIndex],
             taskLinkedSources: currentSources,
             taskInputTypes: currentTypes,
-            taskPollOptions: currentOptions
+            taskPollOptions: currentOptions,
+            taskSpread: currentSpread
         };
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -1942,16 +1995,19 @@ const EditSprint: React.FC = () => {
         }
         
         currentSources[stepIndex] = [];
-        
-        let currentTypes = [...(updatedDailyContent[existingContentIndex].taskInputTypes || [])];
-        if (currentTypes[stepIndex] === 'poll') {
-            currentTypes[stepIndex] = 'tags';
+
+        let currentSpread = Array.isArray(updatedDailyContent[existingContentIndex].taskSpread)
+            ? [...(updatedDailyContent[existingContentIndex].taskSpread || [])]
+            : [];
+        const hasPrevLink = stepIndex > 0 && Boolean(updatedDailyContent[existingContentIndex].taskLinkedToNext?.[stepIndex - 1]);
+        if (!hasPrevLink && currentSpread.length > stepIndex) {
+            currentSpread[stepIndex] = false;
         }
 
         updatedDailyContent[existingContentIndex] = {
             ...updatedDailyContent[existingContentIndex],
             taskLinkedSources: currentSources,
-            taskInputTypes: currentTypes
+            taskSpread: currentSpread
         };
         return { ...prev, dailyContent: updatedDailyContent };
     });
@@ -2045,7 +2101,9 @@ const EditSprint: React.FC = () => {
             : [];
         
         while (currentSpread.length <= index) {
-            currentSpread.push(false);
+            const padIdx = currentSpread.length;
+            const padType = getStepVersionValue(updatedDailyContent[existingContentIndex].taskInputTypes?.[padIdx] || 'text', activeStepVersionMap[padIdx] || 0, 'text');
+            currentSpread.push(padIdx === index && padType === 'tags' ? true : false);
         }
         currentSpread[index] = !currentSpread[index];
         
@@ -3814,9 +3872,6 @@ const EditSprint: React.FC = () => {
                     
                     <div className="space-y-4 relative">
                         {(currentContent.taskPrompts || ['', '', '']).map((_promptItem, index) => {
-                            const isLinkedFromPrevious = 
-                                (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) ||
-                                (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0);
                             const rawPrompt = currentContent.taskPrompts?.[index] || '';
                             const rawInputType = currentContent.taskInputTypes?.[index] || 'text';
                             const rawPollOptions = currentContent.taskPollOptions?.[index] || '';
@@ -3825,6 +3880,11 @@ const EditSprint: React.FC = () => {
                             const prompt = getStepVersionValue(rawPrompt, activeVerIdx);
                             const baseInputType = getStepVersionValue(rawInputType, 0, (rawInputType || 'text'));
                             const activeInputType = getStepVersionValue(rawInputType, activeVerIdx, baseInputType);
+                            const isReceivingInputAllowed = activeInputType !== 'none' && activeInputType !== 'mark' && activeInputType !== 'note';
+                            const isLinkedFromPrevious = isReceivingInputAllowed && (
+                                (index > 0 && currentContent.taskLinkedToNext?.[index - 1]) ||
+                                (Array.isArray(currentContent.taskLinkedSources?.[index]) && currentContent.taskLinkedSources[index].length > 0)
+                            );
 
                             const placeholderVal = validateStepPlaceholders(prompt, index, currentContent.taskInputTypes || [], currentContent.taskPollOptions, Number(currentContent.day || selectedDay || 1), sprint?.dailyContent);
                             return (
@@ -4341,7 +4401,10 @@ const EditSprint: React.FC = () => {
                                                                     .filter(item => item.idx < index);
                                                                 
                                                                 const precedingDaysSteps = getPrecedingDaysTagSteps();
-                                                                const showSingleLink = activeInputType === 'tags';
+                                                                const nextStepRawType = index + 1 < (currentContent.taskPrompts?.length || 0) ? (currentContent.taskInputTypes?.[index + 1] || 'text') : null;
+                                                                const nextStepEffType = nextStepRawType ? getStepVersionValue(nextStepRawType, 0, 'text') : null;
+                                                                const canLinkToNext = nextStepEffType !== 'none' && nextStepEffType !== 'mark' && nextStepEffType !== 'note';
+                                                                const showSingleLink = activeInputType === 'tags' && canLinkToNext;
                                                                 
                                                                 const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
                                                                 const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
@@ -4356,8 +4419,8 @@ const EditSprint: React.FC = () => {
                                                                     : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
                                                                 const hasPrecedingTexts = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0 || precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
-                                                                const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
-                                                                const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
+                                                                const showTagLink = isReceivingInputAllowed && hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
+                                                                const showTextLink = isReceivingInputAllowed && hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
 																const showPollBranchLink = (currentContent.taskInputTypes || []).map((type, idx) => ({ type, idx })).filter(item => item.idx < index && (isStepOrSubStepPoll(item.type) || (item.idx === 0 && (!currentContent.taskInputTypes || currentContent.taskInputTypes.length === 0)))).length > 0;
 																const currentPollLink = currentContent.taskPollOptionLinks?.[index];
                                                                 
@@ -4511,26 +4574,31 @@ const EditSprint: React.FC = () => {
                                                                 )}
                                                             </button>
                                                         )}
-                                                        {(!activeInputType || activeInputType === 'text' || activeInputType === 'tags') && isLinkedFromPrevious && (
-                                                            <button 
-                                                                type="button" 
-                                                                onClick={() => handleToggleSpread(index)}
-                                                                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(currentContent.taskSpread?.[index]) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
-                                                                title="Spread Option: Receive input from previous linked step to edit/revise."
-                                                            >
-                                                                {currentContent.taskSpread?.[index] ? (
-                                                                    <>
-                                                                        <span className="text-[10px] text-primary mr-0.5">●</span>
-                                                                        <span>Spread</span>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Sparkles size={14} />
-                                                                        <span>Spread</span>
-                                                                    </>
-                                                                )}
-                                                            </button>
-                                                        )}
+                                                        {(!activeInputType || activeInputType === 'text' || activeInputType === 'tags') && isLinkedFromPrevious && (() => {
+                                                            const isSpreadOn = activeInputType === 'tags'
+                                                                ? currentContent.taskSpread?.[index] !== false
+                                                                : Boolean(currentContent.taskSpread?.[index]);
+                                                            return (
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => handleToggleSpread(index)}
+                                                                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${isSpreadOn ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
+                                                                    title="Spread Option: Receive input from previous linked step to edit/revise."
+                                                                >
+                                                                    {isSpreadOn ? (
+                                                                        <>
+                                                                            <span className="text-[10px] text-primary mr-0.5">●</span>
+                                                                            <span>Spread</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Sparkles size={14} />
+                                                                            <span>Spread</span>
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
 
@@ -4701,9 +4769,11 @@ const EditSprint: React.FC = () => {
                                                         const rawType = String(type || '');
                                                         const isPoll = isStepOrSubStepPoll(rawType);
                                                         const isTags = rawType.includes('tags');
+                                                        const isMarkOrNone = rawType === 'mark' || rawType === 'none' || rawType === 'note';
                                                         let resolvedType = 'text';
                                                         if (isPoll) resolvedType = 'poll';
                                                         else if (isTags) resolvedType = 'tags';
+                                                        else if (isMarkOrNone) resolvedType = rawType;
                                                         const rawPrompt = currentContent.taskPrompts?.[idx] || (idx === 0 ? currentContent.taskPrompt : '') || `Step ${idx + 1}`;
                                                         const pVersions = parseStepVersions(rawPrompt);
                                                         return {
@@ -4727,7 +4797,7 @@ const EditSprint: React.FC = () => {
                                                     } else if (isTargetTag) {
                                                         return item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                                                     } else {
-                                                        return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
+                                                        return item.type === 'text' || item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                                                     }
                                                 });
 
@@ -4737,11 +4807,11 @@ const EditSprint: React.FC = () => {
                                                     } else if (isTargetTag) {
                                                         return item.type === 'tags' || item.type === 'poll';
                                                     } else {
-                                                        return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll';
+                                                        return item.type === 'text' || item.type === 'tags' || item.type === 'poll';
                                                     }
                                                 });
 
-                                                const showSelector = activeLinkSelectorIndex === index && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
+                                                const showSelector = isReceivingInputAllowed && activeLinkSelectorIndex === index && (precedingTagSteps.length > 0 || precedingDaysSteps.length > 0);
                                                 
                                                 if (showSelector) {
                                                     const yesterdayNum = selectedDay - 1;

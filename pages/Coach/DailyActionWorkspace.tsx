@@ -542,14 +542,85 @@ export default function DailyActionWorkspace({
   };
 
   const handleTaskPromptTypeChange = (dayNum: number, index: number, value: 'text' | 'tags' | 'poll' | 'mark' | 'none') => {
-    const dayContent = getDailyContentForDay(dayNum);
-    const types = [...(dayContent.taskInputTypes || [])];
-    while (types.length <= index) types.push('text');
+    if ((value === 'none' || value === 'mark') && activeLinkSelectorIndex === index && selectedDay === dayNum) {
+      setActiveLinkSelectorIndex(null);
+    }
     const stepVerKey = `${dayNum}-${index}`;
     const activeVerIdx = activeStepVersionMap[stepVerKey] || 0;
-    const rawType = types[index] || 'text';
-    types[index] = updateStepVersionValue(rawType, activeVerIdx, value) as any;
-    updateFieldForDay(dayNum, 'taskInputTypes', types);
+
+    setSprint(prev => {
+      if (!prev) return null;
+      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
+      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+      const currentDC: DailyContent = existingContentIndex >= 0
+        ? updatedDailyContent[existingContentIndex]
+        : { day: dayNum, lessonText: '', taskPrompt: '' };
+
+      const types = [...(currentDC.taskInputTypes || [])];
+      while (types.length <= index) types.push('text');
+      const rawType = types[index] || 'text';
+      types[index] = updateStepVersionValue(rawType, activeVerIdx, value) as any;
+
+      let currentLinked = [...(currentDC.taskLinkedToNext || [])];
+      let currentSources = Array.isArray(currentDC.taskLinkedSources)
+        ? currentDC.taskLinkedSources.map(s => (Array.isArray(s) ? [...s] : []))
+        : [];
+      let currentSpread = Array.isArray(currentDC.taskSpread) ? [...currentDC.taskSpread] : [];
+      let currentPollLinks = Array.isArray(currentDC.taskPollOptionLinks) ? [...currentDC.taskPollOptionLinks] : [];
+
+      if (value !== 'tags' && currentLinked.length > index) {
+        currentLinked[index] = false;
+      }
+
+      if (value === 'none' || value === 'mark') {
+        while (currentSources.length <= index) currentSources.push([]);
+        currentSources[index] = [];
+        if (index > 0 && currentLinked.length > index - 1) {
+          currentLinked[index - 1] = false;
+        }
+        while (currentSpread.length <= index) currentSpread.push(false);
+        currentSpread[index] = false;
+        if (currentPollLinks.length > index) {
+          currentPollLinks[index] = undefined;
+        }
+      } else if (value === 'tags') {
+        const hasIncoming = (index > 0 && Boolean(currentLinked[index - 1])) || (Array.isArray(currentSources[index]) && currentSources[index].length > 0);
+        if (hasIncoming) {
+          while (currentSpread.length <= index) currentSpread.push(false);
+          currentSpread[index] = true;
+        }
+      }
+
+      for (let i = 0; i < types.length; i++) {
+        const iVerIdx = activeStepVersionMap[`${dayNum}-${i}`] || 0;
+        const effType = getStepVersionValue(types[i], iVerIdx, 'text');
+        if (effType !== 'tags' && currentLinked.length > i) {
+          currentLinked[i] = false;
+        }
+        if (effType === 'none' || effType === 'mark' || effType === 'note') {
+          currentSources = currentSources.map(sources =>
+            Array.isArray(sources) ? sources.filter(srcIdx => srcIdx !== i) : []
+          );
+        }
+      }
+
+      const updatedEntry: DailyContent = {
+        ...currentDC,
+        taskInputTypes: types,
+        taskLinkedToNext: currentLinked,
+        taskLinkedSources: currentSources,
+        taskSpread: currentSpread,
+        taskPollOptionLinks: currentPollLinks
+      };
+
+      if (existingContentIndex >= 0) {
+        updatedDailyContent[existingContentIndex] = updatedEntry;
+      } else {
+        updatedDailyContent.push(updatedEntry);
+      }
+
+      return { ...prev, dailyContent: updatedDailyContent };
+    });
   };
 
   const handleTaskMultiTextLabelsChange = (dayNum: number, index: number, value: string[] | null) => {
@@ -701,7 +772,12 @@ export default function DailyActionWorkspace({
   const handleToggleSpread = (dayNum: number, index: number) => {
     const dayContent = getDailyContentForDay(dayNum);
     const spread = [...(dayContent.taskSpread || [])];
-    while (spread.length <= index) spread.push(false);
+    while (spread.length <= index) {
+      const padIdx = spread.length;
+      const padVerIdx = activeStepVersionMap[`${dayNum}-${padIdx}`] || 0;
+      const padType = getStepVersionValue(dayContent.taskInputTypes?.[padIdx] || 'text', padVerIdx, 'text');
+      spread.push(padIdx === index && padType === 'tags' ? true : false);
+    }
     spread[index] = !spread[index];
     updateFieldForDay(dayNum, 'taskSpread', spread);
   };
@@ -784,11 +860,48 @@ export default function DailyActionWorkspace({
   };
 
   const handleToggleLinkToNext = (dayNum: number, index: number) => {
-    const dayContent = getDailyContentForDay(dayNum);
-    const linked = [...(dayContent.taskLinkedToNext || [])];
-    while (linked.length <= index) linked.push(false);
-    linked[index] = !linked[index];
-    updateFieldForDay(dayNum, 'taskLinkedToNext', linked);
+    setSprint(prev => {
+      if (!prev) return null;
+      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
+      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+      const currentDC: DailyContent = existingContentIndex >= 0
+        ? updatedDailyContent[existingContentIndex]
+        : { day: dayNum, lessonText: '', taskPrompt: '' };
+
+      const linked = [...(currentDC.taskLinkedToNext || [])];
+      while (linked.length <= index) linked.push(false);
+      const newState = !linked[index];
+
+      const prompts = currentDC.taskPrompts || [];
+      const types = currentDC.taskInputTypes || [];
+      const nextExists = prompts.length > index + 1;
+      const nextVerIdx = activeStepVersionMap[`${dayNum}-${index + 1}`] || 0;
+      const nextType = nextExists ? getStepVersionValue(types[index + 1] || 'text', nextVerIdx, 'text') : null;
+      if (newState && (nextType === 'none' || nextType === 'mark' || nextType === 'note')) {
+        return prev;
+      }
+
+      linked[index] = newState;
+      const spread = [...(currentDC.taskSpread || [])];
+      if (newState && nextType === 'tags') {
+        while (spread.length <= index + 1) spread.push(false);
+        spread[index + 1] = true;
+      }
+
+      const updatedEntry: DailyContent = {
+        ...currentDC,
+        taskLinkedToNext: linked,
+        taskSpread: spread
+      };
+
+      if (existingContentIndex >= 0) {
+        updatedDailyContent[existingContentIndex] = updatedEntry;
+      } else {
+        updatedDailyContent.push(updatedEntry);
+      }
+
+      return { ...prev, dailyContent: updatedDailyContent };
+    });
   };
 
   const findNearestPrecedingPoll = (dayContent: DailyContent | undefined, currentIndex: number) => {
@@ -811,26 +924,82 @@ export default function DailyActionWorkspace({
   };
 
   const handleToggleSourceLink = (dayNum: number, index: number, val: number) => {
-    const dayContent = getDailyContentForDay(dayNum);
-    const sources = [...(dayContent.taskLinkedSources || [])];
-    while (sources.length <= index) sources.push([]);
-    
-    const currentSources = Array.isArray(sources[index]) ? [...sources[index]] : [];
-    if (currentSources.includes(val)) {
-      sources[index] = currentSources.filter(v => v !== val);
-    } else {
-      currentSources.push(val);
-      sources[index] = currentSources;
-    }
-    updateFieldForDay(dayNum, 'taskLinkedSources', sources);
+    const activeVerIdx = activeStepVersionMap[`${dayNum}-${index}`] || 0;
+    setSprint(prev => {
+      if (!prev) return null;
+      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
+      let updatedDailyContent = Array.isArray(prev.dailyContent) ? [...prev.dailyContent] : [];
+      const currentDC: DailyContent = existingContentIndex >= 0
+        ? updatedDailyContent[existingContentIndex]
+        : { day: dayNum, lessonText: '', taskPrompt: '' };
+
+      const targetType = getStepVersionValue(currentDC.taskInputTypes?.[index] || 'text', activeVerIdx, 'text');
+      if (targetType === 'none' || targetType === 'mark' || targetType === 'note') {
+        return prev;
+      }
+
+      const sources = Array.isArray(currentDC.taskLinkedSources)
+        ? currentDC.taskLinkedSources.map(s => (Array.isArray(s) ? [...s] : []))
+        : [];
+      while (sources.length <= index) sources.push([]);
+
+      const currentSources = Array.isArray(sources[index]) ? [...sources[index]] : [];
+      const updatedSources = currentSources.includes(val)
+        ? currentSources.filter(v => v !== val)
+        : [...currentSources, val];
+      sources[index] = updatedSources;
+
+      const spread = [...(currentDC.taskSpread || [])];
+      if (targetType === 'tags') {
+        while (spread.length <= index) spread.push(false);
+        const hasPrevLink = index > 0 && Boolean(currentDC.taskLinkedToNext?.[index - 1]);
+        spread[index] = updatedSources.length > 0 || hasPrevLink;
+      }
+
+      const updatedEntry: DailyContent = {
+        ...currentDC,
+        taskLinkedSources: sources,
+        taskSpread: spread
+      };
+
+      if (existingContentIndex >= 0) {
+        updatedDailyContent[existingContentIndex] = updatedEntry;
+      } else {
+        updatedDailyContent.push(updatedEntry);
+      }
+
+      return { ...prev, dailyContent: updatedDailyContent };
+    });
   };
 
   const handleClearSourceLinks = (dayNum: number, index: number) => {
-    const dayContent = getDailyContentForDay(dayNum);
-    const sources = [...(dayContent.taskLinkedSources || [])];
-    while (sources.length <= index) sources.push([]);
-    sources[index] = [];
-    updateFieldForDay(dayNum, 'taskLinkedSources', sources);
+    setSprint(prev => {
+      if (!prev) return null;
+      const existingContentIndex = Array.isArray(prev.dailyContent) ? prev.dailyContent.findIndex(c => c.day === dayNum) : -1;
+      if (existingContentIndex < 0) return prev;
+      const updatedDailyContent = [...prev.dailyContent];
+      const currentDC = updatedDailyContent[existingContentIndex];
+
+      const sources = Array.isArray(currentDC.taskLinkedSources)
+        ? currentDC.taskLinkedSources.map(s => (Array.isArray(s) ? [...s] : []))
+        : [];
+      while (sources.length <= index) sources.push([]);
+      sources[index] = [];
+
+      const spread = [...(currentDC.taskSpread || [])];
+      const hasPrevLink = index > 0 && Boolean(currentDC.taskLinkedToNext?.[index - 1]);
+      if (!hasPrevLink && spread.length > index) {
+        spread[index] = false;
+      }
+
+      updatedDailyContent[existingContentIndex] = {
+        ...currentDC,
+        taskLinkedSources: sources,
+        taskSpread: spread
+      };
+
+      return { ...prev, dailyContent: updatedDailyContent };
+    });
   };
 
   const getPrecedingDaysTagStepsForDay = (day: number) => {
@@ -845,9 +1014,11 @@ export default function DailyActionWorkspace({
           const typeStr = String(type || '');
           const isPoll = isStepOrSubStepPoll(typeStr);
           const isTags = typeStr.includes('tags');
+          const isMarkOrNone = typeStr === 'mark' || typeStr === 'none' || typeStr === 'note';
           let resolvedType = 'text';
           if (isPoll) resolvedType = 'poll';
           else if (isTags) resolvedType = 'tags';
+          else if (isMarkOrNone) resolvedType = typeStr;
 
           const rawPrompt = dc.taskPrompts?.[idx] || (idx === 0 ? dc.taskPrompt : '') || `Step ${idx + 1}`;
           const promptVersions = parseStepVersions(rawPrompt);
@@ -1094,7 +1265,8 @@ export default function DailyActionWorkspace({
             const isLastAssignedHint = lastAssignedField === `hint-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedFootnote = lastAssignedField === `footnote-${activeIdx}` && selectedDay === dayNum;
             const isLastAssignedPoll = lastAssignedField === `poll-${activeIdx}` && selectedDay === dayNum;
-            const isLinkedFromPrevious = (activeIdx > 0 && dayContent.taskLinkedToNext?.[activeIdx - 1]) || (Array.isArray(dayContent.taskLinkedSources?.[activeIdx]) && dayContent.taskLinkedSources[activeIdx].length > 0);
+            const isReceivingInputAllowed = activeInputType !== 'none' && activeInputType !== 'mark' && activeInputType !== 'note';
+            const isLinkedFromPrevious = isReceivingInputAllowed && ((activeIdx > 0 && dayContent.taskLinkedToNext?.[activeIdx - 1]) || (Array.isArray(dayContent.taskLinkedSources?.[activeIdx]) && dayContent.taskLinkedSources[activeIdx].length > 0));
 
             const isActiveCard = true;
 
@@ -1748,15 +1920,20 @@ export default function DailyActionWorkspace({
                                     const rawType = String(type || '');
                                     const isPoll = isStepOrSubStepPoll(rawType);
                                     const isTags = rawType.includes('tags');
+                                    const isMarkOrNone = rawType === 'mark' || rawType === 'none' || rawType === 'note';
                                     let resolvedType = 'text';
                                     if (isPoll) resolvedType = 'poll';
                                     else if (isTags) resolvedType = 'tags';
+                                    else if (isMarkOrNone) resolvedType = rawType;
                                     return { type: resolvedType, rawType, idx };
                                   })
                                   .filter(item => item.idx < activeIdx);
 
                                 const precedingDaysSteps = getPrecedingDaysTagStepsForDay(dayNum);
-                                const showSingleLink = activeInputType === 'tags';
+                                const nextStepRawType = activeIdx + 1 < (dayContent.taskPrompts?.length || 0) ? (dayContent.taskInputTypes?.[activeIdx + 1] || 'text') : null;
+                                const nextStepEffType = nextStepRawType ? getStepVersionValue(nextStepRawType, activeStepVersionMap[`${dayNum}-${activeIdx + 1}`] || 0, 'text') : null;
+                                const canLinkToNext = nextStepEffType !== 'none' && nextStepEffType !== 'mark' && nextStepEffType !== 'note';
+                                const showSingleLink = activeInputType === 'tags' && canLinkToNext;
 
                                 const precedingTagOnlySteps = precedingTagSteps.filter(item => item.type === 'tags');
                                 const precedingPollOnlySteps = precedingTagSteps.filter(item => item.type === 'poll');
@@ -1771,8 +1948,8 @@ export default function DailyActionWorkspace({
                                   : (precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0);
                                 const hasPrecedingTexts = precedingTagOnlySteps.length > 0 || precedingDaysTagOnlySteps.length > 0 || precedingPollOnlySteps.length > 0 || precedingDaysPollOnlySteps.length > 0 || precedingTextOnlySteps.length > 0 || precedingDaysTextOnlySteps.length > 0;
 
-                                const showTagLink = hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
-                                const showTextLink = hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
+                                const showTagLink = isReceivingInputAllowed && hasPrecedingForTagLink && (activeInputType === 'tags' || activeInputType === 'poll');
+                                const showTextLink = isReceivingInputAllowed && hasPrecedingTexts && (activeInputType === 'text' || !activeInputType);
                                 const hasSelectedSources = (dayContent.taskLinkedSources?.[activeIdx]?.length || 0) > 0;
 
                                 return (
@@ -1933,29 +2110,34 @@ export default function DailyActionWorkspace({
                               </button>
                             )}
 
-                            {(!activeInputType || activeInputType === 'text' || activeInputType === 'tags') && isLinkedFromPrevious && (
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDay(dayNum);
-                                  handleToggleSpread(dayNum, activeIdx);
-                                }}
-                                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${(dayContent.taskSpread?.[activeIdx]) ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
-                                title="Spread Option: Receive input from previous linked step to edit/revise."
-                              >
-                                {dayContent.taskSpread?.[activeIdx] ? (
-                                  <>
-                                    <span className="text-[10px] text-primary mr-0.5">●</span>
-                                    <span>Spread</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles size={14} />
-                                    <span>Spread</span>
-                                  </>
-                                )}
-                              </button>
-                            )}
+                            {(!activeInputType || activeInputType === 'text' || activeInputType === 'tags') && isLinkedFromPrevious && (() => {
+                              const isSpreadOn = activeInputType === 'tags'
+                                ? dayContent.taskSpread?.[activeIdx] !== false
+                                : Boolean(dayContent.taskSpread?.[activeIdx]);
+                              return (
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    setSelectedDay(dayNum);
+                                    handleToggleSpread(dayNum, activeIdx);
+                                  }}
+                                  className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${isSpreadOn ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm' : 'text-gray-400 hover:text-primary hover:bg-primary/5 border border-transparent'}`}
+                                  title="Spread Option: Receive input from previous linked step to edit/revise."
+                                >
+                                  {isSpreadOn ? (
+                                    <>
+                                      <span className="text-[10px] text-primary mr-0.5">●</span>
+                                      <span>Spread</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles size={14} />
+                                      <span>Spread</span>
+                                    </>
+                                  )}
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -2116,9 +2298,11 @@ export default function DailyActionWorkspace({
                           const rawType = String(type || '');
                           const isPoll = isStepOrSubStepPoll(rawType);
                           const isTags = rawType.includes('tags');
+                          const isMarkOrNone = rawType === 'mark' || rawType === 'none' || rawType === 'note';
                           let resolvedType = 'text';
                           if (isPoll) resolvedType = 'poll';
                           else if (isTags) resolvedType = 'tags';
+                          else if (isMarkOrNone) resolvedType = rawType;
                           const rawPrompt = dayContent.taskPrompts?.[idx] || (idx === 0 ? dayContent.taskPrompt : '') || `Step ${idx + 1}`;
                           const pVersions = parseStepVersions(rawPrompt);
                           return {
@@ -2142,7 +2326,7 @@ export default function DailyActionWorkspace({
                         } else if (isTargetTag) {
                           return item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                         } else {
-                          return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
+                          return item.type === 'text' || item.type === 'tags' || item.type === 'poll' || isStepOrSubStepPoll(item.rawType);
                         }
                       });
 
@@ -2152,11 +2336,11 @@ export default function DailyActionWorkspace({
                         } else if (isTargetTag) {
                           return item.type === 'tags' || item.type === 'poll';
                         } else {
-                          return item.type === 'text' || !item.type || item.type === 'tags' || item.type === 'poll';
+                          return item.type === 'text' || item.type === 'tags' || item.type === 'poll';
                         }
                       });
 
-                      const showSelector = activeLinkSelectorIndex === activeIdx && isActiveCard && (precedingMatchingSteps.length > 0 || precedingDaysMatchingSteps.length > 0);
+                      const showSelector = isReceivingInputAllowed && activeLinkSelectorIndex === activeIdx && isActiveCard && (precedingMatchingSteps.length > 0 || precedingDaysMatchingSteps.length > 0);
                       
                       if (showSelector) {
                         const yesterdayNum = dayNum - 1;

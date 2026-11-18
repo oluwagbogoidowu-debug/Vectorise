@@ -2466,6 +2466,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     if (!dayContent) return [];
 
     const activeInputs = overrideInputs || taskInputs;
+    const targetStepType = getStepInputType(dayContent, stepIndex, activeInputs, sprint?.dailyContent, enrollment?.progress);
+    if (targetStepType === "none" || targetStepType === "mark" || targetStepType === "note") {
+      return [];
+    }
+
     const allTags: string[] = [];
 
     const parseAnswerValues = (val: any, srcType: string): string[] => {
@@ -2703,6 +2708,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   };
 
   const isLinkedTextStep = (stepIndex: number): boolean => {
+    if (!dayContent) return false;
+    const stepType = getStepInputType(dayContent, stepIndex, taskInputs, sprint?.dailyContent, enrollment?.progress);
+    const isTextType = !stepType || stepType === "text" || stepType === "undefined";
+    if (!isTextType || isMultiTextStep(stepIndex)) return false;
+    if (dayContent?.taskSpread?.[stepIndex]) return false;
     const tags = getLinkedTagsForStep(stepIndex);
     return tags.length > 0;
   };
@@ -2999,6 +3009,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const getSpreadTextForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
     if (!dayContent) return "";
 
+    const targetStepType = getStepInputType(dayContent, stepIndex, currentInputs, sprint?.dailyContent, enrollment?.progress);
+    if (targetStepType === "none" || targetStepType === "mark" || targetStepType === "note") return "";
+
     const isSpreadEnabled = Boolean(dayContent.taskSpread?.[stepIndex]);
     if (!isSpreadEnabled) return "";
 
@@ -3079,7 +3092,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
 
   const getSpreadTagsForLoadedInputs = (stepIndex: number, currentInputs: string[]): string => {
     if (!dayContent) return "";
-    const isSpreadEnabled = Boolean(dayContent.taskSpread?.[stepIndex]);
+    const targetStepType = getStepInputType(dayContent, stepIndex, currentInputs, sprint?.dailyContent, enrollment?.progress);
+    if (targetStepType !== "tags") return "";
+    const isSpreadEnabled = dayContent.taskSpread?.[stepIndex] !== false;
     if (!isSpreadEnabled) return "";
 
     const tags = getLinkedTagsForStep(stepIndex, currentInputs);
@@ -3368,7 +3383,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     for (let idx = 0; idx < promptsLength; idx++) {
       if (!loaded[idx] || loaded[idx].trim() === "" || loaded[idx] === "[]") {
         const inputType = String(dayContent?.taskInputTypes?.[idx] || "").trim().toLowerCase();
-        const isSpreadActive = Boolean(dayContent?.taskSpread?.[idx]);
+        if (inputType === "none" || inputType === "mark" || inputType === "note") continue;
+        const isSpreadActive = inputType === "tags"
+          ? dayContent?.taskSpread?.[idx] !== false
+          : Boolean(dayContent?.taskSpread?.[idx]);
         if (isSpreadActive) {
           if (inputType === "tags") {
             const spreadTags = getSpreadTagsForLoadedInputs(idx, loaded);
@@ -3415,7 +3433,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     const type = String(dayContent.taskInputTypes?.[activeTaskIndex] || "").trim().toLowerCase();
     const isText = type === "text" || type === "" || type === "undefined";
     const isTags = type === "tags";
-    const isSpreadActive = Boolean(dayContent.taskSpread?.[activeTaskIndex]);
+    const isSpreadActive = isTags
+      ? dayContent.taskSpread?.[activeTaskIndex] !== false
+      : Boolean(dayContent.taskSpread?.[activeTaskIndex]);
 
     if ((isText || isTags) && !isMultiTextStep(activeTaskIndex)) {
       const currentValue = taskInputs[activeTaskIndex];
@@ -5559,10 +5579,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                 }
 
                                 const baseVerIdx = resolveStepVersionIndex(i, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress);
-                                 const linkedTags = getLinkedTagsForStep(i);
-                                 const stepVerIdx = linkedTags.length > 0 ? (activeTagIndexMap[i] || 0) : baseVerIdx;
-                                const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
                                 const effectiveInputType = getStepInputType(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
+                                const isLinkedTextOnly = !dayContent?.taskSpread?.[i] && (!effectiveInputType || effectiveInputType === "text") && !isMultiTextStep(i) && getLinkedTagsForStep(i).length > 0;
+                                const stepVerIdx = isLinkedTextOnly ? (activeTextTagIndexMap[i] || 0) : baseVerIdx;
+                                const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
                                 const effectivePollOptions = getStepPollOptions(dayContent, i, taskInputs, sprint?.dailyContent, enrollment?.progress);
                                 const rawFootnote = dayContent?.taskFootnotes?.[i];
                                 const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
@@ -5619,41 +5639,6 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                               <div className={`text-gray-950 leading-tight ${activeFullBleed ? 'text-[18px]' : 'text-[18px] leading-relaxed'} ${dayContent?.taskFootnotes?.[i] ? 'mb-3' : 'mb-6'}`}>
                                 <FormattedText text={formatInterpolatedText(effectivePrompt, dayContent, taskInputs, sprint?.dailyContent, enrollment?.progress, user)} />
                               </div>
-
-                              {/* Poll to Tag Selectable & Navigatable Tags above footnote */}
-                              {(() => {
-                                if (dayContent?.taskSpread?.[i] && (effectiveInputType === "tags" || effectiveInputType === "text" || !effectiveInputType)) return null;
-                                const tags = getLinkedTagsForStep(i);
-                                if (tags.length === 0) return null;
-                                const activeTagIdx = activeTagIndexMap[i] || 0;
-                                return (
-                                  <div className="mb-4 space-y-2 text-left animate-fade-in">
-                                    
-                                    <div className="flex flex-wrap gap-2">
-                                      {tags.map((tag, tIdx) => {
-                                        const isSel = activeTagIdx === tIdx;
-                                        return (
-                                          <button
-                                            key={tIdx}
-                                            type="button"
-                                            onClick={() => {
-                                              setActiveTagIndexMap(prev => ({ ...prev, [i]: tIdx }));
-                                            }}
-                                            className={`px-3 py-1.5 text-xs font-black rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
-                                              isSel
-                                                ? 'bg-primary text-white border-primary shadow-sm ring-2 ring-primary/25'
-                                                : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-gray-50'
-                                            }`}
-                                          >
-                                            <span>{tag}</span>
-                                            
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                );
-                              })()}
 
                               {effectiveFootnote && (
                                 <div className="mb-6 flex flex-col gap-4">
@@ -7133,10 +7118,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                     receivedMetadataOpt = val.trim();
                                   }
                                 }
-                                if (receivedMetadataOpt && !pollOpts.includes(receivedMetadataOpt)) {
-                                  pollOpts.push(receivedMetadataOpt);
+                                const linkedTags = getLinkedTagsForStep(0);
+                                let mergedPollOpts = [...linkedTags, ...pollOpts];
+                                if (receivedMetadataOpt && !mergedPollOpts.includes(receivedMetadataOpt)) {
+                                  mergedPollOpts.push(receivedMetadataOpt);
                                 }
-                                pollOpts = Array.from(new Set(pollOpts)).filter(Boolean);
+                                pollOpts = Array.from(new Set(mergedPollOpts)).filter(Boolean);
 
                                 const isMultiSelect = !!dayContent?.taskPollMultiSelect?.[0];
                                 const isArrange = !!dayContent?.taskPollArrange?.[0];
@@ -7459,6 +7446,69 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                                   </div>
                                 );
                               })}
+                            </div>
+                          ) : !dayContent?.taskSpread?.[0] && isLinkedTextStep(0) && getLinkedTagsForStep(0).length > 0 ? (
+                            <div className="space-y-4 animate-fade-in text-left">
+                              {(() => {
+                                const tags = getLinkedTagsForStep(0);
+                                const activeTagIdx = activeTextTagIndexMap[0] || 0;
+                                const activeTag = tags[activeTagIdx] || tags[0];
+                                let currentAnswers: Record<string, string> = {};
+                                if (taskInputs[0]) {
+                                  try {
+                                    if (taskInputs[0].startsWith("{")) {
+                                      currentAnswers = JSON.parse(taskInputs[0]);
+                                    } else {
+                                      currentAnswers = { [tags[0] || "default"]: taskInputs[0] };
+                                    }
+                                  } catch (e) {
+                                    currentAnswers = {};
+                                  }
+                                }
+                                const tagVal = currentAnswers[activeTag] || "";
+                                return (
+                                  <div className="space-y-4">
+                                    <div className="flex flex-wrap gap-2 items-center">
+                                      {tags.map((tag, tIdx) => {
+                                        const isSel = activeTagIdx === tIdx;
+                                        return (
+                                          <button
+                                            key={tIdx}
+                                            type="button"
+                                            onClick={() => {
+                                              setActiveTextTagIndexMap(prev => ({ ...prev, 0: tIdx }));
+                                            }}
+                                            className={`px-3.5 py-2 text-xs sm:text-sm font-black rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                              isSel
+                                                ? "bg-primary text-white border-primary shadow-sm ring-2 ring-primary/25"
+                                                : "bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 border-gray-200 dark:border-zinc-700 hover:bg-gray-50"
+                                            }`}
+                                          >
+                                            <span>{tag}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="space-y-2 pt-2 border-t border-gray-100">
+                                      <div className="text-xs font-black text-gray-500 uppercase tracking-wider">
+                                        Answer for <span className="text-primary font-black">&quot;{activeTag}&quot;</span>:
+                                      </div>
+                                      <AutoGrowingTextarea
+                                        value={tagVal}
+                                        onChange={(val) => {
+                                          const newAnswers = { ...currentAnswers, [activeTag]: val };
+                                          const newInputs = [...taskInputs];
+                                          newInputs[0] = JSON.stringify(newAnswers);
+                                          setTaskInputs(newInputs);
+                                        }}
+                                        placeholder={`Your answer for ${activeTag}...`}
+                                        isFullBleed={isFullBleed}
+                                        className={`w-full ${isFullBleed ? "px-5 py-4 text-base sm:text-lg md:text-xl rounded-2xl" : "px-4 py-3 text-sm rounded-xl"} bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none`}
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           ) : (
                             <AutoGrowingTextarea
