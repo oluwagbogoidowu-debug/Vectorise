@@ -22,7 +22,7 @@ import { userService, safeJSONStringify } from '../../services/userService';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Eye, EyeOff, Mail } from 'lucide-react';
+import { X, Eye, EyeOff, Mail, Youtube } from 'lucide-react';
 
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
@@ -151,9 +151,11 @@ const SprintPreview: React.FC = () => {
 
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
     const [completedThoughtsMap, setCompletedThoughtsMap] = useState<Record<number, boolean>>({});
+    const [activeTextTagIndexMap, setActiveTextTagIndexMap] = useState<Record<number, number>>({});
 
     useEffect(() => {
         setCompletedThoughtsMap({});
+        setActiveTextTagIndexMap({});
     }, [previewDay]);
 
     const [taskInputs, setTaskInputs] = useState<string[]>(() => {
@@ -1488,19 +1490,328 @@ const SprintPreview: React.FC = () => {
         return [];
     };
 
-    const isLinkedTextStep = (stepIndex: number): boolean => {
-        return false;
+    const extractYouTubeId = (url: string): string | null => {
+        if (!url) return null;
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    };
+
+    const parseTimeToSeconds = (timeStr?: string | number | null): number => {
+        if (timeStr === undefined || timeStr === null || timeStr === '') return 0;
+        if (typeof timeStr === 'number') return timeStr;
+        const parts = String(timeStr).split(':');
+        if (parts.length === 2) {
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        }
+        return parseInt(String(timeStr), 10) || 0;
+    };
+
+    const getLinkedItemsForTarget = (linkId: string | null | undefined): string[] => {
+        if (!linkId || typeof linkId !== 'string') return [];
+        try {
+            if (linkId.startsWith('step')) {
+                if (linkId.includes(':poll')) {
+                    const parts = linkId.split(':');
+                    const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+                    const optNum = parseInt(parts[1].replace('poll ', ''), 10);
+                    const options = getAllStepPollOptions(day1Content, stepIdx, taskInputs, sprint?.dailyContent);
+                    const chosenOpt = options[optNum - 1];
+                    return chosenOpt ? [chosenOpt] : [`Option ${optNum}`];
+                }
+                if (linkId.includes(':tag')) {
+                    const parts = linkId.split(':');
+                    const stepIdx = parseInt(parts[0].replace('step', ''), 10);
+                    const tagNum = parseInt(parts[1].replace('tag ', ''), 10);
+                    const tagOpts = (day1Content as any)?.taskTags?.[stepIdx] || (day1Content as any)?.taskInputCustomTags?.[stepIdx] || [];
+                    if (Array.isArray(tagOpts) && tagOpts[tagNum - 1]) return [tagOpts[tagNum - 1]];
+                    return [`Tag ${tagNum}`];
+                }
+                const stepIdx = parseInt(linkId.replace('step', ''), 10);
+                if (!isNaN(stepIdx)) {
+                    const val = (taskInputs && taskInputs[stepIdx]) || allDayInputs[previewDay]?.[stepIdx];
+                    if (val) {
+                        if (typeof val === 'string') {
+                            const trimmed = val.trim();
+                            if (trimmed.startsWith('[')) {
+                                try {
+                                    const parsed = JSON.parse(trimmed);
+                                    if (Array.isArray(parsed) && parsed.length > 0) {
+                                        return parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                                    }
+                                } catch (e) {}
+                            }
+                            if (trimmed.startsWith('{')) {
+                                try {
+                                    const parsed = JSON.parse(trimmed);
+                                    if (parsed && typeof parsed === 'object') {
+                                        const choices: string[] = [];
+                                        if (Array.isArray(parsed.choices)) choices.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+                                        if (Array.isArray(parsed.selectedChoices)) choices.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+                                        if (typeof parsed.choice === 'string' && parsed.choice) choices.push(parsed.choice.trim());
+                                        if (choices.length > 0) return Array.from(new Set(choices));
+                                        const vals = Object.values(parsed).map((v: any) => String(v).trim()).filter(Boolean);
+                                        if (vals.length > 0) return vals;
+                                    }
+                                } catch (e) {}
+                            }
+                            if (trimmed.includes(',')) {
+                                const parts = trimmed.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                if (parts.length > 0) return parts;
+                            }
+                            if (trimmed.length > 0) return [trimmed];
+                        } else if (Array.isArray(val)) {
+                            return (val as any[]).map((s: any) => String(s).trim()).filter(Boolean);
+                        }
+                    }
+                    const configuredOpts = getAllStepPollOptions(day1Content, stepIdx, taskInputs, sprint?.dailyContent);
+                    if (configuredOpts.length > 0) {
+                        return configuredOpts;
+                    }
+                    return [`Step ${stepIdx + 1}`];
+                }
+            }
+            if (linkId.startsWith('prev-')) {
+                const parts = linkId.split('-');
+                const prevDay = parseInt(parts[1], 10);
+                const prevStepIdx = parseInt(parts[2], 10);
+                const val = allDayInputs[prevDay]?.[prevStepIdx];
+                if (val) {
+                    if (typeof val === 'string') {
+                        const trimmed = val.trim();
+                        if (trimmed.startsWith('[')) {
+                            try {
+                                const parsed = JSON.parse(trimmed);
+                                if (Array.isArray(parsed) && parsed.length > 0) return parsed.map((s: any) => String(s).trim()).filter(Boolean);
+                            } catch (e) {}
+                        }
+                        if (trimmed.startsWith('{')) {
+                            try {
+                                const parsed = JSON.parse(trimmed);
+                                if (parsed && typeof parsed === 'object') {
+                                    const choices: string[] = [];
+                                    if (Array.isArray(parsed.choices)) choices.push(...parsed.choices.map((c: any) => String(c).trim()).filter(Boolean));
+                                    if (Array.isArray(parsed.selectedChoices)) choices.push(...parsed.selectedChoices.map((c: any) => String(c).trim()).filter(Boolean));
+                                    if (typeof parsed.choice === 'string' && parsed.choice) choices.push(parsed.choice.trim());
+                                    if (choices.length > 0) return Array.from(new Set(choices));
+                                }
+                            } catch (e) {}
+                        }
+                        if (trimmed.includes(',')) {
+                            return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+                        }
+                        return [trimmed];
+                    } else if (Array.isArray(val)) {
+                        return (val as any[]).map((s: any) => String(s).trim()).filter(Boolean);
+                    }
+                }
+                const prevDC = Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.find(c => c && Number(c.day) === prevDay) : null;
+                if (prevDC) {
+                    const configuredOpts = getAllStepPollOptions(prevDC, prevStepIdx, taskInputs, sprint?.dailyContent);
+                    if (configuredOpts.length > 0) return configuredOpts;
+                    const opt = prevDC.taskPrompts?.[prevStepIdx];
+                    if (opt) return [opt];
+                }
+                return [`Move ${prevDay} Step ${prevStepIdx + 1}`];
+            }
+        } catch (e) {
+            console.warn('Error extracting linked items:', e);
+        }
+        return [];
+    };
+
+    const getResolvedMultiTextFields = (stepIndex: number): Array<{
+        id: string;
+        label: string;
+        rawLabel: string;
+        isLinked: boolean;
+        linkId?: string | null;
+        signals: string[];
+        tags: string[];
+        sourceIndex: number;
+    }> => {
+        if (!day1Content) return [];
+        const type = String(day1Content.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
+        const isText = type === "text" || type === "" || type === "undefined";
+        if (!isText) return [];
+
+        const rawLabels = day1Content.taskMultiTextLabels?.[stepIndex] || [];
+        const links = day1Content.taskMultiTextLinks?.[stepIndex] || [];
+        const signalsList = day1Content.taskMultiTextSignals?.[stepIndex] || [];
+        const tagsList = day1Content.taskMultiTextTags?.[stepIndex] || [];
+        const maxCount = Math.max(rawLabels.length, links.length, signalsList.length, tagsList.length);
+        if (maxCount === 0) return [];
+
+        const fields: Array<{
+            id: string;
+            label: string;
+            rawLabel: string;
+            isLinked: boolean;
+            linkId?: string | null;
+            signals: string[];
+            tags: string[];
+            sourceIndex: number;
+        }> = [];
+
+        for (let idx = 0; idx < maxCount; idx++) {
+            const rawLbl = rawLabels[idx] || `Field ${idx + 1}`;
+            const linkedTarget = links[idx];
+            const rawSigs: any = signalsList[idx];
+            let sigs: string[] = [];
+            if (Array.isArray(rawSigs)) {
+                sigs = rawSigs.filter((s: any) => s && String(s).trim().length > 0).map(String);
+            } else if (typeof rawSigs === 'string' && rawSigs.trim().length > 0) {
+                try {
+                    const parsed = JSON.parse(rawSigs);
+                    sigs = Array.isArray(parsed) ? parsed.filter((s: any) => s && String(s).trim().length > 0).map(String) : [rawSigs.trim()];
+                } catch {
+                    sigs = rawSigs.split(',').map((s: string) => s.trim()).filter(Boolean);
+                }
+            }
+
+            const rawTgs: any = tagsList[idx];
+            let tgs: string[] = [];
+            if (Array.isArray(rawTgs)) {
+                tgs = rawTgs.filter((t: any) => t && String(t).trim().length > 0).map(String);
+            } else if (typeof rawTgs === 'string' && rawTgs.trim().length > 0) {
+                try {
+                    const parsed = JSON.parse(rawTgs);
+                    tgs = Array.isArray(parsed) ? parsed.filter((t: any) => t && String(t).trim().length > 0).map(String) : [rawTgs.trim()];
+                } catch {
+                    tgs = rawTgs.split(',').map((t: string) => t.trim()).filter(Boolean);
+                }
+            }
+
+            if (linkedTarget) {
+                const linkedItems = getLinkedItemsForTarget(linkedTarget);
+                if (linkedItems.length > 0) {
+                    linkedItems.forEach((itemLabel, itemIdx) => {
+                        fields.push({
+                            id: `${idx}_${itemIdx}_${itemLabel}`,
+                            label: itemLabel,
+                            rawLabel: rawLbl,
+                            isLinked: true,
+                            linkId: linkedTarget,
+                            signals: sigs,
+                            tags: tgs,
+                            sourceIndex: idx,
+                        });
+                    });
+                } else {
+                    const resolvedSingleLabel = resolveLinkedMultiTextLabel(linkedTarget, rawLbl);
+                    fields.push({
+                        id: `${idx}_0_${resolvedSingleLabel}`,
+                        label: resolvedSingleLabel,
+                        rawLabel: rawLbl,
+                        isLinked: true,
+                        linkId: linkedTarget,
+                        signals: sigs,
+                        tags: tgs,
+                        sourceIndex: idx,
+                    });
+                }
+            } else {
+                fields.push({
+                    id: `${idx}_${rawLbl}`,
+                    label: rawLbl,
+                    rawLabel: rawLbl,
+                    isLinked: false,
+                    linkId: null,
+                    signals: sigs,
+                    tags: tgs,
+                    sourceIndex: idx,
+                });
+            }
+        }
+
+        return fields;
     };
 
     const isMultiTextStep = (stepIndex: number): boolean => {
-        if (!day1Content) return false;
-        const type = String(day1Content.taskInputTypes?.[stepIndex] || "").trim().toLowerCase();
-        const isText = type === "text" || type === "" || type === "undefined";
-        const labels = Array.isArray(day1Content.taskMultiTextLabels?.[stepIndex])
-          ? day1Content.taskMultiTextLabels[stepIndex].filter((l: any) => l && String(l).trim().length > 0)
-          : [];
-        return isText && labels.length > 0;
+        return getResolvedMultiTextFields(stepIndex).length > 0;
     };
+
+    const isLinkedTextStep = (stepIndex: number): boolean => {
+        if (!day1Content) return false;
+        const stepType = getStepInputType(day1Content, stepIndex, taskInputs, sprint?.dailyContent);
+        const isTextType = !stepType || stepType === "text" || stepType === "undefined";
+        if (!isTextType || isMultiTextStep(stepIndex)) return false;
+        if (day1Content?.taskSpread?.[stepIndex]) return false;
+        const tags = getLinkedTagsForStep(stepIndex);
+        return tags.length > 0;
+    };
+
+    const isStepCompletedForIndex = (i: number): boolean => {
+        if (!day1Content) return false;
+        if (isDayCompleted) return true;
+        const effectiveInputType = getStepInputType(day1Content, i, taskInputs, sprint?.dailyContent);
+        const val = taskInputs[i];
+        if (effectiveInputType === "note" || effectiveInputType === "none") return true;
+        if (isMainActiveForStep(i, day1Content, sprint?.dailyContent)) {
+            const parsed = parseDualInputState(val);
+            return Boolean(parsed.choice || (parsed.selectedChoices && parsed.selectedChoices.length > 0) || (parsed.text && parsed.text.trim().length > 0) || (val && val.trim().length > 0));
+        }
+        if (effectiveInputType === "mark") {
+            return val === "Completed" || val === "Skipped";
+        }
+        if (!val) return false;
+        if (effectiveInputType === "dual") {
+            const parsed = parseDualInputState(val);
+            return Boolean((parsed.selectedChoices && parsed.selectedChoices.length > 0) || parsed.choice || (parsed.text && parsed.text.trim().length > 0));
+        }
+        if (effectiveInputType === "tags" || effectiveInputType === "poll") {
+            if (val === "[]" || val.trim() === "") return false;
+            try {
+                if (val.trim().startsWith("[")) {
+                    const parsed = JSON.parse(val);
+                    return Array.isArray(parsed) && parsed.length > 0;
+                }
+                if (val.trim().startsWith("{")) {
+                    const parsed = parseDualInputState(val);
+                    return Boolean((parsed.selectedChoices && parsed.selectedChoices.length > 0) || parsed.choice);
+                }
+            } catch (e) {}
+            return val.trim().length > 0;
+        }
+        if (!day1Content?.taskSpread?.[i] && isLinkedTextStep(i)) {
+            const tags = getLinkedTagsForStep(i);
+            if (tags.length > 0) {
+                try {
+                    if (!val.startsWith("{")) return false;
+                    const parsed = JSON.parse(val);
+                    return tags.every(t => parsed[t] && String(parsed[t]).trim().length > 0);
+                } catch (e) {
+                    return false;
+                }
+            }
+        }
+        if (isMultiTextStep(i)) {
+            const fields = getResolvedMultiTextFields(i);
+            if (fields.length > 0) {
+                try {
+                    if (!val.startsWith("{")) return false;
+                    const parsed = JSON.parse(val);
+                    return fields.every(field => {
+                        const answer = parsed[field.label] || parsed[field.rawLabel] || parsed[field.id];
+                        return Boolean(answer && String(answer).trim().length > 0);
+                    });
+                } catch (e) {
+                    return false;
+                }
+            }
+        }
+        return String(val).trim().length > 0;
+    };
+
+    const isPreviewProofMet = useMemo(() => {
+        if (!day1Content) return false;
+        const prompts = day1Content.taskPrompts || [day1Content.taskPrompt || ''];
+        if (prompts.length === 0) return true;
+        return prompts.every((_: string, idx: number) => {
+            if (!isStepVisible(idx)) return true;
+            return isStepCompletedForIndex(idx);
+        });
+    }, [day1Content, taskInputs, sprint, isDayCompleted]);
 
     const resolveLinkedMultiTextLabel = (linkId: string | null | undefined, fallbackLabel: string): string => {
         if (!linkId) return fallbackLabel;
@@ -1807,24 +2118,967 @@ const SprintPreview: React.FC = () => {
                     <div className="space-y-6 relative">
                         {(day1Content?.taskPrompts || [day1Content?.taskPrompt || '']).map((prompt: string, i: number) => {
                             if (i !== activeTaskIndex) return null;
-                            const stepVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
+                            if (!isStepVisible(i)) return null;
+
+                            const baseVerIdx = resolveStepVersionIndex(i, day1Content, taskInputs, sprint?.dailyContent);
+                            const effectiveInputType = getStepInputType(day1Content, i, taskInputs, sprint?.dailyContent);
+                            const isLinkedTextOnly = !day1Content?.taskSpread?.[i] && (!effectiveInputType || effectiveInputType === "text") && !isMultiTextStep(i) && getLinkedTagsForStep(i).length > 0;
+                            const stepVerIdx = isLinkedTextOnly ? (activeTextTagIndexMap[i] || 0) : baseVerIdx;
                             const effectivePrompt = getStepVersionValue(prompt, stepVerIdx);
+                            const effectivePollOptions = getStepPollOptions(day1Content, i, taskInputs, sprint?.dailyContent);
                             const rawFootnote = day1Content?.taskFootnotes?.[i];
                             const effectiveFootnote = getStepVersionValue(rawFootnote, stepVerIdx, '');
+                            const resolvedHint = resolveTaskHintForUser(day1Content?.taskHints?.[i], i, day1Content, taskInputs, sprint?.dailyContent);
+                            const stepCompleted = isStepCompletedForIndex(i);
 
                             return (
                                 <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative text-left">
                                     <SectionHeading showDot={!isDayCompleted}>
-                                        Action Step {i + 1}
+                                        Action Step {getVisibleStepIndexOrder(i)}
                                     </SectionHeading>
-                                    <div className="text-gray-950 text-lg sm:text-xl md:text-2xl leading-relaxed relative mb-4">
-                                        <FormattedText text={formatInterpolatedText(effectivePrompt, day1Content, taskInputs, sprint?.dailyContent)} />
+                                    <div className={`text-gray-950 text-lg sm:text-xl md:text-2xl leading-relaxed relative ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
+                                        <FormattedText text={formatInterpolatedText(effectivePrompt, day1Content, taskInputs, sprint?.dailyContent, undefined, user)} />
                                     </div>
                                     {effectiveFootnote && (
-                                        <div className="mb-4 text-left text-emerald-600 font-bold text-xs leading-relaxed animate-fade-in">
-                                            <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent)} />
+                                        <div className="mb-6 text-left text-emerald-600 font-bold text-xs leading-relaxed animate-fade-in">
+                                            <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, day1Content, taskInputs, sprint?.dailyContent, undefined, user)} />
                                         </div>
                                     )}
+
+                                    {resolvedHint && (
+                                        <div className="mb-4">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setRevealedHints((prev) => ({
+                                                        ...prev,
+                                                        [i]: !prev[i],
+                                                    }))
+                                                }
+                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-widest transition-all cursor-pointer ${revealedHints[i] ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5"}`}
+                                            >
+                                                <svg
+                                                    className={`w-3 h-3 transition-transform duration-300 ${revealedHints[i] ? "rotate-180" : ""}`}
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={3}
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                    />
+                                                </svg>
+                                                <span>Hint</span>
+                                            </button>
+
+                                            {revealedHints[i] && (
+                                                <div className="mt-3 p-3 rounded-lg text-xs font-medium bg-amber-50/50 border border-amber-100/70 text-amber-900/90 animate-fade-in leading-relaxed italic">
+                                                    <FormattedText
+                                                        className="text-xs font-medium italic text-amber-900/90"
+                                                        text={resolvedHint}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {!isDayCompleted && (
+                                        effectiveInputType === "tags" ? (
+                                            <div className="space-y-3">
+                                                <TagInput
+                                                    value={taskInputs[i] || ""}
+                                                    onChange={(newVal) => {
+                                                        const newInputs = [...taskInputs];
+                                                        newInputs[i] = newVal;
+                                                        setTaskInputs(newInputs);
+                                                    }}
+                                                    onNext={() => {
+                                                        const tagsVal = taskInputs[i];
+                                                        const isValid = !!tagsVal && tagsVal !== "[]" && tagsVal !== "";
+                                                        if (isValid) {
+                                                            if (getNextVisibleStepIndex(i) !== -1) {
+                                                                setActiveTaskIndex(getNextVisibleStepIndex(i));
+                                                            } else if (isPreviewProofMet) {
+                                                                handleCompletePreviewDay();
+                                                            }
+                                                        }
+                                                    }}
+                                                    placeholder="Type one answer at a time and press Enter to add more...."
+                                                />
+                                            </div>
+                                        ) : effectiveInputType === "note" ? (
+                                            <div className="space-y-4 animate-fade-in text-left">
+                                                <div className="p-4 rounded-2xl gap-3 bg-emerald-500/10 border border-emerald-500/15 flex items-center">
+                                                    <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-black text-emerald-800 uppercase tracking-widest">Informational Step Completed</p>
+                                                        <p className="text-xs text-emerald-700 font-semibold">Review the notes above and click Next to continue.</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : effectiveInputType === "poll" ? (
+                                            <div className="space-y-3">
+                                                {(() => {
+                                                    let pollOptions: string[] = [];
+                                                    let customOptions: string[] = [];
+                                                    const optsStr = effectivePollOptions || day1Content?.taskPollOptions?.[i] || "[]";
+                                                    try {
+                                                        customOptions = JSON.parse(optsStr);
+                                                    } catch (e) {
+                                                        try {
+                                                            customOptions = JSON.parse(day1Content?.taskPollOptions?.[i] || "[]");
+                                                        } catch (err) {}
+                                                    }
+                                                    if (!Array.isArray(customOptions)) customOptions = [];
+                                                    customOptions = customOptions.filter(Boolean);
+
+                                                    const isMetadataEnabled = !!day1Content?.taskMetadataEnabled?.[i];
+                                                    const metadataConfig = day1Content?.taskMetadataConfigs?.[i];
+                                                    let receivedMetadataOpt: string | null = null;
+                                                    if (isMetadataEnabled && (metadataConfig?.mode === 'receive' || !metadataConfig?.mode)) {
+                                                        const attrKey = metadataConfig?.attribute || 'primary_goal';
+                                                        const val = resolveUserMetadataValue(
+                                                            attrKey,
+                                                            user,
+                                                            day1Content,
+                                                            taskInputs,
+                                                            sprint?.dailyContent
+                                                        );
+                                                        if (val && typeof val === 'string' && val.trim().length > 0) {
+                                                            receivedMetadataOpt = val.trim();
+                                                        }
+                                                    }
+
+                                                    const linkedTags = getLinkedTagsForStep(i);
+                                                    const mergedPollOptions = [...linkedTags, ...customOptions];
+                                                    if (receivedMetadataOpt && !mergedPollOptions.includes(receivedMetadataOpt)) {
+                                                        mergedPollOptions.push(receivedMetadataOpt);
+                                                    }
+                                                    pollOptions = Array.from(new Set(mergedPollOptions)).filter(Boolean);
+
+                                                    const isMultiSelect = !!day1Content?.taskPollMultiSelect?.[i];
+                                                    const isArrange = !!day1Content?.taskPollArrange?.[i];
+
+                                                    if (isArrange) {
+                                                        return (
+                                                            <ArrangePollOptions
+                                                                options={pollOptions}
+                                                                value={taskInputs[i] || ""}
+                                                                onChange={(newVal) => {
+                                                                    const newInputs = [...taskInputs];
+                                                                    newInputs[i] = newVal;
+                                                                    setTaskInputs(newInputs);
+                                                                }}
+                                                            />
+                                                        );
+                                                    }
+
+                                                    const isAddEnabled = !!day1Content?.taskPollAdd?.[i];
+                                                    const rawInput = taskInputs[i] || "";
+                                                    let selectedOpts: string[] = [];
+                                                    let singleSelected = "";
+                                                    let customAdditionalText = "";
+
+                                                    if (typeof rawInput === "string" && rawInput.trim().startsWith("{")) {
+                                                        const dual = parseDualInputState(rawInput);
+                                                        singleSelected = dual.choice || "";
+                                                        selectedOpts = dual.selectedChoices || (dual.choice ? [dual.choice] : []);
+                                                        customAdditionalText = dual.text || "";
+                                                    } else if (typeof rawInput === "string" && rawInput.trim().startsWith("[")) {
+                                                        try {
+                                                            const parsed = JSON.parse(rawInput);
+                                                            if (Array.isArray(parsed)) {
+                                                                selectedOpts = parsed.map(String);
+                                                                singleSelected = selectedOpts[0] || "";
+                                                            }
+                                                        } catch (e) {
+                                                            selectedOpts = [];
+                                                        }
+                                                    } else if (rawInput) {
+                                                        singleSelected = String(rawInput);
+                                                        selectedOpts = [String(rawInput)];
+                                                    }
+                                                    if (!Array.isArray(selectedOpts)) selectedOpts = [];
+
+                                                    if (singleSelected && !pollOptions.includes(singleSelected)) {
+                                                        pollOptions.push(singleSelected);
+                                                    }
+                                                    selectedOpts.forEach((opt) => {
+                                                        if (opt && !pollOptions.includes(opt)) {
+                                                            pollOptions.push(opt);
+                                                        }
+                                                    });
+                                                    const lastOption = pollOptions.length > 0 ? pollOptions[pollOptions.length - 1] : null;
+
+                                                    if (pollOptions.length > 6) {
+                                                        if (isMultiSelect) {
+                                                            return (
+                                                                <>
+                                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-3 animate-pulse flex items-center gap-2">
+                                                                        <span>Select one or more:</span>
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-2 w-full">
+                                                                        {pollOptions.filter(Boolean).map((opt: string, optIndex: number) => {
+                                                                            const isSel = selectedOpts.includes(opt);
+                                                                            return (
+                                                                                <button
+                                                                                    key={optIndex}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newInputs = [...taskInputs];
+                                                                                        const indexInSel = selectedOpts.indexOf(opt);
+                                                                                        const newSelected = indexInSel !== -1
+                                                                                            ? selectedOpts.filter(o => o !== opt)
+                                                                                            : [...selectedOpts, opt];
+                                                                                        if (isAddEnabled && newSelected.includes(lastOption || "")) {
+                                                                                            newInputs[i] = serializeDualInputState({
+                                                                                                choice: newSelected[0] || "",
+                                                                                                selectedChoices: newSelected,
+                                                                                                text: customAdditionalText || "[]"
+                                                                                            });
+                                                                                        } else {
+                                                                                            newInputs[i] = JSON.stringify(newSelected);
+                                                                                        }
+                                                                                        setTaskInputs(newInputs);
+                                                                                    }}
+                                                                                    className={`px-3 py-1.5 text-[9px] rounded-full font-black uppercase tracking-widest transition-all border cursor-pointer ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                                                >
+                                                                                    {opt}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                    {isAddEnabled && selectedOpts.includes(lastOption || "") && (
+                                                                        <div
+                                                                            className="mt-3 p-3.5 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <label className="block text-[11px] font-bold text-gray-600 mb-2">
+                                                                                Add items for this option:
+                                                                            </label>
+                                                                            <TagInput
+                                                                                value={customAdditionalText || "[]"}
+                                                                                onChange={(newTags) => {
+                                                                                    const newInputs = [...taskInputs];
+                                                                                    newInputs[i] = serializeDualInputState({
+                                                                                        choice: selectedOpts[0] || lastOption || "",
+                                                                                        selectedChoices: selectedOpts,
+                                                                                        text: newTags
+                                                                                    });
+                                                                                    setTaskInputs(newInputs);
+                                                                                }}
+                                                                                placeholder="Type one answer at a time and press Enter to add more...."
+                                                                            />
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <div className="space-y-3 w-full">
+                                                                <div className="flex flex-wrap gap-2 w-full">
+                                                                    {pollOptions.filter(Boolean).map((opt: string, optIndex: number) => {
+                                                                        const isSel = singleSelected === opt;
+                                                                        const isLast = isAddEnabled && optIndex === pollOptions.length - 1;
+                                                                        return (
+                                                                            <button
+                                                                                key={optIndex}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newInputs = [...taskInputs];
+                                                                                    if (isLast) {
+                                                                                        if (isSel) {
+                                                                                            newInputs[i] = "";
+                                                                                        } else {
+                                                                                            newInputs[i] = serializeDualInputState({
+                                                                                                choice: opt,
+                                                                                                selectedChoices: [opt],
+                                                                                                text: customAdditionalText || ""
+                                                                                            });
+                                                                                        }
+                                                                                    } else {
+                                                                                        newInputs[i] = opt;
+                                                                                    }
+                                                                                    setTaskInputs(newInputs);
+                                                                                }}
+                                                                                className={`px-3 py-1.5 text-[9px] rounded-full font-black uppercase tracking-widest transition-all border cursor-pointer ${isSel ? "bg-primary text-white border-primary shadow-md" : "bg-gray-50 border-gray-100 text-gray-400 hover:bg-gray-100 hover:text-gray-600"}`}
+                                                                            >
+                                                                                {opt}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                                {isAddEnabled && singleSelected === (lastOption || "") && (
+                                                                    <div
+                                                                        className="mt-2.5 p-3.5 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                    >
+                                                                        <label className="block text-[11px] font-bold text-gray-600 mb-2">
+                                                                            Specify your answer:
+                                                                        </label>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={customAdditionalText}
+                                                                            onChange={(e) => {
+                                                                                const newInputs = [...taskInputs];
+                                                                                newInputs[i] = serializeDualInputState({
+                                                                                    choice: lastOption || "",
+                                                                                    selectedChoices: [lastOption || ""],
+                                                                                    text: e.target.value
+                                                                                });
+                                                                                setTaskInputs(newInputs);
+                                                                            }}
+                                                                            placeholder="Type your answer here..."
+                                                                            className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-gray-900 placeholder-gray-400 outline-none transition-all font-medium"
+                                                                            autoFocus
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    if (isMultiSelect) {
+                                                        return (
+                                                            <>
+                                                                <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 mb-3 animate-pulse flex items-center gap-2">
+                                                                    <span>Select one or more:</span>
+                                                                </p>
+                                                                <div className="space-y-3 w-full">
+                                                                    {pollOptions.filter(Boolean).map((opt: string, optIndex: number) => {
+                                                                        const isSel = selectedOpts.includes(opt);
+                                                                        const isLast = isAddEnabled && optIndex === pollOptions.length - 1;
+                                                                        return (
+                                                                            <div key={optIndex} className="w-full">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        const newInputs = [...taskInputs];
+                                                                                        const indexInSel = selectedOpts.indexOf(opt);
+                                                                                        const newSelected = indexInSel !== -1
+                                                                                            ? selectedOpts.filter(o => o !== opt)
+                                                                                            : [...selectedOpts, opt];
+                                                                                        if (isAddEnabled && newSelected.includes(lastOption || "")) {
+                                                                                            newInputs[i] = serializeDualInputState({
+                                                                                                choice: newSelected[0] || "",
+                                                                                                selectedChoices: newSelected,
+                                                                                                text: customAdditionalText || "[]"
+                                                                                            });
+                                                                                        } else {
+                                                                                            newInputs[i] = JSON.stringify(newSelected);
+                                                                                        }
+                                                                                        setTaskInputs(newInputs);
+                                                                                    }}
+                                                                                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border flex items-center justify-between cursor-pointer ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                                                >
+                                                                                    <span>
+                                                                                        {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                                    </span>
+                                                                                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary text-white" : "border-gray-300 bg-white"}`}>
+                                                                                        {isSel && (
+                                                                                            <svg className="w-2.5 h-2.5 text-white animate-fade-in" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </button>
+                                                                                {isLast && isSel && (
+                                                                                    <div
+                                                                                        className="mt-2.5 p-3.5 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                    >
+                                                                                        <label className="block text-[11px] font-bold text-gray-600 mb-2">
+                                                                                            Add items for this option:
+                                                                                        </label>
+                                                                                        <TagInput
+                                                                                            value={customAdditionalText || "[]"}
+                                                                                            onChange={(newTags) => {
+                                                                                                const newInputs = [...taskInputs];
+                                                                                                newInputs[i] = serializeDualInputState({
+                                                                                                    choice: selectedOpts[0] || opt,
+                                                                                                    selectedChoices: selectedOpts,
+                                                                                                    text: newTags
+                                                                                                });
+                                                                                                setTaskInputs(newInputs);
+                                                                                            }}
+                                                                                            placeholder="Type one answer at a time and press Enter to add more...."
+                                                                                        />
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <div className="space-y-3 w-full">
+                                                            {pollOptions.filter(Boolean).map((opt: string, optIndex: number) => {
+                                                                const isSel = singleSelected === opt;
+                                                                const isLast = isAddEnabled && optIndex === pollOptions.length - 1;
+                                                                return (
+                                                                    <div key={optIndex} className="w-full">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newInputs = [...taskInputs];
+                                                                                if (isLast) {
+                                                                                    if (isSel) {
+                                                                                        newInputs[i] = "";
+                                                                                    } else {
+                                                                                        newInputs[i] = serializeDualInputState({
+                                                                                            choice: opt,
+                                                                                            selectedChoices: [opt],
+                                                                                            text: customAdditionalText || ""
+                                                                                        });
+                                                                                    }
+                                                                                } else {
+                                                                                    newInputs[i] = opt;
+                                                                                }
+                                                                                setTaskInputs(newInputs);
+                                                                            }}
+                                                                            className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all text-left border cursor-pointer flex items-center justify-between ${isSel ? "bg-primary/10 border-primary text-primary" : "bg-white border-primary/10 hover:border-primary/30 text-gray-700"}`}
+                                                                        >
+                                                                            <span>
+                                                                                {String.fromCharCode(65 + optIndex)}. {opt}
+                                                                            </span>
+                                                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${isSel ? "border-primary bg-primary" : "border-gray-300 bg-white"}`}>
+                                                                                {isSel && (
+                                                                                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                                                                                )}
+                                                                            </div>
+                                                                        </button>
+                                                                        {isLast && isSel && (
+                                                                            <div
+                                                                                className="mt-2.5 p-3.5 rounded-xl bg-gray-50/90 border border-primary/20 shadow-xs animate-fade-in text-left"
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                            >
+                                                                                <label className="block text-[11px] font-bold text-gray-600 mb-2">
+                                                                                    Specify your answer:
+                                                                                </label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={customAdditionalText}
+                                                                                    onChange={(e) => {
+                                                                                        const newInputs = [...taskInputs];
+                                                                                        newInputs[i] = serializeDualInputState({
+                                                                                            choice: opt,
+                                                                                            selectedChoices: [opt],
+                                                                                            text: e.target.value
+                                                                                        });
+                                                                                        setTaskInputs(newInputs);
+                                                                                    }}
+                                                                                    placeholder="Type your answer here..."
+                                                                                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-gray-900 placeholder-gray-400 outline-none transition-all font-medium"
+                                                                                    autoFocus
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        ) : effectiveInputType === "mark" ? (
+                                            <div className="space-y-4 animate-fade-in text-left">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (taskInputs[i] === "Completed") {
+                                                            const newInputs = [...taskInputs];
+                                                            newInputs[i] = "";
+                                                            setTaskInputs(newInputs);
+                                                        } else {
+                                                            setConfirmMarkStepIndex(i);
+                                                        }
+                                                    }}
+                                                    className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all duration-200 shadow-sm cursor-pointer ${taskInputs[i] === "Completed" ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-950" : "bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50"}`}
+                                                >
+                                                    <div className="flex items-center gap-3.5">
+                                                        <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${taskInputs[i] === "Completed" ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300 bg-white"}`}>
+                                                            {taskInputs[i] === "Completed" && (
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-sm font-bold tracking-wide">
+                                                            {taskInputs[i] === "Completed" ? "Completed & Verified!" : taskInputs[i] === "Skipped" ? "Skipped" : "Mark as Completed"}
+                                                        </span>
+                                                    </div>
+                                                    {(taskInputs[i] === "Completed" || taskInputs[i] === "Skipped") && (
+                                                        <span className="text-[9px] px-2.5 py-0.5 font-black text-emerald-600 bg-emerald-100 rounded-full uppercase tracking-widest shrink-0">
+                                                            {taskInputs[i] === "Skipped" ? "SKIPPED" : "DONE"}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        ) : effectiveInputType === "none" ? null : effectiveInputType === "dual" ? (
+                                            <div className="space-y-4 animate-fade-in text-left">
+                                                {(() => {
+                                                    let pollOptions: string[] = [];
+                                                    let customOptions: string[] = [];
+                                                    const optsStr = effectivePollOptions || day1Content?.taskPollOptions?.[i] || "[]";
+                                                    try {
+                                                        customOptions = JSON.parse(optsStr);
+                                                    } catch (e) {
+                                                        try {
+                                                            customOptions = JSON.parse(day1Content?.taskPollOptions?.[i] || "[]");
+                                                        } catch (err) {}
+                                                    }
+                                                    if (!Array.isArray(customOptions)) customOptions = [];
+                                                    customOptions = customOptions.filter(Boolean);
+
+                                                    const linkedTags = getLinkedTagsForStep(i);
+                                                    pollOptions = Array.from(new Set([...linkedTags, ...customOptions])).filter(Boolean);
+
+                                                    const isMultiSelect = !!day1Content?.taskPollMultiSelect?.[i];
+                                                    const dualState = parseDualInputState(taskInputs[i]);
+                                                    const selectedOpts = dualState.selectedChoices && dualState.selectedChoices.length > 0
+                                                        ? dualState.selectedChoices
+                                                        : (dualState.choice ? [dualState.choice] : []);
+
+                                                    return (
+                                                        <div className="space-y-4">
+                                                            {pollOptions.length > 0 && (
+                                                                <div className="space-y-2">
+                                                                    <p className="text-[10px] font-black uppercase text-primary tracking-widest pl-1 flex items-center gap-2">
+                                                                        <span>{isMultiSelect ? 'Select Option(s):' : 'Select an Option:'}</span>
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-2 w-full">
+                                                                        {pollOptions.map((opt: string, optIndex: number) => {
+                                                                            const isSel = selectedOpts.includes(opt) || dualState.choice === opt;
+                                                                            return (
+                                                                                <button
+                                                                                    key={optIndex}
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        let newSelected: string[];
+                                                                                        let newChoice = '';
+                                                                                        if (isMultiSelect) {
+                                                                                            newSelected = selectedOpts.includes(opt)
+                                                                                                ? selectedOpts.filter(o => o !== opt)
+                                                                                                : [...selectedOpts, opt];
+                                                                                            newChoice = newSelected[0] || '';
+                                                                                        } else {
+                                                                                            if (isSel) {
+                                                                                                newSelected = [];
+                                                                                                newChoice = '';
+                                                                                            } else {
+                                                                                                newSelected = [opt];
+                                                                                                newChoice = opt;
+                                                                                            }
+                                                                                        }
+                                                                                        const newInputs = [...taskInputs];
+                                                                                        newInputs[i] = serializeDualInputState({
+                                                                                            choice: newChoice,
+                                                                                            selectedChoices: newSelected,
+                                                                                            text: dualState.text || ''
+                                                                                        });
+                                                                                        setTaskInputs(newInputs);
+                                                                                        triggerHaptic(hapticPatterns.light);
+                                                                                    }}
+                                                                                    className={`px-3 py-1.5 text-[9px] rounded-full font-black uppercase tracking-widest transition-all border cursor-pointer ${isSel ? "bg-primary text-white border-primary shadow-md ring-2 ring-primary/20" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-primary/30"}`}
+                                                                                >
+                                                                                    {isSel ? `✓ ${opt}` : opt}
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            <div className="space-y-1.5">
+                                                                <AutoGrowingTextarea
+                                                                    value={dualState.text || ""}
+                                                                    onChange={(val) => {
+                                                                        const newInputs = [...taskInputs];
+                                                                        newInputs[i] = serializeDualInputState({
+                                                                            choice: dualState.choice,
+                                                                            selectedChoices: dualState.selectedChoices,
+                                                                            text: val
+                                                                        });
+                                                                        setTaskInputs(newInputs);
+                                                                    }}
+                                                                    placeholder="Add your note or reflection here..."
+                                                                    className="w-full px-4 py-3 text-base rounded-xl bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        ) : !day1Content?.taskSpread?.[i] && isLinkedTextStep(i) && getLinkedTagsForStep(i).length > 0 ? (
+                                            <div className="space-y-4 animate-fade-in text-left">
+                                                {(() => {
+                                                    const tags = getLinkedTagsForStep(i);
+                                                    const activeTagIdx = activeTextTagIndexMap[i] || 0;
+                                                    const activeTag = tags[activeTagIdx] || tags[0];
+                                                    let currentAnswers: Record<string, string> = {};
+                                                    if (taskInputs[i]) {
+                                                        try {
+                                                            if (taskInputs[i].startsWith("{")) {
+                                                                currentAnswers = JSON.parse(taskInputs[i]);
+                                                            } else {
+                                                                currentAnswers = { [tags[0] || "default"]: taskInputs[i] };
+                                                            }
+                                                        } catch (e) {
+                                                            currentAnswers = {};
+                                                        }
+                                                    }
+                                                    const tagVal = currentAnswers[activeTag] || "";
+                                                    return (
+                                                        <div className="space-y-4">
+                                                            <div className="flex flex-wrap gap-2 items-center">
+                                                                {tags.map((tag, tIdx) => {
+                                                                    const isSel = activeTagIdx === tIdx;
+                                                                    return (
+                                                                        <button
+                                                                            key={tIdx}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setActiveTextTagIndexMap(prev => ({ ...prev, [i]: tIdx }));
+                                                                            }}
+                                                                            className={`px-3.5 py-2 text-xs sm:text-sm font-black rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${isSel ? "bg-primary text-white border-primary shadow-sm ring-2 ring-primary/25" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"}`}
+                                                                        >
+                                                                            <span>{tag}</span>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                            <div className="space-y-2 pt-2 border-t border-gray-100">
+                                                                <div className="text-xs font-black text-gray-500 uppercase tracking-wider">
+                                                                    Answer for <span className="text-primary font-black">&quot;{activeTag}&quot;</span>:
+                                                                </div>
+                                                                <AutoGrowingTextarea
+                                                                    value={tagVal}
+                                                                    onChange={(val) => {
+                                                                        const newAnswers = { ...currentAnswers, [activeTag]: val };
+                                                                        const newInputs = [...taskInputs];
+                                                                        newInputs[i] = JSON.stringify(newAnswers);
+                                                                        setTaskInputs(newInputs);
+                                                                    }}
+                                                                    placeholder={`Your answer for ${activeTag}...`}
+                                                                    className="w-full px-4 py-3 text-sm rounded-xl bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        ) : isMultiTextStep(i) ? (
+                                            <div className="space-y-4 animate-fade-in text-left">
+                                                {getResolvedMultiTextFields(i).map((field) => {
+                                                    let currentAnswers: Record<string, string> = {};
+                                                    if (taskInputs && taskInputs[i]) {
+                                                        try {
+                                                            if (typeof taskInputs[i] === 'string' && taskInputs[i].startsWith("{")) {
+                                                                currentAnswers = JSON.parse(taskInputs[i]);
+                                                            } else if (typeof taskInputs[i] === 'string' && taskInputs[i].trim().length > 0) {
+                                                                currentAnswers = { [field.label]: taskInputs[i] };
+                                                            }
+                                                        } catch (e) {
+                                                            currentAnswers = {};
+                                                        }
+                                                    }
+                                                    const labelVal = String(currentAnswers[field.label] || currentAnswers[field.rawLabel] || currentAnswers[field.id] || "");
+                                                    const hasSignals = field.signals && field.signals.length > 0;
+                                                    const hasTags = !hasSignals && field.tags && field.tags.length > 0;
+
+                                                    return (
+                                                        <div key={field.id} className="space-y-2.5 pl-3.5 border-l-2 border-primary/20 bg-primary/[0.02] py-2 pr-2 rounded-r-2xl">
+                                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs sm:text-sm font-black uppercase tracking-wider bg-primary/10 text-primary rounded-xl">
+                                                                    {field.label}
+                                                                </span>
+                                                            </div>
+
+                                                            {hasSignals ? (
+                                                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                                    {field.signals.map((sig: string, sIdx: number) => {
+                                                                        const cleanSig = String(sig).trim();
+                                                                        const isSelected = labelVal ? (
+                                                                            labelVal.trim().toLowerCase() === cleanSig.toLowerCase() ||
+                                                                            labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(cleanSig.toLowerCase())
+                                                                        ) : false;
+
+                                                                        return (
+                                                                            <button
+                                                                                key={sIdx}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newLabelVal = isSelected ? '' : cleanSig;
+                                                                                    const newAnswers = { ...currentAnswers, [field.label]: newLabelVal };
+                                                                                    const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
+                                                                                    newInputs[i] = JSON.stringify(newAnswers);
+                                                                                    setTaskInputs(newInputs);
+                                                                                    triggerHaptic(hapticPatterns.light);
+                                                                                }}
+                                                                                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm sm:text-base font-bold transition-all cursor-pointer border ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-sm ring-2 ring-purple-600/30' : 'bg-purple-50/80 hover:bg-purple-100 text-purple-800 border-purple-200/80 hover:border-purple-300'}`}
+                                                                            >
+                                                                                <span className={`w-2 h-2 rounded-full transition-all ${isSelected ? 'bg-white' : 'bg-purple-500'}`} />
+                                                                                <span>{cleanSig}</span>
+                                                                                {isSelected && (
+                                                                                    <svg className="w-4 h-4 ml-0.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                                                    </svg>
+                                                                                )}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ) : hasTags ? (
+                                                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                                                    {field.tags.map((tagItem: string, tIdx: number) => {
+                                                                        const cleanTag = String(tagItem).trim();
+                                                                        const isSelected = labelVal ? (
+                                                                            labelVal.trim().toLowerCase() === cleanTag.toLowerCase() ||
+                                                                            labelVal.split(',').map((s: string) => s.trim().toLowerCase()).includes(cleanTag.toLowerCase())
+                                                                        ) : false;
+
+                                                                        return (
+                                                                            <button
+                                                                                key={tIdx}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const newLabelVal = isSelected ? '' : cleanTag;
+                                                                                    const newAnswers = { ...currentAnswers, [field.label]: newLabelVal };
+                                                                                    const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
+                                                                                    newInputs[i] = JSON.stringify(newAnswers);
+                                                                                    setTaskInputs(newInputs);
+                                                                                    triggerHaptic(hapticPatterns.light);
+                                                                                }}
+                                                                                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm sm:text-base font-bold transition-all cursor-pointer border ${isSelected ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm ring-2 ring-indigo-600/30' : 'bg-indigo-50/70 hover:bg-indigo-100 text-indigo-700 border-indigo-200 hover:border-indigo-300'}`}
+                                                                            >
+                                                                                <span>{cleanTag}</span>
+                                                                                {isSelected && (
+                                                                                    <svg className="w-4 h-4 ml-0.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                                                    </svg>
+                                                                                )}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ) : (
+                                                                <AutoGrowingTextarea
+                                                                    value={labelVal}
+                                                                    onChange={(val) => {
+                                                                        const newAnswers = { ...currentAnswers, [field.label]: val };
+                                                                        const newInputs = Array.isArray(taskInputs) ? [...taskInputs] : ["", "", ""];
+                                                                        newInputs[i] = JSON.stringify(newAnswers);
+                                                                        setTaskInputs(newInputs);
+                                                                    }}
+                                                                    placeholder={`Your answer for ${field.label}...`}
+                                                                    className="w-full px-4 py-3 text-base rounded-xl bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <AutoGrowingTextarea
+                                                value={taskInputs[i] || ""}
+                                                onChange={(val) => {
+                                                    const newInputs = [...taskInputs];
+                                                    newInputs[i] = val;
+                                                    setTaskInputs(newInputs);
+                                                }}
+                                                placeholder={day1Content?.taskFills?.[i]
+                                                    ? formatInterpolatedText(day1Content.taskFills[i], day1Content, taskInputs, sprint?.dailyContent, undefined, user)
+                                                    : "What's on your mind..."}
+                                                className="w-full px-4 py-3 text-base rounded-xl bg-white border border-primary/10 font-medium focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all resize-none animate-fade-in"
+                                            />
+                                        )
+                                    )}
+
+                                    {isDayCompleted && (
+                                        <div className="px-4 py-3 bg-white/50 border border-primary/10 rounded-xl text-base font-bold text-primary italic flex gap-2 overflow-hidden flex-wrap w-full items-center">
+                                            <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                            {day1Content?.taskPollArrange?.[i] && taskInputs[i]?.startsWith("[") ? (
+                                                <div className="flex flex-col gap-1.5 w-full text-left">
+                                                    {(() => {
+                                                        try {
+                                                            const arr = JSON.parse(taskInputs[i]);
+                                                            return arr.map((item: string, rIdx: number) => (
+                                                                <div key={rIdx} className="flex items-center gap-2">
+                                                                    <span className={`w-5 h-5 rounded-md flex items-center justify-center font-black text-[10px] ${rIdx === 0 ? 'bg-primary text-white' : 'bg-gray-150 text-gray-700'}`}>
+                                                                        #{rIdx + 1}
+                                                                    </span>
+                                                                    <span className="text-gray-800 font-semibold">{item}</span>
+                                                                </div>
+                                                            ));
+                                                        } catch (e) {
+                                                            return <span>{taskInputs[i]}</span>;
+                                                        }
+                                                    })()}
+                                                </div>
+                                            ) : effectiveInputType === "tags" || effectiveInputType === "poll" || (taskInputs[i] && taskInputs[i].trim().startsWith("[") && taskInputs[i].trim().endsWith("]")) ? (
+                                                (() => {
+                                                    let tags: string[] = [];
+                                                    const cleanVal = taskInputs[i] ? taskInputs[i].trim() : "";
+                                                    if (cleanVal.startsWith("[") && cleanVal.endsWith("]")) {
+                                                        try {
+                                                            tags = JSON.parse(cleanVal);
+                                                        } catch (e) {
+                                                            tags = [taskInputs[i]];
+                                                        }
+                                                    } else if (cleanVal) {
+                                                        tags = [cleanVal];
+                                                    }
+                                                    return tags.map((tag: string, tIndex: number) => (
+                                                        <span key={tIndex} className="inline-flex items-center px-2.5 py-1 text-xs font-semibold bg-primary/10 text-primary uppercase tracking-wider rounded-md">
+                                                            {tag}
+                                                        </span>
+                                                    ));
+                                                })()
+                                            ) : (isLinkedTextStep(i) || isMultiTextStep(i)) && taskInputs[i]?.startsWith("{") ? (
+                                                <div className="space-y-2 w-full text-left font-medium">
+                                                    {(() => {
+                                                        try {
+                                                            const parsed = JSON.parse(taskInputs[i]);
+                                                            return Object.entries(parsed).map(([lbl, ans], idx) => (
+                                                                <div key={idx} className="flex flex-col gap-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0 text-left">
+                                                                    <span className="inline-flex items-center px-2.5 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary self-start uppercase tracking-wider rounded-md">
+                                                                        {lbl}
+                                                                    </span>
+                                                                    <p className="text-gray-700 font-medium text-xs pl-1">
+                                                                        {ans as string}
+                                                                    </p>
+                                                                </div>
+                                                            ));
+                                                        } catch (e) {
+                                                            return taskInputs[i];
+                                                        }
+                                                    })()}
+                                                </div>
+                                            ) : (
+                                                taskInputs[i] || "Completed"
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {(() => {
+                                        const configuredVideo = (day1Content as any)?.taskVideos?.[i];
+                                        if (!configuredVideo || !configuredVideo.url) return null;
+                                        const videoId = extractYouTubeId(configuredVideo.url);
+                                        if (!videoId) return null;
+                                        const hasInput = !!taskInputs[i] && taskInputs[i].trim() !== "" && taskInputs[i] !== "[]";
+                                        if (hasInput || isCoachPreview) {
+                                            const startSec = parseTimeToSeconds(configuredVideo.start);
+                                            const endSec = parseTimeToSeconds(configuredVideo.end);
+                                            const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${startSec}${endSec ? `&end=${endSec}` : ""}&rel=0`;
+                                            return (
+                                                <div className="w-full mt-4 animate-fade-in space-y-2 text-left">
+                                                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5 pl-1">
+                                                        <Youtube className="w-3.5 h-3.5 text-red-600" /> Attached Video Resource {configuredVideo.start || configuredVideo.end ? `(${configuredVideo.start || '0'}s - ${configuredVideo.end || 'end'})` : ''}
+                                                    </p>
+                                                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
+                                                        <iframe
+                                                            src={embedUrl}
+                                                            title="YouTube video player"
+                                                            frameBorder="0"
+                                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                            allowFullScreen
+                                                            className="absolute top-0 left-0 w-full h-full"
+                                                            referrerPolicy="no-referrer"
+                                                        ></iframe>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+                                        return (
+                                            <div className="w-full mt-4 animate-fade-in p-6 bg-red-50/30 border border-red-100 rounded-2xl flex flex-col items-center justify-center text-center gap-2 border-dashed">
+                                                <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                                    <Youtube className="w-5 h-5" />
+                                                </div>
+                                                <p className="text-xs font-black text-gray-800 uppercase tracking-widest">Resource Locked</p>
+                                                <p className="text-xs text-gray-500 font-semibold max-w-sm">
+                                                    Enter your action step input above to unlock and play the attached video resource!
+                                                </p>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    <div className="mt-6 flex flex-col gap-4 w-full">
+                                        <div className="flex justify-between items-center gap-4 w-full">
+                                            {getPrevVisibleStepIndex(i) !== -1 ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveTaskIndex(getPrevVisibleStepIndex(i))}
+                                                    className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95 cursor-pointer"
+                                                >
+                                                    Back
+                                                </button>
+                                            ) : (
+                                                <div />
+                                            )}
+
+                                            {getNextVisibleStepIndex(i) !== -1 ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setActiveTaskIndex(getNextVisibleStepIndex(i))}
+                                                    disabled={!stepCompleted}
+                                                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${stepCompleted ? "bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                                >
+                                                    Next
+                                                </button>
+                                            ) : isDayCompleted ? (
+                                                previewDay < (sprint?.duration || 0) ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => switchDay(previewDay + 1)}
+                                                        className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-[#0E7850] text-white hover:shadow-lg hover:shadow-[#0E7850]/20 cursor-pointer active:scale-95"
+                                                    >
+                                                        Continue to Move {previewDay + 1}
+                                                    </button>
+                                                ) : (
+                                                    <div className="px-6 py-2.5 text-xs font-bold text-emerald-600">
+                                                        Move Complete
+                                                    </div>
+                                                )
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleCompletePreviewDay}
+                                                    disabled={!isPreviewProofMet}
+                                                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${isPreviewProofMet ? "bg-[#159E5B] text-white hover:shadow-lg hover:shadow-emerald-500/20 cursor-pointer active:scale-95" : "bg-gray-100 text-gray-400 cursor-not-allowed"}`}
+                                                >
+                                                    Submit Task
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {day1Content?.taskPrompts && day1Content.taskPrompts.length > 1 && (
+                                            <div className="flex justify-center items-center gap-2 mt-2 w-full">
+                                                {day1Content.taskPrompts.map((_: string, idx: number) => {
+                                                    if (!isStepVisible(idx)) return null;
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                if (isDayCompleted || idx <= activeTaskIndex) {
+                                                                    setActiveTaskIndex(idx);
+                                                                }
+                                                            }}
+                                                            className={`h-1.5 rounded-full transition-all duration-300 ${isDayCompleted || idx < activeTaskIndex ? "cursor-pointer" : "cursor-not-allowed"} ${idx === activeTaskIndex ? "w-8 bg-primary" : idx < activeTaskIndex || isDayCompleted ? "w-2 bg-primary/40 hover:bg-primary/60" : "w-2 bg-gray-200"}`}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })}
