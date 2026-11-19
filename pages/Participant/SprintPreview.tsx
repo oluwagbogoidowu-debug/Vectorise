@@ -2101,7 +2101,7 @@ const SprintPreview: React.FC = () => {
     }
 
     return (
-        <div className="w-full bg-white min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
+        <div className="w-full bg-white min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-8">
             <header className="px-6 sm:px-12 md:px-16 pt-8 pb-4 max-w-5xl mx-auto w-full sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100/80">
                 <div className="flex items-center justify-between">
                     <button
@@ -2186,72 +2186,31 @@ const SprintPreview: React.FC = () => {
                 )}
 
                 {/* Guided Mode Stage 1: Move's Insight */}
-                {(() => {
-                    const promptsArr = day1Content?.taskPrompts || (day1Content?.taskPrompt ? [day1Content.taskPrompt] : []);
-                    const visibleStepIndices = promptsArr
-                        .map((_: string, idx: number) => idx)
-                        .filter((idx: number) => isStepVisible(idx));
-                    const totalSteps = visibleStepIndices.length;
-
-                    const isStepDoneForProgress = (idx: number): boolean => {
-                        if (isDayCompleted) return true;
-                        const tType = getStepInputType(day1Content, idx, taskInputs, sprint?.dailyContent);
-                        if (tType === "note" || tType === "none") return false;
-                        return isStepCompletedForIndex(idx);
-                    };
-
-                    const completedStepsCount = visibleStepIndices.filter(isStepDoneForProgress).length;
-
-                    return (
-                        <div className="flex flex-col">
-                            {/* Move's Insight */}
-                            <div className="space-y-3 text-left mt-2 mb-0 animate-slide-up">
-                                <SectionHeading showDot={!isDayCompleted}>Move's Insight</SectionHeading>
-                                <div className="text-gray-800 font-normal text-lg sm:text-xl md:text-2xl leading-[1.8] tracking-normal max-w-3xl">
-                                    <FormattedText text={day1Content?.lessonText || ""} />
-                                </div>
-                            </div>
-
-                            {/* Start First Step button with compact vertical spacing between Insight and Move Progress */}
-                            <div className="mt-5 mb-5 flex justify-end">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setGuidedStage("action");
-                                        setActiveTaskIndex(getFirstVisibleStepIndex());
-                                        window.scrollTo({ top: 0, behavior: "smooth" });
-                                    }}
-                                    className="w-full sm:w-auto px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
-                                >
-                                    <span>Start First Step</span>
-                                    <ArrowRight className="w-4 h-4" />
-                                </button>
-                            </div>
-
-                            {/* Move Progress Card with segmented line indicator */}
-                            <div className="w-full rounded-2xl border border-gray-200/80 bg-gray-50/70 px-4 py-3.5 shadow-2xs">
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">
-                                        MOVE {previewDay} PROGRESS
-                                    </span>
-                                    <span className="text-xs font-black text-gray-900">
-                                        {completedStepsCount} of {totalSteps} complete
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-2.5 w-full">
-                                    {visibleStepIndices.map((idx: number) => (
-                                        <div
-                                            key={idx}
-                                            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                                                isStepDoneForProgress(idx) ? 'bg-[#0E7850]' : 'bg-gray-200'
-                                            }`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
+                <div className="flex flex-col">
+                    {/* Move's Insight */}
+                    <div className="space-y-3 text-left mt-2 mb-0 animate-slide-up">
+                        <SectionHeading showDot={!isDayCompleted}>Move's Insight</SectionHeading>
+                        <div className="text-gray-800 font-normal text-lg sm:text-xl md:text-2xl leading-[1.8] tracking-normal max-w-3xl">
+                            <FormattedText text={day1Content?.lessonText || ""} />
                         </div>
-                    );
-                })()}
+                    </div>
+
+                    {/* Start First Step button with reduced vertical spacing */}
+                    <div className="mt-5 mb-2 flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setGuidedStage("action");
+                                setActiveTaskIndex(getFirstVisibleStepIndex());
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className="w-full sm:w-auto px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                        >
+                            <span>Start First Step</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
 
                 {/* Guided Mode Stage 2: Full-Bleed Action Step Focus Portal */}
                 {guidedStage === "action" && createPortal(

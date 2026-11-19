@@ -5311,7 +5311,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   if (sprintMode === "guided" && guidedStage === "insight") {
     return (
       <>
-        <div className="page-content w-full min-h-screen bg-white flex flex-col font-sans text-dark animate-fade-in pb-24">
+        <div className="page-content w-full min-h-screen bg-white flex flex-col font-sans text-dark animate-fade-in pb-8">
           <header className="px-6 sm:px-12 md:px-16 pt-8 pb-4 max-w-5xl mx-auto w-full sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100/80">
             <div className="flex items-center justify-between">
               <button
@@ -5446,115 +5446,31 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 </div>
               </div>
             ) : (
-              (() => {
-                const visibleStepIndices = (dayContent?.taskPrompts || [])
-                  .map((_: string, idx: number) => idx)
-                  .filter((idx: number) => isStepVisible(idx));
-                const totalSteps = visibleStepIndices.length;
-
-                const isStepDone = (idx: number): boolean => {
-                  if (dayProgress?.completed) return true;
-                  const type = getStepInputType(dayContent, idx, taskInputs, sprint?.dailyContent, enrollment?.progress);
-                  if (type === "note" || type === "none") return false;
-                  const val = taskInputs[idx];
-                  if (!val) return false;
-                  if (type === "mark") return val === "Completed" || val === "Skipped";
-                  if (type === "dual") {
-                    const parsed = parseDualInputState(val);
-                    return (parsed.selectedChoices && parsed.selectedChoices.length > 0) || Boolean(parsed.choice) || parsed.text.trim().length > 0;
-                  }
-                  if (type === "tags" || type === "poll") {
-                    if (val === "[]" || val.trim() === "") return false;
-                    try {
-                      if (val.startsWith("[")) {
-                        const parsed = JSON.parse(val);
-                        return Array.isArray(parsed) && parsed.length > 0;
-                      }
-                    } catch (e) {}
-                    return val.trim().length > 0;
-                  }
-                  if (!dayContent?.taskSpread?.[idx] && isLinkedTextStep(idx)) {
-                    const tags = getLinkedTagsForStep(idx);
-                    if (tags.length > 0) {
-                      try {
-                        if (!val.startsWith("{")) return false;
-                        const parsed = JSON.parse(val);
-                        return tags.every(t => parsed[t] && parsed[t].trim().length > 0);
-                      } catch (e) {
-                        return false;
-                      }
-                    }
-                  }
-                  if (isMultiTextStep(idx)) {
-                    const fields = getResolvedMultiTextFields(idx);
-                    if (fields.length > 0) {
-                      try {
-                        if (!val.startsWith("{")) return false;
-                        const parsed = JSON.parse(val);
-                        return fields.every((field: any) => {
-                          const answer = parsed[field.label] || parsed[field.rawLabel] || parsed[field.id];
-                          return answer && String(answer).trim().length > 0;
-                        });
-                      } catch (e) {
-                        return false;
-                      }
-                    }
-                  }
-                  return val.trim().length > 0;
-                };
-
-                const completedStepsCount = visibleStepIndices.filter(isStepDone).length;
-
-                return (
-                  <div className="flex flex-col">
-                    {/* Move's Insight */}
-                    <div className="space-y-3 text-left mt-2 mb-0 animate-slide-up">
-                      <SectionHeading>Move's Insight</SectionHeading>
-                      <div className="text-gray-800 font-normal text-lg sm:text-xl md:text-2xl leading-[1.8] tracking-normal max-w-3xl">
-                        <FormattedText text={dayContent?.lessonText || ""} />
-                      </div>
-                    </div>
-
-                    {/* Tightened spacing above and below Start First Step button between Insight content and Move progress bar */}
-                    <div className="mt-5 mb-5 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGuidedStage("action");
-                          setActiveTaskIndex(getFirstVisibleStepIndex());
-                          window.scrollTo({ top: 0, behavior: "smooth" });
-                        }}
-                        className="w-full sm:w-auto px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
-                      >
-                        <span>Start First Step</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Move Progress Card with segmented line indicator */}
-                    <div className="w-full rounded-2xl border border-gray-200/80 bg-gray-50/70 px-4 py-3.5 shadow-2xs">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">
-                          MOVE {viewingDay} PROGRESS
-                        </span>
-                        <span className="text-xs font-black text-gray-900">
-                          {completedStepsCount} of {totalSteps} complete
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-2.5 w-full">
-                        {visibleStepIndices.map((idx: number) => (
-                          <div
-                            key={idx}
-                            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                              isStepDone(idx) ? 'bg-[#0E7850]' : 'bg-gray-200'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
+              <div className="flex flex-col">
+                {/* Move's Insight */}
+                <div className="space-y-3 text-left mt-2 mb-0 animate-slide-up">
+                  <SectionHeading>Move's Insight</SectionHeading>
+                  <div className="text-gray-800 font-normal text-lg sm:text-xl md:text-2xl leading-[1.8] tracking-normal max-w-3xl">
+                    <FormattedText text={dayContent?.lessonText || ""} />
                   </div>
-                );
-              })()
+                </div>
+
+                {/* Start First Step button with reduced vertical spacing */}
+                <div className="mt-5 mb-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGuidedStage("action");
+                      setActiveTaskIndex(getFirstVisibleStepIndex());
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="w-full sm:w-auto px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    <span>Start First Step</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
