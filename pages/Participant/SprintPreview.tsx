@@ -22,7 +22,7 @@ import { userService, safeJSONStringify } from '../../services/userService';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { triggerHaptic, hapticPatterns, getSoundSettings } from '../../utils/haptics';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Eye, EyeOff, Mail, Youtube } from 'lucide-react';
+import { X, Eye, EyeOff, Mail, Youtube, Sparkles, ArrowRight, Minimize2 } from 'lucide-react';
 
 import { toast } from 'sonner';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
@@ -151,6 +151,7 @@ const SprintPreview: React.FC = () => {
     });
 
     const [activeTaskIndex, setActiveTaskIndex] = useState(0);
+    const [guidedStage, setGuidedStage] = useState<"insight" | "action">("insight");
     const [completedThoughtsMap, setCompletedThoughtsMap] = useState<Record<number, boolean>>({});
     const [activeTextTagIndexMap, setActiveTextTagIndexMap] = useState<Record<number, number>>({});
 
@@ -189,6 +190,7 @@ const SprintPreview: React.FC = () => {
         lastSpreadStepKeyRef.current = "";
         setPreviewDay(newDay);
         setActiveTaskIndex(0);
+        setGuidedStage("insight");
         const dayInputs = updatedInputs[newDay] || [];
         setTaskInputs(dayInputs);
     };
@@ -201,6 +203,7 @@ const SprintPreview: React.FC = () => {
             lastSpreadStepKeyRef.current = "";
             setPreviewDay(target);
             setActiveTaskIndex(0);
+            setGuidedStage("insight");
             const saved = allDayInputs[target] || [];
             setTaskInputs(saved);
         }
@@ -1307,6 +1310,14 @@ const SprintPreview: React.FC = () => {
         return day1Content.taskPrompts.filter((_, idx) => isStepVisible(idx)).length;
     };
 
+    const getFirstVisibleStepIndex = (): number => {
+        if (!day1Content || !day1Content.taskPrompts) return 0;
+        for (let i = 0; i < day1Content.taskPrompts.length; i++) {
+            if (isStepVisible(i)) return i;
+        }
+        return 0;
+    };
+
     const getVisibleStepIndexOrder = (currentIndex: number): number => {
         if (!day1Content || !day1Content.taskPrompts) return 0;
         let order = 0;
@@ -2090,88 +2101,162 @@ const SprintPreview: React.FC = () => {
     }
 
     return (
-        <div className="w-full bg-[#FAFAFA] min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
-            <header className="px-6 pt-10 pb-4 max-w-2xl mx-auto w-full sticky top-0 z-50 bg-[#FAFAFA]/90 backdrop-blur-md">
+        <div className="w-full bg-white min-h-screen flex flex-col font-sans text-dark animate-fade-in pb-24">
+            <header className="px-6 sm:px-12 md:px-16 pt-8 pb-4 max-w-5xl mx-auto w-full sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100/80">
                 <div className="flex items-center justify-between">
-                    <button onClick={() => navigate(-1)} className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                    </button>
-                    <div className="text-center flex-1 mx-4 min-w-0">
-                        <h1 className="text-lg font-black text-gray-900 truncate italic">{sprint.title}</h1>
-                    </div>
-                    <button 
+                    <button
                         type="button"
-                        onClick={() => setIsSprintOverviewOpen(true)}
-                        className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-400 active:scale-95 transition-all cursor-pointer"
-                        title="Sprint Description"
+                        onClick={() => navigate(-1)}
+                        className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                        title="Go back"
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                     </button>
+                    <div className="flex items-center gap-2">
+                        <span className="px-3.5 py-1.5 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-[#0E7850]/20">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Guided Mode
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 rounded-2xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-md shrink-0 select-none">
+                            <span className="text-[7px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
+                            <span className="text-sm font-black leading-none">{previewDay}</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsSprintOverviewOpen(true)}
+                            className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                            title="Sprint Description"
+                        >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </header>
 
-            <div className="px-6 max-w-2xl mx-auto w-full space-y-6 mt-4">
-                {/* Day Selector */}
-                <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar scroll-smooth px-1">
-                    {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
-                        const isDayDone = completedDays.includes(day);
-                        const isCurrentActive = day === previewDay;
-                        const maxCompleted = completedDays.length > 0 ? Math.max(...completedDays) : 0;
-                        const isUnlocked = isDayDone || day <= maxCompleted + 1;
-
-                        return (
-                            <button
-                                key={day}
-                                type="button"
-                                onClick={() => {
-                                    if (isUnlocked) {
-                                        switchDay(day);
-                                    } else {
-                                        setShowLockModal(true);
-                                    }
-                                }}
-                                className={`flex-shrink-0 w-20 h-20 rounded-[1.5rem] flex flex-col items-center justify-center relative transition-all duration-300 ${
-                                    isCurrentActive 
-                                        ? 'bg-[#0E7850] text-white shadow-xl shadow-emerald-900/10 scale-105 ring-4 ring-[#0E7850]/20' 
-                                        : isDayDone 
-                                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60 hover:bg-emerald-100/80 cursor-pointer' 
-                                            : isUnlocked 
-                                                ? 'bg-white text-gray-700 border border-gray-200 hover:border-[#0E7850]/40 cursor-pointer' 
-                                                : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 cursor-pointer'
-                                }`}
-                            >
-                                <span className={`text-[8px] font-black uppercase tracking-widest ${
-                                    isCurrentActive ? 'text-white/70' : isDayDone ? 'text-emerald-600' : 'text-gray-400'
-                                }`}>Move</span>
-                                <span className="text-3xl font-black leading-none">{day}</span>
-                                
-                                {isDayDone && !isCurrentActive && (
-                                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500" />
-                                )}
-                                {!isUnlocked && (
-                                    <span className="absolute top-2 right-2 text-gray-300">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                        </svg>
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
+            <div className="px-6 sm:px-12 md:px-16 max-w-5xl mx-auto w-full flex-1 flex flex-col pt-8">
+                {/* Centered Sprint Title */}
+                <div className="pb-5 border-b border-gray-100 mb-6 text-center">
+                    <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight leading-tight max-w-xl mx-auto">
+                        {sprint.title}
+                    </h1>
                 </div>
 
-                <div className="space-y-2 text-left animate-slide-up">
-                    <SectionHeading showDot={!isDayCompleted}>Move's Insight</SectionHeading>
-                    <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                        <FormattedText text={day1Content?.lessonText || ""} />
+                {/* Move Switcher (only shown once multiple moves are unlocked or in coach preview) */}
+                {sprint.duration > 1 && (completedDays.length > 0 || isCoachPreview) && (
+                    <div className="flex overflow-x-auto gap-3 pb-4 no-scrollbar scroll-smooth justify-start sm:justify-center">
+                        {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => {
+                            const isDayDone = completedDays.includes(day);
+                            const isCurrentActive = day === previewDay;
+                            const maxCompleted = completedDays.length > 0 ? Math.max(...completedDays) : 0;
+                            const isUnlocked = isCoachPreview || isDayDone || day <= maxCompleted + 1;
+
+                            return (
+                                <button
+                                    key={day}
+                                    type="button"
+                                    onClick={() => {
+                                        if (isUnlocked) {
+                                            switchDay(day);
+                                        } else {
+                                            setShowLockModal(true);
+                                        }
+                                    }}
+                                    className={`flex-shrink-0 w-16 h-16 rounded-2xl flex flex-col items-center justify-center relative transition-all duration-300 ${
+                                        isCurrentActive
+                                            ? 'bg-[#0E7850] text-white shadow-lg shadow-emerald-900/10 scale-105'
+                                            : isDayDone
+                                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60 hover:bg-emerald-100/80 cursor-pointer'
+                                                : isUnlocked
+                                                    ? 'bg-white text-gray-700 border border-gray-200 hover:border-[#0E7850]/40 cursor-pointer'
+                                                    : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 cursor-pointer'
+                                    }`}
+                                >
+                                    <span className={`text-[7px] font-black uppercase tracking-widest ${
+                                        isCurrentActive ? 'text-white/70' : isDayDone ? 'text-emerald-600' : 'text-gray-400'
+                                    }`}>Move</span>
+                                    <span className="text-xl font-black leading-none">{day}</span>
+                                </button>
+                            );
+                        })}
                     </div>
-                </div>
+                )}
 
-                <div className="space-y-6 w-full animate-slide-up relative overflow-hidden">
-                    {/* Action Step */}
-                    <div className="space-y-6 relative">
+                {/* Guided Mode Stage 1: Move's Insight */}
+                {(() => {
+                    const promptsArr = day1Content?.taskPrompts || (day1Content?.taskPrompt ? [day1Content.taskPrompt] : []);
+                    const visibleStepIndices = promptsArr
+                        .map((_: string, idx: number) => idx)
+                        .filter((idx: number) => isStepVisible(idx));
+                    const totalSteps = visibleStepIndices.length;
+
+                    const isStepDoneForProgress = (idx: number): boolean => {
+                        if (isDayCompleted) return true;
+                        const tType = getStepInputType(day1Content, idx, taskInputs, sprint?.dailyContent);
+                        if (tType === "note" || tType === "none") return false;
+                        return isStepCompletedForIndex(idx);
+                    };
+
+                    const completedStepsCount = visibleStepIndices.filter(isStepDoneForProgress).length;
+
+                    return (
+                        <div className="flex flex-col">
+                            {/* Move's Insight */}
+                            <div className="space-y-3 text-left mt-2 mb-0 animate-slide-up">
+                                <SectionHeading showDot={!isDayCompleted}>Move's Insight</SectionHeading>
+                                <div className="text-gray-800 font-normal text-lg sm:text-xl md:text-2xl leading-[1.8] tracking-normal max-w-3xl">
+                                    <FormattedText text={day1Content?.lessonText || ""} />
+                                </div>
+                            </div>
+
+                            {/* Start First Step button with compact vertical spacing between Insight and Move Progress */}
+                            <div className="mt-5 mb-5 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setGuidedStage("action");
+                                        setActiveTaskIndex(getFirstVisibleStepIndex());
+                                        window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }}
+                                    className="w-full sm:w-auto px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                                >
+                                    <span>Start First Step</span>
+                                    <ArrowRight className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {/* Move Progress Card with segmented line indicator */}
+                            <div className="w-full rounded-2xl border border-gray-200/80 bg-gray-50/70 px-4 py-3.5 shadow-2xs">
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">
+                                        MOVE {previewDay} PROGRESS
+                                    </span>
+                                    <span className="text-xs font-black text-gray-900">
+                                        {completedStepsCount} of {totalSteps} complete
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-2.5 w-full">
+                                    {visibleStepIndices.map((idx: number) => (
+                                        <div
+                                            key={idx}
+                                            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                                                isStepDoneForProgress(idx) ? 'bg-[#0E7850]' : 'bg-gray-200'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* Guided Mode Stage 2: Full-Bleed Action Step Focus Portal */}
+                {guidedStage === "action" && createPortal(
+                    <div className="fixed inset-0 z-40 bg-white w-screen h-screen overflow-y-auto">
+                    <div className="space-y-6 relative min-h-full">
                         {(day1Content?.taskPrompts || [day1Content?.taskPrompt || '']).map((prompt: string, i: number) => {
                             if (i !== activeTaskIndex) return null;
                             if (!isStepVisible(i)) return null;
@@ -2188,11 +2273,31 @@ const SprintPreview: React.FC = () => {
                             const stepCompleted = isStepCompletedForIndex(i);
 
                             return (
-                                <div key={i} className="p-6 bg-primary/5 rounded-2xl border border-primary/10 relative text-left">
+                                <div key={i} className="w-full min-h-screen bg-white px-6 sm:px-16 md:px-24 lg:px-32 py-12 md:py-20 relative text-left flex flex-col">
+                                    {/* Top Bar with Guided Mode pill & Back-to-Insight control */}
+                                    <div className="w-full max-w-7xl mx-auto flex items-center justify-between mb-6">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest border border-[#0E7850]/20">
+                                            <Sparkles className="w-3 h-3" />
+                                            Guided Mode
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setGuidedStage("insight");
+                                                window.scrollTo({ top: 0, behavior: "smooth" });
+                                            }}
+                                            className="p-1.5 rounded-lg bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-sm transition-all cursor-pointer flex items-center justify-center active:scale-95"
+                                            title="Back to Move's Insight"
+                                        >
+                                            <Minimize2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+
+                                    <div className="w-full max-w-7xl mx-auto space-y-6 flex flex-col relative pb-12">
                                     <SectionHeading showDot={!isDayCompleted}>
                                         Action Step {getVisibleStepIndexOrder(i)}
                                     </SectionHeading>
-                                    <div className={`text-gray-950 text-lg sm:text-xl md:text-2xl leading-relaxed relative ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
+                                    <div className={`text-gray-950 text-xl sm:text-2xl md:text-3xl leading-tight relative ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
                                         <FormattedText text={formatInterpolatedText(effectivePrompt, day1Content, taskInputs, sprint?.dailyContent, undefined, user)} />
                                     </div>
                                     {effectiveFootnote && (
@@ -3068,17 +3173,21 @@ const SprintPreview: React.FC = () => {
 
                                     <div className="mt-6 flex flex-col gap-4 w-full">
                                         <div className="flex justify-between items-center gap-4 w-full">
-                                            {getPrevVisibleStepIndex(i) !== -1 ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setActiveTaskIndex(getPrevVisibleStepIndex(i))}
-                                                    className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95 cursor-pointer"
-                                                >
-                                                    Back
-                                                </button>
-                                            ) : (
-                                                <div />
-                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const prevIdx = getPrevVisibleStepIndex(i);
+                                                    if (prevIdx !== -1) {
+                                                        setActiveTaskIndex(prevIdx);
+                                                    } else {
+                                                        setGuidedStage("insight");
+                                                        window.scrollTo({ top: 0, behavior: "smooth" });
+                                                    }
+                                                }}
+                                                className="px-6 py-2.5 rounded-xl text-xs font-bold transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95 cursor-pointer"
+                                            >
+                                                Back
+                                            </button>
 
                                             {getNextVisibleStepIndex(i) !== -1 ? (
                                                 <button
@@ -3135,11 +3244,28 @@ const SprintPreview: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
+                                    </div>
                                 </div>
                             );
                         })}
                     </div>
-                </div>
+                    </div>,
+                    document.body
+                )}
+            </div>
+
+            {/* Persistent Move Progress Bar at bottom matching Guided Mode */}
+            <div className="fixed bottom-0 left-0 right-0 h-1.5 bg-gray-100/90 backdrop-blur-sm z-50 select-none">
+                <div
+                    className="h-full bg-[#0E7850] transition-all duration-300 ease-out"
+                    style={{
+                        width: `${
+                            guidedStage === "insight"
+                                ? 15
+                                : 15 + ((activeTaskIndex + 1) / (getTotalVisibleStepsCount() || 1)) * 85
+                        }%`
+                    }}
+                ></div>
             </div>
 
             <style>{`
@@ -3156,11 +3282,11 @@ const SprintPreview: React.FC = () => {
                     {/* Backdrop Overlay */}
                     <div 
                         onClick={() => setShowLockModal(false)}
-                        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in" 
+                        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm animate-fade-in" 
                     />
                     
                     {/* Bottom Modal Sheet Container */}
-                    <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] px-6 pt-8 pb-10 max-w-md mx-auto animate-slide-up border-t border-gray-100 max-h-[92vh] overflow-y-auto no-scrollbar">
+                    <div className="fixed inset-x-0 bottom-0 z-[105] bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] px-6 pt-8 pb-10 max-w-md mx-auto animate-slide-up border-t border-gray-100 max-h-[92vh] overflow-y-auto no-scrollbar">
                         
                         {/* Drag Pull Indicator line */}
                         <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6 shrink-0" />
@@ -3419,7 +3545,7 @@ const SprintPreview: React.FC = () => {
             )}
 
             {showBottomCancelConfirm && createPortal(
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+                <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 sm:p-10 max-w-sm w-full text-center relative overflow-hidden border border-gray-100">
                         <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-amber-500">
                             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
