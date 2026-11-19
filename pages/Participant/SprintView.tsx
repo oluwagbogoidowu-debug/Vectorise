@@ -5333,11 +5333,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                   <button
                     type="button"
                     onClick={handleExitPreview}
-                    className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-xs"
-                    title="Exit Coach Preview"
+                    className="w-10 h-10 bg-white border border-gray-100 hover:bg-gray-50 text-gray-700 hover:text-gray-950 rounded-2xl shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                    title="Exit Preview"
+                    aria-label="Exit Preview"
                   >
-                    <X className="w-3.5 h-3.5" />
-                    Exit Preview
+                    <X className="w-4 h-4" />
                   </button>
                 )}
                 {/* Small square Move badge, as small as the kebab menu button */}
@@ -5524,11 +5524,11 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 <button
                   type="button"
                   onClick={handleExitPreview}
-                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-xs"
-                  title="Exit Coach Preview"
+                  className="w-10 h-10 bg-white border border-gray-100 hover:bg-gray-50 text-gray-700 hover:text-gray-950 rounded-2xl shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0"
+                  title="Exit Preview"
+                  aria-label="Exit Preview"
                 >
-                  <X className="w-3.5 h-3.5" />
-                  Exit Preview
+                  <X className="w-4 h-4" />
                 </button>
               )}
               <div className="relative" ref={kebabMenuRef}>

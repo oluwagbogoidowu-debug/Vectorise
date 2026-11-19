@@ -44,10 +44,11 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
           <button
             type="button"
             onClick={onExitPreview}
-            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+            className="w-9 h-9 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition-all cursor-pointer flex items-center justify-center shadow-xs active:scale-95 shrink-0"
+            title="Exit Preview"
+            aria-label="Exit Preview"
           >
-            <X className="w-3.5 h-3.5" />
-            Exit Preview
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>

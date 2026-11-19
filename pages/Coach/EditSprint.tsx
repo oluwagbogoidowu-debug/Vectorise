@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu } from 'lucide-react';
+import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, ArrowRight, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu, Minimize2, StickyNote, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
@@ -21,6 +21,8 @@ import DailyActionWorkspace from './DailyActionWorkspace';
 import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import SprintSpotlightTour from '../../components/SprintSpotlightTour';
 import CoachGuideModal from '../../components/CoachGuideModal';
+import FullBleedProgressNoteSlide from '../../components/FullBleedProgressNoteSlide';
+import TagInput from '../../components/TagInput';
 
 const extractYouTubeId = (url: string): string | null => {
   if (!url) return null;
@@ -377,6 +379,7 @@ const EditSprint: React.FC = () => {
     setExpandedStepEarlierDays({});
     setPreviewInputs({});
     setCollapsedBranchingPaths({});
+    setSprintViewGuidedStage('insight');
   }, [selectedDay]);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -440,6 +443,12 @@ const EditSprint: React.FC = () => {
       versionTag: ''
   });
   const [previewType, setPreviewType] = useState<'card' | 'landing' | 'daily'>('daily');
+  const [editorTab, setEditorTab] = useState<'editor' | 'sprint_view'>('editor');
+  const [sprintViewGuidedStage, setSprintViewGuidedStage] = useState<'insight' | 'action'>('insight');
+  const [sprintViewMode, setSprintViewMode] = useState<'guided' | 'scroll'>('guided');
+  const [sprintViewKebabOpen, setSprintViewKebabOpen] = useState(false);
+  const [sprintViewMoveMenuOpen, setSprintViewMoveMenuOpen] = useState(false);
+  const [pendingSprintViewProgressNote, setPendingSprintViewProgressNote] = useState<string | null>(null);
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
   const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
@@ -3562,6 +3571,680 @@ const EditSprint: React.FC = () => {
             className="mb-6"
           />
 
+          {/* Workspace Tab Switcher */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-1 p-1 bg-white border border-gray-200/80 rounded-2xl shadow-xs">
+              <button
+                type="button"
+                onClick={() => setEditorTab('editor')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  editorTab === 'editor'
+                    ? 'bg-[#0E7850] text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                Edit Sprint
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditorTab('sprint_view');
+                  setSprintViewGuidedStage('insight');
+                }}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                  editorTab === 'sprint_view'
+                    ? 'bg-[#0E7850] text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Sprint View</span>
+              </button>
+            </div>
+
+            {editorTab === 'sprint_view' && (
+              <div className="inline-flex items-center gap-1 p-1 bg-white border border-gray-200/80 rounded-xl shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setSprintViewMode('guided')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    sprintViewMode === 'guided' ? 'bg-[#0E7850]/10 text-[#0E7850]' : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Guided
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSprintViewMode('scroll')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    sprintViewMode === 'scroll' ? 'bg-[#0E7850]/10 text-[#0E7850]' : 'text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  Scroll
+                </button>
+              </div>
+            )}
+          </div>
+
+          {editorTab === 'sprint_view' ? (
+            <div className="max-w-4xl w-full mx-auto animate-fade-in">
+              {(() => {
+                const activePrompts = currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : []);
+                const validIndex = Math.min(previewTaskIndex, Math.max(0, activePrompts.length - 1));
+                const rawPrompt = activePrompts[validIndex] || '';
+                const promptVersions = parseStepVersions(rawPrompt);
+                const effectivePrompt = promptVersions[0] || rawPrompt;
+                const rawFootnote = currentContent.taskFootnotes?.[validIndex];
+                const footnoteVersions = parseStepVersions(rawFootnote || '');
+                const effectiveFootnote = footnoteVersions[0] || rawFootnote || '';
+                const stepDotActive = true;
+
+                const triggerCompleteMove = () => {
+                  const rawProgress = currentContent.progressNote;
+                  if (rawProgress && rawProgress.trim()) {
+                    const formattedProgress = formatInterpolatedText(
+                      rawProgress,
+                      currentContent,
+                      previewInputs as any,
+                      sprint?.dailyContent
+                    );
+                    setPendingSprintViewProgressNote(formattedProgress || rawProgress);
+                  } else {
+                    setShowDaySuccessPreview(true);
+                  }
+                };
+
+                const isStepLinked = (stepIndex: number): boolean => {
+                  if (Array.isArray(currentContent.taskLinkedSources?.[stepIndex]) && currentContent.taskLinkedSources[stepIndex].length > 0) {
+                    return true;
+                  }
+                  for (let prevIndex = stepIndex - 1; prevIndex >= 0; prevIndex--) {
+                    if (currentContent.taskLinkedToNext?.[prevIndex]) {
+                      return true;
+                    }
+                  }
+                  return false;
+                };
+
+                const getPreviewTagsForStep = (stepIndex: number): string[] => {
+                  const tags = getAvailableConnectedTags(stepIndex);
+                  if (tags.length > 0) return tags;
+                  if (isStepLinked(stepIndex)) {
+                    return ["Mindset Shift", "Goal Alignment"];
+                  }
+                  return [];
+                };
+
+                const renderStepInput = (i: number) => {
+                  const type = currentContent.taskInputTypes?.[i] || 'text';
+                  const isLinked = isStepLinked(i);
+
+                  if (type === 'poll') {
+                    let parsedOpts: string[] = [];
+                    try {
+                      parsedOpts = JSON.parse(currentContent.taskPollOptions?.[i] || '[]');
+                    } catch (e) {}
+                    const optionsList = parsedOpts.filter(o => o.trim());
+                    const linkedTags = getPreviewTagsForStep(i);
+                    const allOptions = isLinked
+                      ? Array.from(new Set([...linkedTags, ...optionsList])).filter(Boolean)
+                      : optionsList.filter(Boolean);
+
+                    const isMultiSelect = !!currentContent.taskPollMultiSelect?.[i];
+                    const isAddSet = !!currentContent.taskPollAdd?.[i];
+                    let selectedOpts: string[] = [];
+                    try {
+                      const val = previewInputs[i] || '';
+                      if (val.startsWith('[')) {
+                        selectedOpts = JSON.parse(val);
+                      } else if (val) {
+                        selectedOpts = [val];
+                      }
+                    } catch (e) {}
+
+                    if (allOptions.length === 0) {
+                      return (
+                        <div className="p-4 text-center text-xs text-gray-400 font-semibold italic bg-gray-50 border border-gray-100 rounded-2xl">
+                          No poll options defined yet.
+                        </div>
+                      );
+                    }
+
+                    if (allOptions.length > 6) {
+                      const lastOpt = allOptions[allOptions.length - 1];
+                      const isLastSel = isMultiSelect ? selectedOpts.includes(lastOpt) : (previewInputs[i] === lastOpt);
+                      return (
+                        <div className="space-y-3 w-full">
+                          <div className="flex flex-wrap gap-2 w-full">
+                            {allOptions.map((opt, idx) => {
+                              const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isMultiSelect) {
+                                      const next = selectedOpts.includes(opt)
+                                        ? selectedOpts.filter(o => o !== opt)
+                                        : [...selectedOpts, opt];
+                                      setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(next) }));
+                                    } else {
+                                      setPreviewInputs(prev => ({ ...prev, [i]: opt }));
+                                    }
+                                  }}
+                                  className={`px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all border cursor-pointer ${
+                                    isSel
+                                      ? 'bg-primary text-white border-primary shadow-md'
+                                      : 'bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {isAddSet && isLastSel && (
+                            <div className="p-4 rounded-2xl bg-gray-50/90 border border-primary/20 text-left">
+                              <label className="block text-xs font-bold text-gray-600 mb-2">
+                                {isMultiSelect ? 'Add items for this option:' : 'Specify your answer:'}
+                              </label>
+                              <input
+                                type="text"
+                                placeholder={isMultiSelect ? 'Type one answer at a time and press Enter...' : 'Type your answer here...'}
+                                className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-200 rounded-xl text-gray-700 outline-none focus:border-primary"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-3 w-full">
+                        {isMultiSelect && (
+                          <p className="text-xs font-black uppercase text-primary tracking-widest pl-1">
+                            Select one or more:
+                          </p>
+                        )}
+                        {allOptions.map((opt, idx) => {
+                          const isSel = isMultiSelect ? selectedOpts.includes(opt) : (previewInputs[i] === opt);
+                          const isLastOption = isAddSet && idx === allOptions.length - 1;
+                          return (
+                            <div key={idx} className="w-full">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isMultiSelect) {
+                                    const next = selectedOpts.includes(opt)
+                                      ? selectedOpts.filter(o => o !== opt)
+                                      : [...selectedOpts, opt];
+                                    setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(next) }));
+                                  } else {
+                                    setPreviewInputs(prev => ({ ...prev, [i]: opt }));
+                                  }
+                                }}
+                                className={`w-full py-4 px-5 rounded-2xl text-base font-bold transition-all text-left border flex items-center justify-between cursor-pointer ${
+                                  isSel
+                                    ? 'bg-primary/10 border-primary text-primary'
+                                    : 'bg-white border-primary/10 hover:border-primary/30 text-gray-700'
+                                }`}
+                              >
+                                <span>{String.fromCharCode(65 + idx)}. {opt}</span>
+                                {isMultiSelect ? (
+                                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSel ? 'border-primary bg-primary text-white' : 'border-gray-300 bg-white'}`}>
+                                    {isSel && (
+                                      <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" strokeWidth={4} viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${isSel ? 'border-primary bg-primary' : 'border-gray-300 bg-white'}`}>
+                                    {isSel && <div className="w-2 h-2 rounded-full bg-white" />}
+                                  </div>
+                                )}
+                              </button>
+                              {isLastOption && isSel && (
+                                <div className="mt-2.5 p-4 rounded-2xl bg-gray-50/90 border border-primary/20 text-left">
+                                  <label className="block text-xs font-bold text-gray-600 mb-2">
+                                    {isMultiSelect ? 'Add items for this option:' : 'Specify your answer:'}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder={isMultiSelect ? 'Type one answer at a time and press Enter...' : 'Type your answer here...'}
+                                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-200 rounded-xl text-gray-700 outline-none focus:border-primary"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  if (type === 'tags') {
+                    return (
+                      <div className="space-y-3">
+                        <TagInput
+                          value={previewInputs[i] || ''}
+                          onChange={(newVal) => setPreviewInputs(prev => ({ ...prev, [i]: newVal }))}
+                          placeholder="Type one answer at a time and press Enter to add more...."
+                        />
+                      </div>
+                    );
+                  }
+
+                  if (type === 'note') {
+                    return (
+                      <div className="p-4 rounded-2xl gap-3 bg-emerald-500/10 border border-emerald-500/15 flex items-center text-left">
+                        <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-emerald-800 uppercase tracking-widest">Informational Step Completed</p>
+                          <p className="text-xs text-emerald-700 font-semibold">Review the notes above and click Next to continue.</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (type === 'mark') {
+                    const isChecked = previewInputs[i] === 'Completed';
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isChecked) {
+                            setPreviewInputs(prev => ({ ...prev, [i]: '' }));
+                          } else {
+                            setConfirmMarkStepIndex(i);
+                          }
+                        }}
+                        className={`w-full p-5 rounded-2xl border flex items-center justify-between transition-all shadow-sm cursor-pointer ${
+                          isChecked ? 'bg-emerald-500/10 border-emerald-500/35 text-emerald-950' : 'bg-white border-primary/10 hover:border-primary/20 text-gray-700 hover:bg-gray-50/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all ${
+                            isChecked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 bg-white'
+                          }`}>
+                            {isChecked && (
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-base font-bold tracking-wide">
+                            {isChecked ? 'Completed & Verified!' : 'Mark as Completed'}
+                          </span>
+                        </div>
+                        {isChecked && (
+                          <span className="text-[10px] px-3 py-1 font-black text-emerald-600 bg-emerald-100 rounded-full uppercase tracking-widest shrink-0">
+                            DONE
+                          </span>
+                        )}
+                      </button>
+                    );
+                  }
+
+                  if (type === 'none') {
+                    return null;
+                  }
+
+                  if ((!type || type === 'text') && Array.isArray(currentContent.taskMultiTextLabels?.[i]) && currentContent.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim()).length > 0) {
+                    const validLabels = currentContent.taskMultiTextLabels[i].filter((l: any) => l && String(l).trim());
+                    let currentAnswers: Record<string, string> = {};
+                    const val = previewInputs[i] || '';
+                    if (val) {
+                      try {
+                        currentAnswers = val.startsWith('{') ? JSON.parse(val) : { [validLabels[0] || 'default']: val };
+                      } catch (e) {
+                        currentAnswers = {};
+                      }
+                    }
+                    return (
+                      <div className="space-y-4 text-left">
+                        {validLabels.map((rawLbl: string, lblIndex: number) => {
+                          const linkedTarget = currentContent.taskMultiTextLinks?.[i]?.[lblIndex];
+                          const lbl = linkedTarget ? formatMultiTextLinkName(linkedTarget) : rawLbl;
+                          const labelVal = currentAnswers[lbl] || currentAnswers[rawLbl] || '';
+                          return (
+                            <div key={lblIndex} className="space-y-2 p-3.5 bg-primary/[0.02] border border-primary/15 rounded-2xl">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black uppercase tracking-wider bg-primary/10 text-primary rounded-xl">
+                                {linkedTarget ? '🔗' : '📝'} {lbl}
+                              </span>
+                              <textarea
+                                value={labelVal}
+                                onChange={e => {
+                                  const next = { ...currentAnswers, [lbl]: e.target.value };
+                                  setPreviewInputs(prev => ({ ...prev, [i]: JSON.stringify(next) }));
+                                }}
+                                className="w-full px-4 py-3 bg-white border border-primary/10 focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none rounded-xl text-base font-medium text-gray-900 placeholder-gray-400 min-h-[90px] resize-none"
+                                placeholder={`Your answer for ${lbl}...`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }
+
+                  const rawFill = currentContent.taskFills?.[i];
+                  const placeholderFill = rawFill ? formatInterpolatedText(rawFill, currentContent, previewInputs as any, sprint?.dailyContent) : "What's on your mind...";
+                  return (
+                    <textarea
+                      value={previewInputs[i] ?? ''}
+                      onChange={e => setPreviewInputs(prev => ({ ...prev, [i]: e.target.value }))}
+                      placeholder={placeholderFill}
+                      className="w-full px-5 py-4 text-base rounded-2xl bg-white border border-primary/15 font-medium text-gray-950 placeholder-gray-400 focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none transition-all min-h-[120px] resize-none"
+                    />
+                  );
+                };
+
+                return (
+                  <div className="bg-white rounded-[2.25rem] border border-gray-200/80 shadow-xl overflow-hidden flex flex-col relative min-h-[620px]">
+                    {/* Top SprintView Header */}
+                    <header className="px-6 sm:px-10 pt-6 pb-4 bg-white/95 border-b border-gray-100/80 relative z-20">
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSprintViewMoveMenuOpen(prev => !prev)}
+                          className="p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer"
+                          title="Switch Move"
+                        >
+                          <Menu className="w-5 h-5" />
+                        </button>
+
+                        <div className="flex items-center justify-center min-w-0">
+                          {sprintViewMode === 'guided' ? (
+                            <span className="px-3.5 py-1.5 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-[#0E7850]/20 whitespace-nowrap shrink-0">
+                              <Sparkles className="w-3.5 h-3.5" />
+                              Guided Mode
+                            </span>
+                          ) : (
+                            <h2 className="text-base sm:text-lg font-black text-gray-900 truncate">
+                              {sprint.title}
+                            </h2>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-2xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-md shrink-0 select-none">
+                            <span className="text-[7px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
+                            <span className="text-sm font-black leading-none tabular-nums">{selectedDay}</span>
+                          </div>
+
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setSprintViewKebabOpen(prev => !prev)}
+                              className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${sprintViewKebabOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                              title="Sprint View options"
+                            >
+                              <MoreVertical className="w-5 h-5" />
+                            </button>
+                            {sprintViewKebabOpen && (
+                              <div className="absolute right-0 mt-2 w-60 bg-white rounded-3xl shadow-2xl border border-gray-100 py-2 px-2 z-50 text-left">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSprintViewKebabOpen(false);
+                                    setSprintViewMode(m => (m === 'guided' ? 'scroll' : 'guided'));
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <span>Switch to {sprintViewMode === 'guided' ? 'Scroll Mode' : 'Guided Mode'}</span>
+                                  <Sparkles className="w-4 h-4 text-[#0E7850]" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSprintViewKebabOpen(false);
+                                    setPreviewInputs({});
+                                    setPreviewTaskIndex(0);
+                                    setSprintViewGuidedStage('insight');
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <span>Reset Preview Inputs</span>
+                                  <RotateCcw className="w-4 h-4 text-gray-500" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSprintViewKebabOpen(false);
+                                    navigate(`/coach/sprint/preview/${sprintId}`, { state: { sprint, resetPreview: true, targetDay: selectedDay } });
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-[#0E7850] hover:bg-emerald-50 cursor-pointer"
+                                >
+                                  <span>Open Full Simulation</span>
+                                  <ArrowRight className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {sprintViewMoveMenuOpen && (
+                        <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2 overflow-x-auto hide-scrollbar">
+                          {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => {
+                                handleSelectDay(day);
+                                setSprintViewMoveMenuOpen(false);
+                              }}
+                              className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer ${
+                                selectedDay === day
+                                  ? 'bg-[#0E7850] text-white shadow-sm'
+                                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                              }`}
+                            >
+                              Move {day}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </header>
+
+                    {/* Body Content */}
+                    <div className="flex-1 flex flex-col px-6 sm:px-12 md:px-16 py-8 max-w-3xl mx-auto w-full">
+                      {sprintViewMode === 'guided' && sprintViewGuidedStage === 'insight' ? (
+                        <>
+                          <div className="pb-6 border-b border-gray-100 mb-8 text-center">
+                            <h1 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight leading-tight max-w-xl mx-auto">
+                              {sprint.title}
+                            </h1>
+                          </div>
+
+                          <div className="space-y-3 text-left mt-2 mb-0">
+                            <SectionHeading>Move's Insight</SectionHeading>
+                            <div className="text-gray-800 font-normal text-lg sm:text-xl leading-[1.8] tracking-normal max-w-3xl">
+                              <FormattedText text={currentContent.lessonText || "Lesson insight will appear here..."} />
+                            </div>
+                          </div>
+
+                          <div className="mt-5 mb-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSprintViewGuidedStage('action');
+                                setPreviewTaskIndex(0);
+                              }}
+                              className="w-full sm:w-auto px-8 py-4 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                            >
+                              <span>Start First Step</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-1 flex flex-col text-left">
+                          {sprintViewMode === 'guided' && (
+                            <div className="flex items-center justify-between mb-6">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 tabular-nums">
+                                Step {activePrompts.length > 0 ? validIndex + 1 : 0} of {activePrompts.length}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSprintViewGuidedStage('insight')}
+                                className="p-2 rounded-xl bg-white hover:bg-gray-50 text-gray-500 hover:text-primary border border-gray-200 shadow-xs transition-all cursor-pointer flex items-center justify-center"
+                                title="Back to Move's Insight"
+                              >
+                                <Minimize2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+
+                          {sprintViewMode === 'scroll' && (
+                            <div className="space-y-2 text-left mb-8 pb-8 border-b border-gray-100">
+                              <SectionHeading>Move's Insight</SectionHeading>
+                              <div className="text-gray-700 font-medium text-lg leading-[1.6] max-w-[60ch]">
+                                <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
+                              </div>
+                            </div>
+                          )}
+
+                          {activePrompts.length === 0 ? (
+                            <div className="p-8 border border-dashed border-gray-200 text-gray-400 rounded-2xl text-center font-medium text-sm my-auto">
+                              No action steps defined yet for Move {selectedDay}. Switch to the Edit Sprint tab to add steps.
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex flex-col">
+                              <h2 className="font-black text-primary uppercase tracking-[0.4em] mb-4 flex items-center gap-2 text-xs">
+                                {stepDotActive && (
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                                )}
+                                <span>Action Step {validIndex + 1}</span>
+                              </h2>
+
+                              <div className={`text-gray-950 text-xl sm:text-2xl leading-tight ${effectiveFootnote ? 'mb-3' : 'mb-6'}`}>
+                                <FormattedText text={formatInterpolatedText(effectivePrompt || 'Submit your progress for this step.', currentContent, previewInputs as any, sprint?.dailyContent)} />
+                              </div>
+
+                              {effectiveFootnote && (
+                                <div className="mb-6 text-left text-emerald-600 font-bold text-xs leading-relaxed">
+                                  <FormattedText className="text-xs font-bold text-emerald-600" text={formatInterpolatedText(effectiveFootnote, currentContent, previewInputs as any, sprint?.dailyContent)} />
+                                </div>
+                              )}
+
+                              {(() => {
+                                const resolvedHint = resolveTaskHintForUser(currentContent.taskHints?.[validIndex], validIndex, currentContent, previewInputs, sprint?.dailyContent);
+                                if (!resolvedHint) return null;
+                                return (
+                                  <div className="mb-5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setRevealedHints(prev => ({ ...prev, [validIndex]: !prev[validIndex] }))}
+                                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${revealedHints[validIndex] ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-400 hover:text-primary hover:bg-primary/5'}`}
+                                    >
+                                      <span>Hint</span>
+                                    </button>
+                                    {revealedHints[validIndex] && (
+                                      <div className="mt-3 p-4 bg-amber-50/50 border border-amber-100/70 rounded-xl text-xs font-medium text-amber-900/90 leading-relaxed italic">
+                                        <FormattedText className="text-xs font-medium italic text-amber-900/90" text={resolvedHint} />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+
+                              <div className="mb-6">
+                                {renderStepInput(validIndex)}
+                              </div>
+
+                              <div className="mt-auto pt-4 flex flex-col gap-4">
+                                <div className="flex justify-between items-center gap-4">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (validIndex > 0) {
+                                        setPreviewTaskIndex(validIndex - 1);
+                                      } else if (sprintViewMode === 'guided') {
+                                        setSprintViewGuidedStage('insight');
+                                      }
+                                    }}
+                                    disabled={validIndex === 0 && sprintViewMode === 'scroll'}
+                                    className={`px-8 py-3.5 rounded-2xl text-sm font-black transition-all bg-white border border-gray-200 text-gray-500 hover:text-primary hover:border-primary/30 active:scale-95 cursor-pointer ${validIndex === 0 && sprintViewMode === 'scroll' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                  >
+                                    Back
+                                  </button>
+
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowMirrorPreview(true)}
+                                      className="p-3.5 rounded-2xl transition-all bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 cursor-pointer active:scale-95 shadow-xs flex items-center justify-center shrink-0"
+                                      title="Rise Report / Note Preview"
+                                    >
+                                      <StickyNote className="w-5 h-5" />
+                                    </button>
+
+                                    {validIndex < activePrompts.length - 1 ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setPreviewTaskIndex(validIndex + 1)}
+                                        className="px-8 py-3.5 rounded-2xl text-sm font-black transition-all bg-primary text-white hover:shadow-lg hover:shadow-primary/20 cursor-pointer active:scale-95"
+                                      >
+                                        Next
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={triggerCompleteMove}
+                                        className="px-8 py-3.5 rounded-2xl text-sm font-black transition-all bg-[#159E5B] text-white hover:shadow-lg hover:shadow-emerald-500/20 cursor-pointer active:scale-95"
+                                      >
+                                        Submit Task
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {activePrompts.length > 1 && (
+                                  <div className="flex justify-center items-center gap-2 pt-1">
+                                    {activePrompts.map((_, idx) => (
+                                      <button
+                                        type="button"
+                                        key={idx}
+                                        onClick={() => setPreviewTaskIndex(idx)}
+                                        className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                                          idx === validIndex ? 'w-8 bg-primary' : idx < validIndex ? 'w-2 bg-primary/40 hover:bg-primary/60' : 'w-2 bg-gray-200'
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Persistent Move Progress Bar matching SprintView */}
+                    <div className="h-1.5 bg-gray-100 w-full select-none mt-auto">
+                      <div
+                        className="h-full bg-[#0E7850] transition-all duration-300 ease-out"
+                        style={{
+                          width: `${
+                            sprintViewMode === 'scroll'
+                              ? 100
+                              : sprintViewGuidedStage === 'insight'
+                                ? 15
+                                : 15 + ((validIndex + 1) / (activePrompts.length || 1)) * 85
+                          }%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <>
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-6">
             <div className="flex items-center justify-between mb-6 px-1">
               <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Curriculum Timeline</h2>
@@ -6111,39 +6794,117 @@ const EditSprint: React.FC = () => {
               </div>
 
             {/* PREVIEW COLUMN */}
-            <div className="lg:sticky lg:top-8 space-y-6 self-start">
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                  <h2 className={labelClasses}>Daily Content Preview</h2>
+            <div className="lg:sticky lg:top-8 space-y-4 self-start">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <div className="inline-flex items-center gap-1 p-1 bg-white border border-gray-200/80 rounded-xl shadow-2xs">
                   <button
                     type="button"
-                    onClick={() => setShowDailyPreview(!showDailyPreview)}
-                    className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#0E7850] transition-colors flex items-center justify-center cursor-pointer animate-fade-in"
-                    title={showDailyPreview ? "Hide Preview" : "Reveal Preview"}
+                    onClick={() => setPreviewType('daily')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      previewType === 'daily' ? 'bg-[#0E7850] text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
+                    }`}
                   >
-                    {showDailyPreview ? <Eye size={15} /> : <EyeOff size={15} />}
+                    Sprint View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewType('landing')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      previewType === 'landing' ? 'bg-[#0E7850] text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    Landing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewType('card')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      previewType === 'card' ? 'bg-[#0E7850] text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
+                    }`}
+                  >
+                    Card
                   </button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                  <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Real-time</span>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDailyPreview(!showDailyPreview)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#0E7850] transition-colors flex items-center justify-center cursor-pointer"
+                  title={showDailyPreview ? "Hide Preview" : "Reveal Preview"}
+                >
+                  {showDailyPreview ? <Eye size={15} /> : <EyeOff size={15} />}
+                </button>
               </div>
 
-              {showDailyPreview ? (
-                <>
-                  <div className="space-y-2 animate-fade-in text-left">
-                    <h2 className="text-[7px] font-black text-gray-400 uppercase tracking-[0.25em] mb-3">Execution Path Move {selectedDay}</h2>
-                    
-                    <div className="space-y-2">
-                        <SectionHeading>Move's Insight</SectionHeading>
-                        <div className="text-gray-700 font-medium text-base leading-[1.6] max-w-[60ch]">
-                            <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
-                        </div>
+              {showDailyPreview && previewType === 'landing' ? (
+                <LandingPreview sprint={sprint} coach={(user as any) || {}} />
+              ) : showDailyPreview && previewType === 'card' ? (
+                <div className="max-w-sm mx-auto py-4">
+                  <SprintCard sprint={sprint} coach={(user as any) || {}} isStatic={true} />
+                </div>
+              ) : showDailyPreview ? (
+                <div className="bg-white rounded-[2rem] border border-gray-200/80 shadow-xl overflow-hidden flex flex-col">
+                  {/* SprintView Guided Mode Header Replica */}
+                  <div className="px-5 pt-4 pb-3 border-b border-gray-100/80 flex items-center justify-between bg-white">
+                    <span className="px-3 py-1 bg-[#0E7850]/10 text-[#0E7850] rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-[#0E7850]/20">
+                      <Sparkles className="w-3 h-3" />
+                      Guided Mode
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="inline-flex items-center p-0.5 bg-gray-100 rounded-lg">
+                        <button
+                          type="button"
+                          onClick={() => setSprintViewGuidedStage('insight')}
+                          className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all ${sprintViewGuidedStage === 'insight' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-500'}`}
+                        >
+                          Insight
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSprintViewGuidedStage('action')}
+                          className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider cursor-pointer transition-all ${sprintViewGuidedStage === 'action' ? 'bg-white text-gray-900 shadow-2xs' : 'text-gray-500'}`}
+                        >
+                          Steps
+                        </button>
+                      </div>
+                      <div className="w-9 h-9 rounded-xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-sm shrink-0 select-none">
+                        <span className="text-[6px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
+                        <span className="text-xs font-black leading-none tabular-nums">{selectedDay}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-6 animate-fade-in w-full mt-6">
+                  <div className="p-6 space-y-5 text-left">
+                    {sprintViewGuidedStage === 'insight' ? (
+                      <>
+                        <div className="pb-4 border-b border-gray-100 text-center">
+                          <h3 className="text-lg font-black text-gray-950 tracking-tight leading-tight">
+                            {sprint.title}
+                          </h3>
+                        </div>
+                        <div className="space-y-2 animate-fade-in">
+                          <SectionHeading>Move's Insight</SectionHeading>
+                          <div className="text-gray-800 font-normal text-base leading-[1.7] max-w-[60ch]">
+                            <FormattedText text={currentContent.lessonText || "Lesson text will appear here..."} />
+                          </div>
+                        </div>
+                        <div className="pt-2 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSprintViewGuidedStage('action');
+                              setPreviewTaskIndex(0);
+                            }}
+                            className="w-full sm:w-auto px-6 py-3.5 bg-[#0E7850] hover:bg-[#0b5d3e] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-[#0E7850]/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <span>Start First Step</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                    <>
+                  <div className="space-y-6 animate-fade-in w-full">
                 <div className="space-y-6">
                     {(() => {
                         const activePrompts = currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : []);
@@ -6675,28 +7436,58 @@ const EditSprint: React.FC = () => {
                     })()}
                 </div>
 
-                <div className="mt-12 space-y-4">
+                <div className="mt-6 space-y-3">
                   <button
                     type="button"
-                    onClick={() => setShowDaySuccessPreview(true)}
-                    className="w-full py-5 bg-[#0E7850] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.25em] text-center shadow-xl shadow-[#0E7850]/20 hover:bg-[#0E7850]/90 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+                    onClick={() => {
+                      const rawProgress = currentContent.progressNote;
+                      if (rawProgress && rawProgress.trim()) {
+                        const formattedProgress = formatInterpolatedText(
+                          rawProgress,
+                          currentContent,
+                          previewInputs as any,
+                          sprint?.dailyContent
+                        );
+                        setPendingSprintViewProgressNote(formattedProgress || rawProgress);
+                      } else {
+                        setShowDaySuccessPreview(true);
+                      }
+                    }}
+                    className="w-full py-4 bg-[#159E5B] text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] text-center shadow-lg shadow-emerald-500/20 hover:bg-[#128a4f] transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-2"
                   >
-                    <Sparkles size={16} />
-                    <span>Complete Move (Preview Move Success Screen)</span>
+                    <Sparkles size={15} />
+                    <span>Submit Task</span>
                   </button>
-                  <p className="text-center text-[8px] font-black text-gray-300 uppercase tracking-widest">Click to preview participant Move Success celebration screen</p>
                 </div>
               </div>
-                </>
+                    </>
+                    )}
+                  </div>
+                  {/* Persistent Move Progress Bar matching SprintView */}
+                  <div className="h-1.5 bg-gray-100 w-full select-none">
+                    <div
+                      className="h-full bg-[#0E7850] transition-all duration-300 ease-out"
+                      style={{
+                        width: `${
+                          sprintViewGuidedStage === 'insight'
+                            ? 15
+                            : 15 + ((Math.min(previewTaskIndex, Math.max(0, ((currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : [])).length) - 1)) + 1) / (Math.max(1, (currentContent.taskPrompts?.filter(p => p && p.trim()) || (currentContent.taskPrompt ? [currentContent.taskPrompt] : [])).length))) * 85
+                        }%`
+                      }}
+                    />
+                  </div>
+                </div>
               ) : (
                 <div className="p-12 border-2 border-dashed border-gray-150 rounded-[2.5rem] flex flex-col items-center justify-center text-center text-gray-400 space-y-2 animate-fade-in">
                   <EyeOff className="w-8 h-8 text-gray-300" />
                   <p className="text-xs font-semibold">Preview Hidden</p>
-                  <p className="text-[10px] text-gray-400 max-w-[200px]">Click the eye icon above to reveal the daily execution preview.</p>
+                  <p className="text-[10px] text-gray-400 max-w-[200px]">Click the eye icon above to reveal the preview.</p>
                 </div>
               )}
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -7975,6 +8766,16 @@ const EditSprint: React.FC = () => {
         day={selectedDay} 
         dayContent={currentContent} 
         totalDays={sprint?.duration}
+      />
+
+      <FullBleedProgressNoteSlide
+        isOpen={pendingSprintViewProgressNote !== null}
+        day={selectedDay}
+        noteText={pendingSprintViewProgressNote || ''}
+        onContinue={() => {
+          setPendingSprintViewProgressNote(null);
+          setShowDaySuccessPreview(true);
+        }}
       />
 
       <CoachDaySuccessPreviewModal
