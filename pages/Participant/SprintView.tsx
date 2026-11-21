@@ -4642,6 +4642,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       <FullBleedProgressNoteSlide
         isOpen={!!pendingProgressNoteSlide}
         day={pendingProgressNoteSlide?.day || viewingDay}
+        totalDays={sprint?.duration}
+        sprintTitle={sprint?.title}
         noteText={pendingProgressNoteSlide?.formattedNote || ''}
         isCoachPreview={isPreview}
         onExitPreview={isPreview ? handleExitPreview : undefined}

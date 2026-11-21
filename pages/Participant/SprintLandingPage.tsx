@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/Button';
@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
 import { getSprintCoverImage } from '../../utils/sprintUtils';
+import { PricingTierId, resolveSprintPricingTiers } from '../../utils/pricingTiers';
 
 import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X } from 'lucide-react';
 
@@ -337,6 +338,31 @@ const SprintLandingPage: React.FC = () => {
         }
     }, [showCommitmentSheet, user, sprint]);
 
+    const [selectedTier, setSelectedTier] = useState<PricingTierId | null>(null);
+    const [isPricingInView, setIsPricingInView] = useState(false);
+    const pricingSectionRef = useRef<HTMLDivElement | null>(null);
+
+    const pricingTiers = useMemo(() => resolveSprintPricingTiers(sprint), [sprint]);
+    const activeTier = selectedTier ? pricingTiers[selectedTier] : null;
+    const effectiveCashPrice = activeTier ? activeTier.price : pricingTiers.standard.price;
+
+    useEffect(() => {
+        const el = pricingSectionRef.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                setIsPricingInView(entries.some((entry) => entry.isIntersecting));
+            },
+            { threshold: 0.15 }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [sprint?.id, enrollmentStatus]);
+
+    const scrollToPricingTiers = () => {
+        pricingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
     const isCoinSprint = useMemo(() => {
         if (!sprint) return true;
         if (sprint.pricingType === 'credits') return true;
@@ -348,9 +374,9 @@ const SprintLandingPage: React.FC = () => {
     const isCashSprint = !isCoinSprint;
 
     const handleJoinClick = async () => {
-        if (!sprint) return;
+        if (!sprint || !selectedTier) return;
 
-        analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath }, user?.id);
+        analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath, tier: selectedTier }, user?.id);
 
         // If user is logged in and not their first sprint, directly bring up the bottom modal bar for payment
         if (user && hasCompletedOrActiveSprint) {
@@ -368,7 +394,9 @@ const SprintLandingPage: React.FC = () => {
                 sprint: sprint,
                 prefilledEmail: user?.email || guestEmail,
                 isOnboarding: isOnboardingPath,
-                forcePreview: true
+                forcePreview: true,
+                selectedTier,
+                tierPrice: effectiveCashPrice
             }
         });
     };
@@ -426,7 +454,7 @@ const SprintLandingPage: React.FC = () => {
                 if (!user) return;
 
                 if (isCashSprint) {
-                    const cashPrice = sprint.price ?? 1000;
+                    const cashPrice = effectiveCashPrice;
                     if (cashPrice === 0) {
                         const enrollment = await sprintService.enrollUser(
                             user.id,
@@ -825,6 +853,96 @@ const SprintLandingPage: React.FC = () => {
                                     </div>
                                 </section>
                             )}
+
+                            {/* PRICING TIERS SECTION */}
+                            {enrollmentStatus === 'none' && (
+                                <section
+                                    id="pricing-tiers-section"
+                                    ref={pricingSectionRef}
+                                    className="pt-6 border-t border-gray-100 space-y-5"
+                                >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <SectionHeading>Pricing Tiers</SectionHeading>
+                                            <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-snug">
+                                                Select your tier to start
+                                            </h3>
+                                        </div>
+                                        <span className="px-3 py-1 rounded-full bg-[#0E7850]/10 border border-[#0E7850]/20 text-[#0E7850] text-[10px] font-black uppercase tracking-wider">
+                                            Get a free trial
+                                        </span>
+                                    </div>
+
+                                    <div role="radiogroup" aria-label="Sprint access tier" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[pricingTiers.standard, pricingTiers.complete].map((tier) => {
+                                            const isSelected = selectedTier === tier.id;
+                                            return (
+                                                <button
+                                                    key={tier.id}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={isSelected}
+                                                    onClick={() => setSelectedTier(tier.id)}
+                                                    className={`w-full text-left rounded-2xl border-2 p-5 sm:p-6 transition-all cursor-pointer flex flex-col justify-between gap-4 ${
+                                                        isSelected
+                                                            ? 'border-[#0E7850] bg-[#0E7850]/[0.03] shadow-md ring-1 ring-[#0E7850]/15'
+                                                            : 'border-gray-200 bg-white hover:border-gray-300 shadow-2xs'
+                                                    }`}
+                                                >
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className="text-sm sm:text-base font-black text-gray-900 tracking-tight">
+                                                                        {tier.number} {tier.name}
+                                                                    </span>
+                                                                </div>
+                                                                <span
+                                                                    className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                                                        tier.id === 'complete'
+                                                                            ? 'bg-[#0E7850]/10 text-[#0E7850]'
+                                                                            : 'bg-gray-100 text-gray-600'
+                                                                    }`}
+                                                                >
+                                                                    {tier.badge}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2.5 shrink-0">
+                                                                <span
+                                                                    className={`text-lg sm:text-xl font-black tabular-nums ${
+                                                                        tier.id === 'complete' ? 'text-[#0E7850]' : 'text-gray-900'
+                                                                    }`}
+                                                                >
+                                                                    {tier.formattedPrice}
+                                                                </span>
+                                                                <div
+                                                                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                                                        isSelected
+                                                                            ? 'border-[#0E7850] bg-[#0E7850]'
+                                                                            : 'border-gray-300 bg-white'
+                                                                    }`}
+                                                                >
+                                                                    {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <ul className="space-y-2 pt-3 border-t border-gray-100">
+                                                            {tier.features.map((feature, idx) => (
+                                                                <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-[13px] text-gray-700 font-medium leading-relaxed">
+                                                                    <CheckCircle2 className="w-4 h-4 text-[#0E7850] shrink-0 mt-0.5" />
+                                                                    <span>{feature}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            )}
                         </div>
                     </div>
 
@@ -873,17 +991,42 @@ const SprintLandingPage: React.FC = () => {
             {/* Fixed Bottom CTA Bar for Viewport */}
             {enrollmentStatus === 'none' && !showCommitmentSheet && (
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
-                    <div className="max-w-md mx-auto flex items-center justify-between gap-3">
+                    <div className="max-w-screen-lg mx-auto flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
+                            {activeTier ? (
+                                <p className="text-[11px] font-bold text-[#0E7850] truncate mt-0.5">
+                                    {activeTier.name} &bull; {activeTier.formattedPrice}
+                                </p>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={scrollToPricingTiers}
+                                    className="text-[11px] font-semibold text-gray-500 hover:text-[#0E7850] transition-colors truncate mt-0.5 text-left cursor-pointer"
+                                >
+                                    {isPricingInView ? 'Select your tier to start' : 'Choose your tier below'}
+                                </button>
+                            )}
                         </div>
                         <Button 
                             onClick={handleJoinClick} 
-                            disabled={isCheckingEmail}
-                            className="py-3 px-5 rounded-xl shadow-sm text-[10px] uppercase tracking-widest font-black bg-primary hover:bg-primary-hover text-white border-0 shrink-0 group/btn cursor-pointer"
+                            disabled={!selectedTier || isCheckingEmail}
+                            className={`py-3 px-5 rounded-xl text-[10px] uppercase tracking-widest font-black border-0 shrink-0 group/btn transition-all ${
+                                selectedTier && !isCheckingEmail
+                                    ? 'bg-[#0E7850] hover:bg-[#0b6140] text-white shadow-md cursor-pointer'
+                                    : 'bg-gray-200 text-gray-400 shadow-none cursor-not-allowed'
+                            }`}
                         >
-                            {isCheckingEmail ? "Opening Move 1..." : "Begin Now"}
-                            {!isCheckingEmail && <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />}
+                            {isCheckingEmail
+                                ? 'Opening Move 1...'
+                                : selectedTier
+                                    ? 'Start for free'
+                                    : isPricingInView
+                                        ? 'Get a free trial'
+                                        : 'Start for free'}
+                            {selectedTier && !isCheckingEmail && (
+                                <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                            )}
                         </Button>
                     </div>
                 </div>
@@ -931,14 +1074,14 @@ const SprintLandingPage: React.FC = () => {
                             isCashSprint ? (
                                 <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-4 space-y-3.5 text-left">
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                                        <span>Sprint Program</span>
-                                        <span className="text-gray-900">{sprint.duration || 7} Days</span>
+                                        <span>Selected Tier</span>
+                                        <span className="text-gray-900">{activeTier ? activeTier.name : 'Standard Access'}</span>
                                     </div>
                                     <div className="h-[1px] bg-gray-200 w-full"></div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs font-bold text-gray-600">Total Cost</span>
                                         <span className="text-base font-black text-[#0E7850]">
-                                            {(sprint.price ?? 1000) === 0 ? 'FREE' : `₦${(sprint.price ?? 1000).toLocaleString()}`}
+                                            {effectiveCashPrice === 0 ? 'FREE' : `${pricingTiers.standard.currencySymbol}${effectiveCashPrice.toLocaleString()}`}
                                         </span>
                                     </div>
 
@@ -1099,9 +1242,9 @@ const SprintLandingPage: React.FC = () => {
                                     : (
                                         isCashSprint && !commitmentContext?.isGuest
                                         ? (
-                                            (sprint.price ?? 1000) === 0
+                                            effectiveCashPrice === 0
                                                 ? "Start Free Sprint"
-                                                : `Payment for Package • ₦${(sprint.price ?? 1000).toLocaleString()}`
+                                                : `Payment for Package • ${pricingTiers.standard.currencySymbol}${effectiveCashPrice.toLocaleString()}`
                                         )
                                         : paymentMethod === 'coins'
                                         ? `Start Day 1 Now • Use ${sprint.pointCost || 10} Coins`

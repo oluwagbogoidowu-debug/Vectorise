@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, MotionConfig } from 'motion/react';
-import { ArrowRight, ChevronDown, Sparkles, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, Download, FileText, Sparkles, X } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
+import { generateProgressReportDOC, generateProgressReportPDF } from '../utils/pdfGenerator';
 
 interface FullBleedProgressNoteSlideProps {
   isOpen: boolean;
   day: number;
+  totalDays?: number;
+  sprintTitle?: string;
   noteText: string;
   onContinue: () => void;
   isCoachPreview?: boolean;
@@ -75,23 +78,46 @@ const parseProgressNoteSections = (rawText: string): ParsedProgressNote => {
 export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProps> = ({
   isOpen,
   day,
+  totalDays,
+  sprintTitle,
   noteText,
   onContinue,
   isCoachPreview,
   onExitPreview,
 }) => {
   const [openIndices, setOpenIndices] = useState<Set<number>>(() => new Set([0]));
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const parsed = useMemo(() => parseProgressNoteSections(noteText || ''), [noteText]);
   const hasAccordion = parsed.sections.length > 0;
+  const isLastMove = typeof totalDays === 'number' && totalDays > 0 && day >= totalDays;
 
   useEffect(() => {
     if (isOpen) {
       setOpenIndices(new Set([0]));
+      setIsDownloadModalOpen(false);
     }
   }, [isOpen, noteText]);
 
   if (!isOpen || !noteText || !noteText.trim()) return null;
+
+  const handleDownloadFormat = (format: 'doc' | 'pdf') => {
+    triggerHaptic(hapticPatterns.light);
+    const payload = {
+      sprintTitle: sprintTitle?.trim() || 'Sprint',
+      day,
+      totalDays,
+      noteText,
+      headerLines: parsed.headerLines,
+      sections: parsed.sections,
+    };
+    if (format === 'pdf') {
+      generateProgressReportPDF(payload);
+    } else {
+      generateProgressReportDOC(payload);
+    }
+    setIsDownloadModalOpen(false);
+  };
 
   const toggleIndex = (idx: number) => {
     triggerHaptic(hapticPatterns.light);
@@ -261,6 +287,35 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
 
       {/* Continue CTA Footer */}
       <footer className="relative z-10 w-full max-w-md mx-auto py-2">
+        {isLastMove && (
+          <motion.div
+            initial={{ y: 12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="flex justify-end mb-2.5"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic(hapticPatterns.light);
+                setIsDownloadModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200/90 shadow-2xs transition-all active:scale-95 cursor-pointer max-w-[230px]"
+              aria-label={`Download ${sprintTitle || 'Sprint'} Progress report`}
+            >
+              <Download className="w-3.5 h-3.5 text-[#0E7850] shrink-0" />
+              <div className="flex flex-col text-left min-w-0 leading-tight">
+                <span className="text-[11px] font-bold text-gray-900 truncate">
+                  {sprintTitle || 'Sprint'}
+                </span>
+                <span className="text-[10px] font-light text-gray-500">
+                  Progress report
+                </span>
+              </div>
+            </button>
+          </motion.div>
+        )}
+
         <motion.button
           type="button"
           initial={{ y: 20, opacity: 0 }}
@@ -276,6 +331,82 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
           <ArrowRight className="w-4 h-4 text-white" />
         </motion.button>
       </footer>
+
+      {/* File Format Selection Modal */}
+      <AnimatePresence>
+        {isDownloadModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-[140] bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-5"
+            onClick={() => setIsDownloadModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.94, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 6 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs bg-white rounded-3xl border border-gray-100 shadow-2xl p-5"
+            >
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-gray-900 truncate">
+                    {sprintTitle || 'Sprint'}
+                  </h3>
+                  <p className="text-xs font-light text-gray-500 mt-0.5">
+                    Select file format to download progress report
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDownloadModalOpen(false)}
+                  className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+                  aria-label="Close download modal"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadFormat('doc')}
+                  className="flex flex-col items-center justify-center gap-1.5 py-3.5 px-3 rounded-2xl border border-gray-200 hover:border-[#0E7850]/50 hover:bg-[#0E7850]/5 transition-all active:scale-95 cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                    DOC
+                  </span>
+                  <span className="text-[10px] font-light text-gray-500">
+                    Word (.doc)
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownloadFormat('pdf')}
+                  className="flex flex-col items-center justify-center gap-1.5 py-3.5 px-3 rounded-2xl border border-gray-200 hover:border-[#0E7850]/50 hover:bg-[#0E7850]/5 transition-all active:scale-95 cursor-pointer"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                    PDF
+                  </span>
+                  <span className="text-[10px] font-light text-gray-500">
+                    Document (.pdf)
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
     </MotionConfig>
   );

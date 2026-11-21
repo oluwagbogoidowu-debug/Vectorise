@@ -460,6 +460,8 @@ const CreateSprint: React.FC = () => {
         overrideOrchestrator: boolean;
         duration: number;
         price: string;
+        standardPrice: string;
+        completePrice: string;
         outcomeTag: string;
         sprintType: 'Fundamentals' | 'Core' | 'Expert';
         pricingType: 'cash' | 'credits';
@@ -477,7 +479,9 @@ const CreateSprint: React.FC = () => {
         audience: [],
         overrideOrchestrator: false,
         duration: 7,
-        price: '0',
+        price: '500',
+        standardPrice: '500',
+        completePrice: '1000',
         outcomeTag: OUTCOME_TAGS[0],
         sprintType: 'Fundamentals' as 'Fundamentals' | 'Core' | 'Expert',
         pricingType: 'cash',
@@ -530,7 +534,9 @@ const CreateSprint: React.FC = () => {
             audience: formData.audience,
             overrideOrchestrator: formData.overrideOrchestrator,
             duration: duration,
-            price: Number(formData.price) || 0,
+            price: Number(formData.standardPrice || formData.price) || 500,
+            standardPrice: Number(formData.standardPrice) || 500,
+            completePrice: Number(formData.completePrice) || 1000,
             description: formData.subtitle || formData.title,
             currency: 'NGN',
             pointCost: formData.pointCost || 0,
@@ -917,17 +923,29 @@ const CreateSprint: React.FC = () => {
                                                 />
                                             </div>
                                         ) : (
-                                            <div>
-                                                <label className={labelClasses}>Proposed Price (NGN)</label>
-                                                <input 
-                                                    type="number" 
-                                                    name="price" 
-                                                    value={formData.price} 
-                                                    onChange={handleChange} 
-                                                    className={inputClasses + " mt-2"} 
-                                                    placeholder="0" 
-                                                />
-                                                <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Admins will review and set the final price.</p>
+                                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div>
+                                                    <label className={labelClasses}>01. Standard Access Price (NGN)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        name="standardPrice" 
+                                                        value={formData.standardPrice} 
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, standardPrice: e.target.value, price: e.target.value }))} 
+                                                        className={inputClasses + " mt-2"} 
+                                                        placeholder="500" 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className={labelClasses}>02. Complete Access Price (NGN)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        name="completePrice" 
+                                                        value={formData.completePrice} 
+                                                        onChange={handleChange} 
+                                                        className={inputClasses + " mt-2"} 
+                                                        placeholder="1000" 
+                                                    />
+                                                </div>
                                             </div>
                                         )}
                                     </div>

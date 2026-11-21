@@ -371,6 +371,8 @@ export interface Sprint {
   linkedSprintId?: string;
   duration: number;
   price: number;
+  standardPrice?: number;
+  completePrice?: number;
   currency: string;
   pointCost?: number;
   pricingType?: 'cash' | 'credits';

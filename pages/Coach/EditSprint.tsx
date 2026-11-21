@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, ArrowRight, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu, Minimize2, StickyNote, RotateCcw } from 'lucide-react';
+import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, ArrowRight, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu, Minimize2, StickyNote, RotateCcw, Download, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
@@ -57,7 +57,8 @@ const parseTimeToSeconds = (timeStr?: string | number): number => {
 };
 import { ChangesMadeCarousel } from '../../components/ChangesMadeCarousel';
 import LocalLogo from '../../components/LocalLogo';
-import { generateDayPDF } from '../../utils/pdfGenerator';
+import { generateMovePDF, generateMoveDOC, generateSprintCurriculumPDF, generateSprintCurriculumDOC } from '../../utils/pdfGenerator';
+import { resolveSprintPricingTiers } from '../../utils/pricingTiers';
 import { validateStepPlaceholders, hasAnyInvalidPlaceholdersInContent, formatInterpolatedText, togglePlaceholderMode, getHintTokensForContent, getHintTokensForBridgeNote, handlePlusHintClick, insertHintToken, parseHintVersions, serializeHintVersions, resolveTaskHintForUser, parseStepVersions, serializeStepVersions, getStepVersionValue, updateStepVersionValue, isStepOrSubStepPoll, getAllStepPollOptions, METADATA_FIELDS, getMetadataFields, updateMetadataTokenInPrompt, findMetadataSourceStepAcrossSprints,  } from '../../src/utils/stepPlaceholderUtils';
 
 const SUPPORTED_CURRENCIES = ["NGN", "USD", "GHS", "KES"];
@@ -74,7 +75,7 @@ const DiffHighlight: React.FC<{ original: any; updated: any; label: string }> = 
                 if (typeof item === 'object' && item !== null) {
                     if ('verb' in item && 'description' in item) return `${item.verb}: ${item.description}`;
                     if ('title' in item && 'body' in item) return `[${item.title}]\n${item.body}`;
-                    if ('day' in item) return `Day ${item.day}: ${(item.lessonText || '').substring(0, 30)}...`;
+                    if ('day' in item) return `Move ${item.day}: ${(item.lessonText || '').substring(0, 30)}...`;
                     try {
                         return JSON.stringify(sanitizeData(item));
                     } catch (e) {
@@ -201,7 +202,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     // Top level fields
     const fields: (keyof Sprint)[] = [
         'title', 'subtitle', 'actionTrigger', 'coverImageUrl', 'transformation', 'description', 
-        'category', 'difficulty', 'audience', 'overrideOrchestrator', 'price', 'currency', 'pointCost', 
+        'category', 'difficulty', 'audience', 'overrideOrchestrator', 'price', 'standardPrice', 'completePrice', 'currency', 'pointCost', 
         'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays',
         'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate', 'curriculumSource'
     ];
@@ -431,7 +432,9 @@ const EditSprint: React.FC = () => {
       difficulty: 'Beginner' as SprintDifficulty,
       pricingType: 'cash' as 'cash' | 'credits',
       previewMode: 'vectorise' as 'vectorise' | 'flow',
-      price: 0,
+      price: 500,
+      standardPrice: 500,
+      completePrice: 1000,
       pointCost: 0,
       outcomeTag: '',
       checkInReminder: false,
@@ -460,6 +463,8 @@ const EditSprint: React.FC = () => {
   const [editSprintSignalDraft, setEditSprintSignalDraft] = useState('');
   const [activeEditSprintLinkSelector, setActiveEditSprintLinkSelector] = useState<{ stepIdx: number; lblIndex: number } | null>(null);
   const kebabMenuRef = useRef<HTMLDivElement>(null);
+  const [curriculumDownloadMenuOpen, setCurriculumDownloadMenuOpen] = useState(false);
+  const curriculumDownloadMenuRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     const hasSeenSpotlight = localStorage.getItem('vectorise_sprint_spotlight_tour_seen');
@@ -472,6 +477,9 @@ const EditSprint: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (kebabMenuRef.current && !kebabMenuRef.current.contains(event.target as Node)) {
         setIsKebabMenuOpen(false);
+      }
+      if (curriculumDownloadMenuRef.current && !curriculumDownloadMenuRef.current.contains(event.target as Node)) {
+        setCurriculumDownloadMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -561,7 +569,7 @@ const EditSprint: React.FC = () => {
 
     const topFields: (keyof Sprint)[] = [
       'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
-      'category', 'difficulty', 'overrideOrchestrator', 'price', 'currency', 'pointCost', 
+      'category', 'difficulty', 'overrideOrchestrator', 'price', 'standardPrice', 'completePrice', 'currency', 'pointCost', 
       'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays',
       'approvalStatus', 'published', 'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate'
     ];
@@ -843,13 +851,12 @@ const EditSprint: React.FC = () => {
             { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
             { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
             { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
-            { id: 'completion', title: 'Completion Assets', body: '', type: 'completion' as any },
             { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
           ];
           
           const initialDynamicSections = Array.isArray(merged.dynamicSections) ? [...merged.dynamicSections] : [];
           
-          // Filter out any old custom sections that aren't 'overview'
+          // Filter out removed/old sections
           const filteredSections = initialDynamicSections.filter(s => 
             systemSections.find(sys => sys.id === s.id)
           );
@@ -860,8 +867,18 @@ const EditSprint: React.FC = () => {
               }
           });
 
+          const resolvedStandardPrice =
+            typeof merged.standardPrice === 'number'
+              ? merged.standardPrice
+              : (typeof merged.price === 'number' && merged.price > 0 ? merged.price : 500);
+          const resolvedCompletePrice =
+            typeof merged.completePrice === 'number' ? merged.completePrice : 1000;
+
           setEditSettings({
             ...merged,
+            standardPrice: resolvedStandardPrice,
+            completePrice: resolvedCompletePrice,
+            price: resolvedStandardPrice,
             audience: merged.audience || [],
             overrideOrchestrator: merged.overrideOrchestrator || false,
             dynamicSections: filteredSections
@@ -2592,7 +2609,9 @@ const EditSprint: React.FC = () => {
       difficulty: editSettings.difficulty,
       audience: editSettings.audience || [],
       overrideOrchestrator: editSettings.overrideOrchestrator || false,
-      price: editSettings.price,
+      price: editSettings.standardPrice ?? editSettings.price ?? 500,
+      standardPrice: editSettings.standardPrice ?? editSettings.price ?? 500,
+      completePrice: editSettings.completePrice ?? 1000,
       currency: editSettings.currency,
       pointCost: editSettings.pointCost,
       pricingType: editSettings.pricingType,
@@ -2717,7 +2736,9 @@ const EditSprint: React.FC = () => {
       difficulty: sprint.difficulty || 'Beginner',
       pricingType: sprint.pricingType || 'cash',
       previewMode: sprint.previewMode || 'vectorise',
-      price: sprint.price || 0,
+      price: sprint.standardPrice ?? (sprint.price && sprint.price > 0 ? sprint.price : 500),
+      standardPrice: sprint.standardPrice ?? (sprint.price && sprint.price > 0 ? sprint.price : 500),
+      completePrice: sprint.completePrice ?? 1000,
       pointCost: sprint.pointCost || 0,
       outcomeTag: sprint.outcomeTag || '',
       checkInReminder: sprint.checkInReminder || false,
@@ -2793,7 +2814,9 @@ const EditSprint: React.FC = () => {
         audience: versionSettings.audience,
         pricingType: versionSettings.pricingType,
         previewMode: versionSettings.previewMode || 'vectorise',
-        price: versionSettings.price,
+        price: versionSettings.standardPrice ?? versionSettings.price,
+        standardPrice: versionSettings.standardPrice ?? versionSettings.price,
+        completePrice: versionSettings.completePrice ?? 1000,
         pointCost: versionSettings.pointCost,
         outcomeTag: versionSettings.outcomeTag,
         checkInReminder: versionSettings.checkInReminder,
@@ -4244,19 +4267,121 @@ const EditSprint: React.FC = () => {
             </div>
           ) : (
             <>
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-6">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 relative">
             <div className="flex items-center justify-between mb-6 px-1">
               <h2 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Curriculum Timeline</h2>
-              <button
-                type="button"
-                onClick={() => generateDayPDF(sprint, currentContent)}
-                className="p-1.5 text-gray-400 hover:text-primary transition-colors cursor-pointer"
-                title={`Download Day ${selectedDay}/${sprint.duration} PDF`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </button>
+              <div className="relative" ref={curriculumDownloadMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setCurriculumDownloadMenuOpen(prev => !prev)}
+                  className={`p-1.5 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5 ${
+                    curriculumDownloadMenuOpen
+                      ? 'bg-[#0E7850]/10 text-[#0E7850]'
+                      : 'text-gray-400 hover:text-primary hover:bg-gray-50'
+                  }`}
+                  title={`Download Move ${selectedDay}/${sprint.duration} Curriculum`}
+                  aria-label={`Download Move ${selectedDay} of ${sprint.duration} curriculum`}
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+
+                {curriculumDownloadMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl border border-gray-100 shadow-xl py-1.5 z-50">
+                    <div className="px-3 py-1.5 border-b border-gray-100">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">
+                        Export Curriculum
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        generateMovePDF(sprint, currentContent);
+                        setCurriculumDownloadMenuOpen(false);
+                      }}
+                      className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-gray-800 hover:bg-emerald-50/70 hover:text-[#0E7850] flex items-center justify-between transition-colors cursor-pointer"
+                    >
+                      <span>Move {selectedDay}</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#0E7850]/10 text-[#0E7850]">
+                        PDF
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        generateMoveDOC(sprint, currentContent);
+                        setCurriculumDownloadMenuOpen(false);
+                      }}
+                      className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-gray-800 hover:bg-blue-50/70 hover:text-blue-700 flex items-center justify-between transition-colors cursor-pointer"
+                    >
+                      <span>Move {selectedDay}</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">
+                        DOC
+                      </span>
+                    </button>
+                    <div className="my-1 border-t border-gray-100" />
+                    {(() => {
+                      const buildOrderedMoves = () => {
+                        const total = sprint.duration || 7;
+                        const contentMap = new Map<number, DailyContent>();
+                        (sprint.dailyContent || []).forEach((dc) => {
+                          if (dc && dc.day) {
+                            contentMap.set(Number(dc.day), normalizeMultiTextDailyContent(dc));
+                          }
+                        });
+                        contentMap.set(Number(selectedDay), currentContent);
+                        return Array.from({ length: total }, (_, idx) => {
+                          const moveNum = idx + 1;
+                          return (
+                            contentMap.get(moveNum) || {
+                              day: moveNum,
+                              lessonText: '',
+                              taskPrompt: '',
+                              taskPrompts: ['', '', ''],
+                            }
+                          );
+                        });
+                      };
+
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              generateSprintCurriculumPDF(sprint, buildOrderedMoves());
+                              setCurriculumDownloadMenuOpen(false);
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:bg-emerald-50/70 hover:text-[#0E7850] flex items-center justify-between transition-colors cursor-pointer"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5 text-gray-400" />
+                              All {sprint.duration} Moves
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#0E7850]/10 text-[#0E7850]">
+                              PDF
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              generateSprintCurriculumDOC(sprint, buildOrderedMoves());
+                              setCurriculumDownloadMenuOpen(false);
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left text-xs font-semibold text-gray-700 hover:bg-blue-50/70 hover:text-blue-700 flex items-center justify-between transition-colors cursor-pointer"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <FileText className="w-3.5 h-3.5 text-gray-400" />
+                              All {sprint.duration} Moves
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">
+                              DOC
+                            </span>
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex overflow-x-auto gap-3 hide-scrollbar">
               {Array.from({ length: sprint.duration }, (_, i) => i + 1).map((day) => (
@@ -8187,16 +8312,33 @@ const EditSprint: React.FC = () => {
                       />
                     </div>
                   ) : (
-                    <div>
-                      <label className={labelClasses}>Proposed Price (NGN)</label>
-                      <input 
-                        type="number" 
-                        value={versionSettings.price} 
-                        onChange={e => setVersionSettings({...versionSettings, price: Number(e.target.value)})}
-                        className={registryInputClasses + " mt-2"}
-                        placeholder="0" 
-                      />
-                    </div>
+                    <>
+                      <div>
+                        <label className={labelClasses}>01. Standard Access Price (NGN)</label>
+                        <input 
+                          type="number" 
+                          min={0}
+                          value={versionSettings.standardPrice ?? versionSettings.price} 
+                          onChange={e => {
+                            const val = Math.max(0, Number(e.target.value));
+                            setVersionSettings({...versionSettings, standardPrice: val, price: val});
+                          }}
+                          className={registryInputClasses + " mt-2"}
+                          placeholder="500" 
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClasses}>02. Complete Access Price (NGN)</label>
+                        <input 
+                          type="number" 
+                          min={0}
+                          value={versionSettings.completePrice ?? 1000} 
+                          onChange={e => setVersionSettings({...versionSettings, completePrice: Math.max(0, Number(e.target.value))})}
+                          className={registryInputClasses + " mt-2"}
+                          placeholder="1000" 
+                        />
+                      </div>
+                    </>
                   )}
 
                   {/* Archive Outcome Tag */}
@@ -8335,15 +8477,29 @@ const EditSprint: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Set Sprint Price</label>
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">01. Standard Access Price</label>
                                     <input 
                                         type="number" 
-                                        value={editSettings.price || 0} 
-                                        onChange={e => setEditSettings({...editSettings, price: Number(e.target.value)})}
+                                        min={0}
+                                        value={editSettings.standardPrice ?? editSettings.price ?? 500} 
+                                        onChange={e => {
+                                            const val = Math.max(0, Number(e.target.value));
+                                            setEditSettings({...editSettings, standardPrice: val, price: val});
+                                        }}
                                         className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
-                                        placeholder="0"
+                                        placeholder="500"
                                     />
-                                    <p className="text-[8px] font-bold text-gray-400 mt-2 uppercase tracking-widest">Note: Only admins can set the final price.</p>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">02. Complete Access Price</label>
+                                    <input 
+                                        type="number" 
+                                        min={0}
+                                        value={editSettings.completePrice ?? 1000} 
+                                        onChange={e => setEditSettings({...editSettings, completePrice: Math.max(0, Number(e.target.value))})}
+                                        className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
+                                        placeholder="1000"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -8572,6 +8728,10 @@ const EditSprint: React.FC = () => {
                             }
 
                             if (section.id === 'pricing') {
+                                const resolvedTiers = resolveSprintPricingTiers({
+                                    ...editSettings,
+                                    duration: editSettings.duration || sprint?.duration || 5,
+                                });
                                 return (
                                     <section key={section.id} className="space-y-6">
                                         <div className="flex items-center gap-3 mb-6">
@@ -8612,69 +8772,107 @@ const EditSprint: React.FC = () => {
                                                     <input type="number" value={editSettings.pointCost || 0} onChange={e => setEditSettings({...editSettings, pointCost: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
                                                 </div>
                                             ) : (
-                                                <div>
-                                                    <label className={labelClasses}>Proposed Price (NGN)</label>
-                                                    <input type="number" value={editSettings.price || 0} onChange={e => setEditSettings({...editSettings, price: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
-                                                    <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">Admins will review and set the final price.</p>
+                                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {/* 01. Standard Access */}
+                                                    <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4 shadow-2xs">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div>
+                                                                <span className="text-[10px] font-black text-primary uppercase tracking-wider block">
+                                                                    {resolvedTiers.standard.number} {resolvedTiers.standard.name}
+                                                                </span>
+                                                                <span className="inline-block mt-1 px-2 py-0.5 rounded bg-gray-100 text-gray-600 text-[9px] font-bold uppercase tracking-wider">
+                                                                    {resolvedTiers.standard.badge}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-lg font-black text-gray-900 tabular-nums">
+                                                                {resolvedTiers.standard.formattedPrice}
+                                                            </span>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className={labelClasses}>
+                                                                Standard Price ({editSettings.currency || 'NGN'})
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={editSettings.standardPrice ?? editSettings.price ?? 500}
+                                                                onChange={e => {
+                                                                    const val = Math.max(0, Number(e.target.value));
+                                                                    setEditSettings({
+                                                                        ...editSettings,
+                                                                        standardPrice: val,
+                                                                        price: val
+                                                                    });
+                                                                }}
+                                                                className={registryInputClasses + " mt-1.5"}
+                                                                placeholder="500"
+                                                            />
+                                                        </div>
+
+                                                        <div className="pt-3 border-t border-gray-100 space-y-1.5">
+                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">
+                                                                Card Details (Auto-applied)
+                                                            </span>
+                                                            {resolvedTiers.standard.features.map((feat, fIdx) => (
+                                                                <div key={fIdx} className="flex items-start gap-2 text-xs text-gray-600 font-medium">
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#0E7850] shrink-0 mt-0.5" />
+                                                                    <span>{feat}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 02. Complete Access */}
+                                                    <div className="bg-white rounded-2xl border border-[#0E7850]/30 p-5 space-y-4 shadow-2xs">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div>
+                                                                <span className="text-[10px] font-black text-gray-900 uppercase tracking-wider block">
+                                                                    {resolvedTiers.complete.number} {resolvedTiers.complete.name}
+                                                                </span>
+                                                                <span className="inline-block mt-1 px-2 py-0.5 rounded bg-[#0E7850]/10 text-[#0E7850] text-[9px] font-black uppercase tracking-wider">
+                                                                    {resolvedTiers.complete.badge}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-lg font-black text-[#0E7850] tabular-nums">
+                                                                {resolvedTiers.complete.formattedPrice}
+                                                            </span>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className={labelClasses}>
+                                                                Complete Price ({editSettings.currency || 'NGN'})
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={editSettings.completePrice ?? 1000}
+                                                                onChange={e => {
+                                                                    const val = Math.max(0, Number(e.target.value));
+                                                                    setEditSettings({
+                                                                        ...editSettings,
+                                                                        completePrice: val
+                                                                    });
+                                                                }}
+                                                                className={registryInputClasses + " mt-1.5"}
+                                                                placeholder="1000"
+                                                            />
+                                                        </div>
+
+                                                        <div className="pt-3 border-t border-gray-100 space-y-1.5">
+                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">
+                                                                Card Details (Auto-applied)
+                                                            </span>
+                                                            {resolvedTiers.complete.features.map((feat, fIdx) => (
+                                                                <div key={fIdx} className="flex items-start gap-2 text-xs text-gray-600 font-medium">
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#0E7850] shrink-0 mt-0.5" />
+                                                                    <span>{feat}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
-                                        </div>
-                                    </section>
-                                );
-                            }
-
-                            if (section.id === 'completion') {
-                                return (
-                                    <section key={section.id} className="space-y-6">
-                                        <div className="flex items-center gap-3 mb-6">
-                                            <div className="w-8 h-8 bg-gray-150 rounded-xl flex items-center justify-center text-gray-500 text-xs font-black">05</div>
-                                            <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Completion Assets & End reminders</h4>
-                                        </div>
-                                        <div className="space-y-6">
-                                            <div>
-                                                <label className={labelClasses}>Archive Outcome Tag</label>
-                                                <CustomSelect
-                                                    value={editSettings.outcomeTag || ''}
-                                                    onChange={val => setEditSettings({...editSettings, outcomeTag: String(val)})}
-                                                    options={OUTCOME_TAGS}
-                                                    className="mt-2"
-                                                />
-                                                <p className="text-[8px] text-gray-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">This appears as the badge on completed sprint cards.</p>
-                                            </div>
-
-                                            <div className="pt-6 border-t border-gray-100 space-y-4">
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <label className="text-[10px] font-black text-gray-900 uppercase tracking-widest block mb-1">Daily Check-in Reminder</label>
-                                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-1">Enable to stay consistent after the sprint on the last day</p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditSettings({...editSettings, checkInReminder: !editSettings.checkInReminder})}
-                                                        className={`w-12 h-6 rounded-full transition-all duration-300 relative ${editSettings.checkInReminder ? "bg-primary shadow-lg shadow-primary/20 animate-pulse" : "bg-gray-200"}`}
-                                                    >
-                                                        <div
-                                                            className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${editSettings.checkInReminder ? "right-1" : "left-1"}`}
-                                                        />
-                                                    </button>
-                                                </div>
-
-                                                {editSettings.checkInReminder && (
-                                                    <div className="animate-fade-in space-y-2 pt-2">
-                                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Active Duration (Moves)</label>
-                                                        <input
-                                                            type="number"
-                                                            min={1}
-                                                            max={30}
-                                                            value={editSettings.checkInReminderDays || 7}
-                                                            onChange={e => setEditSettings({...editSettings, checkInReminderDays: Math.max(1, Number(e.target.value))})}
-                                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary"
-                                                            placeholder="7"
-                                                        />
-                                                        <p className="text-[8px] text-gray-400 font-medium uppercase tracking-widest leading-relaxed">Number of days the check-in stays active after the sprint completes.</p>
-                                                    </div>
-                                                )}
-                                            </div>
                                         </div>
                                     </section>
                                 );
@@ -8769,6 +8967,8 @@ const EditSprint: React.FC = () => {
       <FullBleedProgressNoteSlide
         isOpen={pendingSprintViewProgressNote !== null}
         day={selectedDay}
+        totalDays={sprint?.duration}
+        sprintTitle={sprint?.title}
         noteText={pendingSprintViewProgressNote || ''}
         onContinue={() => {
           setPendingSprintViewProgressNote(null);
