@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, MotionConfig } from 'motion/react';
 import { ArrowRight, ChevronDown, Sparkles, X } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
 
@@ -107,6 +107,7 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
   };
 
   const content = (
+    <MotionConfig reducedMotion="user">
     <div className="fixed inset-0 z-[120] min-h-[100dvh] w-screen bg-[#FDFDFD] flex flex-col justify-between p-6 md:p-12 overflow-y-auto overflow-x-hidden">
       {/* Background Ambience matching Bridge Card */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -171,23 +172,49 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
                             {section.title}
                           </span>
                         </div>
-                        <ChevronDown
-                          className={`w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200 ${
-                            isExpanded ? 'rotate-180 text-[#0E7850]' : ''
-                          }`}
-                        />
+                        <motion.span
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                          className="shrink-0 flex items-center justify-center"
+                        >
+                          <ChevronDown
+                            className={`w-4 h-4 transition-colors duration-200 ${
+                              isExpanded ? 'text-[#0E7850]' : 'text-gray-400'
+                            }`}
+                          />
+                        </motion.span>
                       </button>
 
                       <AnimatePresence initial={false}>
                         {isExpanded && (
                           <motion.div
+                            key={`accordion-panel-${section.number}-${idx}`}
                             initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                            animate={{
+                              height: 'auto',
+                              opacity: 1,
+                              transition: {
+                                height: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                                opacity: { duration: 0.22, ease: 'easeOut', delay: 0.04 },
+                              },
+                            }}
+                            exit={{
+                              height: 0,
+                              opacity: 0,
+                              transition: {
+                                height: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
+                                opacity: { duration: 0.14, ease: 'easeIn' },
+                              },
+                            }}
                             className="overflow-hidden"
                           >
-                            <div className="px-4 sm:px-5 pb-4 pt-0.5 pl-10 sm:pl-11">
+                            <motion.div
+                              initial={{ y: -6 }}
+                              animate={{ y: 0 }}
+                              exit={{ y: -6 }}
+                              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                              className="px-4 sm:px-5 pb-4 pt-0.5 pl-10 sm:pl-11"
+                            >
                               {section.bodyLines.length > 0 ? (
                                 <div className="space-y-1.5 text-sm text-gray-700 font-medium leading-relaxed">
                                   {section.bodyLines.map((line, lIdx) => {
@@ -215,7 +242,7 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
                               ) : (
                                 <p className="text-xs text-gray-400 italic">No items recorded</p>
                               )}
-                            </div>
+                            </motion.div>
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -250,6 +277,7 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
         </motion.button>
       </footer>
     </div>
+    </MotionConfig>
   );
 
   if (typeof document !== 'undefined') {
