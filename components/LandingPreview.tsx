@@ -133,13 +133,26 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint }) => {
       </div>
 
       {/* Fixed Bottom CTA Preview */}
-      <div className="border-t border-gray-100 bg-white px-5 py-2.5 flex items-center justify-between gap-2 shrink-0">
-        <span className="text-[8px] font-bold text-gray-500 truncate">
-          {selectedTier ? `${tiers[selectedTier].name} • ${tiers[selectedTier].formattedPrice}` : 'Select your tier to start'}
-        </span>
+      <div className="border-t border-gray-100 bg-white px-4 py-2.5 space-y-1.5 shrink-0">
+        <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200/80 bg-gray-50/75">
+          <div className="min-w-0">
+            <span className="text-[8px] font-black text-gray-900 block truncate">
+              {selectedTier ? tiers[selectedTier].name : (sprint.title || 'Untitled Sprint')}
+            </span>
+            <span className="text-[7px] font-medium text-gray-500 block truncate">
+              {selectedTier ? (sprint.title || 'Untitled Sprint') : 'Select your tier to start'}
+            </span>
+          </div>
+          <div className="text-right shrink-0">
+            <span className="text-[8px] font-black text-[#0E7850] block">
+              {selectedTier ? tiers[selectedTier].formattedPrice : 'Free trial'}
+            </span>
+            <span className="text-[6.5px] font-medium text-gray-400 block">First 2 moves</span>
+          </div>
+        </div>
         <span
-          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider ${
-            selectedTier ? 'bg-[#0E7850] text-white' : 'bg-gray-200 text-gray-400'
+          className={`w-full block text-center py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-colors ${
+            selectedTier ? 'bg-[#0E7850] text-white shadow-sm' : 'bg-gray-100 text-gray-400'
           }`}
         >
           Start for free

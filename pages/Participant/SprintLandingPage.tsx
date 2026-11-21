@@ -704,7 +704,7 @@ const SprintLandingPage: React.FC = () => {
     };
 
     return (
-        <div className={`bg-[#F8F9FA] min-h-screen font-sans text-[13px] ${enrollmentStatus === 'none' && !showCommitmentSheet ? 'pb-20 sm:pb-24' : 'pb-8 sm:pb-12'} selection:bg-primary/10 relative`}>
+        <div className={`bg-[#F8F9FA] min-h-screen font-sans text-[13px] ${(enrollmentStatus === 'none' || isFromEditPreview) && !showCommitmentSheet ? 'pb-36 sm:pb-40' : 'pb-8 sm:pb-12'} selection:bg-primary/10 relative`}>
             {/* NAVIGATION HEADER - Full Width */}
             {isOnboardingPath ? (
                 <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
@@ -1005,31 +1005,44 @@ const SprintLandingPage: React.FC = () => {
 
             {/* Fixed Bottom CTA Bar for Viewport */}
             {(enrollmentStatus === 'none' || isFromEditPreview) && !showCommitmentSheet && (
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
-                    <div className="max-w-screen-lg mx-auto flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                            <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tight">{sprint.title}</p>
-                            {activeTier ? (
-                                <p className="text-[11px] font-bold text-[#0E7850] truncate mt-0.5">
-                                    {activeTier.name} &bull; {activeTier.formattedPrice}
-                                </p>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={scrollToPricingTiers}
-                                    className="text-[11px] font-semibold text-gray-500 hover:text-[#0E7850] transition-colors truncate mt-0.5 text-left cursor-pointer"
-                                >
-                                    {isPricingInView ? 'Select your tier to start' : 'Choose your tier below'}
-                                </button>
-                            )}
-                        </div>
-                        <Button 
-                            onClick={handleJoinClick} 
+                <div className="fixed bottom-0 left-0 right-0 px-4 py-3 sm:py-3.5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
+                    <div className="max-w-screen-lg mx-auto space-y-2.5">
+                        {activeTier ? (
+                            <div className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl border border-gray-200/80 bg-gray-50/75">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-black text-gray-900 truncate">{activeTier.name}</p>
+                                    <p className="text-[11px] font-medium text-gray-500 truncate">{sprint.title}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="text-xs font-black text-[#0E7850]">{activeTier.formattedPrice}</p>
+                                    <p className="text-[10px] font-semibold text-gray-400">First 2 moves free</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={scrollToPricingTiers}
+                                className="w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl border border-gray-200/80 bg-gray-50/75 hover:border-[#0E7850]/40 hover:bg-[#0E7850]/[0.03] transition-colors text-left cursor-pointer"
+                            >
+                                <div className="min-w-0">
+                                    <p className="text-xs font-black text-gray-900 truncate">{sprint.title}</p>
+                                    <p className="text-[11px] font-semibold text-gray-500 truncate">
+                                        {isPricingInView ? 'Select your tier above to start' : 'Select your tier to start'}
+                                    </p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <p className="text-[11px] font-bold text-[#0E7850]">Free trial</p>
+                                    <p className="text-[10px] font-medium text-gray-400">First 2 moves</p>
+                                </div>
+                            </button>
+                        )}
+                        <Button
+                            onClick={handleJoinClick}
                             disabled={!selectedTier || isCheckingEmail}
-                            className={`py-3 px-5 rounded-xl text-[10px] uppercase tracking-widest font-black border-0 shrink-0 group/btn transition-all ${
+                            className={`w-full py-3.5 sm:py-4 rounded-2xl text-xs uppercase tracking-[0.14em] font-black border-0 group/btn transition-all ${
                                 selectedTier && !isCheckingEmail
-                                    ? 'bg-[#0E7850] hover:bg-[#0b6140] text-white shadow-md cursor-pointer'
-                                    : 'bg-gray-200 text-gray-400 shadow-none cursor-not-allowed'
+                                    ? 'bg-[#0E7850] hover:bg-[#0b6140] text-white shadow-lg shadow-[#0E7850]/20 cursor-pointer'
+                                    : 'bg-gray-100 text-gray-400 shadow-none disabled:opacity-100 cursor-not-allowed'
                             }`}
                         >
                             {isCheckingEmail
@@ -1040,7 +1053,7 @@ const SprintLandingPage: React.FC = () => {
                                         ? 'Get a free trial'
                                         : 'Start for free'}
                             {selectedTier && !isCheckingEmail && (
-                                <ArrowRight className="w-3.5 h-3.5 ml-1.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                                <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
                             )}
                         </Button>
                     </div>
