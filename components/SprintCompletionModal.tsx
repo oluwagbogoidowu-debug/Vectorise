@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
-  Sparkles,
   ArrowRight,
   X,
   Star,
   Trophy,
-  Volume2,
-  VolumeX,
   HeartHandshake,
   Share2,
   Check,
@@ -70,46 +67,135 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
   const [hoveredRating, setHoveredRating] = useState<number>(0);
   const [feedbackComment, setFeedbackComment] = useState<string>('');
   const [hasSharedReferral, setHasSharedReferral] = useState(false);
-  const [isAudioMuted, setIsAudioMuted] = useState(!initialSoundEnabled);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const confettiIntervalRef = useRef<any>(null);
 
-  const playCelebrationFanfare = useCallback(() => {
-    if (isAudioMuted) return;
+  const playCelebrationPop = useCallback(() => {
+    if (!initialSoundEnabled) return;
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
-      const now = ctx.currentTime;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
 
-      const notes = [
-        { freq: 523.25, time: 0.0, duration: 0.16, gain: 0.22 },
-        { freq: 659.25, time: 0.1, duration: 0.18, gain: 0.24 },
-        { freq: 783.99, time: 0.22, duration: 0.22, gain: 0.26 },
-        { freq: 1046.5, time: 0.36, duration: 0.65, gain: 0.28 },
+      const now = ctx.currentTime;
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-16, now);
+      compressor.knee.setValueAtTime(18, now);
+      compressor.ratio.setValueAtTime(4, now);
+      compressor.attack.setValueAtTime(0.003, now);
+      compressor.release.setValueAtTime(0.15, now);
+
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.8, now);
+      compressor.connect(masterGain);
+      masterGain.connect(ctx.destination);
+
+      // 1. Tactile party-popper punch + upward "pop!" snap
+      const triggerPop = (startTime: number, volume: number, basePitch = 420, peakPitch = 1180) => {
+        // Low-end thump for physical weight
+        const thumpOsc = ctx.createOscillator();
+        const thumpGain = ctx.createGain();
+        thumpOsc.type = 'sine';
+        thumpOsc.frequency.setValueAtTime(210, startTime);
+        thumpOsc.frequency.exponentialRampToValueAtTime(58, startTime + 0.075);
+        thumpGain.gain.setValueAtTime(0.001, startTime);
+        thumpGain.gain.linearRampToValueAtTime(volume * 0.85, startTime + 0.005);
+        thumpGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.085);
+        thumpOsc.connect(thumpGain);
+        thumpGain.connect(compressor);
+        thumpOsc.start(startTime);
+        thumpOsc.stop(startTime + 0.09);
+
+        // Crisp bubble/cork pop sweep
+        const popOsc = ctx.createOscillator();
+        const popGain = ctx.createGain();
+        popOsc.type = 'sine';
+        popOsc.frequency.setValueAtTime(basePitch, startTime);
+        popOsc.frequency.exponentialRampToValueAtTime(peakPitch, startTime + 0.038);
+        popGain.gain.setValueAtTime(0.001, startTime);
+        popGain.gain.linearRampToValueAtTime(volume, startTime + 0.004);
+        popGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.065);
+        popOsc.connect(popGain);
+        popGain.connect(compressor);
+        popOsc.start(startTime);
+        popOsc.stop(startTime + 0.07);
+
+        // Filtered confetti air burst
+        const bufferSize = Math.floor(ctx.sampleRate * 0.09);
+        const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.28));
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2800, startTime);
+        filter.Q.setValueAtTime(1.1, startTime);
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(volume * 0.55, startTime);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.09);
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(compressor);
+        noise.start(startTime);
+      };
+
+      // Primary pop + playful secondary confetti pop
+      triggerPop(now, 0.34, 420, 1220);
+      triggerPop(now + 0.14, 0.18, 540, 1460);
+
+      // 2. Warm uplifting chime sparkle over the pop
+      const chimeNotes = [
+        { freq: 523.25, time: 0.05, duration: 0.24, gain: 0.14 },  // C5
+        { freq: 659.25, time: 0.11, duration: 0.26, gain: 0.15 },  // E5
+        { freq: 783.99, time: 0.17, duration: 0.3, gain: 0.16 },   // G5
+        { freq: 1046.5, time: 0.24, duration: 0.52, gain: 0.18 },  // C6
+        { freq: 1318.51, time: 0.31, duration: 0.58, gain: 0.11 }, // E6 shimmer
       ];
 
-      notes.forEach(({ freq, time, duration, gain: peakGain }) => {
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
+      chimeNotes.forEach(({ freq, time, duration, gain: peakGain }) => {
+        const fundamental = ctx.createOscillator();
+        const harmonic = ctx.createOscillator();
+        const noteGain = ctx.createGain();
+        const harmonicGain = ctx.createGain();
 
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + time);
+        fundamental.type = 'sine';
+        fundamental.frequency.setValueAtTime(freq, now + time);
 
-        gainNode.gain.setValueAtTime(0, now + time);
-        gainNode.gain.linearRampToValueAtTime(peakGain, now + time + 0.03);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + time + duration);
+        harmonic.type = 'sine';
+        harmonic.frequency.setValueAtTime(freq * 2, now + time);
 
-        osc.connect(gainNode);
-        gainNode.connect(ctx.destination);
+        noteGain.gain.setValueAtTime(0.001, now + time);
+        noteGain.gain.linearRampToValueAtTime(peakGain, now + time + 0.014);
+        noteGain.gain.exponentialRampToValueAtTime(0.001, now + time + duration);
 
-        osc.start(now + time);
-        osc.stop(now + time + duration);
+        harmonicGain.gain.setValueAtTime(0.001, now + time);
+        harmonicGain.gain.linearRampToValueAtTime(peakGain * 0.22, now + time + 0.01);
+        harmonicGain.gain.exponentialRampToValueAtTime(0.001, now + time + duration * 0.55);
+
+        fundamental.connect(noteGain);
+        harmonic.connect(harmonicGain);
+        noteGain.connect(compressor);
+        harmonicGain.connect(compressor);
+
+        fundamental.start(now + time);
+        fundamental.stop(now + time + duration + 0.02);
+        harmonic.start(now + time);
+        harmonic.stop(now + time + duration * 0.6);
       });
+
+      setTimeout(() => {
+        ctx.close().catch(() => {});
+      }, 1500);
     } catch {
       // Ignore Web Audio autoplay restrictions
     }
-  }, [isAudioMuted]);
+  }, [initialSoundEnabled]);
 
   const launchConfetti = useCallback((intensity: 'full' | 'burst' = 'full') => {
     const brandColors = ['#0E7850', '#10B981', '#34D399', '#FCD34D', '#F59E0B', '#FFFFFF'];
@@ -169,7 +255,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
       setIsSubmittingReview(false);
 
       launchConfetti('full');
-      playCelebrationFanfare();
+      playCelebrationPop();
       triggerHaptic(hapticPatterns.success);
 
       const timer = setTimeout(() => {
@@ -181,7 +267,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
         if (confettiIntervalRef.current) clearInterval(confettiIntervalRef.current);
       };
     }
-  }, [isOpen, launchConfetti, playCelebrationFanfare]);
+  }, [isOpen, launchConfetti, playCelebrationPop]);
 
   const handleSubmitRatingContinue = async () => {
     if (rating <= 0 || isSubmittingReview) return;
@@ -326,27 +412,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
           <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-[#0E7850]/10 rounded-full blur-[100px] pointer-events-none" />
 
           {/* Top bar */}
-          <div className="relative z-10 flex items-center justify-between w-full mb-3">
-            <div className="flex items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850] text-[10px] font-black uppercase tracking-widest">
-                <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
-                <span>Sprint Milestone</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAudioMuted((prev) => !prev)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
-                title={isAudioMuted ? 'Unmute celebration chime' : 'Mute celebration chime'}
-                aria-label={isAudioMuted ? 'Unmute sound' : 'Mute sound'}
-              >
-                {isAudioMuted ? (
-                  <VolumeX className="w-3.5 h-3.5" />
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5 text-emerald-600" />
-                )}
-              </button>
-            </div>
-
+          <div className="relative z-10 flex items-center justify-end w-full mb-3">
             <button
               type="button"
               onClick={handleClose}
