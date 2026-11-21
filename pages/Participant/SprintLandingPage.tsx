@@ -842,7 +842,7 @@ const SprintLandingPage: React.FC = () => {
             {/* TWO-COLUMN CONTENT LAYOUT */}
             <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
-                    <div className={enrollmentStatus === 'none' ? "lg:col-span-12 max-w-3xl mx-auto w-full" : "lg:col-span-8"}>
+                    <div className={!isFromEditPreview && (enrollmentStatus === 'active' || enrollmentStatus === 'queued') ? "lg:col-span-8" : "lg:col-span-12 max-w-3xl mx-auto w-full"}>
                         {/* MAIN CONTENT */}
                         <div className="space-y-6">
                             {(displayDescription || hasDynamicContent) && (
@@ -877,12 +877,9 @@ const SprintLandingPage: React.FC = () => {
                                     className="pt-6 border-t border-gray-100 space-y-5"
                                 >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div>
-                                            <SectionHeading>Pricing Tiers</SectionHeading>
-                                            <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-snug">
-                                                Select your tier to start
-                                            </h3>
-                                        </div>
+                                        <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-snug">
+                                            Select your tier to start
+                                        </h3>
                                         <span className="px-3 py-1 rounded-full bg-[#0E7850]/10 border border-[#0E7850]/20 text-[#0E7850] text-[10px] font-black uppercase tracking-wider">
                                             Get a free trial
                                         </span>
@@ -961,7 +958,7 @@ const SprintLandingPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {enrollmentStatus !== 'none' && (
+                    {!isFromEditPreview && (enrollmentStatus === 'active' || enrollmentStatus === 'queued') && (
                         <aside className="lg:col-span-4">
                             <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 relative lg:sticky lg:top-8 shadow-xs">
                                 {/* Card displaying Action Trigger line or Rerun recommendations */}

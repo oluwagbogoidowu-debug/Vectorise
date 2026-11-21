@@ -9,7 +9,7 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, ArrowRight, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu, Minimize2, StickyNote, RotateCcw, Download, FileText } from 'lucide-react';
+import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, ArrowRight, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu, Minimize2, StickyNote, RotateCcw, Download, FileText, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
@@ -22,6 +22,7 @@ import ActionStepConfirmModal from '../../components/ActionStepConfirmModal';
 import SprintSpotlightTour from '../../components/SprintSpotlightTour';
 import CoachGuideModal from '../../components/CoachGuideModal';
 import FullBleedProgressNoteSlide from '../../components/FullBleedProgressNoteSlide';
+import SprintCompletionModal from '../../components/SprintCompletionModal';
 import TagInput from '../../components/TagInput';
 
 const extractYouTubeId = (url: string): string | null => {
@@ -452,6 +453,7 @@ const EditSprint: React.FC = () => {
   const [sprintViewKebabOpen, setSprintViewKebabOpen] = useState(false);
   const [sprintViewMoveMenuOpen, setSprintViewMoveMenuOpen] = useState(false);
   const [pendingSprintViewProgressNote, setPendingSprintViewProgressNote] = useState<string | null>(null);
+  const [showCompletionPreview, setShowCompletionPreview] = useState(false);
   const [editSettings, setEditSettings] = useState<Partial<Sprint>>({});
   const [isAudienceDropdownOpen, setIsAudienceDropdownOpen] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState<Record<string, string>>({});
@@ -3670,6 +3672,8 @@ const EditSprint: React.FC = () => {
                 const stepDotActive = true;
 
                 const triggerCompleteMove = () => {
+                  const totalMoves = sprint?.duration || (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.length : 0) || 1;
+                  const isLastMoveSelected = selectedDay >= totalMoves;
                   const rawProgress = currentContent.progressNote;
                   if (rawProgress && rawProgress.trim()) {
                     const formattedProgress = formatInterpolatedText(
@@ -3679,6 +3683,8 @@ const EditSprint: React.FC = () => {
                       sprint?.dailyContent
                     );
                     setPendingSprintViewProgressNote(formattedProgress || rawProgress);
+                  } else if (isLastMoveSelected) {
+                    setShowCompletionPreview(true);
                   } else {
                     setShowDaySuccessPreview(true);
                   }
@@ -4038,6 +4044,17 @@ const EditSprint: React.FC = () => {
                                 >
                                   <span>Reset Preview Inputs</span>
                                   <RotateCcw className="w-4 h-4 text-gray-500" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSprintViewKebabOpen(false);
+                                    setShowCompletionPreview(true);
+                                  }}
+                                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <span>Preview Completion Modal</span>
+                                  <Trophy className="w-4 h-4 text-[#0E7850]" />
                                 </button>
                                 <button
                                   type="button"
@@ -6957,14 +6974,25 @@ const EditSprint: React.FC = () => {
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowDailyPreview(!showDailyPreview)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#0E7850] transition-colors flex items-center justify-center cursor-pointer"
-                  title={showDailyPreview ? "Hide Preview" : "Reveal Preview"}
-                >
-                  {showDailyPreview ? <Eye size={15} /> : <EyeOff size={15} />}
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletionPreview(true)}
+                    className="p-1.5 hover:bg-emerald-50 rounded-lg text-gray-400 hover:text-[#0E7850] transition-colors flex items-center justify-center cursor-pointer"
+                    title="Preview Sprint Completion Modal"
+                    aria-label="Preview Sprint Completion Modal"
+                  >
+                    <Trophy size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDailyPreview(!showDailyPreview)}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-[#0E7850] transition-colors flex items-center justify-center cursor-pointer"
+                    title={showDailyPreview ? "Hide Preview" : "Reveal Preview"}
+                  >
+                    {showDailyPreview ? <Eye size={15} /> : <EyeOff size={15} />}
+                  </button>
+                </div>
               </div>
 
               {showDailyPreview && previewType === 'landing' ? (
@@ -7588,6 +7616,8 @@ const EditSprint: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      const totalMoves = sprint?.duration || (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.length : 0) || 1;
+                      const isLastMoveSelected = selectedDay >= totalMoves;
                       const rawProgress = currentContent.progressNote;
                       if (rawProgress && rawProgress.trim()) {
                         const formattedProgress = formatInterpolatedText(
@@ -7597,6 +7627,8 @@ const EditSprint: React.FC = () => {
                           sprint?.dailyContent
                         );
                         setPendingSprintViewProgressNote(formattedProgress || rawProgress);
+                      } else if (isLastMoveSelected) {
+                        setShowCompletionPreview(true);
                       } else {
                         setShowDaySuccessPreview(true);
                       }
@@ -9006,8 +9038,14 @@ const EditSprint: React.FC = () => {
         noteText={pendingSprintViewProgressNote || ''}
         isCoachPreview={true}
         onContinue={() => {
+          const totalMoves = sprint?.duration || (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.length : 0) || 1;
+          const isLastMoveSelected = selectedDay >= totalMoves;
           setPendingSprintViewProgressNote(null);
-          setShowDaySuccessPreview(true);
+          if (isLastMoveSelected) {
+            setShowCompletionPreview(true);
+          } else {
+            setShowDaySuccessPreview(true);
+          }
         }}
       />
 
@@ -9019,6 +9057,19 @@ const EditSprint: React.FC = () => {
         sprintName={sprint?.title}
         allDaysContent={sprint?.dailyContent}
         totalDuration={sprint?.duration}
+      />
+
+      <SprintCompletionModal
+        isOpen={showCompletionPreview}
+        sprintId={sprint?.id}
+        isPreview={true}
+        onClose={() => setShowCompletionPreview(false)}
+        onStartNext={() => setShowCompletionPreview(false)}
+        sprintTitle={sprint?.title}
+        streakCount={1}
+        totalDays={sprint?.duration || (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.length : 5)}
+        completedDay={sprint?.duration || selectedDay}
+        completionNote={currentContent.completionNote}
       />
 
       <ActionStepConfirmModal

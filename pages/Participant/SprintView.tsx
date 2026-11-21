@@ -44,7 +44,7 @@ import { FullBleedProgressNoteSlide } from "../../components/FullBleedProgressNo
 
 import SprintCard from "../../components/SprintCard";
 import { PushToggle } from "../../components/PushToggle";
-import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save, Loader2, Lightbulb, ChevronRight } from "lucide-react";
+import { BookOpen, Maximize2, Minimize2, Clock, Trash2, Plus, Check, Bell, X, MessageCircle, Menu, MoreVertical, Share2, RotateCcw, Sparkles, Layers, ArrowLeft, ArrowRight, CheckCircle2, Youtube, StickyNote, Save, Loader2, Lightbulb, ChevronRight, Trophy } from "lucide-react";
 import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import AiResearchModal from "../../components/AiResearchModal";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
@@ -3873,7 +3873,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           : '';
 
         const proceedPreviewTransition = () => {
-          if (isLastDay && updatedProgress.every((p) => p.completed)) {
+          if (isLastDay) {
             if (currentSprintId) {
               sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
             }
@@ -4488,6 +4488,19 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
               type="button"
               onClick={() => {
                 setIsKebabMenuOpen(false);
+                setIsCompletionModalOpen(true);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-xl bg-[#0E7850]/10 text-[#0E7850] flex items-center justify-center shrink-0">
+                <Trophy className="w-4 h-4" />
+              </div>
+              <span className="truncate">Preview Completion Modal</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsKebabMenuOpen(false);
                 handleResetPreview();
               }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold text-gray-800 hover:text-gray-950 hover:bg-gray-50 active:bg-gray-100 transition-all text-left cursor-pointer"
@@ -4592,7 +4605,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             localStorage.setItem("show_bonus_toast", "true");
           }
           if (isPreview) {
-            handleExitPreview();
+            setIsCompletionModalOpen(false);
           } else {
             navigate("/dashboard", { 
               replace: true,
@@ -4602,7 +4615,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         }}
         onStartNext={(rating) => {
           if (isPreview) {
-            handleExitPreview();
+            setIsCompletionModalOpen(false);
           } else {
             handleCompletionModalAction(rating);
           }
