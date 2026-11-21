@@ -2119,9 +2119,8 @@ const SprintPreview: React.FC = () => {
                         </span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-2xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-md shrink-0 select-none">
-                            <span className="text-[7px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
-                            <span className="text-sm font-black leading-none">{previewDay}</span>
+                        <div className="h-10 px-3.5 rounded-2xl bg-[#0E7850] text-white flex items-center justify-center shadow-md shrink-0 select-none whitespace-nowrap">
+                            <span className="text-xs font-black tracking-tight leading-none tabular-nums">Move {previewDay}</span>
                         </div>
                         <button
                             type="button"
@@ -2165,7 +2164,7 @@ const SprintPreview: React.FC = () => {
                                             setShowLockModal(true);
                                         }
                                     }}
-                                    className={`flex-shrink-0 w-16 h-16 rounded-2xl flex flex-col items-center justify-center relative transition-all duration-300 ${
+                                    className={`flex-shrink-0 h-11 px-4 rounded-2xl flex items-center justify-center relative transition-all duration-300 whitespace-nowrap ${
                                         isCurrentActive
                                             ? 'bg-[#0E7850] text-white shadow-lg shadow-emerald-900/10 scale-105'
                                             : isDayDone
@@ -2175,10 +2174,7 @@ const SprintPreview: React.FC = () => {
                                                     : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100 cursor-pointer'
                                     }`}
                                 >
-                                    <span className={`text-[7px] font-black uppercase tracking-widest ${
-                                        isCurrentActive ? 'text-white/70' : isDayDone ? 'text-emerald-600' : 'text-gray-400'
-                                    }`}>Move</span>
-                                    <span className="text-xl font-black leading-none">{day}</span>
+                                    <span className="text-xs font-black tracking-tight leading-none tabular-nums">Move {day}</span>
                                 </button>
                             );
                         })}

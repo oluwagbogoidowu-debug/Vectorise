@@ -3970,9 +3970,8 @@ const EditSprint: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <div className="w-10 h-10 rounded-2xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-md shrink-0 select-none">
-                            <span className="text-[7px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
-                            <span className="text-sm font-black leading-none tabular-nums">{selectedDay}</span>
+                          <div className="h-10 px-3.5 rounded-2xl bg-[#0E7850] text-white flex items-center justify-center shadow-md shrink-0 select-none whitespace-nowrap">
+                            <span className="text-xs font-black tracking-tight leading-none tabular-nums">Move {selectedDay}</span>
                           </div>
 
                           <div className="relative">
@@ -6867,9 +6866,8 @@ const EditSprint: React.FC = () => {
                           Steps
                         </button>
                       </div>
-                      <div className="w-9 h-9 rounded-xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-sm shrink-0 select-none">
-                        <span className="text-[6px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
-                        <span className="text-xs font-black leading-none tabular-nums">{selectedDay}</span>
+                      <div className="h-9 px-3 rounded-xl bg-[#0E7850] text-white flex items-center justify-center shadow-sm shrink-0 select-none whitespace-nowrap">
+                        <span className="text-[11px] font-black tracking-tight leading-none tabular-nums">Move {selectedDay}</span>
                       </div>
                     </div>
                   </div>

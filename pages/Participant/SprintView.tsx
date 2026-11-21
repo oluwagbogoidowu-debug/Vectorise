@@ -5340,10 +5340,8 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                     <X className="w-4 h-4" />
                   </button>
                 )}
-                {/* Small square Move badge, as small as the kebab menu button */}
-                <div className="w-10 h-10 rounded-2xl bg-[#0E7850] text-white flex flex-col items-center justify-center shadow-md shrink-0 select-none">
-                  <span className="text-[7px] font-black uppercase tracking-widest text-white/80 leading-none mb-0.5">Move</span>
-                  <span className="text-sm font-black leading-none">{viewingDay}</span>
+                <div className="h-10 px-3.5 rounded-2xl bg-[#0E7850] text-white flex items-center justify-center shadow-md shrink-0 select-none whitespace-nowrap">
+                  <span className="text-xs font-black tracking-tight leading-none tabular-nums">Move {viewingDay}</span>
                 </div>
 
                 <div className="relative" ref={kebabMenuRef}>
