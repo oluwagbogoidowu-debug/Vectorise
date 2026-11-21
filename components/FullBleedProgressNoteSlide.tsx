@@ -1,12 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, MotionConfig } from 'motion/react';
-import { ArrowRight, Check, ChevronDown, Download, FileText, HeartHandshake, Share2, Sparkles, Star, X } from 'lucide-react';
-import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
-import { Participant } from '../types';
-import { sprintService } from '../services/sprintService';
-import { recordDeferredPromptState } from '../utils/deferredPrompts';
+import { ArrowRight, ChevronDown, Download, FileText, Sparkles, X } from 'lucide-react';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
 import { generateProgressReportDOC, generateProgressReportPDF } from '../utils/pdfGenerator';
 
@@ -18,7 +13,7 @@ interface FullBleedProgressNoteSlideProps {
   enrollmentId?: string;
   sprintTitle?: string;
   noteText: string;
-  onContinue: (rating?: number) => void;
+  onContinue: () => void;
   isCoachPreview?: boolean;
   onExitPreview?: () => void;
 }
@@ -86,22 +81,14 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
   isOpen,
   day,
   totalDays,
-  sprintId,
-  enrollmentId,
   sprintTitle,
   noteText,
   onContinue,
   isCoachPreview,
   onExitPreview,
 }) => {
-  const { user } = useAuth();
   const [openIndices, setOpenIndices] = useState<Set<number>>(() => new Set([0]));
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
-  const [stage, setStage] = useState<'progress' | 'referral' | 'rating'>('progress');
-  const [hasSharedReferral, setHasSharedReferral] = useState(false);
-  const [rating, setRating] = useState<number>(0);
-  const [hoveredRating, setHoveredRating] = useState<number>(0);
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const parsed = useMemo(() => parseProgressNoteSections(noteText || ''), [noteText]);
   const hasAccordion = parsed.sections.length > 0;
@@ -111,128 +98,10 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
     if (isOpen) {
       setOpenIndices(new Set([0]));
       setIsDownloadModalOpen(false);
-      setStage('progress');
-      setHasSharedReferral(false);
-      setRating(0);
-      setHoveredRating(0);
-      setIsSubmittingRating(false);
     }
   }, [isOpen, noteText]);
 
   if (!isOpen || !noteText || !noteText.trim()) return null;
-
-  const handleShareReferral = async () => {
-    triggerHaptic(hapticPatterns.light);
-    const referralCode = (user as any)?.referralCode as string | undefined;
-    const refSuffix = referralCode ? `?ref=${referralCode}` : '';
-    const shareUrl = sprintId
-      ? `${window.location.origin}/sprint/${sprintId}${refSuffix}`
-      : `${window.location.origin}${refSuffix}`;
-    const title = sprintTitle?.trim() || 'Vectorise Sprint';
-    const shareText = `You've got to try "${title}" — it's a meaningful way to build real progress.`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text: shareText,
-          url: shareUrl,
-        });
-        setHasSharedReferral(true);
-        recordDeferredPromptState({
-          userId: user?.id,
-          sprintId,
-          enrollmentId,
-          type: 'referral',
-          status: 'completed',
-          isPreview: isCoachPreview,
-        }).catch(() => {});
-        toast.success('Shared with a friend!');
-        return;
-      } catch (err: any) {
-        if (err?.name === 'AbortError') {
-          return;
-        }
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setHasSharedReferral(true);
-      recordDeferredPromptState({
-        userId: user?.id,
-        sprintId,
-        enrollmentId,
-        type: 'referral',
-        status: 'completed',
-        isPreview: isCoachPreview,
-      }).catch(() => {});
-      toast.success('Referral link copied — ready to share!');
-    } catch {
-      toast.error('Could not copy link right now.');
-    }
-  };
-
-  const handleReferralAdvance = () => {
-    triggerHaptic(hapticPatterns.light);
-    if (!hasSharedReferral) {
-      recordDeferredPromptState({
-        userId: user?.id,
-        sprintId,
-        enrollmentId,
-        type: 'referral',
-        status: 'skipped',
-        isPreview: isCoachPreview,
-      }).catch(() => {});
-    }
-    setStage('rating');
-  };
-
-  const handleSubmitRatingAndContinue = async () => {
-    if (rating <= 0 || isSubmittingRating) return;
-    triggerHaptic(hapticPatterns.light);
-    setIsSubmittingRating(true);
-    try {
-      if (!isCoachPreview && user && sprintId) {
-        const p = user as Participant;
-        await sprintService.addReview(sprintId, {
-          participantId: user.id,
-          userName: user.name || (p as any)?.displayName || user.email?.split('@')[0] || 'Participant',
-          userAvatar: (p as any)?.profileImageUrl || (p as any)?.avatar || '',
-          rating,
-          comment: '',
-          timestamp: new Date().toISOString(),
-        });
-      }
-      await recordDeferredPromptState({
-        userId: user?.id,
-        sprintId,
-        enrollmentId,
-        type: 'rating',
-        status: 'completed',
-        ratingValue: rating,
-        isPreview: isCoachPreview,
-      });
-    } catch (err) {
-      console.warn('Could not save sprint rating:', err);
-    } finally {
-      setIsSubmittingRating(false);
-      onContinue(rating);
-    }
-  };
-
-  const handleSkipRating = () => {
-    triggerHaptic(hapticPatterns.light);
-    recordDeferredPromptState({
-      userId: user?.id,
-      sprintId,
-      enrollmentId,
-      type: 'rating',
-      status: 'skipped',
-      isPreview: isCoachPreview,
-    }).catch(() => {});
-    onContinue(undefined);
-  };
 
   const handleDownloadFormat = (format: 'doc' | 'pdf') => {
     triggerHaptic(hapticPatterns.light);
@@ -276,16 +145,12 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
 
       {/* Top Header Bar */}
       <div className="relative z-10 w-full max-w-md mx-auto flex justify-between items-center pt-2 pb-2">
-        {stage === 'progress' ? (
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850]">
-            <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-wider">
-              Move {day} Progress
-            </span>
-          </div>
-        ) : (
-          <div />
-        )}
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#0E7850]/10 border border-[#0E7850]/20 rounded-full text-[#0E7850]">
+          <Sparkles className="w-3.5 h-3.5 text-[#0E7850] animate-pulse" />
+          <span className="text-xs font-black uppercase tracking-wider">
+            Move {day} Progress
+          </span>
+        </div>
 
         {isCoachPreview && onExitPreview && (
           <button
@@ -300,375 +165,174 @@ export const FullBleedProgressNoteSlide: React.FC<FullBleedProgressNoteSlideProp
         )}
       </div>
 
-      <AnimatePresence mode="wait">
-        {stage === 'progress' ? (
-          <motion.div
-            key="progress-stage"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-            className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-between"
-          >
-            {/* Main Progress Note Content */}
-            <main className="w-full flex-1 flex flex-col justify-center items-start py-6">
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.1, duration: 0.45 }}
-                className="w-full text-left my-auto py-4"
-              >
-                {hasAccordion ? (
-                  <div className="w-full space-y-5">
-                    {parsed.headerLines.length > 0 && (
-                      <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-snug whitespace-pre-line">
-                        {parsed.headerLines.join('\n')}
-                      </h2>
-                    )}
-
-                    <div className="w-full bg-white rounded-2xl border border-gray-200/80 divide-y divide-gray-100 overflow-hidden shadow-xs">
-                      {parsed.sections.map((section, idx) => {
-                        const isExpanded = openIndices.has(idx);
-                        return (
-                          <div key={`${section.number}-${idx}`} className="w-full">
-                            <button
-                              type="button"
-                              onClick={() => toggleIndex(idx)}
-                              aria-expanded={isExpanded}
-                              className="w-full px-4 sm:px-5 py-4 flex items-center justify-between gap-3 text-left hover:bg-gray-50/70 transition-colors cursor-pointer"
-                            >
-                              <div className="flex items-baseline gap-2.5 min-w-0">
-                                <span className="text-xs font-bold text-[#0E7850] tabular-nums shrink-0">
-                                  {section.number}.
-                                </span>
-                                <span className="text-sm sm:text-base font-bold text-gray-900 leading-snug">
-                                  {section.title}
-                                </span>
-                              </div>
-                              <motion.span
-                                animate={{ rotate: isExpanded ? 180 : 0 }}
-                                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                                className="shrink-0 flex items-center justify-center"
-                              >
-                                <ChevronDown
-                                  className={`w-4 h-4 transition-colors duration-200 ${
-                                    isExpanded ? 'text-[#0E7850]' : 'text-gray-400'
-                                  }`}
-                                />
-                              </motion.span>
-                            </button>
-
-                            <AnimatePresence initial={false}>
-                              {isExpanded && (
-                                <motion.div
-                                  key={`accordion-panel-${section.number}-${idx}`}
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{
-                                    height: 'auto',
-                                    opacity: 1,
-                                    transition: {
-                                      height: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
-                                      opacity: { duration: 0.22, ease: 'easeOut', delay: 0.04 },
-                                    },
-                                  }}
-                                  exit={{
-                                    height: 0,
-                                    opacity: 0,
-                                    transition: {
-                                      height: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
-                                      opacity: { duration: 0.14, ease: 'easeIn' },
-                                    },
-                                  }}
-                                  className="overflow-hidden"
-                                >
-                                  <motion.div
-                                    initial={{ y: -6 }}
-                                    animate={{ y: 0 }}
-                                    exit={{ y: -6 }}
-                                    transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-                                    className="px-4 sm:px-5 pb-4 pt-0.5 pl-10 sm:pl-11"
-                                  >
-                                    {section.bodyLines.length > 0 ? (
-                                      <div className="space-y-1.5 text-sm text-gray-700 font-medium leading-relaxed">
-                                        {section.bodyLines.map((line, lIdx) => {
-                                          const trimmed = line.trim();
-                                          if (!trimmed) {
-                                            return <div key={lIdx} className="h-1" />;
-                                          }
-                                          const isBullet = /^[•\-*]\s+/.test(trimmed);
-                                          if (isBullet) {
-                                            const cleanText = trimmed.replace(/^[•\-*]\s+/, '');
-                                            return (
-                                              <div key={lIdx} className="flex items-start gap-2">
-                                                <span className="text-[#0E7850] mt-0.5 select-none">•</span>
-                                                <span>{cleanText}</span>
-                                              </div>
-                                            );
-                                          }
-                                          return (
-                                            <p key={lIdx} className="whitespace-pre-line">
-                                              {trimmed}
-                                            </p>
-                                          );
-                                        })}
-                                      </div>
-                                    ) : (
-                                      <p className="text-xs text-gray-400 italic">No items recorded</p>
-                                    )}
-                                  </motion.div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight whitespace-pre-line">
-                    {noteText}
-                  </p>
-                )}
-              </motion.div>
-            </main>
-
-            {/* Continue CTA Footer */}
-            <footer className="w-full py-2">
-              {isLastMove && (
-                <motion.div
-                  initial={{ y: 12, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.2, duration: 0.4 }}
-                  className="flex justify-end mb-2.5"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic(hapticPatterns.light);
-                      setIsDownloadModalOpen(true);
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200/90 shadow-2xs transition-all active:scale-95 cursor-pointer max-w-[230px]"
-                    aria-label={`Download ${sprintTitle || 'Sprint'} Progress report`}
-                  >
-                    <Download className="w-3.5 h-3.5 text-[#0E7850] shrink-0" />
-                    <div className="flex flex-col text-left min-w-0 leading-tight">
-                      <span className="text-[11px] font-bold text-gray-900 truncate">
-                        {sprintTitle || 'Sprint'}
-                      </span>
-                      <span className="text-[10px] font-light text-gray-500">
-                        Progress report
-                      </span>
-                    </div>
-                  </button>
-                </motion.div>
+      {/* Main Progress Note Content */}
+      <main className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-center items-start py-6">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.45 }}
+          className="w-full text-left my-auto py-4"
+        >
+          {hasAccordion ? (
+            <div className="w-full space-y-5">
+              {parsed.headerLines.length > 0 && (
+                <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-snug whitespace-pre-line">
+                  {parsed.headerLines.join('\n')}
+                </h2>
               )}
 
-              <motion.button
-                type="button"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.25, duration: 0.45 }}
-                onClick={() => {
-                  triggerHaptic(hapticPatterns.light);
-                  if (isLastMove) {
-                    setStage('referral');
-                  } else {
-                    onContinue();
-                  }
-                }}
-                className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Continue</span>
-                <ArrowRight className="w-4 h-4 text-white" />
-              </motion.button>
-            </footer>
-          </motion.div>
-        ) : stage === 'referral' ? (
-          <motion.div
-            key="referral-stage"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-between"
-          >
-            {/* Subtle Referral Prompt Content */}
-            <main className="w-full flex-1 flex flex-col justify-center items-center text-center px-2 py-8">
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.08, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="w-16 h-16 rounded-2xl bg-[#0E7850]/[0.08] border border-[#0E7850]/15 flex items-center justify-center mb-7"
-              >
-                <HeartHandshake className="w-7 h-7 text-[#0E7850]" strokeWidth={1.75} />
-              </motion.div>
-
-              <motion.h2
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.14, duration: 0.4 }}
-                className="text-2xl sm:text-[26px] font-black text-gray-900 tracking-tight leading-snug max-w-xs sm:max-w-sm"
-              >
-                Someone else could benefit from this too.
-              </motion.h2>
-
-              <motion.p
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className="mt-3.5 text-sm sm:text-[15px] text-gray-500 font-normal leading-relaxed max-w-sm"
-              >
-                You&apos;ve taken a step towards meaningful progress. Know a friend who could benefit from this sprint?
-              </motion.p>
-
-              {hasSharedReferral && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-6 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0E7850]/10 text-[#0E7850] text-xs font-semibold"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Referral link ready to share</span>
-                </motion.div>
-              )}
-            </main>
-
-            {/* Subtle Referral Actions */}
-            <footer className="w-full space-y-2.5 py-2">
-              <motion.button
-                type="button"
-                initial={{ y: 14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.24, duration: 0.4 }}
-                onClick={handleShareReferral}
-                className="w-full py-4 bg-[#0E7850] hover:bg-[#0b6140] text-white rounded-3xl font-bold text-sm tracking-wide transition-all shadow-md shadow-[#0E7850]/15 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Share it with them.</span>
-              </motion.button>
-
-              <motion.button
-                type="button"
-                initial={{ y: 14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.28, duration: 0.4 }}
-                onClick={handleReferralAdvance}
-                className="w-full py-3.5 bg-transparent hover:bg-gray-100/80 text-gray-500 hover:text-gray-800 rounded-3xl font-semibold text-xs tracking-wide transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <span>{hasSharedReferral ? 'Continue' : 'Skip for now'}</span>
-                {hasSharedReferral && <ArrowRight className="w-3.5 h-3.5" />}
-              </motion.button>
-            </footer>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="rating-stage"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 max-w-md w-full mx-auto flex-1 flex flex-col justify-between"
-          >
-            {/* Simple Sprint Rating Content */}
-            <main className="w-full flex-1 flex flex-col justify-center items-center text-center px-2 py-8">
-              <motion.h2
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.08, duration: 0.38 }}
-                className="text-2xl sm:text-[26px] font-black text-gray-900 tracking-tight leading-snug max-w-xs sm:max-w-sm"
-              >
-                How would you rate this sprint?
-              </motion.h2>
-
-              <motion.p
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.14, duration: 0.38 }}
-                className="mt-2.5 text-sm text-gray-500 font-normal leading-relaxed max-w-xs sm:max-w-sm"
-              >
-                Your feedback helps us improve the VectoRise experience.
-              </motion.p>
-
-              <motion.div
-                initial={{ y: 12, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className="mt-7 w-full bg-gray-50/80 p-4 rounded-2xl border border-gray-100"
-              >
-                <div
-                  className="flex justify-between gap-2"
-                  onMouseLeave={() => setHoveredRating(0)}
-                >
-                  {[1, 2, 3, 4, 5].map((star) => {
-                    const isFilled = star <= (hoveredRating || rating);
-                    return (
+              <div className="w-full bg-white rounded-2xl border border-gray-200/80 divide-y divide-gray-100 overflow-hidden shadow-xs">
+                {parsed.sections.map((section, idx) => {
+                  const isExpanded = openIndices.has(idx);
+                  return (
+                    <div key={`${section.number}-${idx}`} className="w-full">
                       <button
-                        key={star}
                         type="button"
-                        onClick={() => {
-                          triggerHaptic(hapticPatterns.light);
-                          setRating(star);
-                        }}
-                        onMouseEnter={() => setHoveredRating(star)}
-                        aria-label={`Rate ${star} out of 5 stars`}
-                        className={`flex-1 py-3.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border shadow-xs active:scale-95 ${
-                          isFilled
-                            ? 'bg-amber-50 border-amber-200 text-amber-400 scale-[1.02]'
-                            : 'bg-white border-gray-100 text-gray-300 hover:bg-amber-50/60 hover:text-amber-400'
-                        }`}
+                        onClick={() => toggleIndex(idx)}
+                        aria-expanded={isExpanded}
+                        className="w-full px-4 sm:px-5 py-4 flex items-center justify-between gap-3 text-left hover:bg-gray-50/70 transition-colors cursor-pointer"
                       >
-                        <Star
-                          className={`w-5 h-5 transition-colors ${
-                            isFilled ? 'fill-amber-400 text-amber-400' : 'text-gray-300'
-                          }`}
-                        />
+                        <div className="flex items-baseline gap-2.5 min-w-0">
+                          <span className="text-xs font-bold text-[#0E7850] tabular-nums shrink-0">
+                            {section.number}.
+                          </span>
+                          <span className="text-sm sm:text-base font-bold text-gray-900 leading-snug">
+                            {section.title}
+                          </span>
+                        </div>
+                        <motion.span
+                          animate={{ rotate: isExpanded ? 180 : 0 }}
+                          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                          className="shrink-0 flex items-center justify-center"
+                        >
+                          <ChevronDown
+                            className={`w-4 h-4 transition-colors duration-200 ${
+                              isExpanded ? 'text-[#0E7850]' : 'text-gray-400'
+                            }`}
+                          />
+                        </motion.span>
                       </button>
-                    );
-                  })}
-                </div>
 
-                <p className="mt-3 text-xs font-medium text-gray-400">
-                  {rating > 0
-                    ? `${rating} of 5 Stars`
-                    : 'Tap a star to rate your experience.'}
-                </p>
-              </motion.div>
-            </main>
+                      <AnimatePresence initial={false}>
+                        {isExpanded && (
+                          <motion.div
+                            key={`accordion-panel-${section.number}-${idx}`}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{
+                              height: 'auto',
+                              opacity: 1,
+                              transition: {
+                                height: { duration: 0.28, ease: [0.16, 1, 0.3, 1] },
+                                opacity: { duration: 0.22, ease: 'easeOut', delay: 0.04 },
+                              },
+                            }}
+                            exit={{
+                              height: 0,
+                              opacity: 0,
+                              transition: {
+                                height: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
+                                opacity: { duration: 0.14, ease: 'easeIn' },
+                              },
+                            }}
+                            className="overflow-hidden"
+                          >
+                            <motion.div
+                              initial={{ y: -6 }}
+                              animate={{ y: 0 }}
+                              exit={{ y: -6 }}
+                              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                              className="px-4 sm:px-5 pb-4 pt-0.5 pl-10 sm:pl-11"
+                            >
+                              {section.bodyLines.length > 0 ? (
+                                <div className="space-y-1.5 text-sm text-gray-700 font-medium leading-relaxed">
+                                  {section.bodyLines.map((line, lIdx) => {
+                                    const trimmed = line.trim();
+                                    if (!trimmed) {
+                                      return <div key={lIdx} className="h-1" />;
+                                    }
+                                    const isBullet = /^[•\-*]\s+/.test(trimmed);
+                                    if (isBullet) {
+                                      const cleanText = trimmed.replace(/^[•\-*]\s+/, '');
+                                      return (
+                                        <div key={lIdx} className="flex items-start gap-2">
+                                          <span className="text-[#0E7850] mt-0.5 select-none">•</span>
+                                          <span>{cleanText}</span>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <p key={lIdx} className="whitespace-pre-line">
+                                        {trimmed}
+                                      </p>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <p className="text-xs text-gray-400 italic">No items recorded</p>
+                              )}
+                            </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight whitespace-pre-line">
+              {noteText}
+            </p>
+          )}
+        </motion.div>
+      </main>
 
-            {/* Rating Actions */}
-            <footer className="w-full space-y-2.5 py-2">
-              <motion.button
-                type="button"
-                initial={{ y: 14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.24, duration: 0.4 }}
-                onClick={handleSubmitRatingAndContinue}
-                disabled={rating <= 0 || isSubmittingRating}
-                className={`w-full py-4 rounded-3xl font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
-                  rating > 0 && !isSubmittingRating
-                    ? 'bg-[#0E7850] hover:bg-[#0b6140] text-white shadow-md shadow-[#0E7850]/15 active:scale-[0.98] cursor-pointer'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                <span>{isSubmittingRating ? 'Saving...' : 'Continue to next sprint'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
-
-              <motion.button
-                type="button"
-                initial={{ y: 14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.28, duration: 0.4 }}
-                onClick={handleSkipRating}
-                disabled={isSubmittingRating}
-                className="w-full py-3.5 bg-transparent hover:bg-gray-100/80 text-gray-500 hover:text-gray-800 rounded-3xl font-semibold text-xs tracking-wide transition-colors cursor-pointer"
-              >
-                Skip for now
-              </motion.button>
-            </footer>
+      {/* Continue CTA Footer */}
+      <footer className="relative z-10 w-full max-w-md mx-auto py-2">
+        {isLastMove && (
+          <motion.div
+            initial={{ y: 12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="flex justify-end mb-2.5"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic(hapticPatterns.light);
+                setIsDownloadModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200/90 shadow-2xs transition-all active:scale-95 cursor-pointer max-w-[230px]"
+              aria-label={`Download ${sprintTitle || 'Sprint'} Progress report`}
+            >
+              <Download className="w-3.5 h-3.5 text-[#0E7850] shrink-0" />
+              <div className="flex flex-col text-left min-w-0 leading-tight">
+                <span className="text-[11px] font-bold text-gray-900 truncate">
+                  {sprintTitle || 'Sprint'}
+                </span>
+                <span className="text-[10px] font-light text-gray-500">
+                  Progress report
+                </span>
+              </div>
+            </button>
           </motion.div>
         )}
-      </AnimatePresence>
+
+        <motion.button
+          type="button"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.25, duration: 0.45 }}
+          onClick={() => {
+            triggerHaptic(hapticPatterns.light);
+            onContinue();
+          }}
+          className="w-full py-4 bg-gray-900 hover:bg-gray-800 text-white rounded-3xl font-black uppercase tracking-[0.15em] text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <span>Continue</span>
+          <ArrowRight className="w-4 h-4 text-white" />
+        </motion.button>
+      </footer>
 
       {/* File Format Selection Modal */}
       <AnimatePresence>

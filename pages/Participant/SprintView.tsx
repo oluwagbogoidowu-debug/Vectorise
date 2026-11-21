@@ -1000,7 +1000,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const [pendingProgressNoteSlide, setPendingProgressNoteSlide] = useState<{
     day: number;
     formattedNote: string;
-    onContinue: (submittedRating?: number) => void;
+    onContinue: () => void;
   } | null>(null);
   const [isDayCompletionModalOpen, setIsDayCompletionModalOpen] =
     useState(false);
@@ -3872,16 +3872,12 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             )
           : '';
 
-        const proceedPreviewTransition = (fromProgressFlow?: boolean) => {
+        const proceedPreviewTransition = () => {
           if (isLastDay && updatedProgress.every((p) => p.completed)) {
             if (currentSprintId) {
               sprintAnalyticsService.trackSprintCompletion(currentSprintId, user?.id);
             }
-            if (fromProgressFlow) {
-              handleExitPreview();
-            } else {
-              setIsCompletionModalOpen(true);
-            }
+            setIsCompletionModalOpen(true);
           } else {
             navigate('/participant/day-success', { 
               state: { 
@@ -3911,10 +3907,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           setPendingProgressNoteSlide({
             day: viewingDay,
             formattedNote: formattedPreviewProgressNote,
-            onContinue: () => proceedPreviewTransition(true),
+            onContinue: proceedPreviewTransition,
           });
         } else {
-          proceedPreviewTransition(false);
+          proceedPreviewTransition();
         }
 
         setIsSubmitting(false);
@@ -3997,13 +3993,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
             )
           : '';
 
-        const proceedOfflineTransition = (fromProgressFlow?: boolean, submittedRating?: number) => {
+        const proceedOfflineTransition = () => {
           if (isLastDay && updatedProgress.every((p) => p.completed)) {
-            if (fromProgressFlow) {
-              handleCompletionModalAction(submittedRating ?? 5);
-            } else {
-              setIsCompletionModalOpen(true);
-            }
+            setIsCompletionModalOpen(true);
           } else {
             navigate('/participant/day-success', { 
               state: { 
@@ -4025,10 +4017,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           setPendingProgressNoteSlide({
             day: viewingDay,
             formattedNote: formattedOfflineProgressNote,
-            onContinue: (submittedRating?: number) => proceedOfflineTransition(true, submittedRating),
+            onContinue: proceedOfflineTransition,
           });
         } else {
-          proceedOfflineTransition(false);
+          proceedOfflineTransition();
         }
 
         setIsSubmitting(false);
@@ -4121,14 +4113,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           )
         : '';
 
-      const proceedOnlineTransition = (fromProgressFlow?: boolean, submittedRating?: number) => {
+      const proceedOnlineTransition = () => {
         if (isLastDay && updatedProgress.every((p) => p.completed)) {
           sprintAnalyticsService.trackSprintCompletion(enrollment.sprint_id, user.id);
-          if (fromProgressFlow) {
-            handleCompletionModalAction(submittedRating ?? 5);
-          } else {
-            setIsCompletionModalOpen(true);
-          }
+          setIsCompletionModalOpen(true);
         } else {
           navigate('/participant/day-success', { 
             state: { 
@@ -4150,10 +4138,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         setPendingProgressNoteSlide({
           day: viewingDay,
           formattedNote: formattedOnlineProgressNote,
-          onContinue: (submittedRating?: number) => proceedOnlineTransition(true, submittedRating),
+          onContinue: proceedOnlineTransition,
         });
       } else {
-        proceedOnlineTransition(false);
+        proceedOnlineTransition();
       }
 
       // Trigger push permission request if it's the first submission or based on logic
@@ -4596,7 +4584,9 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
       />
       <SprintCompletionModal
         isOpen={isCompletionModalOpen}
-        sprintId={sprint?.id}
+        sprintId={sprint?.id || previewSprintId}
+        enrollmentId={enrollment?.id}
+        isPreview={isPreview}
         onClose={() => {
           if (location.state?.showCompletion) {
             localStorage.setItem("show_bonus_toast", "true");
@@ -4655,16 +4645,14 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         isOpen={!!pendingProgressNoteSlide}
         day={pendingProgressNoteSlide?.day || viewingDay}
         totalDays={sprint?.duration}
-        sprintId={sprint?.id || previewSprintId}
-        enrollmentId={enrollment?.id}
         sprintTitle={sprint?.title}
         noteText={pendingProgressNoteSlide?.formattedNote || ''}
         isCoachPreview={isPreview}
         onExitPreview={isPreview ? handleExitPreview : undefined}
-        onContinue={(submittedRating) => {
+        onContinue={() => {
           const next = pendingProgressNoteSlide?.onContinue;
           setPendingProgressNoteSlide(null);
-          if (next) next(submittedRating);
+          if (next) next();
         }}
       />
       <ActionStepConfirmModal
