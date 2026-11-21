@@ -21,7 +21,7 @@ export default async (req: any, res: any) => {
     const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
     const redirectUrl = `${baseUrl}/api/payment-success`;
 
-    const { email, amount, sprintId, trackId, coinPackageId, coins, name, userId, currency = "NGN" } = req.body || {};
+    const { email, amount, sprintId, trackId, coinPackageId, coins, name, userId, currency = "NGN", selectedTier } = req.body || {};
     
     if (!email || !userId || (!sprintId && !trackId && !coinPackageId)) {
       return res.status(400).json({ error: "Mandatory fields missing (email, userId, sprintId, trackId or coinPackageId)" });
@@ -58,6 +58,7 @@ export default async (req: any, res: any) => {
             coins: coins || null,
             amount: paymentAmount,
             currency,
+            selectedTier: selectedTier || null,
             status: "pending",
             paymentProvider: "flutterwave",
             txRef: tx_ref,

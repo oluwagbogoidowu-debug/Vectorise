@@ -271,7 +271,10 @@ export const SprintConflictManager: React.FC = () => {
       const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration || 7, {
         firstActionInput: primarySubmission,
         taskInputs: cleanInputs,
-        startedFromPreview: true
+        startedFromPreview: true,
+        ...(pending?.selectedTier === 'standard' || pending?.selectedTier === 'complete'
+          ? { selectedTier: pending.selectedTier }
+          : {})
       });
 
       // Explicitly set target enrollment to active, and queue any other active sprints

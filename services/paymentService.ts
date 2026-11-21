@@ -13,6 +13,7 @@ interface PaymentPayload {
   amount: number;
   currency?: string; 
   name?: string;
+  selectedTier?: 'standard' | 'complete';
 }
 
 const PAYMENT_ATTEMPTS = 'payment_attempts';
@@ -45,7 +46,8 @@ export const paymentService = {
           coins: payload.coins,
           amount: payload.amount.toString(),
           currency: payload.currency || 'NGN',
-          name: payload.name || 'Vectorise User'
+          name: payload.name || 'Vectorise User',
+          ...(payload.selectedTier ? { selectedTier: payload.selectedTier } : {})
         })
       });
 

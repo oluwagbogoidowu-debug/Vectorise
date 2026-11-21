@@ -229,6 +229,7 @@ export interface ParticipantSprint {
   startedFromPreview?: boolean;
   paymentUnlocked?: boolean;
   coins_paid?: number;
+  selectedTier?: 'standard' | 'complete';
   deferredPrompts?: {
     referral?: {
       status: 'skipped' | 'completed';

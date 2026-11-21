@@ -117,6 +117,20 @@ const DaySuccessPage: React.FC = () => {
         const primarySubmission = inputsToSave.find(a => a && String(a).trim().length > 0) || inputsToSave[0] || "";
         const now = new Date().toISOString();
 
+        let pendingSelectedTier: 'standard' | 'complete' | undefined =
+          location.state?.selectedTier === 'standard' || location.state?.selectedTier === 'complete'
+            ? location.state.selectedTier
+            : undefined;
+        try {
+          const rawPending = localStorage.getItem('pending_first_action');
+          if (rawPending) {
+            const parsed = JSON.parse(rawPending);
+            if (!pendingSelectedTier && (parsed?.selectedTier === 'standard' || parsed?.selectedTier === 'complete')) {
+              pendingSelectedTier = parsed.selectedTier;
+            }
+          }
+        } catch (e) {}
+
         const hadPendingPreview = Boolean(localStorage.getItem('pending_first_action'));
 
         if (!enrollment) {
@@ -124,7 +138,8 @@ const DaySuccessPage: React.FC = () => {
             firstActionInput: primarySubmission,
             taskInputs: inputsToSave,
             completed: true,
-            ...(hadPendingPreview ? { startedFromPreview: true } : {})
+            ...(hadPendingPreview ? { startedFromPreview: true } : {}),
+            ...(pendingSelectedTier ? { selectedTier: pendingSelectedTier } : {})
           });
         }
 
@@ -780,6 +795,12 @@ const DaySuccessPage: React.FC = () => {
         onClose={() => setShowPaymentIntervention(false)}
         sprint={liveSprint || location.state?.sprint || null}
         enrollment={liveEnrollment || location.state?.enrollment || null}
+        preselectedTier={
+          liveEnrollment?.selectedTier ||
+          location.state?.enrollment?.selectedTier ||
+          location.state?.selectedTier ||
+          null
+        }
         targetMoveDay={Math.min(sprintDuration, completedDay + 1)}
         onUnlocked={(patch) => {
           setShowPaymentIntervention(false);

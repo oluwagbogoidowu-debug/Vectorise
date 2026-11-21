@@ -295,6 +295,43 @@ const SprintLandingPage: React.FC = () => {
         setImageError(false);
     }, [sprint?.coverImageUrl]);
 
+    useEffect(() => {
+        if (!sprint || typeof document === 'undefined') return;
+        const sprintTitle = (sprint.title || 'Vectorise Sprint').trim();
+        const sprintDesc = (sprint.subtitle || sprint.description || 'Start your personal growth journey today.')
+            .replace(/[*_`#>~]+/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 200);
+        const rawCover = (sprint.coverImageUrl || (sprint as any).blogImage || '').trim();
+        const canonicalUrl = `${window.location.origin}${window.location.pathname}`;
+
+        document.title = `${sprintTitle} – Vectorise`;
+
+        const setMetaTag = (attr: 'property' | 'name', key: string, value: string) => {
+            if (!value) return;
+            let el = document.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement | null;
+            if (!el) {
+                el = document.createElement('meta');
+                el.setAttribute(attr, key);
+                document.head.appendChild(el);
+            }
+            el.setAttribute('content', value);
+        };
+
+        setMetaTag('name', 'description', sprintDesc);
+        setMetaTag('property', 'og:title', sprintTitle);
+        setMetaTag('property', 'og:description', sprintDesc);
+        setMetaTag('property', 'og:url', canonicalUrl);
+        setMetaTag('name', 'twitter:title', sprintTitle);
+        setMetaTag('name', 'twitter:description', sprintDesc);
+        if (rawCover && !rawCover.startsWith('data:image/')) {
+            setMetaTag('property', 'og:image', rawCover);
+            setMetaTag('property', 'og:image:secure_url', rawCover);
+            setMetaTag('name', 'twitter:image', rawCover);
+        }
+    }, [sprint]);
+
     const hasCompletedOrActiveSprint = useMemo(() => {
         if (!user || !userEnrollments || userEnrollments.length === 0) return false;
         return userEnrollments.some(e => 
@@ -469,7 +506,8 @@ const SprintLandingPage: React.FC = () => {
                                 coachId: sprint.coachId,
                                 pricePaid: 0,
                                 currency: sprint.currency || 'NGN',
-                                source: 'cash'
+                                source: 'cash',
+                                ...(selectedTier ? { selectedTier } : {})
                             }
                         );
                         toast.success("Sprint started successfully!");
@@ -484,7 +522,8 @@ const SprintLandingPage: React.FC = () => {
                             trackId: sprint.trackId,
                             amount: cashPrice,
                             currency: sprint.currency || 'NGN',
-                            name: user.name || 'Vectorise User'
+                            name: user.name || 'Vectorise User',
+                            ...(selectedTier ? { selectedTier } : {})
                         };
                         const checkoutUrl = await paymentService.initializeFlutterwave(payload);
                         setShowCommitmentSheet(false);
@@ -519,7 +558,8 @@ const SprintLandingPage: React.FC = () => {
                             coachId: sprint.coachId,
                             pricePaid: 0,
                             currency: sprint.currency || 'NGN',
-                            source: 'coin'
+                            source: 'coin',
+                            ...(selectedTier ? { selectedTier } : {})
                         }
                     );
 

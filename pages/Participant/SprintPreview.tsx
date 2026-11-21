@@ -114,6 +114,24 @@ const SprintPreview: React.FC = () => {
     });
     const targetSprintId = sprint?.id || sprintId || 'default';
 
+    const preselectedTier = useMemo<'standard' | 'complete' | undefined>(() => {
+        const fromState = (location.state as any)?.selectedTier;
+        if (fromState === 'standard' || fromState === 'complete') return fromState;
+        try {
+            const raw = localStorage.getItem('pending_first_action');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (
+                    parsed?.sprintId === targetSprintId &&
+                    (parsed?.selectedTier === 'standard' || parsed?.selectedTier === 'complete')
+                ) {
+                    return parsed.selectedTier;
+                }
+            }
+        } catch (e) {}
+        return undefined;
+    }, [location.state, targetSprintId]);
+
     const [completedDays, setCompletedDays] = useState<number[]>(() => {
         const sId = location.state?.sprint?.id || sprintId;
         if (!sId) return [];
@@ -341,6 +359,7 @@ const SprintPreview: React.FC = () => {
                         allDayInputs: localAllDayInputs,
                         activeTaskIndex: activeTaskIndex,
                         prefilledEmail: user.email || '',
+                        ...(preselectedTier ? { selectedTier: preselectedTier } : {}),
                         updatedAt: new Date().toISOString()
                     };
                     localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
@@ -365,7 +384,8 @@ const SprintPreview: React.FC = () => {
                         const enrollment = await sprintService.enrollUser(user.id, targetSprintId, targetSprint?.duration || 7, {
                             firstActionInput: firstInput,
                             taskInputs: localAllDayInputs[1] || effectiveInputs,
-                            startedFromPreview: true
+                            startedFromPreview: true,
+                            ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                         });
 
                         if (enrollment && enrollment.progress) {
@@ -407,7 +427,8 @@ const SprintPreview: React.FC = () => {
                                 taskInputs: effectiveInputs,
                                 isPreview: false,
                                 returnToPreviewUrl: undefined,
-                                redirectToDaySuccess: true
+                                redirectToDaySuccess: true,
+                                ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                             }, 
                             replace: true 
                         });
@@ -464,6 +485,7 @@ const SprintPreview: React.FC = () => {
                 previewDay: previewDay,
                 activeTaskIndex: activeTaskIndex,
                 prefilledEmail: prefilledEmail || '',
+                ...(preselectedTier ? { selectedTier: preselectedTier } : {}),
                 updatedAt: new Date().toISOString()
             };
             localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
@@ -529,7 +551,8 @@ const SprintPreview: React.FC = () => {
                 const firstInput = (nextAllInputs[1] && nextAllInputs[1][0]) || effectiveInputs[0] || "";
                 const enrollment = await sprintService.enrollUser(user.id, sprint.id, sprint.duration, {
                     firstActionInput: firstInput,
-                    taskInputs: effectiveInputs
+                    taskInputs: effectiveInputs,
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                 } as any);
                 if (enrollment) {
                     enrollmentId = enrollment.id;
@@ -567,7 +590,8 @@ const SprintPreview: React.FC = () => {
             enrollmentId: enrollmentId,
             isPreview: isCoachPreview || !user || !enrollmentId,
             returnToPreviewUrl: isCoachPreview ? (location.pathname.startsWith('/coach') ? `/coach/sprint/preview/${sprint?.id || sprintId}` : `/sprint/preview/${sprint?.id || sprintId}`) : `/sprint/preview/${sprint?.id || sprintId}`,
-            redirectToDaySuccess: true
+            redirectToDaySuccess: true,
+            ...(preselectedTier ? { selectedTier: preselectedTier } : {})
         };
         const targetTrackId = sprint?.id || sprintId;
         if (targetTrackId && previewDay === 1) {
@@ -652,11 +676,12 @@ const SprintPreview: React.FC = () => {
                 allDayInputs: updatedAllInputs,
                 activeTaskIndex: activeTaskIndex,
                 prefilledEmail: prefilledEmail || '',
+                ...(preselectedTier ? { selectedTier: preselectedTier } : {}),
                 updatedAt: new Date().toISOString()
             };
             localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
         }
-    }, [sprint, sprintId, taskInputs, activeTaskIndex, user, prefilledEmail, previewDay, allDayInputs]);
+    }, [sprint, sprintId, taskInputs, activeTaskIndex, user, prefilledEmail, previewDay, allDayInputs, preselectedTier]);
 
     useEffect(() => {
         if (!showLockModal) {
@@ -774,6 +799,7 @@ const SprintPreview: React.FC = () => {
                     allDayInputs: { ...allDayInputs, [previewDay]: effectiveInputs },
                     activeTaskIndex: activeTaskIndex,
                     prefilledEmail: prefilledEmail || '',
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {}),
                     updatedAt: new Date().toISOString()
                 };
                 localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
@@ -821,7 +847,8 @@ const SprintPreview: React.FC = () => {
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs,
-                    startedFromPreview: true
+                    startedFromPreview: true,
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                 });
 
                 await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
@@ -865,7 +892,8 @@ const SprintPreview: React.FC = () => {
                         answers: effectiveInputs,
                         isPreview: false,
                         returnToPreviewUrl: undefined,
-                        redirectToDaySuccess: true
+                        redirectToDaySuccess: true,
+                        ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                     },
                     replace: true
                 });
@@ -910,6 +938,7 @@ const SprintPreview: React.FC = () => {
                     allDayInputs: { ...allDayInputs, [previewDay]: effectiveInputs },
                     activeTaskIndex: activeTaskIndex,
                     prefilledEmail: authEmail.trim().toLowerCase(),
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {}),
                     updatedAt: new Date().toISOString()
                 };
                 localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
@@ -966,7 +995,8 @@ const SprintPreview: React.FC = () => {
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs,
-                    startedFromPreview: true
+                    startedFromPreview: true,
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                 });
 
                 await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
@@ -1012,7 +1042,8 @@ const SprintPreview: React.FC = () => {
                 taskInputs: effectiveInputs,
                 answers: effectiveInputs,
                 isPreview: false,
-                returnToPreviewUrl: undefined
+                returnToPreviewUrl: undefined,
+                ...(preselectedTier ? { selectedTier: preselectedTier } : {})
             };
 
             toast.success("Account created successfully!");
@@ -1052,6 +1083,7 @@ const SprintPreview: React.FC = () => {
                     allDayInputs: { ...allDayInputs, [previewDay]: effectiveInputs },
                     activeTaskIndex: activeTaskIndex,
                     prefilledEmail: authEmail.trim().toLowerCase(),
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {}),
                     updatedAt: new Date().toISOString()
                 };
                 localStorage.setItem('pending_first_action', safeJSONStringify(pendingObj));
@@ -1089,7 +1121,8 @@ const SprintPreview: React.FC = () => {
                 const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprint.id, targetSprint.duration, {
                     firstActionInput: firstInput,
                     taskInputs: effectiveInputs,
-                    startedFromPreview: true
+                    startedFromPreview: true,
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                 });
 
                 await userService.addUserEnrollment(firebaseUser.uid, targetSprint.id);
@@ -1134,7 +1167,8 @@ const SprintPreview: React.FC = () => {
                     answers: effectiveInputs,
                     isPreview: false,
                     returnToPreviewUrl: undefined,
-                    redirectToDaySuccess: true
+                    redirectToDaySuccess: true,
+                    ...(preselectedTier ? { selectedTier: preselectedTier } : {})
                 };
 
                 navigate('/participant/day-success', { state: daySuccessState, replace: true });

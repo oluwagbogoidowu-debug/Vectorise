@@ -77,7 +77,8 @@ const SignUpPage: React.FC = () => {
       const firstInput = customAnswers?.firstActionInput || customAnswers?.taskInputs?.[0];
       const enrollment = await sprintService.enrollUser(uid, sprintId, sprint.duration, {
         firstActionInput: firstInput,
-        taskInputs: customAnswers?.taskInputs || (firstInput ? [firstInput] : undefined)
+        taskInputs: customAnswers?.taskInputs || (firstInput ? [firstInput] : undefined),
+        ...(customAnswers?.selectedTier ? { selectedTier: customAnswers.selectedTier } : {})
       } as any);
 
       if (enrollment && enrollment.progress && enrollment.progress[0]) {
@@ -482,7 +483,10 @@ const SignUpPage: React.FC = () => {
                               firstActionInput: pendingFirstAction?.firstActionInput,
                               taskInputs: pendingFirstAction?.taskInputs,
                               startedFromPreview: !fromPayment && hasPendingPreview,
-                              ...(fromPayment ? { paymentUnlocked: true } : {})
+                              ...(fromPayment ? { paymentUnlocked: true } : {}),
+                              ...(pendingFirstAction?.selectedTier === 'standard' || pendingFirstAction?.selectedTier === 'complete'
+                                  ? { selectedTier: pendingFirstAction.selectedTier }
+                                  : {})
                           });
 
                           if (enrollment && enrollment.id) {

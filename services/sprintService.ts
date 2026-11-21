@@ -2054,7 +2054,8 @@ export const sprintService = {
             completed?: boolean,
             startedFromPreview?: boolean,
             paymentUnlocked?: boolean,
-            coinsPaid?: number
+            coinsPaid?: number,
+            selectedTier?: 'standard' | 'complete'
         }
     ) => {
         const enrollmentId = `enrollment_${userId}_${sprintId}`;
@@ -2119,7 +2120,8 @@ export const sprintService = {
                     progress: freshProgress,
                     last_activity_at: now,
                     ...(commercial?.startedFromPreview !== undefined ? { startedFromPreview: commercial.startedFromPreview } : {}),
-                    ...(commercial?.paymentUnlocked !== undefined ? { paymentUnlocked: commercial.paymentUnlocked } : commercial?.startedFromPreview ? { paymentUnlocked: false } : {})
+                    ...(commercial?.paymentUnlocked !== undefined ? { paymentUnlocked: commercial.paymentUnlocked } : commercial?.startedFromPreview ? { paymentUnlocked: false } : {}),
+                    ...(commercial?.selectedTier ? { selectedTier: commercial.selectedTier } : {})
                 };
 
                 await updateDoc(enrollmentRef, sanitizeData(updatedData));
@@ -2178,6 +2180,9 @@ export const sprintService = {
                         previewFields.paymentUnlocked = false;
                     }
                 }
+                if (commercial?.selectedTier && !existingData.selectedTier) {
+                    previewFields.selectedTier = commercial.selectedTier;
+                }
 
                 await updateDoc(enrollmentRef, sanitizeData({
                     status: resolvedStatus,
@@ -2235,6 +2240,7 @@ export const sprintService = {
             ...(commercial?.startedFromPreview ? { startedFromPreview: true } : {}),
             paymentUnlocked: commercial?.paymentUnlocked ?? (isPaidDirect ? true : !commercial?.startedFromPreview),
             ...(commercial?.coinsPaid ? { coins_paid: commercial.coinsPaid } : {}),
+            ...(commercial?.selectedTier ? { selectedTier: commercial.selectedTier } : {}),
             progress: Array.from({ length: effectiveDuration }, (_, i) => ({
                 day: i + 1,
                 completed: (i === 0 && hasInputs) ? true : false,

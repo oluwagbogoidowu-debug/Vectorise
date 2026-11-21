@@ -6,7 +6,51 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(bot|crawler|spider|facebookexternalhit|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest).*"
+          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
+        }
+      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/sprints/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
+        }
+      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/sprint/preview/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
+        }
+      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/onboarding/description/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
+        }
+      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/join/:referralCode/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
         }
       ],
       "destination": "/api/og?type=sprint&id=:id"
@@ -17,10 +61,26 @@
         {
           "type": "header",
           "key": "user-agent",
-          "value": ".*(bot|crawler|spider|facebookexternalhit|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest).*"
+          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
         }
       ],
       "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
+        },
+        {
+          "type": "query",
+          "key": "sprintId",
+          "value": "(?<sprintId>.+)"
+        }
+      ],
+      "destination": "/api/og?type=sprint&id=:sprintId"
     },
     { "source": "/og", "destination": "/api/og" },
     { "source": "/(.*)", "destination": "/index.html" }

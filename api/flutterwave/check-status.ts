@@ -244,6 +244,7 @@ export default async (req: any, res: any) => {
                   price_paid: Number(flw_tx.amount || freshData.amount || 0),
                   currency: flw_tx.currency || freshData.currency || 'NGN',
                   payment_source: 'cash',
+                  ...(freshData.selectedTier ? { selectedTier: freshData.selectedTier } : {}),
                   status: 'active',
                   last_activity_at: new Date().toISOString()
                 });
@@ -260,6 +261,7 @@ export default async (req: any, res: any) => {
                   price_paid: Number(flw_tx.amount || freshData.amount || 0),
                   currency: flw_tx.currency || freshData.currency || 'NGN',
                   payment_source: 'cash',
+                  ...(freshData.selectedTier ? { selectedTier: freshData.selectedTier } : {}),
                   paymentUnlocked: true,
                   status: shouldBeActive ? 'active' : 'queued',
                   progress: Array.from({ length: singleDuration }, (_, i) => ({ day: i + 1, completed: false }))

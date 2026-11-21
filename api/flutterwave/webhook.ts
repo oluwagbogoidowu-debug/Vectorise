@@ -131,6 +131,7 @@ export default async (req: any, res: any) => {
           price_paid: Number(amount),
           currency: currency,
           payment_source: 'cash',
+          ...(paymentData?.selectedTier ? { selectedTier: paymentData.selectedTier } : {}),
           status: 'active',
           last_activity_at: new Date().toISOString()
         });
@@ -145,6 +146,7 @@ export default async (req: any, res: any) => {
           price_paid: Number(amount),
           currency: currency,
           payment_source: 'cash',
+          ...(paymentData?.selectedTier ? { selectedTier: paymentData.selectedTier } : {}),
           paymentUnlocked: true,
           status: hasActive ? 'queued' : 'active',
           last_activity_at: new Date().toISOString(),

@@ -191,7 +191,7 @@ let firestoreInstance: admin.firestore.Firestore | null = null;
 if (isFirebaseAdminConfigured && admin.apps.length > 0) {
   try {
     firestoreInstance = admin.firestore();
-    firestoreInstance.settings({ ignoreUndefinedProperties: true });
+    firestoreInstance.settings({ ignoreUndefinedProperties: true, preferRest: true });
   } catch (e: any) {
     console.warn("[FirebaseAdmin] Failed to initialize default Firestore instance:", e.message);
   }
@@ -232,7 +232,7 @@ const dbProxy: any = new Proxy({}, {
       if (!firestoreInstance) {
         try {
           firestoreInstance = admin.firestore();
-          firestoreInstance.settings({ ignoreUndefinedProperties: true });
+          firestoreInstance.settings({ ignoreUndefinedProperties: true, preferRest: true });
         } catch (e: any) {
           console.warn("[FirebaseAdmin] Lazy Firestore init error:", e.message);
         }

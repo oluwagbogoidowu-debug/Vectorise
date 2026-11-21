@@ -18,6 +18,13 @@ import subscribeHandler from './api/subscribe';
 import sendHandler from './api/send';
 import ogHandler from './api/og';
 import geminiResearchHandler from './api/gemini/research';
+import {
+  fetchSprintMetadataForOg,
+  fetchTrackMetadataForOg,
+  getRequestBaseUrl,
+  injectOgMetaIntoHtml,
+  resolveOgImageUrl,
+} from './api/lib/ogHelper';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -445,76 +452,88 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     });
   }
 
-  // Intercept exact /sprint and /track routes for dynamic OG tags
-  app.get(['/sprint/:sprintId', '/track/:trackId'], async (req, res, next) => {
-    const sprintId = req.params.sprintId;
-    const trackId = req.params.trackId;
-    
-    if ((sprintId && typeof sprintId === 'string') || (trackId && typeof trackId === 'string')) {
+  // Intercept sprint, referral, and track routes for dynamic OG tags
+  app.get(
+    [
+      '/sprint/:sprintId',
+      '/sprints/:sprintId',
+      '/sprint/preview/:sprintId',
+      '/onboarding/description/:sprintId',
+      '/join/:referralCode/:sprintId',
+      '/track/:trackId',
+      '/',
+    ],
+    async (req, res, next) => {
+      const sprintId =
+        (typeof req.params?.sprintId === 'string' && req.params.sprintId) ||
+        (typeof req.query?.sprintId === 'string' && req.query.sprintId) ||
+        '';
+      const trackId =
+        typeof req.params?.trackId === 'string' ? req.params.trackId : '';
+
+      // Let plain root requests without ?sprintId fall through to normal SPA handling
+      if (!sprintId && !trackId) {
+        return next();
+      }
+
       try {
-        let docData: any = null;
-        if (sprintId && typeof sprintId === 'string') {
-          let sDoc = await db.collection('experiences').doc('Sprint').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
-          if (!sDoc.exists) {
-            sDoc = await db.collection('experiences').doc('RiseBlog').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
-          }
-          if (!sDoc.exists) {
-            sDoc = await db.collection('experiences').doc('Ignite').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
-          }
-          if (!sDoc.exists) {
-            sDoc = await db.collection('experiences').doc('Challenge').collection('items').doc(sprintId).collection('sprintdetails').doc('info').get();
-          }
-          if (!sDoc.exists) {
-            sDoc = await db.collection('experiences').doc(sprintId).collection('sprintdetails').doc('info').get();
-          }
-          if (sDoc.exists) docData = sDoc.data();
-        } else if (trackId && typeof trackId === 'string') {
-          const doc = await db.collection('tracks').doc(trackId).get();
-          if (doc.exists) docData = doc.data();
-        }
+        const entity = trackId
+          ? await fetchTrackMetadataForOg(trackId)
+          : await fetchSprintMetadataForOg(sprintId);
 
-        if (docData) {
-          let htmlPath = process.env.NODE_ENV === 'production' 
-            ? path.join(__dirname, 'dist', 'index.html')
-            : path.join(__dirname, 'index.html');
-          
+        if (entity) {
+          const candidateHtmlPaths =
+            process.env.NODE_ENV === 'production'
+              ? [
+                  path.join(process.cwd(), 'dist', 'index.html'),
+                  path.join(__dirname, 'index.html'),
+                  path.join(__dirname, 'dist', 'index.html'),
+                ]
+              : [
+                  path.join(process.cwd(), 'index.html'),
+                  path.join(__dirname, 'index.html'),
+                ];
+
+          const htmlPath = candidateHtmlPaths.find((p) => fs.existsSync(p));
+          if (!htmlPath) {
+            return next();
+          }
+
           let html = fs.readFileSync(htmlPath, 'utf-8');
-          
-          const title = docData.title || "Vectorise";
-          const description = docData.subtitle || docData.description || "Start your personal growth journey today.";
-          const image = (docData.coverImageUrl || "https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd").replace(/&/g, '&amp;');
-          const url = `https://${req.hostname}${req.url}`;
-          
-          const ogTags = `
-    <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-    <meta property="og:image" content="${image}" />
-    <meta property="og:image:secure_url" content="${image}" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="${url}" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
-    <meta name="twitter:image" content="${image}" />
-          `;
+          const { baseUrl, fullUrl } = getRequestBaseUrl(req);
+          const imageUrl = resolveOgImageUrl({
+            rawImage: entity.rawImage,
+            baseUrl,
+            entityType: entity.type,
+            entityId: entity.id,
+          });
 
-          html = html.replace('</title>', `</title>\n${ogTags}`);
-          
+          html = injectOgMetaIntoHtml({
+            rawHtml: html,
+            title: entity.title,
+            description: entity.description,
+            imageUrl,
+            pageUrl: fullUrl,
+          });
+
           if (process.env.NODE_ENV !== 'production' && vite) {
             html = await vite.transformIndexHtml(req.url, html);
           }
-          
-          return res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+
+          return res
+            .status(200)
+            .set({
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'public, max-age=60, s-maxage=300',
+            })
+            .end(html);
         }
       } catch (err) {
         console.error('Error serving dynamic OG tags:', err);
       }
+      next();
     }
-    next();
-  });
+  );
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production' && vite) {
