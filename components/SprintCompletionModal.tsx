@@ -35,6 +35,25 @@ interface SprintCompletionModalProps {
   isPreview?: boolean;
 }
 
+const getRatingFeedbackPrompt = (stars: number) => {
+  if (stars <= 2) {
+    return {
+      title: 'What could be improved?',
+      placeholder: "Tell us what didn't quite work for you...",
+    };
+  }
+  if (stars === 3) {
+    return {
+      title: 'What was missing?',
+      placeholder: 'Share what would have made this sprint better...',
+    };
+  }
+  return {
+    title: 'Thank you! What did you like about this sprint?',
+    placeholder: 'Share what stood out or helped you most...',
+  };
+};
+
 const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
   isOpen,
   onStartNext,
@@ -46,10 +65,11 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
   isPreview = false,
 }) => {
   const { user } = useAuth();
-  const [stage, setStage] = useState<'completion' | 'rating'>('completion');
-  const [hasSharedReferral, setHasSharedReferral] = useState(false);
+  const [stage, setStage] = useState<'completion' | 'referral'>('completion');
   const [rating, setRating] = useState<number>(0);
   const [hoveredRating, setHoveredRating] = useState<number>(0);
+  const [feedbackComment, setFeedbackComment] = useState<string>('');
+  const [hasSharedReferral, setHasSharedReferral] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(!initialSoundEnabled);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const confettiIntervalRef = useRef<any>(null);
@@ -142,9 +162,10 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setStage('completion');
-      setHasSharedReferral(false);
       setRating(0);
       setHoveredRating(0);
+      setFeedbackComment('');
+      setHasSharedReferral(false);
       setIsSubmittingReview(false);
 
       launchConfetti('full');
@@ -161,6 +182,52 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
       };
     }
   }, [isOpen, launchConfetti, playCelebrationFanfare]);
+
+  const handleSubmitRatingContinue = async () => {
+    if (rating <= 0 || isSubmittingReview) return;
+    triggerHaptic(hapticPatterns.light);
+    setIsSubmittingReview(true);
+    try {
+      if (!isPreview && user && sprintId) {
+        const p = user as Participant;
+        await sprintService.addReview(sprintId, {
+          participantId: user.id,
+          userName: user.name || (p as any)?.displayName || user.email?.split('@')[0] || 'Participant',
+          userAvatar: (p as any)?.profileImageUrl || (p as any)?.avatar || '',
+          rating,
+          comment: feedbackComment.trim(),
+          timestamp: new Date().toISOString(),
+        });
+      }
+      await recordDeferredPromptState({
+        userId: user?.id,
+        sprintId,
+        enrollmentId,
+        type: 'rating',
+        status: 'completed',
+        ratingValue: rating,
+        isPreview,
+      });
+    } catch (err) {
+      console.warn('Could not save review on sprint completion:', err);
+    } finally {
+      setIsSubmittingReview(false);
+      setStage('referral');
+    }
+  };
+
+  const handleSkipRating = () => {
+    triggerHaptic(hapticPatterns.light);
+    recordDeferredPromptState({
+      userId: user?.id,
+      sprintId,
+      enrollmentId,
+      type: 'rating',
+      status: 'skipped',
+      isPreview,
+    }).catch(() => {});
+    setStage('referral');
+  };
 
   const handleShareReferral = async () => {
     triggerHaptic(hapticPatterns.light);
@@ -214,7 +281,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     }
   };
 
-  const handleProceedFromReferral = () => {
+  const handleContinueToNextSprint = () => {
     triggerHaptic(hapticPatterns.light);
     if (!hasSharedReferral) {
       recordDeferredPromptState({
@@ -226,53 +293,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
         isPreview,
       }).catch(() => {});
     }
-    setStage('rating');
-  };
-
-  const handleSubmitRatingAndContinue = async () => {
-    if (rating <= 0 || isSubmittingReview) return;
-    triggerHaptic(hapticPatterns.light);
-    setIsSubmittingReview(true);
-    try {
-      if (!isPreview && user && sprintId) {
-        const p = user as Participant;
-        await sprintService.addReview(sprintId, {
-          participantId: user.id,
-          userName: user.name || (p as any)?.displayName || user.email?.split('@')[0] || 'Participant',
-          userAvatar: (p as any)?.profileImageUrl || (p as any)?.avatar || '',
-          rating,
-          comment: '',
-          timestamp: new Date().toISOString(),
-        });
-      }
-      await recordDeferredPromptState({
-        userId: user?.id,
-        sprintId,
-        enrollmentId,
-        type: 'rating',
-        status: 'completed',
-        ratingValue: rating,
-        isPreview,
-      });
-    } catch (err) {
-      console.warn('Could not save review on sprint completion:', err);
-    } finally {
-      setIsSubmittingReview(false);
-      onStartNext(rating);
-    }
-  };
-
-  const handleSkipRating = () => {
-    triggerHaptic(hapticPatterns.light);
-    recordDeferredPromptState({
-      userId: user?.id,
-      sprintId,
-      enrollmentId,
-      type: 'rating',
-      status: 'skipped',
-      isPreview,
-    }).catch(() => {});
-    onStartNext(5);
+    onStartNext(rating > 0 ? rating : 5);
   };
 
   const handleClose = () => {
@@ -281,6 +302,8 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  const feedbackPrompt = rating > 0 ? getRatingFeedbackPrompt(rating) : null;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -337,7 +360,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
           <AnimatePresence mode="wait">
             {stage === 'completion' ? (
               <motion.div
-                key="completion-stage"
+                key="completion-rating-stage"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -346,7 +369,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
               >
                 <div className="my-auto py-2 flex flex-col items-center text-center">
                   {/* Compact Radiant Trophy */}
-                  <div className="relative mx-auto mb-5 flex items-center justify-center">
+                  <div className="relative mx-auto mb-4 flex items-center justify-center">
                     <motion.div
                       animate={{ scale: [1, 1.08, 1] }}
                       transition={{ repeat: Infinity, duration: 2.6, ease: 'easeInOut' }}
@@ -367,81 +390,17 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                     Sprint Completed!
                   </h2>
                   <p className="text-sm font-bold text-[#0E7850] mt-1.5">
-                    You&apos;ve made meaningful progress.
-                  </p>
-                  <p className="text-xs sm:text-[13px] text-gray-500 font-normal leading-relaxed max-w-sm mx-auto mt-2.5">
-                    You&apos;ve completed <span className="font-bold text-gray-800">{sprintTitle}</span>. Take a moment to appreciate the work you&apos;ve put in.
+                    You&apos;ve made meaningful progress. Well done!
                   </p>
 
-                  {/* Share the value + Referral Content */}
-                  <div className="mt-6 w-full rounded-2xl border border-gray-200/80 bg-gray-50/75 p-4 sm:p-5 text-left">
-                    <div className="flex items-center gap-2 text-[#0E7850]">
-                      <div className="w-7 h-7 rounded-xl bg-[#0E7850]/10 border border-[#0E7850]/15 flex items-center justify-center shrink-0">
-                        <HeartHandshake className="w-3.5 h-3.5 text-[#0E7850]" strokeWidth={1.85} />
-                      </div>
-                      <span className="text-[11px] font-black uppercase tracking-widest">
-                        Share the value
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm sm:text-[15px] font-extrabold text-gray-900 tracking-tight leading-snug mt-3">
-                      Someone else could benefit from this too.
+                  {/* Rating Section Below */}
+                  <div className="mt-7 w-full bg-gray-50/80 p-4 sm:p-5 rounded-2xl border border-gray-100 text-left">
+                    <h3 className="text-sm font-black text-gray-900 tracking-tight text-center">
+                      How would you rate this sprint?
                     </h3>
-                    <p className="text-xs text-gray-500 font-normal leading-relaxed mt-1">
-                      You&apos;ve taken a step towards meaningful progress. Know a friend who could benefit from this sprint?
-                    </p>
 
-                    {hasSharedReferral && (
-                      <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0E7850]/10 text-[#0E7850] text-[11px] font-semibold">
-                        <Check className="w-3 h-3" />
-                        <span>Referral link ready to share</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer Referral & Progression Buttons */}
-                <div className="pt-4 space-y-2">
-                  <button
-                    type="button"
-                    onClick={handleShareReferral}
-                    className="w-full py-3.5 sm:py-4 bg-[#0E7850] hover:bg-[#0b6140] text-white rounded-2xl font-bold text-sm tracking-wide transition-all shadow-md shadow-[#0E7850]/15 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>Share it with them.</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleProceedFromReferral}
-                    className="w-full py-3 bg-transparent hover:bg-gray-100/80 text-gray-500 hover:text-gray-800 rounded-2xl font-semibold text-xs tracking-wide transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <span>{hasSharedReferral ? 'Continue' : 'Skip for now'}</span>
-                    {hasSharedReferral && <ArrowRight className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="rating-stage"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="relative z-10 flex-1 flex flex-col justify-between"
-              >
-                <div className="my-auto py-4 flex flex-col items-center text-center">
-                  <h2 className="text-2xl sm:text-[26px] font-black text-gray-900 tracking-tight leading-snug max-w-xs sm:max-w-sm">
-                    How would you rate this sprint?
-                  </h2>
-
-                  <p className="mt-2.5 text-sm text-gray-500 font-normal leading-relaxed max-w-xs sm:max-w-sm">
-                    Your feedback helps us improve the VectoRise experience.
-                  </p>
-
-                  <div className="mt-7 w-full bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
                     <div
-                      className="flex justify-between gap-2"
+                      className="mt-3.5 flex justify-between gap-2"
                       onMouseLeave={() => setHoveredRating(0)}
                     >
                       {[1, 2, 3, 4, 5].map((star) => {
@@ -456,7 +415,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                             }}
                             onMouseEnter={() => setHoveredRating(star)}
                             aria-label={`Rate ${star} out of 5 stars`}
-                            className={`flex-1 py-3.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border shadow-xs active:scale-95 ${
+                            className={`flex-1 py-3 rounded-xl flex items-center justify-center transition-all cursor-pointer border shadow-xs active:scale-95 ${
                               isFilled
                                 ? 'bg-amber-50 border-amber-200 text-amber-400 scale-[1.02]'
                                 : 'bg-white border-gray-100 text-gray-300 hover:bg-amber-50/60 hover:text-amber-400'
@@ -472,18 +431,45 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                       })}
                     </div>
 
-                    <p className="mt-3 text-xs font-medium text-gray-400">
-                      {rating > 0
-                        ? `${rating} of 5 Stars`
-                        : 'Tap a star to rate your experience.'}
-                    </p>
+                    {rating === 0 ? (
+                      <p className="mt-3 text-xs font-medium text-gray-400 text-center">
+                        Tap a star to rate your experience.
+                      </p>
+                    ) : (
+                      feedbackPrompt && (
+                        <motion.div
+                          key={rating <= 2 ? 'low' : rating === 3 ? 'mid' : 'high'}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.22 }}
+                          className="mt-4 pt-3.5 border-t border-gray-200/70 space-y-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-bold text-gray-900 leading-snug">
+                              {feedbackPrompt.title}
+                            </p>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">
+                              {rating}/5
+                            </span>
+                          </div>
+                          <textarea
+                            value={feedbackComment}
+                            onChange={(e) => setFeedbackComment(e.target.value)}
+                            placeholder={feedbackPrompt.placeholder}
+                            rows={2}
+                            className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 placeholder:text-gray-400 focus:ring-2 focus:ring-[#0E7850] focus:border-[#0E7850] outline-none transition-all resize-none"
+                          />
+                        </motion.div>
+                      )
+                    )}
                   </div>
                 </div>
 
+                {/* Page 1 Footer Buttons */}
                 <div className="pt-4 space-y-2">
                   <button
                     type="button"
-                    onClick={handleSubmitRatingAndContinue}
+                    onClick={handleSubmitRatingContinue}
                     disabled={rating <= 0 || isSubmittingReview}
                     className={`w-full py-3.5 sm:py-4 rounded-2xl font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
                       rating > 0 && !isSubmittingReview
@@ -491,7 +477,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                         : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    <span>{isSubmittingReview ? 'Saving...' : 'Continue to next sprint'}</span>
+                    <span>{isSubmittingReview ? 'Saving...' : 'Continue'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
 
@@ -501,7 +487,62 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
                     disabled={isSubmittingReview}
                     className="w-full py-3 bg-transparent hover:bg-gray-100/80 text-gray-500 hover:text-gray-800 rounded-2xl font-semibold text-xs tracking-wide transition-colors cursor-pointer"
                   >
-                    Skip for now
+                    Skip
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="referral-stage"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="relative z-10 flex-1 flex flex-col justify-between"
+              >
+                <div className="my-auto py-4 flex flex-col items-center text-center px-2">
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.06, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-16 h-16 rounded-2xl bg-[#0E7850]/[0.08] border border-[#0E7850]/15 flex items-center justify-center mb-6"
+                  >
+                    <HeartHandshake className="w-7 h-7 text-[#0E7850]" strokeWidth={1.75} />
+                  </motion.div>
+
+                  <h2 className="text-2xl sm:text-[26px] font-black text-gray-900 tracking-tight leading-snug max-w-xs sm:max-w-sm">
+                    Someone else could benefit from this too.
+                  </h2>
+
+                  {hasSharedReferral && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0E7850]/10 text-[#0E7850] text-xs font-semibold"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Referral link ready to share</span>
+                    </motion.div>
+                  )}
+                </div>
+
+                <div className="pt-4 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleShareReferral}
+                    className="w-full py-3.5 sm:py-4 bg-[#0E7850] hover:bg-[#0b6140] text-white rounded-2xl font-bold text-sm tracking-wide transition-all shadow-md shadow-[#0E7850]/15 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Share it with them</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleContinueToNextSprint}
+                    className="w-full py-3 bg-transparent hover:bg-gray-100/80 text-gray-600 hover:text-gray-900 rounded-2xl font-semibold text-xs tracking-wide transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Continue to your next sprint</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </motion.div>
