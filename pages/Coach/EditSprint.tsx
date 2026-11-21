@@ -9,8 +9,9 @@ import { isRegistryIncomplete, isSprintIncomplete } from '../../utils/sprintUtil
 import { useAuth } from '../../contexts/AuthContext';
 import { ALL_CATEGORIES } from '../../services/mockData';
 import { OUTCOME_TAGS } from '../../constants/sprintConstants';
-import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, ArrowRight, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu, Minimize2, StickyNote, RotateCcw, Download, FileText, Trophy } from 'lucide-react';
+import { List, Plus, Trash2, Tag, Type as TypeIcon, Clock, Save, Settings, Eye, EyeOff, CheckCircle2, AlertCircle, X, ChevronRight, ChevronLeft, BookOpen, ArrowLeft, ArrowRight, ArrowLeftRight, Layers, Sparkles, HelpCircle, Flame, Coins, Code, Youtube, Video, MoreVertical, Menu, Minimize2, StickyNote, RotateCcw, Download, FileText, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import SprintCard from '../../components/SprintCard';
 import LandingPreview from '../../components/LandingPreview';
 import FormattedText from '../../components/FormattedText';
@@ -23,6 +24,7 @@ import SprintSpotlightTour from '../../components/SprintSpotlightTour';
 import CoachGuideModal from '../../components/CoachGuideModal';
 import FullBleedProgressNoteSlide from '../../components/FullBleedProgressNoteSlide';
 import SprintCompletionModal from '../../components/SprintCompletionModal';
+import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
 import TagInput from '../../components/TagInput';
 
 const extractYouTubeId = (url: string): string | null => {
@@ -329,7 +331,8 @@ const IgniteLivePreview: React.FC<IgniteLivePreviewProps> = ({ activeSlides, bgC
 const EditSprint: React.FC = () => {
   const { sprintId } = useParams();
   const navigate = useNavigate();
-  const { user, activeRole } = useAuth();
+  const { user, activeRole, switchRole } = useAuth();
+  const [isSwitchModeModalOpen, setIsSwitchModeModalOpen] = useState(false);
   
   const [originalSprint, setOriginalSprint] = useState<Sprint | null>(null);
   const [sprint, setSprint] = useState<Sprint | null>(null);
@@ -516,7 +519,11 @@ const EditSprint: React.FC = () => {
         type="button"
         onClick={() => {
           setIsKebabMenuOpen(false);
-          setShowAddVersionFullBleed(true);
+          if (!sprint?.parentSprintId) {
+            handleInitiateAddVersion();
+          } else {
+            setShowAddVersionFullBleed(true);
+          }
         }}
         className="w-full text-left px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center justify-between cursor-pointer transition-colors"
       >
@@ -2922,15 +2929,28 @@ const EditSprint: React.FC = () => {
                       RiseBlog
                     </span>
                   </div>
-                  <div className="relative" ref={kebabMenuRef}>
-                    <button
+                  <div className="flex items-center gap-2">
+                    {user && hasMultipleModes(user) && (
+                      <button
                         type="button"
-                        onClick={() => setIsKebabMenuOpen((prev) => !prev)}
-                        className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
-                        title="Sprint options"
-                    >
-                        <MoreVertical className="w-5 h-5" />
-                    </button>
+                        onClick={() => setIsSwitchModeModalOpen(true)}
+                        className="group flex items-center gap-1.5 px-3 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
+                        title={`Switch Mode (${isAdmin ? 'Admin Mode' : 'Coach Mode'})`}
+                        aria-label="Switch Mode"
+                      >
+                        <ArrowLeftRight className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">{isAdmin ? 'Admin Mode' : 'Switch Mode'}</span>
+                      </button>
+                    )}
+                    <div className="relative" ref={kebabMenuRef}>
+                      <button
+                          type="button"
+                          onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                          className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                          title="Sprint options"
+                      >
+                          <MoreVertical className="w-5 h-5" />
+                      </button>
                     <AnimatePresence>
                         {isKebabMenuOpen && (
                         <motion.div
@@ -2944,6 +2964,7 @@ const EditSprint: React.FC = () => {
                         </motion.div>
                         )}
                     </AnimatePresence>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -3144,6 +3165,20 @@ const EditSprint: React.FC = () => {
           onClose={() => setIsCoachGuideOpen(false)} 
           onStartSpotlightTour={() => setIsSpotlightTourOpen(true)}
         />
+        <SwitchModeModal
+          isOpen={isSwitchModeModalOpen}
+          onClose={() => setIsSwitchModeModalOpen(false)}
+          user={user}
+          activeRole={activeRole}
+          onSelectMode={(role, route) => {
+            switchRole(role);
+            if (role === UserRole.COACH || role === UserRole.ADMIN) {
+              toast.success(`Switched to ${role === UserRole.COACH ? 'Coach' : 'Admin'} Mode`);
+            } else {
+              navigate(route);
+            }
+          }}
+        />
       </ErrorBoundary>
     );
   }
@@ -3169,15 +3204,28 @@ const EditSprint: React.FC = () => {
                       Ignite
                     </span>
                   </div>
-                  <div className="relative" ref={kebabMenuRef}>
-                    <button
+                  <div className="flex items-center gap-2">
+                    {user && hasMultipleModes(user) && (
+                      <button
                         type="button"
-                        onClick={() => setIsKebabMenuOpen((prev) => !prev)}
-                        className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
-                        title="Sprint options"
-                    >
-                        <MoreVertical className="w-5 h-5" />
-                    </button>
+                        onClick={() => setIsSwitchModeModalOpen(true)}
+                        className="group flex items-center gap-1.5 px-3 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
+                        title={`Switch Mode (${isAdmin ? 'Admin Mode' : 'Coach Mode'})`}
+                        aria-label="Switch Mode"
+                      >
+                        <ArrowLeftRight className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">{isAdmin ? 'Admin Mode' : 'Switch Mode'}</span>
+                      </button>
+                    )}
+                    <div className="relative" ref={kebabMenuRef}>
+                      <button
+                          type="button"
+                          onClick={() => setIsKebabMenuOpen((prev) => !prev)}
+                          className={`p-2.5 bg-white border border-gray-100 rounded-2xl shadow-sm text-gray-700 hover:text-gray-950 active:scale-95 transition-all cursor-pointer flex items-center justify-center ${isKebabMenuOpen ? 'ring-2 ring-[#0E7850]/20' : ''}`}
+                          title="Sprint options"
+                      >
+                          <MoreVertical className="w-5 h-5" />
+                      </button>
                     <AnimatePresence>
                         {isKebabMenuOpen && (
                         <motion.div
@@ -3191,6 +3239,7 @@ const EditSprint: React.FC = () => {
                         </motion.div>
                         )}
                     </AnimatePresence>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -3366,6 +3415,20 @@ const EditSprint: React.FC = () => {
           onClose={() => setIsCoachGuideOpen(false)} 
           onStartSpotlightTour={() => setIsSpotlightTourOpen(true)}
         />
+        <SwitchModeModal
+          isOpen={isSwitchModeModalOpen}
+          onClose={() => setIsSwitchModeModalOpen(false)}
+          user={user}
+          activeRole={activeRole}
+          onSelectMode={(role, route) => {
+            switchRole(role);
+            if (role === UserRole.COACH || role === UserRole.ADMIN) {
+              toast.success(`Switched to ${role === UserRole.COACH ? 'Coach' : 'Admin'} Mode`);
+            } else {
+              navigate(route);
+            }
+          }}
+        />
       </ErrorBoundary>
     );
   }
@@ -3429,7 +3492,7 @@ const EditSprint: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-2">
-                {sprint.previewMode === 'flow' ? (
+                {sprint.previewMode === 'flow' && (
                   <button 
                     onClick={() => setShowOfferFullBleed(true)}
                     className="group flex items-center gap-1 px-3 py-2.5 bg-amber-50 text-amber-700 hover:bg-amber-600 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all border border-amber-200"
@@ -3437,13 +3500,18 @@ const EditSprint: React.FC = () => {
                     <Tag className="h-3.5 w-3.5 text-amber-600 group-hover:text-white" />
                     <span>Setup Offer</span>
                   </button>
-                ) : !sprint.parentSprintId && (
-                  <button 
-                    onClick={handleInitiateAddVersion}
-                    className="group flex items-center gap-1 px-3 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
+                )}
+
+                {user && hasMultipleModes(user) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSwitchModeModalOpen(true)}
+                    className="group flex items-center gap-1.5 px-3 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all"
+                    title={`Switch Mode (${isAdmin ? 'Admin Mode' : 'Coach Mode'})`}
+                    aria-label="Switch Mode"
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Create New Version</span>
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{isAdmin ? 'Admin Mode' : 'Switch Mode'}</span>
                   </button>
                 )}
 
@@ -9100,6 +9168,21 @@ const EditSprint: React.FC = () => {
         totalDays={sprint?.duration || (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.length : 5)}
         completedDay={sprint?.duration || selectedDay}
         completionNote={currentContent.completionNote}
+      />
+
+      <SwitchModeModal
+        isOpen={isSwitchModeModalOpen}
+        onClose={() => setIsSwitchModeModalOpen(false)}
+        user={user}
+        activeRole={activeRole}
+        onSelectMode={(role, route) => {
+          switchRole(role);
+          if (role === UserRole.COACH || role === UserRole.ADMIN) {
+            toast.success(`Switched to ${role === UserRole.COACH ? 'Coach' : 'Admin'} Mode`);
+          } else {
+            navigate(route);
+          }
+        }}
       />
 
       <ActionStepConfirmModal
