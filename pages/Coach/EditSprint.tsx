@@ -846,12 +846,12 @@ const EditSprint: React.FC = () => {
           setSprint(merged);
           setReviewFeedback(found.reviewFeedback || {});
 
-          // Ensure system sections exist in dynamicSections for unified editing
+          // Ensure system sections exist in dynamicSections in exact 01->02->03->04 order
           const systemSections = [
             { id: 'identity', title: 'Sprint Identity', body: '', type: 'identity' as any },
+            { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any },
             { id: 'metadata', title: 'Metadata', body: '', type: 'metadata' as any },
-            { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any },
-            { id: 'overview', title: 'Sprint Overview', body: merged.description || merged.transformation || '', type: 'text' as any }
+            { id: 'pricing', title: 'Pricing & Economy', body: '', type: 'pricing' as any }
           ];
           
           const initialDynamicSections = Array.isArray(merged.dynamicSections) ? [...merged.dynamicSections] : [];
@@ -865,6 +865,13 @@ const EditSprint: React.FC = () => {
               if (!filteredSections.find(s => s.id === sys.id)) {
                   filteredSections.push(sys);
               }
+          });
+
+          const sectionOrder = ['identity', 'overview', 'metadata', 'pricing'];
+          filteredSections.sort((a, b) => {
+              const idxA = sectionOrder.indexOf(a.id);
+              const idxB = sectionOrder.indexOf(b.id);
+              return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
           });
 
           const resolvedStandardPrice =
@@ -6961,7 +6968,25 @@ const EditSprint: React.FC = () => {
               </div>
 
               {showDailyPreview && previewType === 'landing' ? (
-                <LandingPreview sprint={sprint} coach={(user as any) || {}} />
+                <div className="space-y-3">
+                  <LandingPreview sprint={sprint} coach={(user as any) || {}} />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/sprint/${sprint.id}`, {
+                        state: {
+                          sprint,
+                          fromEditPreview: true,
+                        },
+                      })
+                    }
+                    className="w-full py-3.5 px-4 bg-white hover:bg-emerald-50/70 text-[#0E7850] border border-[#0E7850]/25 rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Open Full Sprint Description</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ) : showDailyPreview && previewType === 'card' ? (
                 <div className="max-w-sm mx-auto py-4">
                   <SprintCard sprint={sprint} coach={(user as any) || {}} isStatic={true} />
@@ -8539,8 +8564,16 @@ const EditSprint: React.FC = () => {
                     </section>
                 ) : (
                     <>
-                        {/* Dynamic Sections Loop */}
-                        {Array.isArray(editSettings.dynamicSections) && editSettings.dynamicSections.map((section, index) => {
+                        {/* Dynamic Sections Loop ordered 01 -> 02 -> 03 -> 04 */}
+                        {Array.isArray(editSettings.dynamicSections) && [...editSettings.dynamicSections]
+                            .sort((a, b) => {
+                                const order = ['identity', 'overview', 'metadata', 'pricing'];
+                                const idxA = order.indexOf(a.id);
+                                const idxB = order.indexOf(b.id);
+                                return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+                            })
+                            .map((section) => {
+                            const sectionIndex = editSettings.dynamicSections?.findIndex(s => s.id === section.id) ?? -1;
                             if (section.id === 'identity') {
                                 return (
                                     <section key={section.id} className="space-y-6">
@@ -8901,7 +8934,7 @@ const EditSprint: React.FC = () => {
                                                     const selection = text.substring(start, end);
                                                     const after = text.substring(end);
                                                     const newValue = before + prefix + selection + suffix + after;
-                                                    handleDynamicSectionChange(index, 'body', newValue);
+                                                    if (sectionIndex >= 0) handleDynamicSectionChange(sectionIndex, 'body', newValue);
                                                     setTimeout(() => {
                                                         textarea.focus();
                                                         textarea.setSelectionRange(start + prefix.length, end + prefix.length);
@@ -8911,7 +8944,7 @@ const EditSprint: React.FC = () => {
                                             <textarea 
                                                 id={`section-body-${section.id}`}
                                                 value={section.body} 
-                                                onChange={e => handleDynamicSectionChange(index, 'body', e.target.value)}
+                                                onChange={e => sectionIndex >= 0 && handleDynamicSectionChange(sectionIndex, 'body', e.target.value)}
                                                 rows={12} 
                                                 className={registryInputClasses + " resize-none mt-2"} 
                                                 placeholder="Enter the comprehensive sprint overview..."

@@ -51,6 +51,7 @@ const SprintLandingPage: React.FC = () => {
         return null;
     }, [location.state, sprintId]);
 
+    const isFromEditPreview = Boolean(location.state?.fromEditPreview && location.state?.sprint);
     const [sprint, setSprint] = useState<Sprint | null>(initialSprintState);
     const [fetchedCoach, setFetchedCoach] = useState<Coach | null>(null);
     const [userEnrollments, setUserEnrollments] = useState<ParticipantSprint[]>([]);
@@ -222,10 +223,12 @@ const SprintLandingPage: React.FC = () => {
             }
 
             if (data) {
-                setSprint(data);
+                if (!isFromEditPreview) {
+                    setSprint(data);
+                }
                 setImageError(false);
                 setFetchFailed(false);
-                document.title = `${data.title} - Vectorise`;
+                document.title = `${(isFromEditPreview && initialSprintState?.title ? initialSprintState.title : data.title)} - Vectorise`;
                 
                 try {
                     if (data.coachId) {
@@ -236,16 +239,18 @@ const SprintLandingPage: React.FC = () => {
                     setFetchedCoach(vectoriseCoach);
                 }
 
-                analyticsTracker.trackEvent('landing_viewed', { 
-                    sprint_id: data.id, 
-                    title: data.title,
-                    category: data.category
-                }, user?.id);
+                if (!isFromEditPreview) {
+                    analyticsTracker.trackEvent('landing_viewed', { 
+                        sprint_id: data.id, 
+                        title: data.title,
+                        category: data.category
+                    }, user?.id);
 
-                sprintAnalyticsService.trackDescriptionView(data.id, user?.id, {
-                    title: data.title,
-                    category: data.category
-                });
+                    sprintAnalyticsService.trackDescriptionView(data.id, user?.id, {
+                        title: data.title,
+                        category: data.category
+                    });
+                }
             } else {
                 if (!sprint) setFetchFailed(true);
             }
@@ -255,12 +260,12 @@ const SprintLandingPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [sprintId, sprint, user]);
+    }, [sprintId, sprint, user, isFromEditPreview, initialSprintState]);
 
     useEffect(() => {
         loadSprintData();
 
-        if (!sprintId) return;
+        if (!sprintId || isFromEditPreview) return;
 
         const unsub = sprintService.subscribeToSprint(sprintId, (realtimeData) => {
             if (realtimeData) {
@@ -276,7 +281,7 @@ const SprintLandingPage: React.FC = () => {
         });
 
         return () => unsub();
-    }, [sprintId, user]);
+    }, [sprintId, user, isFromEditPreview]);
 
     useEffect(() => {
         if (user) {
@@ -726,7 +731,17 @@ const SprintLandingPage: React.FC = () => {
             ) : (
                 <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
                     <div className="max-w-screen-lg mx-auto flex justify-between items-center">
-                        {user ? (
+                        {isFromEditPreview ? (
+                            <button 
+                                onClick={() => navigate(`/coach/sprint/edit/${sprint.id}`)} 
+                                className="group flex items-center gap-2 text-gray-500 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                                </svg>
+                                <span>Back to Editor</span>
+                            </button>
+                        ) : user ? (
                             <button 
                                 onClick={() => navigate('/explore')} 
                                 className="group flex items-center text-gray-400 hover:text-primary transition-all text-[11px] font-black uppercase tracking-widest cursor-pointer"
@@ -855,7 +870,7 @@ const SprintLandingPage: React.FC = () => {
                             )}
 
                             {/* PRICING TIERS SECTION */}
-                            {enrollmentStatus === 'none' && (
+                            {(enrollmentStatus === 'none' || isFromEditPreview) && (
                                 <section
                                     id="pricing-tiers-section"
                                     ref={pricingSectionRef}
@@ -989,7 +1004,7 @@ const SprintLandingPage: React.FC = () => {
             </div>
 
             {/* Fixed Bottom CTA Bar for Viewport */}
-            {enrollmentStatus === 'none' && !showCommitmentSheet && (
+            {(enrollmentStatus === 'none' || isFromEditPreview) && !showCommitmentSheet && (
                 <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
                     <div className="max-w-screen-lg mx-auto flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
