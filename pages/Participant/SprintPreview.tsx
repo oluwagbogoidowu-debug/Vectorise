@@ -3618,6 +3618,7 @@ const SprintPreview: React.FC = () => {
                 isOpen={!!pendingProgressNoteSlide}
                 day={pendingProgressNoteSlide?.day || previewDay}
                 totalDays={sprint?.duration}
+                sprintId={sprint?.id || sprintId}
                 sprintTitle={sprint?.title}
                 noteText={pendingProgressNoteSlide?.formattedNote || ''}
                 isCoachPreview={isCoachPreview}

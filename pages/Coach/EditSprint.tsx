@@ -9001,8 +9001,10 @@ const EditSprint: React.FC = () => {
         isOpen={pendingSprintViewProgressNote !== null}
         day={selectedDay}
         totalDays={sprint?.duration}
+        sprintId={sprint?.id}
         sprintTitle={sprint?.title}
         noteText={pendingSprintViewProgressNote || ''}
+        isCoachPreview={true}
         onContinue={() => {
           setPendingSprintViewProgressNote(null);
           setShowDaySuccessPreview(true);

@@ -229,6 +229,19 @@ export interface ParticipantSprint {
   startedFromPreview?: boolean;
   paymentUnlocked?: boolean;
   coins_paid?: number;
+  deferredPrompts?: {
+    referral?: {
+      status: 'skipped' | 'completed';
+      skippedAt?: string;
+      completedAt?: string;
+    };
+    rating?: {
+      status: 'skipped' | 'completed';
+      skippedAt?: string;
+      completedAt?: string;
+      ratingValue?: number;
+    };
+  };
   progress: {
     day: number;
     completed: boolean;
@@ -593,6 +606,22 @@ export interface Participant extends User {
   pushPermissionLastDeniedAt?: string;
   pushPermissionConsecutiveDeniedDays?: number;
   pushPermissionLastRequestAt?: string;
+  deferredSprintPrompts?: Record<
+    string,
+    {
+      referral?: {
+        status: 'skipped' | 'completed';
+        skippedAt?: string;
+        completedAt?: string;
+      };
+      rating?: {
+        status: 'skipped' | 'completed';
+        skippedAt?: string;
+        completedAt?: string;
+        ratingValue?: number;
+      };
+    }
+  >;
 }
 
 export interface PushSubscriptionJSON {
