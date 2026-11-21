@@ -1,23 +1,32 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, AlertTriangle, Flame, BookOpen, Sparkles, Info } from 'lucide-react';
+import { Trash2, AlertTriangle, Flame, BookOpen, Sparkles, Info, Settings, Share2, Link2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { adminCache } from './adminCache';
 import SprintReviewsModal from '../../components/SprintReviewsModal';
+import {
+  DEFAULT_REFERRAL_SHARE_TEXT,
+  subscribeAdminSprintSettings,
+  saveAdminSprintSettings,
+  composeReferralShareMessage,
+} from '../../utils/referralShare';
 
 type SprintFilter = 'all' | 'active' | 'core' | 'pending' | 'rejected';
 
 const AdminSprints: React.FC = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite'>('sprint');
+  const [activeTab, setActiveTab] = useState<'sprint' | 'blog' | 'ignite' | 'settings'>('sprint');
   const [sprintFilter, setSprintFilter] = useState<SprintFilter>('all');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reviewSprint, setReviewSprint] = useState<Sprint | null>(null);
+  const [referralShareText, setReferralShareText] = useState<string>('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   useEffect(() => {
     if (adminCache.sprints && adminCache.sprints.length > 0) {
@@ -37,6 +46,42 @@ const AdminSprints: React.FC = () => {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAdminSprintSettings((settings) => {
+      if (settings.referralShareText !== undefined) {
+        setReferralShareText(settings.referralShareText);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSaveSprintSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    setSettingsSaved(false);
+    try {
+      await saveAdminSprintSettings({
+        referralShareText: referralShareText.trim(),
+      });
+      setSettingsSaved(true);
+      toast.success('Sprint referral text saved');
+      setTimeout(() => setSettingsSaved(false), 2500);
+    } catch (err) {
+      console.error('Error saving admin sprint settings:', err);
+      toast.error('Failed to save sprint settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleInsertToken = (token: string) => {
+    setReferralShareText((prev) => {
+      const trimmedEnd = prev.replace(/\s+$/, '');
+      if (!trimmedEnd) return token;
+      return `${trimmedEnd} ${token}`;
+    });
+  };
 
   const filteredSprints = useMemo(() => {
     let tFiltered = sprints.filter(s => {
@@ -234,9 +279,120 @@ const AdminSprints: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>Ignite</span>
             </button>
+            <button
+                type="button"
+                onClick={() => {
+                    setActiveTab('settings');
+                }}
+                className={`flex flex-col items-center justify-center gap-1 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    activeTab === 'settings' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                }`}
+            >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Sprint Settings</span>
+            </button>
         </div>
       </div>
 
+      {activeTab === 'settings' ? (
+        <form
+          onSubmit={handleSaveSprintSettings}
+          className="max-w-3xl bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-5">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest">
+                <Share2 className="w-3 h-3" />
+                <span>Referral Sharing</span>
+              </div>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight">
+                Sprint Settings
+              </h3>
+              <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                Write the referral message participants share when inviting a friend. Their unique sprint referral link is automatically injected with this text as they share it.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label
+                htmlFor="admin-referral-share-text"
+                className="text-[10px] font-black text-gray-500 uppercase tracking-widest"
+              >
+                Referral Share Text
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleInsertToken('{sprintTitle}')}
+                  className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-primary/10 text-gray-600 hover:text-primary text-[10px] font-bold transition-colors cursor-pointer"
+                >
+                  + {'{sprintTitle}'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInsertToken('{link}')}
+                  className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-primary/10 text-gray-600 hover:text-primary text-[10px] font-bold transition-colors cursor-pointer"
+                >
+                  + {'{link}'}
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              id="admin-referral-share-text"
+              rows={4}
+              value={referralShareText}
+              onChange={(e) => setReferralShareText(e.target.value)}
+              placeholder={DEFAULT_REFERRAL_SHARE_TEXT}
+              className="w-full px-4 py-3.5 bg-gray-50/60 border border-gray-200 rounded-2xl text-sm font-medium text-gray-800 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-y"
+            />
+
+            <p className="text-[11px] text-gray-400 font-medium leading-relaxed">
+              Optional placeholders: <code className="text-gray-600 font-semibold">{'{sprintTitle}'}</code> inserts the completed sprint&apos;s title, and <code className="text-gray-600 font-semibold">{'{link}'}</code> places the referral URL inline. If <code className="text-gray-600 font-semibold">{'{link}'}</code> is omitted, the referral link is automatically appended below your text.
+            </p>
+          </div>
+
+          <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 sm:p-5 space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#0E7850]">
+              <Link2 className="w-3.5 h-3.5" />
+              <span>Share Preview (With Injected Link)</span>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-800 font-medium whitespace-pre-wrap leading-relaxed break-words">
+              {
+                composeReferralShareMessage({
+                  templateText: referralShareText,
+                  sprintTitle:
+                    sprints.find((s) => !s.contentType || s.contentType === 'sprint')?.title ||
+                    'Audit Your Year',
+                  shareUrl: `${typeof window !== 'undefined' ? window.location.origin : 'https://vectorise.app'}/sprint/${
+                    sprints.find((s) => !s.contentType || s.contentType === 'sprint')?.id || 'sprint-id'
+                  }?ref=USERCODE`,
+                }).textWithLink
+              }
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button
+              type="submit"
+              disabled={isSavingSettings}
+              className="px-7 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2"
+            >
+              {settingsSaved ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Saved</span>
+                </>
+              ) : (
+                <span>{isSavingSettings ? 'Saving...' : 'Save Sprint Settings'}</span>
+              )}
+            </Button>
+          </div>
+        </form>
+      ) : (
+      <>
       <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar border-b border-gray-50">
         {['all', 'active', 'core', 'pending', 'rejected'].map(f => (
           <button key={f} onClick={() => setSprintFilter(f as SprintFilter)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap border ${sprintFilter === f ? 'bg-primary text-white border-primary shadow-md' : 'bg-white text-gray-400 border-gray-100 hover:border-primary/20 hover:text-primary'}`}>{f.replace('_', ' ')}</button>
@@ -316,6 +472,8 @@ const AdminSprints: React.FC = () => {
           </div>
         ))}
       </div>
+      </>
+      )}
 
       {/* Full Bleed Reviews Modal */}
       <SprintReviewsModal

@@ -390,6 +390,7 @@ export interface Sprint {
   pointCost?: number;
   pricingType?: 'cash' | 'credits';
   previewMode?: 'vectorise' | 'flow';
+  referralText?: string;
   offerTitle?: string;
   offerDescription?: string;
   offerPrice?: number;

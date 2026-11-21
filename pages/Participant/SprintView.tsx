@@ -49,6 +49,12 @@ import ParticipantDrawerMenu from "../../components/ParticipantDrawerMenu";
 import AiResearchModal from "../../components/AiResearchModal";
 import { localNotificationScheduler, SprintReminderConfig } from "../../services/localNotificationScheduler";
 import { offlineSyncService } from "../../services/offlineSyncService";
+import {
+  buildSprintReferralUrl,
+  composeReferralShareMessage,
+  getAdminSprintSettings,
+  getCachedAdminSprintSettings,
+} from "../../utils/referralShare";
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 
@@ -1085,6 +1091,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     }).catch(err => {
       console.warn("Failed to load catalog sprints for metadata cross-referencing:", err);
     });
+    getAdminSprintSettings().catch(() => {});
     return () => { isMounted = false; };
   }, []);
 
@@ -1562,28 +1569,39 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
   const handleShareSprint = async () => {
     setIsKebabMenuOpen(false);
     const sprintTitle = sprint?.title || "Sprint";
-    const shareUrl = `${window.location.origin}/sprints/${sprint?.id || previewSprintId || ""}`;
+    const shareUrl = buildSprintReferralUrl({
+      sprintId: sprint?.id || previewSprintId || "",
+      referralCode: (user as any)?.referralCode,
+      userId: user?.id,
+    });
+    const templateText =
+      sprint?.referralText?.trim() ||
+      getCachedAdminSprintSettings().referralShareText?.trim();
+    const { textWithLink } = composeReferralShareMessage({
+      templateText,
+      sprintTitle,
+      shareUrl,
+    });
 
     if (navigator.share) {
       try {
         await navigator.share({
           title: sprintTitle,
-          text: `Check out the "${sprintTitle}" sprint on Vectorise!`,
-          url: shareUrl,
+          text: textWithLink,
         });
         return;
       } catch (err: any) {
         if (err?.name !== "AbortError") {
           try {
-            await navigator.clipboard.writeText(shareUrl);
-            toast.success("Sprint link copied to clipboard!");
+            await navigator.clipboard.writeText(textWithLink);
+            toast.success("Referral message & link copied to clipboard!");
           } catch (e) {}
         }
       }
     } else {
       try {
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success("Sprint link copied to clipboard!");
+        await navigator.clipboard.writeText(textWithLink);
+        toast.success("Referral message & link copied to clipboard!");
       } catch (e) {
         toast.error("Could not copy link");
       }
@@ -4621,6 +4639,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
           }
         }}
         sprintTitle={sprint?.title}
+        referralText={sprint?.referralText}
         streakCount={(user as any)?.impactStats?.streak || (user as any)?.streakCount || 0}
         totalDays={sprint?.duration || enrollment?.progress?.length || 5}
         completedDay={viewingDay}

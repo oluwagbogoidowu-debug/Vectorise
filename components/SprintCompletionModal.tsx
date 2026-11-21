@@ -16,6 +16,12 @@ import { sprintService } from '../services/sprintService';
 import { Participant } from '../types';
 import { recordDeferredPromptState } from '../utils/deferredPrompts';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
+import {
+  buildSprintReferralUrl,
+  composeReferralShareMessage,
+  getCachedAdminSprintSettings,
+  subscribeAdminSprintSettings,
+} from '../utils/referralShare';
 
 interface SprintCompletionModalProps {
   isOpen: boolean;
@@ -24,6 +30,7 @@ interface SprintCompletionModalProps {
   sprintId?: string;
   enrollmentId?: string;
   sprintTitle?: string;
+  referralText?: string;
   streakCount?: number;
   totalDays?: number;
   completedDay?: number;
@@ -58,6 +65,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
   sprintId,
   enrollmentId,
   sprintTitle = 'Growth Sprint',
+  referralText: sprintReferralText,
   soundEnabled: initialSoundEnabled = true,
   isPreview = false,
 }) => {
@@ -68,6 +76,9 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
   const [feedbackComment, setFeedbackComment] = useState<string>('');
   const [hasSharedReferral, setHasSharedReferral] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [adminReferralText, setAdminReferralText] = useState<string>(
+    () => getCachedAdminSprintSettings().referralShareText || ''
+  );
   const confettiIntervalRef = useRef<any>(null);
 
   const playCelebrationPop = useCallback(() => {
@@ -269,6 +280,16 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     }
   }, [isOpen, launchConfetti, playCelebrationPop]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const unsubscribe = subscribeAdminSprintSettings((settings) => {
+      if (settings.referralShareText !== undefined) {
+        setAdminReferralText(settings.referralShareText);
+      }
+    });
+    return () => unsubscribe();
+  }, [isOpen]);
+
   const handleSubmitRatingContinue = async () => {
     if (rating <= 0 || isSubmittingReview) return;
     triggerHaptic(hapticPatterns.light);
@@ -317,20 +338,27 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
 
   const handleShareReferral = async () => {
     triggerHaptic(hapticPatterns.light);
-    const referralCode = (user as any)?.referralCode as string | undefined;
-    const refSuffix = referralCode ? `?ref=${referralCode}` : '';
-    const shareUrl = sprintId
-      ? `${window.location.origin}/sprint/${sprintId}${refSuffix}`
-      : `${window.location.origin}${refSuffix}`;
     const title = sprintTitle?.trim() || 'VectoRise Sprint';
-    const shareText = `I just completed "${title}" on VectoRise. Know someone who could benefit from it too?`;
+    const shareUrl = buildSprintReferralUrl({
+      sprintId,
+      referralCode: (user as any)?.referralCode,
+      userId: user?.id,
+    });
+    const templateText =
+      sprintReferralText?.trim() ||
+      adminReferralText?.trim() ||
+      getCachedAdminSprintSettings().referralShareText?.trim();
+    const { textWithLink } = composeReferralShareMessage({
+      templateText,
+      sprintTitle: title,
+      shareUrl,
+    });
 
     if (navigator.share) {
       try {
         await navigator.share({
           title,
-          text: shareText,
-          url: shareUrl,
+          text: textWithLink,
         });
         setHasSharedReferral(true);
         recordDeferredPromptState({
@@ -351,7 +379,7 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
     }
 
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(textWithLink);
       setHasSharedReferral(true);
       recordDeferredPromptState({
         userId: user?.id,
@@ -361,9 +389,9 @@ const SprintCompletionModal: React.FC<SprintCompletionModalProps> = ({
         status: 'completed',
         isPreview,
       }).catch(() => {});
-      toast.success('Referral link copied — ready to share!');
+      toast.success('Referral message & link copied — ready to share!');
     } catch {
-      toast.error('Could not copy link right now.');
+      toast.error('Could not copy message right now.');
     }
   };
 

@@ -204,7 +204,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
     const fields: (keyof Sprint)[] = [
         'title', 'subtitle', 'actionTrigger', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'audience', 'overrideOrchestrator', 'price', 'standardPrice', 'completePrice', 'currency', 'pointCost', 
-        'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays',
+        'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays', 'referralText',
         'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate', 'curriculumSource'
     ];
 
@@ -572,7 +572,7 @@ const EditSprint: React.FC = () => {
     const topFields: (keyof Sprint)[] = [
       'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
       'category', 'difficulty', 'overrideOrchestrator', 'price', 'standardPrice', 'completePrice', 'currency', 'pointCost', 
-      'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays',
+      'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays', 'referralText',
       'approvalStatus', 'published', 'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate'
     ];
 
@@ -2629,6 +2629,7 @@ const EditSprint: React.FC = () => {
       outcomeTag: editSettings.outcomeTag,
       checkInReminder: editSettings.checkInReminder || false,
       checkInReminderDays: editSettings.checkInReminderDays || 7,
+      referralText: editSettings.referralText || '',
       versionNumber: editSettings.versionNumber ?? 1,
       versionTag: editSettings.versionTag || ''
     };
@@ -8558,6 +8559,18 @@ const EditSprint: React.FC = () => {
                                         placeholder="1000"
                                     />
                                 </div>
+                                <div className="sm:col-span-2 pt-2">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">
+                                        Referral Share Text (Optional Sprint Override)
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        value={editSettings.referralText || ''}
+                                        onChange={e => setEditSettings({...editSettings, referralText: e.target.value})}
+                                        className="w-full px-5 py-3.5 bg-white border border-primary/20 rounded-2xl text-xs font-medium text-gray-800 shadow-sm outline-none focus:ring-4 focus:ring-primary/5 resize-y"
+                                        placeholder="Leave blank to use global referral text from Admin -> Sprints -> Sprint Settings. Optional tokens: {sprintTitle}, {link}"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -8994,6 +9007,22 @@ const EditSprint: React.FC = () => {
 
                             return null;
                         })}
+
+                        {isAdmin && (
+                          <section className="space-y-4 pt-6 border-t border-gray-100">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center text-primary text-xs font-black">05</div>
+                              <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Admin Referral Text Override</h4>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={editSettings.referralText || ''}
+                              onChange={e => setEditSettings({...editSettings, referralText: e.target.value})}
+                              className={registryInputClasses + " resize-y"}
+                              placeholder="Leave blank to use the global referral text written in Admin -> Sprints -> Sprint Settings. Optional tokens: {sprintTitle}, {link}"
+                            />
+                          </section>
+                        )}
                     </>
                 )}
 
@@ -9066,6 +9095,7 @@ const EditSprint: React.FC = () => {
         onClose={() => setShowCompletionPreview(false)}
         onStartNext={() => setShowCompletionPreview(false)}
         sprintTitle={sprint?.title}
+        referralText={sprint?.referralText}
         streakCount={1}
         totalDays={sprint?.duration || (Array.isArray(sprint?.dailyContent) ? sprint.dailyContent.length : 5)}
         completedDay={sprint?.duration || selectedDay}
