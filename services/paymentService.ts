@@ -14,6 +14,8 @@ interface PaymentPayload {
   currency?: string; 
   name?: string;
   selectedTier?: 'standard' | 'complete';
+  isPreRegistration?: boolean;
+  preRegItemType?: 'sprint' | 'track';
 }
 
 const PAYMENT_ATTEMPTS = 'payment_attempts';
@@ -47,7 +49,8 @@ export const paymentService = {
           amount: payload.amount.toString(),
           currency: payload.currency || 'NGN',
           name: payload.name || 'Vectorise User',
-          ...(payload.selectedTier ? { selectedTier: payload.selectedTier } : {})
+          ...(payload.selectedTier ? { selectedTier: payload.selectedTier } : {}),
+          ...(payload.isPreRegistration ? { isPreRegistration: true, preRegItemType: payload.preRegItemType || (payload.trackId ? 'track' : 'sprint') } : {})
         })
       });
 
@@ -68,7 +71,7 @@ export const paymentService = {
     }
   },
 
-  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, trackId?: string, userId?: string, email?: string, activeEnrollmentId?: string, coinPackageId?: string, coins?: number }> => {
+  checkPaymentStatus: async (txRef: string): Promise<{ status: string, sprintId?: string, trackId?: string, userId?: string, email?: string, activeEnrollmentId?: string, coinPackageId?: string, coins?: number, isPreRegistration?: boolean, preRegItemType?: 'sprint' | 'track', selectedTier?: 'standard' | 'complete' }> => {
     try {
       const response = await fetch(`${window.location.origin}/api/flutterwave/check-status?tx_ref=${txRef}&t=${Date.now()}`);
       if (!response.ok) return { status: 'pending' };

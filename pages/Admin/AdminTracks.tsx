@@ -5,10 +5,12 @@ import { Track, Sprint } from '../../types';
 import { trackService } from '../../services/trackService';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
-import { Edit2, Trash2, Eye, Package, AlertTriangle, Copy, Check, Sparkles } from 'lucide-react';
+import { Edit2, Trash2, Eye, Package, AlertTriangle, Copy, Check, Sparkles, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminCache } from './adminCache';
 import { getSprintCashPrice } from '../../utils/sprintUtils';
+import { LaunchConfigModal, LaunchConfigPayload } from '../../components/LaunchConfigModal';
+import { getRemainingSlots } from '../../services/launchService';
 
 const AdminTracks: React.FC = () => {
     const navigate = useNavigate();
@@ -18,6 +20,7 @@ const AdminTracks: React.FC = () => {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [launchConfigTrack, setLaunchConfigTrack] = useState<Track | null>(null);
 
     const handleCopyLink = async (trackId: string) => {
         const url = `${window.location.origin}/track/${trackId}`;
@@ -51,6 +54,29 @@ const AdminTracks: React.FC = () => {
         } finally {
             setIsDeleting(false);
         }
+    };
+
+    const handleSaveLaunchConfig = async (config: LaunchConfigPayload) => {
+        if (!launchConfigTrack) return;
+        await trackService.updateTrack(launchConfigTrack.id, {
+            isComingSoon: config.isComingSoon,
+            launchDate: config.launchDate,
+            preRegistrationEnabled: config.preRegistrationEnabled,
+            hasLimitedSlots: config.hasLimitedSlots,
+            slotLimit: config.slotLimit,
+        });
+        const updatedTracks = tracks.map((t) =>
+            t.id === launchConfigTrack.id ? { ...t, ...config } : t
+        );
+        setTracks(updatedTracks);
+        if (adminCache.tracks) {
+            adminCache.tracks.tracks = updatedTracks;
+        }
+        toast.success(
+            config.isComingSoon
+                ? `${launchConfigTrack.title} set to Going Live Soon`
+                : `${launchConfigTrack.title} is back to standard launch mode`
+        );
     };
 
     useEffect(() => {
@@ -179,6 +205,16 @@ const AdminTracks: React.FC = () => {
                                     <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest flex-shrink-0 ${track.published ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'}`}>
                                         {track.published ? 'Live' : 'Draft'}
                                     </span>
+                                    {track.isComingSoon && (
+                                        <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest flex-shrink-0 bg-amber-50 text-amber-700 border border-amber-200/70">
+                                            Going Live Soon
+                                        </span>
+                                    )}
+                                    {track.isComingSoon && getRemainingSlots(track) !== null && (
+                                        <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest flex-shrink-0 bg-emerald-50 text-[#0E7850] border border-emerald-200/70">
+                                            {getRemainingSlots(track)} slots left
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-xs text-gray-400 font-medium break-words whitespace-normal leading-relaxed mb-3">{track.subtitle}</p>
                                 
@@ -209,6 +245,18 @@ const AdminTracks: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setLaunchConfigTrack(track)}
+                                    className={`p-3 rounded-xl transition-all cursor-pointer ${
+                                        track.isComingSoon
+                                            ? 'bg-emerald-50 text-[#0E7850] border border-emerald-200/70 hover:bg-emerald-100'
+                                            : 'bg-gray-50 text-gray-400 hover:text-[#0E7850]'
+                                    }`}
+                                    title="Going Live Soon & Countdown Settings"
+                                >
+                                    <CalendarClock className="w-4 h-4" />
+                                </button>
                                 <button
                                     onClick={() => handleCopyLink(track.id)}
                                     className={`p-3 rounded-xl transition-all ${
@@ -270,6 +318,15 @@ const AdminTracks: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Going Live Soon Configuration Modal */}
+            <LaunchConfigModal
+                isOpen={launchConfigTrack !== null}
+                item={launchConfigTrack}
+                itemType="track"
+                onClose={() => setLaunchConfigTrack(null)}
+                onSave={handleSaveLaunchConfig}
+            />
         </div>
     );
 };

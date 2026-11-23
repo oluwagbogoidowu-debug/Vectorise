@@ -18,8 +18,11 @@ import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
 import { getSprintCoverImage } from '../../utils/sprintUtils';
 import { PricingTierId, resolveSprintPricingTiers } from '../../utils/pricingTiers';
+import { ClaimCoinQuickDrawer } from '../../components/ClaimCoinQuickDrawer';
+import { ComingSoonLaunchSection, LaunchActionModals } from '../../components/ComingSoonLaunchSection';
+import { useLaunchActions } from '../../hooks/useLaunchActions';
 
-import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X } from 'lucide-react';
+import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X, Bell, TicketCheck } from 'lucide-react';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -414,6 +417,27 @@ const SprintLandingPage: React.FC = () => {
     }, [sprint]);
 
     const isCashSprint = !isCoinSprint;
+    const isComingSoonSprint = Boolean(sprint?.isComingSoon);
+
+    const comingSoonReserveAmount = useMemo(() => {
+        if (!sprint) return 0;
+        if (isCashSprint) return effectiveCashPrice;
+        return sprint.price || ((sprint.pointCost || 10) * 20);
+    }, [sprint, isCashSprint, effectiveCashPrice]);
+
+    const comingSoonPriceLabel = useMemo(() => {
+        if (comingSoonReserveAmount <= 0) return '';
+        return `${pricingTiers.standard.currencySymbol}${comingSoonReserveAmount.toLocaleString()}`;
+    }, [comingSoonReserveAmount, pricingTiers.standard.currencySymbol]);
+
+    const launchActions = useLaunchActions({
+        item: sprint,
+        itemType: 'sprint',
+        priceAmount: comingSoonReserveAmount,
+        currency: sprint?.currency || 'NGN',
+        selectedTier: selectedTier || 'standard',
+        externalGuestEmail: guestEmail,
+    });
 
     const handleJoinClick = async () => {
         if (!sprint || !selectedTier) return;
@@ -885,6 +909,23 @@ const SprintLandingPage: React.FC = () => {
                     <div className={!isFromEditPreview && (enrollmentStatus === 'active' || enrollmentStatus === 'queued') ? "lg:col-span-8" : "lg:col-span-12 max-w-3xl mx-auto w-full"}>
                         {/* MAIN CONTENT */}
                         <div className="space-y-6">
+                            {isComingSoonSprint && (
+                                <ComingSoonLaunchSection
+                                    item={sprint}
+                                    itemType="sprint"
+                                    countdown={launchActions.countdown}
+                                    remainingSlots={launchActions.remainingSlots}
+                                    isFull={launchActions.isFull}
+                                    hasShownInterest={launchActions.hasShownInterest}
+                                    hasReservedSpot={launchActions.hasReservedSpot}
+                                    isRecordingInterest={launchActions.isRecordingInterest}
+                                    isReservingSpot={launchActions.isReservingSpot}
+                                    onShowInterest={launchActions.handleShowInterest}
+                                    onReserveSpot={launchActions.handleReserveSpot}
+                                    priceLabel={comingSoonPriceLabel}
+                                />
+                            )}
+
                             {(displayDescription || hasDynamicContent) && (
                                 <section className="animate-fade-in py-1">
                                     <SectionHeading>Sprint Overview</SectionHeading>
@@ -910,7 +951,7 @@ const SprintLandingPage: React.FC = () => {
                             )}
 
                             {/* PRICING TIERS SECTION */}
-                            {(enrollmentStatus === 'none' || isFromEditPreview) && (
+                            {(enrollmentStatus === 'none' || isFromEditPreview) && (!isComingSoonSprint || Boolean(sprint.preRegistrationEnabled)) && (
                                 <section
                                     id="pricing-tiers-section"
                                     ref={pricingSectionRef}
@@ -918,11 +959,13 @@ const SprintLandingPage: React.FC = () => {
                                 >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-snug">
-                                            Select your tier to start
+                                            {isComingSoonSprint ? 'Select your tier to reserve' : 'Select your tier to start'}
                                         </h3>
-                                        <span className="px-3 py-1 rounded-full bg-[#0E7850]/10 border border-[#0E7850]/20 text-[#0E7850] text-[10px] font-black uppercase tracking-wider">
-                                            Get a free trial
-                                        </span>
+                                        {!isComingSoonSprint && (
+                                            <span className="px-3 py-1 rounded-full bg-[#0E7850]/10 border border-[#0E7850]/20 text-[#0E7850] text-[10px] font-black uppercase tracking-wider">
+                                                Get a free trial
+                                            </span>
+                                        )}
                                     </div>
 
                                     <div role="radiogroup" aria-label="Sprint access tier" className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1043,6 +1086,70 @@ const SprintLandingPage: React.FC = () => {
             {/* Fixed Bottom CTA Bar for Viewport */}
             {(enrollmentStatus === 'none' || isFromEditPreview) && !showCommitmentSheet && (
                 <div className="fixed bottom-0 left-0 right-0 px-4 py-3 sm:py-3.5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-50 shadow-[0_-10px_25px_rgba(0,0,0,0.08)]">
+                    {isComingSoonSprint ? (
+                        <div className="max-w-screen-lg mx-auto space-y-2">
+                            {launchActions.remainingSlots !== null && (
+                                <div className="flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-emerald-50/80 border border-emerald-200/70 text-[11px] font-black text-[#0E7850]">
+                                    <span>Coming Soon • Limited Capacity</span>
+                                    <span>
+                                        {launchActions.remainingSlots > 0
+                                            ? `${launchActions.remainingSlots} slots left`
+                                            : 'Spots Filled'}
+                                    </span>
+                                </div>
+                            )}
+                            <div className={`grid gap-2.5 ${sprint.preRegistrationEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                                <button
+                                    type="button"
+                                    onClick={launchActions.handleShowInterest}
+                                    disabled={launchActions.isRecordingInterest}
+                                    className="w-full py-3.5 sm:py-4 px-4 rounded-2xl border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-900 text-xs uppercase tracking-[0.1em] font-black transition-all cursor-pointer flex items-center justify-center gap-2"
+                                >
+                                    {launchActions.hasShownInterest ? (
+                                        <>
+                                            <CheckCircle2 className="w-4 h-4 text-[#0E7850]" />
+                                            <span>Interested</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Bell className="w-4 h-4 text-[#0E7850]" />
+                                            <span>Show Interest</span>
+                                        </>
+                                    )}
+                                </button>
+                                {sprint.preRegistrationEnabled && (
+                                    <button
+                                        type="button"
+                                        onClick={launchActions.handleReserveSpot}
+                                        disabled={launchActions.isReservingSpot || (launchActions.isFull && !launchActions.hasReservedSpot)}
+                                        className={`w-full py-3.5 sm:py-4 px-4 rounded-2xl text-xs uppercase tracking-[0.1em] font-black transition-all flex items-center justify-center gap-2 ${
+                                            launchActions.hasReservedSpot
+                                                ? 'bg-emerald-50 border border-emerald-200 text-[#0E7850] cursor-pointer'
+                                                : launchActions.isFull
+                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                : 'bg-[#0E7850] hover:bg-[#0b6140] text-white shadow-lg shadow-[#0E7850]/20 cursor-pointer'
+                                        }`}
+                                    >
+                                        {launchActions.hasReservedSpot ? (
+                                            <>
+                                                <TicketCheck className="w-4 h-4" />
+                                                <span>Spot Reserved</span>
+                                            </>
+                                        ) : launchActions.isFull ? (
+                                            <span>Spots Filled</span>
+                                        ) : launchActions.isReservingSpot ? (
+                                            <span>Processing...</span>
+                                        ) : (
+                                            <>
+                                                <span>Reserve My Spot</span>
+                                                <ArrowRight className="w-4 h-4" />
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
                     <div className="max-w-screen-lg mx-auto space-y-2.5">
                         {activeTier ? (
                             <div className="flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl border border-gray-200/80 bg-gray-50/75">
@@ -1094,6 +1201,7 @@ const SprintLandingPage: React.FC = () => {
                             )}
                         </Button>
                     </div>
+                    )}
                 </div>
             )}
 
@@ -1237,6 +1345,16 @@ const SprintLandingPage: React.FC = () => {
                                         })()}
                                     </div>
 
+                                    <ClaimCoinQuickDrawer
+                                        isCoinSprint={!isCashSprint}
+                                        onClaimed={(m) => {
+                                            const currentBal = ((user as Participant)?.walletBalance ?? 0) + m.points;
+                                            if (currentBal >= (sprint.pointCost || 10)) {
+                                                setPaymentMethod('coins');
+                                            }
+                                        }}
+                                    />
+
                                     {/* Commitment Radio Button (Moved Below Instant Topup) */}
                                     <button 
                                         onClick={() => !isProcessingPayment && setIsCommitted(!isCommitted)}
@@ -1335,6 +1453,28 @@ const SprintLandingPage: React.FC = () => {
                     </div>
                 </>
             )}
+
+            <LaunchActionModals
+                itemTitle={sprint.title}
+                interestModalOpen={launchActions.interestModalOpen}
+                onCloseInterest={() => launchActions.setInterestModalOpen(false)}
+                interestConfirmed={launchActions.interestConfirmed}
+                isRecordingInterest={launchActions.isRecordingInterest}
+                onSubmitGuestInterest={launchActions.submitGuestInterest}
+                reserveModalOpen={launchActions.reserveModalOpen}
+                onCloseReserve={() => launchActions.setReserveModalOpen(false)}
+                reserveConfirmed={launchActions.reserveConfirmed}
+                isReservingSpot={launchActions.isReservingSpot}
+                onSubmitGuestReservation={launchActions.submitGuestReservation}
+                priceLabel={comingSoonPriceLabel}
+                modalEmail={launchActions.modalEmail}
+                onChangeModalEmail={(val) => {
+                    launchActions.setModalEmail(val);
+                    if (launchActions.modalEmailError) launchActions.setModalEmailError('');
+                }}
+                modalEmailError={launchActions.modalEmailError}
+                effectiveEmailDisplay={launchActions.effectiveEmailDisplay}
+            />
 
             <style>{`
                 @keyframes fadeInQuick {

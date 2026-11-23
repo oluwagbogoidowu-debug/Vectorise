@@ -363,6 +363,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
   }, [activeRole, user]);
 
+  useEffect(() => {
+    const handleMilestoneClaimed = (event: Event) => {
+      const custom = event as CustomEvent<{ uid: string; milestoneId: string; points: number; claimedAt: string }>;
+      const detail = custom?.detail;
+      if (!detail) return;
+      setUser((prev) => {
+        if (!prev || prev.id !== detail.uid) return prev;
+        const p = prev as Participant;
+        const currentIds = Array.isArray(p.claimedMilestoneIds) ? p.claimedMilestoneIds : [];
+        if (currentIds.includes(detail.milestoneId)) return prev;
+        const currentBadges = Array.isArray(p.claimedBadges) ? p.claimedBadges : [];
+        const updated = {
+          ...p,
+          walletBalance: (p.walletBalance ?? 0) + detail.points,
+          claimedMilestoneIds: [...currentIds, detail.milestoneId],
+          claimedBadges: [
+            ...currentBadges,
+            {
+              milestoneId: detail.milestoneId,
+              claimedAt: detail.claimedAt,
+              claimedCredit: detail.points,
+              processed: true
+            }
+          ]
+        };
+        try {
+          localStorage.setItem('vectorise_cached_user', JSON.stringify(updated));
+        } catch {}
+        return updated as any;
+      });
+    };
+
+    window.addEventListener('vectorise:milestone-claimed', handleMilestoneClaimed);
+    return () => window.removeEventListener('vectorise:milestone-claimed', handleMilestoneClaimed);
+  }, []);
+
 
   const login = (userIdOrEmail: string): boolean => {
     const userToLogin = MOCK_USERS.find(u => 

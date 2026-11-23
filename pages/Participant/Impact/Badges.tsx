@@ -20,15 +20,68 @@ interface Milestone extends MilestoneDefinition {
     isClaimed: boolean;
 }
 
+const COLOR_THEMES: Record<string, {
+    cardBorder: string;
+    iconBg: string;
+    badgeBg: string;
+    textAccent: string;
+    barBg: string;
+    buttonBg: string;
+    glowBg: string;
+    sectionBar: string;
+}> = {
+    primary: {
+        cardBorder: 'border-emerald-200/70 ring-1 ring-emerald-500/5',
+        iconBg: 'bg-emerald-50 text-[#0E7850]',
+        badgeBg: 'bg-[#0E7850] text-white',
+        textAccent: 'text-[#0E7850]',
+        barBg: 'bg-[#0E7850]',
+        buttonBg: 'bg-[#0E7850] hover:bg-[#0a5c3d] text-white shadow-lg shadow-emerald-900/15',
+        glowBg: 'bg-emerald-500/10',
+        sectionBar: 'bg-[#0E7850]'
+    },
+    blue: {
+        cardBorder: 'border-blue-200/70 ring-1 ring-blue-500/5',
+        iconBg: 'bg-blue-50 text-blue-600',
+        badgeBg: 'bg-blue-600 text-white',
+        textAccent: 'text-blue-600',
+        barBg: 'bg-blue-600',
+        buttonBg: 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20',
+        glowBg: 'bg-blue-500/10',
+        sectionBar: 'bg-blue-500'
+    },
+    yellow: {
+        cardBorder: 'border-amber-200/70 ring-1 ring-amber-500/5',
+        iconBg: 'bg-amber-50 text-amber-600',
+        badgeBg: 'bg-amber-500 text-white',
+        textAccent: 'text-amber-600',
+        barBg: 'bg-amber-500',
+        buttonBg: 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20',
+        glowBg: 'bg-amber-500/10',
+        sectionBar: 'bg-amber-500'
+    },
+    teal: {
+        cardBorder: 'border-teal-200/70 ring-1 ring-teal-500/5',
+        iconBg: 'bg-teal-50 text-teal-600',
+        badgeBg: 'bg-teal-600 text-white',
+        textAccent: 'text-teal-600',
+        barBg: 'bg-teal-600',
+        buttonBg: 'bg-teal-600 hover:bg-teal-700 text-white shadow-lg shadow-teal-600/20',
+        glowBg: 'bg-teal-500/10',
+        sectionBar: 'bg-teal-500'
+    }
+};
+
 const MilestoneCard: React.FC<{ 
     milestone: Milestone; 
-    onClaim: (m: Milestone) => void;
+    onClaim: (m: Milestone) => Promise<void> | void;
     onShare: (m: Milestone) => void;
 }> = ({ milestone, onClaim, onShare }) => {
     const progress = Math.min(100, (milestone.currentValue / milestone.targetValue) * 100);
     const [isClaiming, setIsClaiming] = useState(false);
 
     const handleClaim = async () => {
+        if (isClaiming) return;
         setIsClaiming(true);
         try {
             await onClaim(milestone);
@@ -38,24 +91,17 @@ const MilestoneCard: React.FC<{
     };
     
     const colorClass = milestone.color || 'primary';
-    const accentColor = colorClass === 'primary' ? 'rgba(14, 120, 80, 0.4)' : 
-                       colorClass === 'teal' ? 'rgba(20, 184, 166, 0.4)' : 
-                       colorClass === 'orange' ? 'rgba(249, 115, 22, 0.4)' : 
-                       colorClass === 'indigo' ? 'rgba(79, 70, 229, 0.4)' :
-                       colorClass === 'amber' ? 'rgba(245, 158, 11, 0.4)' :
-                       colorClass === 'blue' ? 'rgba(59, 130, 246, 0.4)' :
-                       colorClass === 'yellow' ? 'rgba(234, 179, 8, 0.4)' :
-                       'rgba(14, 120, 80, 0.4)';
+    const theme = COLOR_THEMES[colorClass] || COLOR_THEMES.primary;
 
     return (
         <div className={`p-5 rounded-2xl border transition-all duration-500 relative overflow-hidden group animate-fade-in ${
             milestone.isUnlocked 
-            ? `bg-white border-${colorClass}/20 shadow-md ring-1 ring-${colorClass}/5` 
+            ? `bg-white ${theme.cardBorder} shadow-md` 
             : 'bg-gray-50/50 border-gray-100 opacity-80'
         }`}>
             <div className="flex items-start gap-4 mb-4 relative z-10">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 transition-transform duration-500 ${
-                    milestone.isUnlocked ? `bg-${colorClass}/10 text-${colorClass} scale-110 shadow-inner` : 'bg-gray-100 text-gray-300 grayscale'
+                    milestone.isUnlocked ? `${theme.iconBg} scale-110 shadow-inner` : 'bg-gray-100 text-gray-300 grayscale'
                 }`}>
                     {milestone.icon}
                 </div>
@@ -63,7 +109,7 @@ const MilestoneCard: React.FC<{
                     <div className="flex justify-between items-start mb-1">
                         <h3 className="font-black text-gray-900 text-sm uppercase tracking-tight truncate" style={{fontStyle: 'normal'}}>{milestone.title}</h3>
                         {milestone.isUnlocked && !milestone.isClaimed && (
-                            <span className={`bg-${colorClass} text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse`}>Ready</span>
+                            <span className={`${theme.badgeBg} text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest animate-pulse`}>Ready</span>
                         )}
                     </div>
                     <p className="text-[11px] text-gray-500 font-medium leading-tight line-clamp-2">{milestone.description}</p>
@@ -75,22 +121,23 @@ const MilestoneCard: React.FC<{
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
                         {milestone.isUnlocked ? '✓ Achieved' : `Progress: ${milestone.currentValue.toFixed(0)}/${milestone.targetValue}`}
                     </span>
-                    <span className={`text-[9px] font-black uppercase tracking-widest ${milestone.isUnlocked && !milestone.isClaimed ? `text-${colorClass}` : 'text-gray-400'}`}>
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${milestone.isUnlocked && !milestone.isClaimed ? theme.textAccent : 'text-gray-400'}`}>
                         {milestone.isClaimed ? `${milestone.points} coins awarded` : `+${milestone.points} Coins`}
                     </span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-4">
                     <div 
-                        className={`h-full rounded-full transition-all duration-1000 ease-out ${milestone.isUnlocked ? (milestone.isClaimed ? 'bg-gray-400' : `bg-${colorClass} shadow-[0_0_8px_${accentColor}]`) : 'bg-gray-300'}`}
+                        className={`h-full rounded-full transition-all duration-1000 ease-out ${milestone.isUnlocked ? (milestone.isClaimed ? 'bg-gray-400' : theme.barBg) : 'bg-gray-300'}`}
                         style={{ width: `${progress}%` }}
                     ></div>
                 </div>
 
                 {milestone.isUnlocked && !milestone.isClaimed && (
                     <button 
+                        type="button"
                         onClick={handleClaim}
                         disabled={isClaiming}
-                        className={`w-full py-2.5 bg-${colorClass} text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-90 transition-all active:scale-95 shadow-lg shadow-${colorClass}/20 flex items-center justify-center gap-2 disabled:opacity-50`}
+                        className={`w-full py-2.5 ${theme.buttonBg} rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer`}
                     >
                         {isClaiming ? (
                             <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -102,7 +149,7 @@ const MilestoneCard: React.FC<{
                 {false && milestone.isClaimed && (
                     <button 
                         onClick={() => onShare(milestone)}
-                        className={`w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-500 hover:text-gray-700 dark:text-gray-300 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5 border border-gray-100 dark:border-zinc-700`}
+                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-500 hover:text-gray-700 dark:text-gray-300 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5 border border-gray-100 dark:border-zinc-700"
                     >
                         <Share2 className="w-3.5 h-3.5" /> Share Achievement
                     </button>
@@ -110,19 +157,21 @@ const MilestoneCard: React.FC<{
             </div>
 
             {milestone.isUnlocked && !milestone.isClaimed && (
-                <div className={`absolute top-0 right-0 w-24 h-24 bg-${colorClass}/5 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none animate-pulse`}></div>
+                <div className={`absolute top-0 right-0 w-24 h-24 ${theme.glowBg} rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none animate-pulse`}></div>
             )}
         </div>
     );
 };
 
 const Badges: React.FC = () => {
-    const { user, updateProfile } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [enrollments, setEnrollments] = useState<ParticipantSprint[]>([]);
     const [allSprintData, setAllSprintData] = useState<Sprint[]>([]);
     const [reflections, setReflections] = useState<ShinePost[]>([]);
     const [referrals, setReferrals] = useState<any[]>([]);
+    const [claimRecordIds, setClaimRecordIds] = useState<string[]>([]);
+    const [optimisticClaimedIds, setOptimisticClaimedIds] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Achievement Share Modal Integration
@@ -209,6 +258,17 @@ const Badges: React.FC = () => {
         });
         unsubscribes.push(sub3);
 
+        // Subscribe to permanent claims subcollection for bulletproof recording accuracy
+        const qClaims = query(collection(db, 'users', user.id, 'claims'));
+        const sub4 = onSnapshot(qClaims, (snap) => {
+            const ids = snap.docs
+                .map(d => (d.data()?.milestoneId ? String(d.data().milestoneId) : ''))
+                .filter(Boolean);
+            setClaimRecordIds(ids);
+        }, (error) => {
+            console.warn("Error subscribing to claims subcollection: ", error);
+        });
+        unsubscribes.push(sub4);
 
         return () => {
             unsubscribes.forEach(unsub => unsub());
@@ -253,12 +313,17 @@ const Badges: React.FC = () => {
             peopleHelped: peopleHelped,
             totalTaskDays
         };
-    }, [user, enrollments, reflections, allSprintData]);
+    }, [user, enrollments, reflections, allSprintData, referrals]);
 
     const milestonesByType = useMemo(() => {
         if (!stats || !user) return { coreProgress: [], longGame: [], innerWork: [], influence: [] };
         const p = user as Participant;
-        const claimed = p.claimedMilestoneIds || [];
+        const claimed = Array.from(new Set([
+            ...(p.claimedMilestoneIds || []),
+            ...(p.claimedBadges || []).map((b: any) => b?.milestoneId).filter(Boolean),
+            ...claimRecordIds,
+            ...optimisticClaimedIds
+        ]));
         const milestoneStats = computeMilestoneStats(enrollments, reflections, referrals.length);
         
         const result: Record<string, Milestone[]> = { coreProgress: [], longGame: [], innerWork: [], influence: [] };
@@ -275,7 +340,7 @@ const Badges: React.FC = () => {
         });
 
         return result;
-    }, [stats, user, enrollments, reflections, referrals]);
+    }, [stats, user, enrollments, reflections, referrals, claimRecordIds, optimisticClaimedIds]);
 
     const categoryProgressData = useMemo(() => {
         if (!stats || !user) return [];
@@ -345,20 +410,25 @@ const Badges: React.FC = () => {
 
     const handleClaim = async (m: Milestone) => {
         if (!user) return;
+        setOptimisticClaimedIds(prev => prev.includes(m.id) ? prev : [...prev, m.id]);
         try {
-            await userService.claimMilestone(user.id, m.id, m.points);
-            userService.queueNotification('success', `Claimed! +${m.points} Coins added to your wallet.`, {
-                description: `Milestone: ${m.title}`,
-                duration: 3000
-            });
-            // Automatically launch achievement share popup
-            setSelectedShareMilestone({
-                id: m.id,
-                title: m.title,
-                points: m.points
-            });
-            setShareModalOpen(true);
+            const res = await userService.claimMilestone(user.id, m.id, m.points);
+            if (res?.claimed) {
+                userService.queueNotification('success', `Claimed! +${m.points} Coins added to your wallet.`, {
+                    description: `Milestone: ${m.title}`,
+                    duration: 3000
+                });
+                setSelectedShareMilestone({
+                    id: m.id,
+                    title: m.title,
+                    points: m.points
+                });
+                setShareModalOpen(true);
+            } else if (res?.alreadyClaimed) {
+                toast.info(`"${m.title}" was already claimed and synced.`);
+            }
         } catch (err) {
+            setOptimisticClaimedIds(prev => prev.filter(id => id !== m.id));
             userService.queueNotification('error', "Failed to claim credits.", { duration: 3000 });
         }
     };
@@ -383,10 +453,12 @@ const Badges: React.FC = () => {
         const isExpanded = expandedCategories[type] || false;
         const visibleMilestones = isExpanded ? milestones : milestones.slice(0, 3);
 
+        const sectionTheme = COLOR_THEMES[color] || COLOR_THEMES.primary;
+
         return (
             <section className="animate-fade-in">
                 <div className="flex items-center gap-3 mb-8">
-                    <div className={`w-1.5 h-6 bg-${color}-500 rounded-full`}></div>
+                    <div className={`w-1.5 h-6 ${sectionTheme.sectionBar} rounded-full`}></div>
                     <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest">{title}</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -525,12 +525,16 @@ export const userService = {
       }
   },
 
-  claimMilestone: async (uid: string, milestoneId: string, points: number, isAutoClaim = false) => {
+  claimMilestone: async (uid: string, milestoneId: string, points: number, isAutoClaim = false): Promise<{ claimed: boolean; alreadyClaimed?: boolean }> => {
       try {
           const { runTransaction } = await import('firebase/firestore');
           const userRef = doc(db, 'users', uid);
           const claimRecordRef = doc(db, 'users', uid, 'claims', `${uid}_${milestoneId}`);
+          const userTransDocRef = doc(db, 'users', uid, 'transactions', `milestone_${milestoneId}`);
           const transRef = collection(db, 'wallet_transactions');
+          const nowIso = new Date().toISOString();
+          let wasClaimed = false;
+          let wasAlreadyClaimed = false;
 
           await runTransaction(db, async (transaction) => {
               // 1. Check user doc
@@ -538,23 +542,41 @@ export const userService = {
               if (!userSnap.exists()) return;
 
               const userData = userSnap.data() as Participant;
-              if (userData.claimedMilestoneIds?.includes(milestoneId)) {
-                  console.log(`[UserService] Milestone ${milestoneId} already claimed for user ${uid}`);
-                  return;
-              }
+              const inClaimedIds = Boolean(userData.claimedMilestoneIds?.includes(milestoneId));
+              const inClaimedBadges = Boolean(userData.claimedBadges?.some((b: any) => b?.milestoneId === milestoneId));
 
               // 2. Secondary check against dedicated claims collection (Fortress Guard)
               const claimSnap = await transaction.get(claimRecordRef);
-              if (claimSnap.exists()) {
-                  console.log(`[UserService] Milestone ${milestoneId} exists in claims record for user ${uid}`);
-                  // Repair the user doc if it was missing the ID
-                  transaction.update(userRef, {
-                      claimedMilestoneIds: arrayUnion(milestoneId)
-                  });
+              if (inClaimedIds || inClaimedBadges || claimSnap.exists()) {
+                  wasAlreadyClaimed = true;
+                  const repairPayload: Record<string, any> = {};
+                  if (!inClaimedIds) {
+                      repairPayload.claimedMilestoneIds = arrayUnion(milestoneId);
+                  }
+                  if (!inClaimedBadges) {
+                      repairPayload.claimedBadges = arrayUnion({
+                          milestoneId,
+                          claimedAt: claimSnap.exists() ? (claimSnap.data()?.claimedAt || nowIso) : nowIso,
+                          claimedCredit: points,
+                          processed: true
+                      });
+                  }
+                  if (Object.keys(repairPayload).length > 0) {
+                      transaction.update(userRef, repairPayload);
+                  }
+                  if (!claimSnap.exists()) {
+                      transaction.set(claimRecordRef, {
+                          userId: uid,
+                          milestoneId,
+                          points,
+                          claimedAt: nowIso,
+                          isAutoClaim
+                      });
+                  }
                   return;
               }
 
-              // 3. Log the transaction
+              // 3. Log the wallet_transactions ledger entry
               const transactionDocRef = doc(transRef);
               const transactionData = sanitizeData({
                   amount: points,
@@ -562,9 +584,20 @@ export const userService = {
                   description: `Claimed milestone: ${milestoneId}`,
                   auditId: milestoneId,
                   userId: uid,
-                  timestamp: new Date().toISOString()
+                  timestamp: nowIso
               });
               transaction.set(transactionDocRef, transactionData);
+
+              // 3b. Log inside user's transactions subcollection
+              transaction.set(userTransDocRef, sanitizeData({
+                  id: `milestone_${milestoneId}`,
+                  amount: points,
+                  type: 'credit',
+                  description: `Hall of Rise Milestone: ${milestoneId}`,
+                  auditId: milestoneId,
+                  timestamp: nowIso,
+                  status: 'completed'
+              }));
 
               // 4. Update user balance, claimed IDs, and claimed badges array for sync
               transaction.update(userRef, {
@@ -572,7 +605,7 @@ export const userService = {
                   claimedMilestoneIds: arrayUnion(milestoneId),
                   claimedBadges: arrayUnion({
                       milestoneId: milestoneId,
-                      claimedAt: new Date().toISOString(),
+                      claimedAt: nowIso,
                       claimedCredit: points,
                       processed: true
                   })
@@ -583,11 +616,15 @@ export const userService = {
                   userId: uid,
                   milestoneId: milestoneId,
                   points: points,
-                  claimedAt: new Date().toISOString(),
+                  claimedAt: nowIso,
                   isAutoClaim: isAutoClaim
               });
+
+              wasClaimed = true;
           });
-          
+
+          userMemoryCache.delete(uid);
+
           try {
             const storageKeyUnlocked = `vectorise_unlocked_milestones_${uid}`;
             const stored = localStorage.getItem(storageKeyUnlocked);
@@ -598,14 +635,22 @@ export const userService = {
             }
           } catch (e) {}
 
+          if (wasClaimed && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('vectorise:milestone-claimed', {
+              detail: { uid, milestoneId, points, claimedAt: nowIso }
+            }));
+          }
+
           // Only show notification if it's in the Hall of Rise (MILESTONES)
           const milestoneDef = MILESTONES.find(m => m.id === milestoneId);
-          if (isAutoClaim && milestoneDef) {
+          if (wasClaimed && isAutoClaim && milestoneDef) {
             queueNotification('success', `Bonus! +${points} Coins earned for ${milestoneDef.title}`, {
               description: "Keep rising!",
               duration: 3000,
             });
           }
+
+          return { claimed: wasClaimed, alreadyClaimed: wasAlreadyClaimed };
       } catch (error) {
           console.error("Error claiming milestone:", error);
           throw error;

@@ -43,9 +43,74 @@ export default async (req: any, res: any) => {
       return res.status(400).json({ error: "Integrity mismatch" });
     }
 
-    const { userId, sprintId, coinPackageId, coins } = paymentData || {};
+    const { userId, sprintId, trackId, coinPackageId, coins, isPreRegistration, preRegItemType, email, userName, selectedTier } = paymentData || {};
 
     await db.runTransaction(async (transaction: any) => {
+      if (isPreRegistration) {
+        const resolvedType: 'sprint' | 'track' = preRegItemType === 'track' || (trackId && !sprintId) ? 'track' : 'sprint';
+        const targetId = resolvedType === 'track' ? trackId : sprintId;
+        const cleanEmail = (email || '').trim().toLowerCase();
+        const safeEmail = cleanEmail.replace(/[^a-z0-9]/g, '_');
+        const resDocId = `${resolvedType}_${targetId}_${safeEmail}`;
+        const resRef = db.collection('launch_reservations').doc(resDocId);
+
+        const existingResSnap = await transaction.get(resRef);
+        let targetSnap: any = null;
+        if (targetId) {
+          if (resolvedType === 'track') {
+            targetSnap = await transaction.get(db.collection('tracks').doc(targetId));
+          } else {
+            for (const cat of ['Sprint', 'RiseBlog', 'Ignite', 'Challenge']) {
+              const sSnap = await transaction.get(db.collection('experiences').doc(cat).collection('items').doc(targetId).collection('sprintdetails').doc('info'));
+              if (sSnap.exists) {
+                targetSnap = sSnap;
+                break;
+              }
+            }
+            if (!targetSnap) {
+              const flatSnap = await transaction.get(db.collection('experiences').doc(targetId).collection('sprintdetails').doc('info'));
+              if (flatSnap.exists) targetSnap = flatSnap;
+            }
+          }
+        }
+
+        transaction.update(paymentRef, {
+          status: 'success',
+          paidAt: admin.firestore.FieldValue.serverTimestamp(),
+          amount: Number(amount),
+          currency: currency,
+          provider_transaction_id: flw_id,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        if (!existingResSnap.exists && targetId) {
+          const targetTitle = targetSnap?.exists ? (targetSnap.data()?.title || targetId) : targetId;
+          transaction.set(resRef, {
+            id: resDocId,
+            itemType: resolvedType,
+            itemId: targetId,
+            itemTitle: targetTitle,
+            email: cleanEmail,
+            name: userName || 'Vectorise User',
+            userId: userId && !String(userId).startsWith('guest_') ? userId : null,
+            selectedTier: selectedTier || null,
+            amountPaid: Number(amount),
+            currency: currency,
+            paymentRef: tx_ref,
+            status: 'reserved',
+            createdAt: new Date().toISOString()
+          });
+
+          if (targetSnap?.exists) {
+            transaction.update(targetSnap.ref, {
+              reservedCount: admin.firestore.FieldValue.increment(1),
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+        return;
+      }
+
       // Read phase first
       let existingEnrSnap: any = null;
       let sprintSnap: any = null;
@@ -158,16 +223,18 @@ export default async (req: any, res: any) => {
       }
     });
 
-    await db.collection('users').doc(userId).collection('notifications').add({
-      userId,
-      type: 'payment_success',
-      title: 'Growth Path Authorized',
-      body: `Registry verified. Your journey into '${sprintId}' has begun.`,
-      isRead: false,
-      pushSent: false,
-      createdAt: new Date().toISOString(),
-      actionUrl: `/participant/sprint/enrollment_${userId}_${sprintId}?day=1`
-    });
+    if (!userId.startsWith('guest_') && !isPreRegistration) {
+      await db.collection('users').doc(userId).collection('notifications').add({
+        userId,
+        type: 'payment_success',
+        title: 'Growth Path Authorized',
+        body: `Registry verified. Your journey into '${sprintId}' has begun.`,
+        isRead: false,
+        pushSent: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: `/participant/sprint/enrollment_${userId}_${sprintId}?day=1`
+      });
+    }
 
     return res.status(200).send('Webhook Processed Successfully');
   } catch (error: any) {

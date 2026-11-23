@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../contexts/AuthContext';
 import SprintCard from '../../components/SprintCard';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
+import { ClaimCoinQuickDrawer } from '../../components/ClaimCoinQuickDrawer';
 import ParticipantDrawerMenu from '../../components/ParticipantDrawerMenu';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
@@ -1130,8 +1131,17 @@ export const NextSprintRecommendation: React.FC = () => {
                                                 
         </div>
                                             
-        </div>
+                                        </div>
                                     )}
+
+                                    <ClaimCoinQuickDrawer
+                                        isCoinSprint={!isCashSprint}
+                                        onClaimed={(m) => {
+                                            if (userBalance + m.points >= sprintCost) {
+                                                setPaymentMethod('coins');
+                                            }
+                                        }}
+                                    />
 
                                     {/* Unlock Action Button */}
                                     <div className="pt-2">

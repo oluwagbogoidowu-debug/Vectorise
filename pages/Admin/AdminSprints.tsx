@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, AlertTriangle, Flame, BookOpen, Sparkles, Info, Settings, Share2, Link2, Check } from 'lucide-react';
+import { Trash2, AlertTriangle, Flame, BookOpen, Sparkles, Info, Settings, Share2, Link2, Check, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sprint } from '../../types';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { adminCache } from './adminCache';
 import SprintReviewsModal from '../../components/SprintReviewsModal';
+import { LaunchConfigModal, LaunchConfigPayload } from '../../components/LaunchConfigModal';
+import { getRemainingSlots } from '../../services/launchService';
 import {
   DEFAULT_REFERRAL_SHARE_TEXT,
   subscribeAdminSprintSettings,
@@ -24,6 +26,7 @@ const AdminSprints: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reviewSprint, setReviewSprint] = useState<Sprint | null>(null);
+  const [launchConfigSprint, setLaunchConfigSprint] = useState<Sprint | null>(null);
   const [referralShareText, setReferralShareText] = useState<string>('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
@@ -181,6 +184,27 @@ const AdminSprints: React.FC = () => {
       adminCache.sprints = reverted;
       toast.error("Failed to update status");
     }
+  };
+
+  const handleSaveLaunchConfig = async (config: LaunchConfigPayload) => {
+    if (!launchConfigSprint) return;
+    await sprintService.updateSprint(launchConfigSprint.id, {
+      isComingSoon: config.isComingSoon,
+      launchDate: config.launchDate,
+      preRegistrationEnabled: config.preRegistrationEnabled,
+      hasLimitedSlots: config.hasLimitedSlots,
+      slotLimit: config.slotLimit,
+    });
+    const updated = sprints.map((item) =>
+      item.id === launchConfigSprint.id ? { ...item, ...config } : item
+    );
+    setSprints(updated);
+    adminCache.sprints = updated;
+    toast.success(
+      config.isComingSoon
+        ? `${launchConfigSprint.title} set to Going Live Soon`
+        : `${launchConfigSprint.title} is back to standard launch mode`
+    );
   };
 
   if (isLoading) {
@@ -408,6 +432,16 @@ const AdminSprints: React.FC = () => {
                 <span className="px-2 py-1 bg-gray-50 rounded-lg">{s.duration} Days</span>
                 <span className="px-2 py-1 bg-gray-50 rounded-lg">{s.category}</span>
                 <span className={`px-2 py-1 rounded-lg ${s.approvalStatus === 'approved' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-500'}`}>{s.approvalStatus.replace('_', ' ')}</span>
+                {s.isComingSoon && (
+                  <span className="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200/70">
+                    Going Live Soon
+                  </span>
+                )}
+                {s.isComingSoon && getRemainingSlots(s) !== null && (
+                  <span className="px-2 py-1 rounded-lg bg-emerald-50 text-[#0E7850] border border-emerald-200/70">
+                    {getRemainingSlots(s)} slots left
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -453,6 +487,19 @@ const AdminSprints: React.FC = () => {
               )}
               <button
                 type="button"
+                onClick={() => setLaunchConfigSprint(s)}
+                className={`p-3 rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center justify-center ${
+                  s.isComingSoon
+                    ? 'bg-emerald-50 border-emerald-200 text-[#0E7850] hover:bg-emerald-100'
+                    : 'bg-white border-gray-100 text-gray-400 hover:text-[#0E7850] hover:bg-emerald-50/60'
+                }`}
+                title="Going Live Soon & Countdown Settings"
+                aria-label="Going Live Soon Settings"
+              >
+                <CalendarClock className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
                 onClick={() => setReviewSprint(s)}
                 className="p-3 bg-white border border-gray-100 text-gray-400 hover:text-primary hover:bg-emerald-50/60 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center justify-center"
                 title="View Completion Reviews"
@@ -480,6 +527,15 @@ const AdminSprints: React.FC = () => {
         isOpen={reviewSprint !== null}
         sprint={reviewSprint}
         onClose={() => setReviewSprint(null)}
+      />
+
+      {/* Going Live Soon Configuration Modal */}
+      <LaunchConfigModal
+        isOpen={launchConfigSprint !== null}
+        item={launchConfigSprint}
+        itemType="sprint"
+        onClose={() => setLaunchConfigSprint(null)}
+        onSave={handleSaveLaunchConfig}
       />
     </div>
   );

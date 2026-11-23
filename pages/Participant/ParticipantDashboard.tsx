@@ -24,6 +24,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import FormattedText from '../../components/FormattedText';
 import PagedSprintDescription from '../../components/PagedSprintDescription';
 import BottomModalCoinCards from '../../components/BottomModalCoinCards';
+import { ClaimCoinQuickDrawer } from '../../components/ClaimCoinQuickDrawer';
 import PushPermissionModal from '../../components/PushPermissionModal';
 import { streakService } from '../../services/streakService';
 import { blogService } from '../../services/blogService';
@@ -2408,6 +2409,16 @@ const ParticipantDashboard: React.FC = () => {
                                                     );
                                                 })()}
                                             </div>
+
+                                            <ClaimCoinQuickDrawer
+                                                isCoinSprint={!isRecommendedCashSprint}
+                                                onClaimed={(m) => {
+                                                    const currentBal = ((user as Participant)?.walletBalance ?? 0) + m.points;
+                                                    if (currentBal >= recommendedPricing.pointCost) {
+                                                        setPaymentMethod('coins');
+                                                    }
+                                                }}
+                                            />
 
                                             {/* Commitment Radio Button (Moved Below Instant Topup) */}
                                             <button 

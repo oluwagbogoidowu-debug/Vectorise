@@ -21,31 +21,22 @@ export default async (req: any, res: any) => {
     const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
     const redirectUrl = `${baseUrl}/api/payment-success`;
 
-    const { email, amount, sprintId, trackId, coinPackageId, coins, name, userId, currency = "NGN", selectedTier } = req.body || {};
+    const { email, amount, sprintId, trackId, coinPackageId, coins, name, userId, currency = "NGN", selectedTier, isPreRegistration, preRegItemType } = req.body || {};
     
     if (!email || !userId || (!sprintId && !trackId && !coinPackageId)) {
       return res.status(400).json({ error: "Mandatory fields missing (email, userId, sprintId, trackId or coinPackageId)" });
     }
 
     const tx_ref = `vec-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
-    if (!FLW_SECRET_KEY) {
-      console.warn("[Registry] Gateway Configuration Notice: FLW_SECRET_KEY is missing. Using seamless test/mock checkout fallback.");
-      return res.status(200).json({
-        status: "success",
-        message: "Hosted payment link generated (Test Mode)",
-        data: {
-          link: `${baseUrl}/api/payment-success?status=successful&tx_ref=${tx_ref}&test_mode=1`
-        }
-      });
-    }
     const paymentAmount = Number(amount);
 
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
       return res.status(400).json({ error: "Invalid payment amount specified." });
     }
 
-    // Save pending payment record safely in Firestore
+    const resolvedPreRegType = preRegItemType || (trackId ? 'track' : 'sprint');
+
+    // Save pending payment record safely in Firestore (works for both live & test-mode fallback)
     try {
       if (db) {
         await db.collection('payments').doc(tx_ref).set({
@@ -59,8 +50,11 @@ export default async (req: any, res: any) => {
             amount: paymentAmount,
             currency,
             selectedTier: selectedTier || null,
+            isPreRegistration: Boolean(isPreRegistration),
+            preRegItemType: isPreRegistration ? resolvedPreRegType : null,
             status: "pending",
             paymentProvider: "flutterwave",
+            testMode: !FLW_SECRET_KEY,
             txRef: tx_ref,
             initiatedAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
@@ -68,6 +62,17 @@ export default async (req: any, res: any) => {
       }
     } catch (dbErr: any) {
       console.warn("[Registry] Firestore pre-payment record non-fatal warning:", dbErr?.message);
+    }
+
+    if (!FLW_SECRET_KEY) {
+      console.warn("[Registry] Gateway Configuration Notice: FLW_SECRET_KEY is missing. Using seamless test/mock checkout fallback.");
+      return res.status(200).json({
+        status: "success",
+        message: "Hosted payment link generated (Test Mode)",
+        data: {
+          link: `${baseUrl}/api/payment-success?status=successful&tx_ref=${tx_ref}&test_mode=1`
+        }
+      });
     }
 
     // Initialize Flutterwave payment
@@ -86,8 +91,12 @@ export default async (req: any, res: any) => {
           redirect_url: redirectUrl,
           customer: { email, name: name || 'Vectorise User' },
           customizations: {
-            title: coinPackageId ? "Vectorise Coin Purchase" : (trackId ? "Vectorise Track Bundle" : "Vectorise Registry Authorization"),
-            description: coinPackageId ? `Coin Package: ${coins} Coins` : (trackId ? `Track Bundle: ${trackId}` : `Sprint Enrollment: ${sprintId}`)
+            title: isPreRegistration
+              ? "Vectorise Spot Reservation"
+              : (coinPackageId ? "Vectorise Coin Purchase" : (trackId ? "Vectorise Track Bundle" : "Vectorise Registry Authorization")),
+            description: isPreRegistration
+              ? `Reserve Spot: ${trackId || sprintId}`
+              : (coinPackageId ? `Coin Package: ${coins} Coins` : (trackId ? `Track Bundle: ${trackId}` : `Sprint Enrollment: ${sprintId}`))
           }
         })
       });

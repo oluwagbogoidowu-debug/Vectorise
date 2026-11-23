@@ -464,6 +464,13 @@ export interface Sprint {
   viewedBy?: InteractionUser[];
   likedBy?: InteractionUser[];
   readBy?: InteractionUser[];
+  isComingSoon?: boolean;
+  launchDate?: string;
+  preRegistrationEnabled?: boolean;
+  hasLimitedSlots?: boolean;
+  slotLimit?: number | null;
+  reservedCount?: number;
+  interestCount?: number;
 }
 
 export interface TaskVideoConfig {
@@ -879,6 +886,13 @@ export interface Track {
   starterQuestion?: TrackStarterQuestion;
   allowedReruns?: number;
   stories?: TrackStory[];
+  isComingSoon?: boolean;
+  launchDate?: string;
+  preRegistrationEnabled?: boolean;
+  hasLimitedSlots?: boolean;
+  slotLimit?: number | null;
+  reservedCount?: number;
+  interestCount?: number;
 }
 
 export interface WalletTransaction {

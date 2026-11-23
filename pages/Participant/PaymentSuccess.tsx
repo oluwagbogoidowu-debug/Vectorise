@@ -59,6 +59,19 @@ const PaymentSuccess: React.FC = () => {
                     if (data.coins) setCoinsAdded(data.coins);
                     clearInterval(pollInterval);
                     clearTimeout(timeoutFallback);
+
+                    // Pre-registration spot reservation confirmation: do not redirect to active Day 1 yet
+                    if (data.isPreRegistration) {
+                        if (data.trackId) {
+                            try {
+                                const t = await trackService.getTrackById(data.trackId);
+                                if (t) setUnlockedTrack(t);
+                            } catch (trackErr) {
+                                console.error("Error loading track details:", trackErr);
+                            }
+                        }
+                        return;
+                    }
                     
                     // If this is a track payment, fetch track info and show dedicated success screen
                     if (data.trackId) {
@@ -279,7 +292,41 @@ const PaymentSuccess: React.FC = () => {
                             </div>
                         </div>
                     ) : status === 'successful' ? (
-                        paymentData?.trackId || unlockedTrack ? (
+                        paymentData?.isPreRegistration ? (
+                            <div className="space-y-5 animate-slide-up text-center">
+                                <div className="w-16 h-16 bg-emerald-50 text-[#0E7850] rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-inner border border-emerald-100">
+                                    ✓
+                                </div>
+                                <div className="space-y-2">
+                                    <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-[#0E7850] text-[10px] font-black uppercase tracking-widest">
+                                        Spot Reserved
+                                    </span>
+                                    <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-tight">
+                                        Your spot is reserved!
+                                    </h1>
+                                    <p className="text-sm font-medium text-gray-600 leading-relaxed">
+                                        We&apos;ll send you an email at <span className="font-bold text-gray-900">{paymentData?.email || user?.email || 'your email'}</span> as soon as {unlockedTrack?.title || 'this launch'} goes live.
+                                    </p>
+                                </div>
+                                <div className="pt-2 space-y-2.5">
+                                    <button
+                                        onClick={() => {
+                                            if (paymentData?.trackId) {
+                                                navigate(`/track/${paymentData.trackId}`, { replace: true });
+                                            } else if (paymentData?.sprintId) {
+                                                navigate(`/sprint/${paymentData.sprintId}`, { replace: true });
+                                            } else {
+                                                navigate('/explore', { replace: true });
+                                            }
+                                        }}
+                                        className="w-full py-4 rounded-2xl bg-[#0E7850] hover:bg-[#085C3D] text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-[#0E7850]/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                                    >
+                                        <span>Back to Launch Page</span>
+                                        <ArrowRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ) : paymentData?.trackId || unlockedTrack ? (
                             <div className="space-y-5 animate-slide-up text-left">
                                 <div className="text-center space-y-2">
                                     <div className="w-14 h-14 bg-emerald-50 text-[#0E7850] rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-inner border border-emerald-100">

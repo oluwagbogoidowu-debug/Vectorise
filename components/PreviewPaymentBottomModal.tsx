@@ -12,6 +12,7 @@ import { Participant, ParticipantSprint, Sprint } from '../types';
 import { COIN_NAIRA_RATE, getSprintPaymentMode } from '../utils/sprintUtils';
 import { PricingTierId, resolveSprintPricingTiers } from '../utils/pricingTiers';
 import { triggerHaptic, hapticPatterns } from '../utils/haptics';
+import { ClaimCoinQuickDrawer } from './ClaimCoinQuickDrawer';
 
 interface PreviewPaymentBottomModalProps {
   isOpen: boolean;
@@ -577,6 +578,17 @@ export const PreviewPaymentBottomModal: React.FC<PreviewPaymentBottomModalProps>
                         </div>
                       )}
                     </div>
+                  )}
+
+                  {isCoinSprint && (
+                    <ClaimCoinQuickDrawer
+                      isCoinSprint={isCoinSprint}
+                      onClaimed={(m) => {
+                        if (chosenTier && userBalance + m.points >= activeCoinCost) {
+                          setSelectedMode('wallet');
+                        }
+                      }}
+                    />
                   )}
                 </div>
               </>

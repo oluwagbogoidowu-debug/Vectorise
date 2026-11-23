@@ -40,6 +40,7 @@ import { getEffectiveSprintPricing, doesPreviewEnrollmentRequirePayment } from "
 import { paymentService } from "../../services/paymentService";
 import BottomModalCoinCards from "../../components/BottomModalCoinCards";
 import PreviewPaymentBottomModal from "../../components/PreviewPaymentBottomModal";
+import { ClaimCoinQuickDrawer } from "../../components/ClaimCoinQuickDrawer";
 import { FullBleedProgressNoteSlide } from "../../components/FullBleedProgressNoteSlide";
 
 import SprintCard from "../../components/SprintCard";
@@ -5015,6 +5016,15 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                       </div>
                     </div>
                   )}
+
+                  <ClaimCoinQuickDrawer
+                    isCoinSprint={!isCashSprint}
+                    onClaimed={(m) => {
+                      if (userBalance + m.points >= rerunCost) {
+                        setRerunPaymentMethod('coins');
+                      }
+                    }}
+                  />
 
                   {/* Unlock Action Button */}
                   <div className="pt-2">
