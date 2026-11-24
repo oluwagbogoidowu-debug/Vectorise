@@ -14,6 +14,7 @@ import { getSprintCashPrice } from '../../utils/sprintUtils';
 import TrackStarterSetup from '../../components/TrackStarterSetup';
 import TrackStoriesSetup from '../../components/TrackStoriesSetup';
 import { ArrangeTrackSprints } from '../../components/ArrangeTrackSprints';
+import { GoingLiveSetupFields, LaunchConfigPayload, defaultLaunchIsoDate, validateLaunchConfig } from '../../components/LaunchConfigModal';
 
 const EditTrack: React.FC = () => {
     const { trackId } = useParams();
@@ -57,8 +58,14 @@ const EditTrack: React.FC = () => {
             pollOptions: [],
             pollSprintLinks: {},
             isSet: false
-        } as TrackStarterQuestion
+        } as TrackStarterQuestion,
+        isComingSoon: false,
+        launchDate: defaultLaunchIsoDate(),
+        preRegistrationEnabled: false,
+        hasLimitedSlots: false,
+        slotLimit: 50 as number | null
     });
+    const [launchStats, setLaunchStats] = useState({ interestCount: 0, reservedCount: 0 });
 
     useEffect(() => {
         if (!trackId) return;
@@ -83,7 +90,16 @@ const EditTrack: React.FC = () => {
                             pollOptions: [],
                             pollSprintLinks: {},
                             isSet: false
-                        }
+                        },
+                        isComingSoon: Boolean(track.isComingSoon),
+                        launchDate: track.launchDate || defaultLaunchIsoDate(),
+                        preRegistrationEnabled: Boolean(track.preRegistrationEnabled),
+                        hasLimitedSlots: Boolean(track.hasLimitedSlots),
+                        slotLimit: track.slotLimit && Number(track.slotLimit) > 0 ? Number(track.slotLimit) : 50
+                    });
+                    setLaunchStats({
+                        interestCount: track.interestCount || 0,
+                        reservedCount: track.reservedCount || 0
                     });
                 }
 
@@ -147,6 +163,20 @@ const EditTrack: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || !trackId || formData.sprintIds.length === 0) return;
+
+        const launchPayload: LaunchConfigPayload = {
+            isComingSoon: formData.isComingSoon,
+            launchDate: formData.launchDate,
+            preRegistrationEnabled: formData.isComingSoon ? formData.preRegistrationEnabled : false,
+            hasLimitedSlots: formData.isComingSoon && formData.preRegistrationEnabled ? formData.hasLimitedSlots : false,
+            slotLimit: formData.isComingSoon && formData.preRegistrationEnabled && formData.hasLimitedSlots ? formData.slotLimit : null,
+        };
+        const launchErr = validateLaunchConfig(launchPayload);
+        if (launchErr) {
+            toast.error(launchErr);
+            return;
+        }
+
         setIsSubmitting(true);
 
         const updatedTrack: Partial<Track> = {
@@ -161,7 +191,12 @@ const EditTrack: React.FC = () => {
             currency: selectedSprints[0]?.currency || 'NGN',
             starterQuestion: formData.starterQuestion,
             allowedReruns: formData.allowedReruns,
-            stories: formData.stories
+            stories: formData.stories,
+            isComingSoon: launchPayload.isComingSoon,
+            launchDate: launchPayload.launchDate,
+            preRegistrationEnabled: launchPayload.preRegistrationEnabled,
+            hasLimitedSlots: launchPayload.hasLimitedSlots,
+            slotLimit: launchPayload.slotLimit
         };
 
         try {
@@ -445,6 +480,23 @@ const EditTrack: React.FC = () => {
                                         {formData.published ? 'Published' : 'Draft'}
                                     </button>
                                 </div>
+                            </section>
+
+                            <section className="mt-8 pt-8 border-t border-gray-100">
+                                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Going Live Setup</h4>
+                                <GoingLiveSetupFields
+                                    value={{
+                                        isComingSoon: formData.isComingSoon,
+                                        launchDate: formData.launchDate,
+                                        preRegistrationEnabled: formData.preRegistrationEnabled,
+                                        hasLimitedSlots: formData.hasLimitedSlots,
+                                        slotLimit: formData.slotLimit,
+                                    }}
+                                    onChange={(next) => setFormData(prev => ({ ...prev, ...next }))}
+                                    interestCount={launchStats.interestCount}
+                                    reservedCount={launchStats.reservedCount}
+                                    showStats={true}
+                                />
                             </section>
                         </div>
 

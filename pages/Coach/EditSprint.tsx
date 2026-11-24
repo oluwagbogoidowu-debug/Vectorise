@@ -26,6 +26,7 @@ import FullBleedProgressNoteSlide from '../../components/FullBleedProgressNoteSl
 import SprintCompletionModal from '../../components/SprintCompletionModal';
 import { SwitchModeModal, hasMultipleModes } from '../../components/SwitchModeModal';
 import TagInput from '../../components/TagInput';
+import { GoingLiveSetupFields, defaultLaunchIsoDate, validateLaunchConfig } from '../../components/LaunchConfigModal';
 
 const extractYouTubeId = (url: string): string | null => {
   if (!url) return null;
@@ -207,6 +208,7 @@ const getPendingChanges = (original: Sprint, updated: Sprint): Partial<Sprint> =
         'title', 'subtitle', 'actionTrigger', 'coverImageUrl', 'transformation', 'description', 
         'category', 'difficulty', 'audience', 'overrideOrchestrator', 'price', 'standardPrice', 'completePrice', 'currency', 'pointCost', 
         'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays', 'referralText',
+        'isComingSoon', 'launchDate', 'preRegistrationEnabled', 'hasLimitedSlots', 'slotLimit',
         'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate', 'curriculumSource'
     ];
 
@@ -580,6 +582,7 @@ const EditSprint: React.FC = () => {
       'title', 'subtitle', 'coverImageUrl', 'transformation', 'description', 
       'category', 'difficulty', 'overrideOrchestrator', 'price', 'standardPrice', 'completePrice', 'currency', 'pointCost', 
       'pricingType', 'duration', 'protocol', 'outcomeTag', 'checkInReminder', 'checkInReminderDays', 'referralText',
+      'isComingSoon', 'launchDate', 'preRegistrationEnabled', 'hasLimitedSlots', 'slotLimit',
       'approvalStatus', 'published', 'blogBody', 'blogImage', 'igniteBody', 'igniteBgColor', 'igniteDate'
     ];
 
@@ -2612,7 +2615,24 @@ const EditSprint: React.FC = () => {
 
   const handleApplySettings = async () => {
     if (!sprint || !originalSprint) return;
+
+    const launchValidationErr = validateLaunchConfig({
+      isComingSoon: Boolean(editSettings.isComingSoon),
+      launchDate: editSettings.launchDate || defaultLaunchIsoDate(),
+      preRegistrationEnabled: Boolean(editSettings.preRegistrationEnabled),
+      hasLimitedSlots: Boolean(editSettings.hasLimitedSlots),
+      slotLimit: editSettings.slotLimit ?? null,
+    });
+    if (launchValidationErr) {
+      toast.error(launchValidationErr);
+      return;
+    }
+
     setSettingsSaveStatus('saving');
+
+    const normalizedComingSoon = Boolean(editSettings.isComingSoon);
+    const normalizedPreReg = normalizedComingSoon ? Boolean(editSettings.preRegistrationEnabled) : false;
+    const normalizedLimitedSlots = normalizedComingSoon && normalizedPreReg ? Boolean(editSettings.hasLimitedSlots) : false;
 
     // 2. Prepare updated data
     let updatedSprintData: Partial<Sprint> = {
@@ -2637,6 +2657,11 @@ const EditSprint: React.FC = () => {
       checkInReminder: editSettings.checkInReminder || false,
       checkInReminderDays: editSettings.checkInReminderDays || 7,
       referralText: editSettings.referralText || '',
+      isComingSoon: normalizedComingSoon,
+      launchDate: normalizedComingSoon ? (editSettings.launchDate || defaultLaunchIsoDate()) : (editSettings.launchDate || ''),
+      preRegistrationEnabled: normalizedPreReg,
+      hasLimitedSlots: normalizedLimitedSlots,
+      slotLimit: normalizedLimitedSlots ? (editSettings.slotLimit ?? 50) : null,
       versionNumber: editSettings.versionNumber ?? 1,
       versionTag: editSettings.versionTag || ''
     };
@@ -8639,6 +8664,24 @@ const EditSprint: React.FC = () => {
                                         placeholder="Leave blank to use global referral text from Admin -> Sprints -> Sprint Settings. Optional tokens: {sprintTitle}, {link}"
                                     />
                                 </div>
+                                <div className="sm:col-span-2 pt-4 mt-2 border-t border-primary/10">
+                                    <label className="text-[10px] font-black text-primary uppercase tracking-widest mb-3 block">
+                                        Going Live Setup
+                                    </label>
+                                    <GoingLiveSetupFields
+                                        value={{
+                                            isComingSoon: Boolean(editSettings.isComingSoon),
+                                            launchDate: editSettings.launchDate || defaultLaunchIsoDate(),
+                                            preRegistrationEnabled: Boolean(editSettings.preRegistrationEnabled),
+                                            hasLimitedSlots: Boolean(editSettings.hasLimitedSlots),
+                                            slotLimit: editSettings.slotLimit ?? null,
+                                        }}
+                                        onChange={next => setEditSettings({ ...editSettings, ...next })}
+                                        interestCount={sprint?.interestCount || 0}
+                                        reservedCount={sprint?.reservedCount || 0}
+                                        showStats={true}
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -9077,19 +9120,41 @@ const EditSprint: React.FC = () => {
                         })}
 
                         {isAdmin && (
-                          <section className="space-y-4 pt-6 border-t border-gray-100">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center text-primary text-xs font-black">05</div>
-                              <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Admin Referral Text Override</h4>
-                            </div>
-                            <textarea
-                              rows={3}
-                              value={editSettings.referralText || ''}
-                              onChange={e => setEditSettings({...editSettings, referralText: e.target.value})}
-                              className={registryInputClasses + " resize-y"}
-                              placeholder="Leave blank to use the global referral text written in Admin -> Sprints -> Sprint Settings. Optional tokens: {sprintTitle}, {link}"
-                            />
-                          </section>
+                          <>
+                            <section className="space-y-4 pt-6 border-t border-gray-100">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center text-primary text-xs font-black">05</div>
+                                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Admin Referral Text Override</h4>
+                              </div>
+                              <textarea
+                                rows={3}
+                                value={editSettings.referralText || ''}
+                                onChange={e => setEditSettings({...editSettings, referralText: e.target.value})}
+                                className={registryInputClasses + " resize-y"}
+                                placeholder="Leave blank to use the global referral text written in Admin -> Sprints -> Sprint Settings. Optional tokens: {sprintTitle}, {link}"
+                              />
+                            </section>
+
+                            <section className="space-y-4 pt-6 border-t border-gray-100">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-primary/10 rounded-xl flex items-center justify-center text-primary text-xs font-black">06</div>
+                                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest">Going Live Setup</h4>
+                              </div>
+                              <GoingLiveSetupFields
+                                value={{
+                                  isComingSoon: Boolean(editSettings.isComingSoon),
+                                  launchDate: editSettings.launchDate || defaultLaunchIsoDate(),
+                                  preRegistrationEnabled: Boolean(editSettings.preRegistrationEnabled),
+                                  hasLimitedSlots: Boolean(editSettings.hasLimitedSlots),
+                                  slotLimit: editSettings.slotLimit ?? null,
+                                }}
+                                onChange={next => setEditSettings({ ...editSettings, ...next })}
+                                interestCount={sprint?.interestCount || 0}
+                                reservedCount={sprint?.reservedCount || 0}
+                                showStats={true}
+                              />
+                            </section>
+                          </>
                         )}
                     </>
                 )}

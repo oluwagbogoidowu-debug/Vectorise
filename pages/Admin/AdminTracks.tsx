@@ -5,11 +5,17 @@ import { Track, Sprint } from '../../types';
 import { trackService } from '../../services/trackService';
 import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
-import { Edit2, Trash2, Eye, Package, AlertTriangle, Copy, Check, Sparkles, CalendarClock } from 'lucide-react';
+import { Edit2, Trash2, Eye, Package, AlertTriangle, Copy, Check, Sparkles, CalendarClock, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminCache } from './adminCache';
 import { getSprintCashPrice } from '../../utils/sprintUtils';
-import { LaunchConfigModal, LaunchConfigPayload } from '../../components/LaunchConfigModal';
+import {
+    LaunchConfigModal,
+    LaunchConfigPayload,
+    GoingLiveSetupFields,
+    defaultLaunchIsoDate,
+    validateLaunchConfig,
+} from '../../components/LaunchConfigModal';
 import { getRemainingSlots } from '../../services/launchService';
 
 const AdminTracks: React.FC = () => {
@@ -21,6 +27,18 @@ const AdminTracks: React.FC = () => {
     const [isDeleting, setIsDeleting] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [launchConfigTrack, setLaunchConfigTrack] = useState<Track | null>(null);
+    const [activeTab, setActiveTab] = useState<'tracks' | 'settings'>('tracks');
+    const [selectedSettingsTrackId, setSelectedSettingsTrackId] = useState<string>('');
+    const [inlineLaunchConfig, setInlineLaunchConfig] = useState<LaunchConfigPayload>({
+        isComingSoon: false,
+        launchDate: defaultLaunchIsoDate(),
+        preRegistrationEnabled: false,
+        hasLimitedSlots: false,
+        slotLimit: 50,
+    });
+    const [inlineLaunchError, setInlineLaunchError] = useState<string>('');
+    const [isSavingInlineLaunch, setIsSavingInlineLaunch] = useState(false);
+    const [inlineLaunchSaved, setInlineLaunchSaved] = useState(false);
 
     const handleCopyLink = async (trackId: string) => {
         const url = `${window.location.origin}/track/${trackId}`;
@@ -111,6 +129,86 @@ const AdminTracks: React.FC = () => {
         };
     }, []);
 
+    const selectedSettingsTrack = useMemo(
+        () => tracks.find((t) => t.id === selectedSettingsTrackId) || tracks[0] || null,
+        [tracks, selectedSettingsTrackId]
+    );
+
+    useEffect(() => {
+        if (!selectedSettingsTrackId && tracks.length > 0) {
+            setSelectedSettingsTrackId(tracks[0].id);
+        }
+    }, [tracks, selectedSettingsTrackId]);
+
+    useEffect(() => {
+        if (!selectedSettingsTrack) return;
+        setInlineLaunchConfig({
+            isComingSoon: Boolean(selectedSettingsTrack.isComingSoon),
+            launchDate: selectedSettingsTrack.launchDate || defaultLaunchIsoDate(),
+            preRegistrationEnabled: Boolean(selectedSettingsTrack.preRegistrationEnabled),
+            hasLimitedSlots: Boolean(selectedSettingsTrack.hasLimitedSlots),
+            slotLimit:
+                selectedSettingsTrack.slotLimit && Number(selectedSettingsTrack.slotLimit) > 0
+                    ? Number(selectedSettingsTrack.slotLimit)
+                    : 50,
+        });
+        setInlineLaunchError('');
+    }, [selectedSettingsTrack?.id]);
+
+    const handleSaveInlineLaunchSetup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedSettingsTrack) return;
+        const validationErr = validateLaunchConfig(inlineLaunchConfig);
+        if (validationErr) {
+            setInlineLaunchError(validationErr);
+            return;
+        }
+
+        setInlineLaunchError('');
+        setIsSavingInlineLaunch(true);
+        setInlineLaunchSaved(false);
+        try {
+            const payload: LaunchConfigPayload = {
+                isComingSoon: inlineLaunchConfig.isComingSoon,
+                launchDate: inlineLaunchConfig.launchDate,
+                preRegistrationEnabled: inlineLaunchConfig.isComingSoon
+                    ? inlineLaunchConfig.preRegistrationEnabled
+                    : false,
+                hasLimitedSlots:
+                    inlineLaunchConfig.isComingSoon && inlineLaunchConfig.preRegistrationEnabled
+                        ? inlineLaunchConfig.hasLimitedSlots
+                        : false,
+                slotLimit:
+                    inlineLaunchConfig.isComingSoon &&
+                    inlineLaunchConfig.preRegistrationEnabled &&
+                    inlineLaunchConfig.hasLimitedSlots
+                        ? inlineLaunchConfig.slotLimit
+                        : null,
+            };
+            await trackService.updateTrack(selectedSettingsTrack.id, payload);
+            const updatedTracks = tracks.map((t) =>
+                t.id === selectedSettingsTrack.id ? { ...t, ...payload } : t
+            );
+            setTracks(updatedTracks);
+            if (adminCache.tracks) {
+                adminCache.tracks.tracks = updatedTracks;
+            }
+            setInlineLaunchSaved(true);
+            toast.success(
+                payload.isComingSoon
+                    ? `${selectedSettingsTrack.title} set to Going Live Soon`
+                    : `${selectedSettingsTrack.title} updated to standard launch mode`
+            );
+            setTimeout(() => setInlineLaunchSaved(false), 2500);
+        } catch (err: any) {
+            console.error('Error saving track going live setup:', err);
+            setInlineLaunchError(err?.message || 'Failed to save Going Live setup.');
+            toast.error('Failed to save Going Live setup');
+        } finally {
+            setIsSavingInlineLaunch(false);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -164,6 +262,115 @@ const AdminTracks: React.FC = () => {
                 </div>
             )}
 
+            {/* Tabbed Interface Selector (Tracks, Track Settings) */}
+            <div className="flex justify-start">
+                <div className="inline-flex bg-gray-100 p-1 rounded-2xl gap-0.5">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('tracks')}
+                        className={`flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            activeTab === 'tracks' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        <Package className="w-3.5 h-3.5" />
+                        <span>Tracks</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('settings')}
+                        className={`flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            activeTab === 'settings' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-650'
+                        }`}
+                    >
+                        <Settings className="w-3.5 h-3.5" />
+                        <span>Track Settings</span>
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === 'settings' ? (
+                <form
+                    onSubmit={handleSaveInlineLaunchSetup}
+                    className="max-w-3xl bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6"
+                >
+                    <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-5">
+                        <div className="space-y-1.5">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-[#0E7850] border border-emerald-100 text-[9px] font-black uppercase tracking-widest">
+                                <CalendarClock className="w-3 h-3" />
+                                <span>Launch Countdown &amp; Pre-Registration</span>
+                            </div>
+                            <h3 className="text-xl font-black text-gray-900 tracking-tight">
+                                Track Going Live Setup
+                            </h3>
+                            <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                                Select a track bundle to configure its Coming Soon countdown timer, Show Interest notifications, and Reserve My Spot slot capacity.
+                            </p>
+                        </div>
+                    </div>
+
+                    {tracks.length === 0 ? (
+                        <p className="text-xs text-gray-400 font-bold py-4">No track bundles created yet.</p>
+                    ) : (
+                        <>
+                            <div className="space-y-2">
+                                <label
+                                    htmlFor="admin-track-launch-selector"
+                                    className="text-[10px] font-black text-gray-500 uppercase tracking-widest block"
+                                >
+                                    Select Track
+                                </label>
+                                <select
+                                    id="admin-track-launch-selector"
+                                    value={selectedSettingsTrack?.id || ''}
+                                    onChange={(e) => setSelectedSettingsTrackId(e.target.value)}
+                                    className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-black text-gray-900 focus:bg-white focus:border-[#0E7850] focus:ring-2 focus:ring-[#0E7850]/15 outline-none"
+                                >
+                                    {tracks.map((tr) => (
+                                        <option key={tr.id} value={tr.id}>
+                                            {tr.title}
+                                            {tr.isComingSoon ? ' (Going Live Soon)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {selectedSettingsTrack && (
+                                <GoingLiveSetupFields
+                                    value={inlineLaunchConfig}
+                                    onChange={setInlineLaunchConfig}
+                                    interestCount={selectedSettingsTrack.interestCount || 0}
+                                    reservedCount={selectedSettingsTrack.reservedCount || 0}
+                                    showStats={true}
+                                />
+                            )}
+
+                            {inlineLaunchError && (
+                                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-600">
+                                    {inlineLaunchError}
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <Button
+                                    type="submit"
+                                    disabled={isSavingInlineLaunch || !selectedSettingsTrack}
+                                    className="px-7 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2"
+                                >
+                                    {inlineLaunchSaved ? (
+                                        <>
+                                            <Check className="w-4 h-4" />
+                                            <span>Saved</span>
+                                        </>
+                                    ) : (
+                                        <span>{isSavingInlineLaunch ? 'Saving...' : 'Save Going Live Setup'}</span>
+                                    )}
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </form>
+            ) : (
+            <>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
                 <div>
                     <h3 className="text-2xl font-black text-gray-900 tracking-tight italic">Track Bundles</h3>
@@ -318,6 +525,8 @@ const AdminTracks: React.FC = () => {
                     </div>
                 )}
             </div>
+            </>
+            )}
 
             {/* Going Live Soon Configuration Modal */}
             <LaunchConfigModal

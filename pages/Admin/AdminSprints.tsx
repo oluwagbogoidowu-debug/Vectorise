@@ -7,7 +7,13 @@ import { sprintService } from '../../services/sprintService';
 import Button from '../../components/Button';
 import { adminCache } from './adminCache';
 import SprintReviewsModal from '../../components/SprintReviewsModal';
-import { LaunchConfigModal, LaunchConfigPayload } from '../../components/LaunchConfigModal';
+import {
+  LaunchConfigModal,
+  LaunchConfigPayload,
+  GoingLiveSetupFields,
+  defaultLaunchIsoDate,
+  validateLaunchConfig,
+} from '../../components/LaunchConfigModal';
 import { getRemainingSlots } from '../../services/launchService';
 import {
   DEFAULT_REFERRAL_SHARE_TEXT,
@@ -27,6 +33,17 @@ const AdminSprints: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [reviewSprint, setReviewSprint] = useState<Sprint | null>(null);
   const [launchConfigSprint, setLaunchConfigSprint] = useState<Sprint | null>(null);
+  const [selectedSettingsSprintId, setSelectedSettingsSprintId] = useState<string>('');
+  const [inlineLaunchConfig, setInlineLaunchConfig] = useState<LaunchConfigPayload>({
+    isComingSoon: false,
+    launchDate: defaultLaunchIsoDate(),
+    preRegistrationEnabled: false,
+    hasLimitedSlots: false,
+    slotLimit: 50,
+  });
+  const [inlineLaunchError, setInlineLaunchError] = useState<string>('');
+  const [isSavingInlineLaunch, setIsSavingInlineLaunch] = useState(false);
+  const [inlineLaunchSaved, setInlineLaunchSaved] = useState(false);
   const [referralShareText, setReferralShareText] = useState<string>('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
@@ -58,6 +75,89 @@ const AdminSprints: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  const selectableSprintsForLaunch = useMemo(
+    () => sprints.filter((s) => !s.contentType || s.contentType === 'sprint'),
+    [sprints]
+  );
+
+  const selectedSettingsSprint = useMemo(
+    () => selectableSprintsForLaunch.find((s) => s.id === selectedSettingsSprintId) || selectableSprintsForLaunch[0] || null,
+    [selectableSprintsForLaunch, selectedSettingsSprintId]
+  );
+
+  useEffect(() => {
+    if (!selectedSettingsSprintId && selectableSprintsForLaunch.length > 0) {
+      setSelectedSettingsSprintId(selectableSprintsForLaunch[0].id);
+    }
+  }, [selectableSprintsForLaunch, selectedSettingsSprintId]);
+
+  useEffect(() => {
+    if (!selectedSettingsSprint) return;
+    setInlineLaunchConfig({
+      isComingSoon: Boolean(selectedSettingsSprint.isComingSoon),
+      launchDate: selectedSettingsSprint.launchDate || defaultLaunchIsoDate(),
+      preRegistrationEnabled: Boolean(selectedSettingsSprint.preRegistrationEnabled),
+      hasLimitedSlots: Boolean(selectedSettingsSprint.hasLimitedSlots),
+      slotLimit:
+        selectedSettingsSprint.slotLimit && Number(selectedSettingsSprint.slotLimit) > 0
+          ? Number(selectedSettingsSprint.slotLimit)
+          : 50,
+    });
+    setInlineLaunchError('');
+  }, [selectedSettingsSprint?.id]);
+
+  const handleSaveInlineLaunchSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSettingsSprint) return;
+    const validationErr = validateLaunchConfig(inlineLaunchConfig);
+    if (validationErr) {
+      setInlineLaunchError(validationErr);
+      return;
+    }
+
+    setInlineLaunchError('');
+    setIsSavingInlineLaunch(true);
+    setInlineLaunchSaved(false);
+    try {
+      const payload: LaunchConfigPayload = {
+        isComingSoon: inlineLaunchConfig.isComingSoon,
+        launchDate: inlineLaunchConfig.launchDate,
+        preRegistrationEnabled: inlineLaunchConfig.isComingSoon
+          ? inlineLaunchConfig.preRegistrationEnabled
+          : false,
+        hasLimitedSlots:
+          inlineLaunchConfig.isComingSoon && inlineLaunchConfig.preRegistrationEnabled
+            ? inlineLaunchConfig.hasLimitedSlots
+            : false,
+        slotLimit:
+          inlineLaunchConfig.isComingSoon &&
+          inlineLaunchConfig.preRegistrationEnabled &&
+          inlineLaunchConfig.hasLimitedSlots
+            ? inlineLaunchConfig.slotLimit
+            : null,
+      };
+      await sprintService.updateSprint(selectedSettingsSprint.id, payload);
+      const updated = sprints.map((item) =>
+        item.id === selectedSettingsSprint.id ? { ...item, ...payload } : item
+      );
+      setSprints(updated);
+      adminCache.sprints = updated;
+      setInlineLaunchSaved(true);
+      toast.success(
+        payload.isComingSoon
+          ? `${selectedSettingsSprint.title} set to Going Live Soon`
+          : `${selectedSettingsSprint.title} updated to standard launch mode`
+      );
+      setTimeout(() => setInlineLaunchSaved(false), 2500);
+    } catch (err: any) {
+      console.error('Failed saving inline sprint launch setup:', err);
+      setInlineLaunchError(err?.message || 'Failed to save Going Live setup.');
+      toast.error('Failed to save Going Live setup');
+    } finally {
+      setIsSavingInlineLaunch(false);
+    }
+  };
 
   const handleSaveSprintSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -319,9 +419,10 @@ const AdminSprints: React.FC = () => {
       </div>
 
       {activeTab === 'settings' ? (
+        <div className="space-y-8 max-w-3xl">
         <form
           onSubmit={handleSaveSprintSettings}
-          className="max-w-3xl bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6"
+          className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6"
         >
           <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-5">
             <div className="space-y-1.5">
@@ -415,6 +516,89 @@ const AdminSprints: React.FC = () => {
             </Button>
           </div>
         </form>
+
+        {/* Going Live Setup Section inside Sprint Settings */}
+        <form
+          onSubmit={handleSaveInlineLaunchSetup}
+          className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-5">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-[#0E7850] border border-emerald-100 text-[9px] font-black uppercase tracking-widest">
+                <CalendarClock className="w-3 h-3" />
+                <span>Launch Countdown &amp; Pre-Registration</span>
+              </div>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight">
+                Going Live Setup
+              </h3>
+              <p className="text-xs text-gray-500 font-medium leading-relaxed">
+                Select a sprint to configure its Coming Soon countdown timer, Show Interest notifications, and Reserve My Spot capacity limits.
+              </p>
+            </div>
+          </div>
+
+          {selectableSprintsForLaunch.length === 0 ? (
+            <p className="text-xs text-gray-400 font-bold py-4">No sprints available yet.</p>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label
+                  htmlFor="admin-sprint-launch-selector"
+                  className="text-[10px] font-black text-gray-500 uppercase tracking-widest block"
+                >
+                  Select Sprint
+                </label>
+                <select
+                  id="admin-sprint-launch-selector"
+                  value={selectedSettingsSprint?.id || ''}
+                  onChange={(e) => setSelectedSettingsSprintId(e.target.value)}
+                  className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-black text-gray-900 focus:bg-white focus:border-[#0E7850] focus:ring-2 focus:ring-[#0E7850]/15 outline-none"
+                >
+                  {selectableSprintsForLaunch.map((sp) => (
+                    <option key={sp.id} value={sp.id}>
+                      {sp.title}
+                      {sp.isComingSoon ? ' (Going Live Soon)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedSettingsSprint && (
+                <GoingLiveSetupFields
+                  value={inlineLaunchConfig}
+                  onChange={setInlineLaunchConfig}
+                  interestCount={selectedSettingsSprint.interestCount || 0}
+                  reservedCount={selectedSettingsSprint.reservedCount || 0}
+                  showStats={true}
+                />
+              )}
+
+              {inlineLaunchError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-600">
+                  {inlineLaunchError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  type="submit"
+                  disabled={isSavingInlineLaunch || !selectedSettingsSprint}
+                  className="px-7 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2"
+                >
+                  {inlineLaunchSaved ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Saved</span>
+                    </>
+                  ) : (
+                    <span>{isSavingInlineLaunch ? 'Saving...' : 'Save Going Live Setup'}</span>
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </form>
+        </div>
       ) : (
       <>
       <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar border-b border-gray-50">

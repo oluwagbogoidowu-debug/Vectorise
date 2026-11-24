@@ -14,6 +14,7 @@ import { getSprintCashPrice } from '../../utils/sprintUtils';
 import TrackStarterSetup from '../../components/TrackStarterSetup';
 import TrackStoriesSetup from '../../components/TrackStoriesSetup';
 import { ArrangeTrackSprints } from '../../components/ArrangeTrackSprints';
+import { GoingLiveSetupFields, LaunchConfigPayload, defaultLaunchIsoDate, validateLaunchConfig } from '../../components/LaunchConfigModal';
 
 const CreateTrack: React.FC = () => {
     const navigate = useNavigate();
@@ -38,7 +39,12 @@ const CreateTrack: React.FC = () => {
             pollOptions: [],
             pollSprintLinks: {},
             isSet: false
-        } as TrackStarterQuestion
+        } as TrackStarterQuestion,
+        isComingSoon: false,
+        launchDate: defaultLaunchIsoDate(),
+        preRegistrationEnabled: false,
+        hasLimitedSlots: false,
+        slotLimit: 50 as number | null
     });
 
     useEffect(() => {
@@ -96,6 +102,20 @@ const CreateTrack: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || formData.sprintIds.length === 0) return;
+
+        const launchPayload: LaunchConfigPayload = {
+            isComingSoon: formData.isComingSoon,
+            launchDate: formData.launchDate,
+            preRegistrationEnabled: formData.isComingSoon ? formData.preRegistrationEnabled : false,
+            hasLimitedSlots: formData.isComingSoon && formData.preRegistrationEnabled ? formData.hasLimitedSlots : false,
+            slotLimit: formData.isComingSoon && formData.preRegistrationEnabled && formData.hasLimitedSlots ? formData.slotLimit : null,
+        };
+        const launchErr = validateLaunchConfig(launchPayload);
+        if (launchErr) {
+            toast.error(launchErr);
+            return;
+        }
+
         setIsSubmitting(true);
 
         const trackId = `track_${Date.now()}`;
@@ -113,7 +133,12 @@ const CreateTrack: React.FC = () => {
             currency: selectedSprints[0]?.currency || 'NGN',
             starterQuestion: formData.starterQuestion,
             allowedReruns: formData.allowedReruns,
-            stories: formData.stories
+            stories: formData.stories,
+            isComingSoon: launchPayload.isComingSoon,
+            launchDate: launchPayload.launchDate,
+            preRegistrationEnabled: launchPayload.preRegistrationEnabled,
+            hasLimitedSlots: launchPayload.hasLimitedSlots,
+            slotLimit: launchPayload.slotLimit
         };
 
         try {
@@ -278,6 +303,21 @@ const CreateTrack: React.FC = () => {
                                         </p>
                                     </div>
                                 </div>
+                            </section>
+
+                            <section className="mt-8 pt-8 border-t border-gray-100">
+                                <h4 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Going Live Setup</h4>
+                                <GoingLiveSetupFields
+                                    value={{
+                                        isComingSoon: formData.isComingSoon,
+                                        launchDate: formData.launchDate,
+                                        preRegistrationEnabled: formData.preRegistrationEnabled,
+                                        hasLimitedSlots: formData.hasLimitedSlots,
+                                        slotLimit: formData.slotLimit,
+                                    }}
+                                    onChange={(next) => setFormData(prev => ({ ...prev, ...next }))}
+                                    showStats={false}
+                                />
                             </section>
                         </div>
 
