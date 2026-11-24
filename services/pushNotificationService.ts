@@ -160,8 +160,8 @@ export const pushNotificationService = {
         throw new Error('Notification permission denied.');
       }
 
-      // 3. Fetch VAPID Key from endpoint
-      const response = await fetch('/api/vapid-key');
+      // 3. Fetch VAPID Key from unified notifications endpoint
+      const response = await fetch('/api/notifications?action=vapid-key');
       if (!response.ok) throw new Error('Failed to fetch VAPID key');
       const { publicKey } = await response.json();
 
@@ -198,10 +198,10 @@ export const pushNotificationService = {
       });
 
       // 7. Sync with subscription record on backend
-      const responseSub = await fetch('/api/subscribe', {
+      const responseSub = await fetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sanitizeData({ userId, fcmToken, timezone: tz, timezoneOffsetMinutes: offset }))
+        body: JSON.stringify(sanitizeData({ action: 'subscribe', userId, fcmToken, timezone: tz, timezoneOffsetMinutes: offset }))
       });
 
       if (!responseSub.ok) {

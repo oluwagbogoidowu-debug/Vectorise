@@ -13,9 +13,7 @@ import paymentSuccess from './api/payment-success';
 import initiatePayment from './api/flutterwave/initiate';
 import checkStatus from './api/flutterwave/check-status';
 import webhook from './api/flutterwave/webhook';
-import vapidKeyHandler from './api/vapid-key';
-import subscribeHandler from './api/subscribe';
-import sendHandler from './api/send';
+import notificationsHandler from './api/notifications/index';
 import ogHandler from './api/og';
 import geminiResearchHandler from './api/gemini/research';
 import {
@@ -51,9 +49,10 @@ async function startServer() {
   app.post('/api/flutterwave/webhook', webhook);
   app.get('/api/payment-success', paymentSuccess);
   app.get('/payment-success', paymentSuccess);
-  app.get('/api/vapid-key', vapidKeyHandler);
-  app.post('/api/subscribe', subscribeHandler);
-  app.post('/api/send', sendHandler);
+  app.all('/api/notifications', notificationsHandler);
+  app.get('/api/vapid-key', notificationsHandler);
+  app.post(['/api/subscribe', '/api/notifications/subscribe'], notificationsHandler);
+  app.post('/api/send', notificationsHandler);
   app.get('/api/og', ogHandler);
   app.post('/api/gemini/research', geminiResearchHandler);
 
@@ -268,24 +267,6 @@ Sitemap: ${baseUrl}/sitemap.xml`;
     }
   });
 
-  app.post(['/api/subscribe', '/api/notifications/subscribe'], async (req, res) => {
-    const { userId, subscription, fcmToken, timezone, timezoneOffsetMinutes } = req.body;
-    const token = fcmToken || subscription;
-    if (!userId || !token) return res.status(400).json({ error: 'userId and fcmToken/subscription are required' });
-    try {
-      const success = await pushNotificationManager.saveSubscription(userId, token);
-      if (timezone || typeof timezoneOffsetMinutes === 'number') {
-        await db.collection('users').doc(userId).update({
-          timezone: timezone || 'UTC',
-          tz: timezone || 'UTC',
-          timezoneOffsetMinutes: typeof timezoneOffsetMinutes === 'number' ? timezoneOffsetMinutes : 0
-        }).catch(() => {});
-      }
-      res.json({ success });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to save subscription' });
-    }
-  });
 
   app.post('/api/notifications/save-sprint-reminder', async (req, res) => {
     const { userId, sprintId, enrollmentId, reminderConfig, timezone, timezoneOffsetMinutes } = req.body;
