@@ -909,23 +909,6 @@ const SprintLandingPage: React.FC = () => {
                     <div className={!isFromEditPreview && (enrollmentStatus === 'active' || enrollmentStatus === 'queued') ? "lg:col-span-8" : "lg:col-span-12 max-w-3xl mx-auto w-full"}>
                         {/* MAIN CONTENT */}
                         <div className="space-y-6">
-                            {isComingSoonSprint && (
-                                <ComingSoonLaunchSection
-                                    item={sprint}
-                                    itemType="sprint"
-                                    countdown={launchActions.countdown}
-                                    remainingSlots={launchActions.remainingSlots}
-                                    isFull={launchActions.isFull}
-                                    hasShownInterest={launchActions.hasShownInterest}
-                                    hasReservedSpot={launchActions.hasReservedSpot}
-                                    isRecordingInterest={launchActions.isRecordingInterest}
-                                    isReservingSpot={launchActions.isReservingSpot}
-                                    onShowInterest={launchActions.handleShowInterest}
-                                    onReserveSpot={launchActions.handleReserveSpot}
-                                    priceLabel={comingSoonPriceLabel}
-                                />
-                            )}
-
                             {(displayDescription || hasDynamicContent) && (
                                 <section className="animate-fade-in py-1">
                                     <SectionHeading>Sprint Overview</SectionHeading>
@@ -1037,6 +1020,24 @@ const SprintLandingPage: React.FC = () => {
                                         })}
                                     </div>
                                 </section>
+                            )}
+
+                            {isComingSoonSprint && (
+                                <ComingSoonLaunchSection
+                                    item={sprint}
+                                    itemType="sprint"
+                                    countdown={launchActions.countdown}
+                                    remainingSlots={launchActions.remainingSlots}
+                                    isFull={launchActions.isFull}
+                                    hasShownInterest={launchActions.hasShownInterest}
+                                    hasReservedSpot={launchActions.hasReservedSpot}
+                                    isRecordingInterest={launchActions.isRecordingInterest}
+                                    isReservingSpot={launchActions.isReservingSpot}
+                                    onShowInterest={launchActions.handleShowInterest}
+                                    onReserveSpot={launchActions.handleReserveSpot}
+                                    priceLabel={comingSoonPriceLabel}
+                                    countdownOnly={true}
+                                />
                             )}
                         </div>
                     </div>

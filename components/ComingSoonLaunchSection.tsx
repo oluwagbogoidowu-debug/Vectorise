@@ -17,6 +17,7 @@ interface ComingSoonLaunchSectionProps {
   onReserveSpot: () => void;
   priceLabel?: string;
   compact?: boolean;
+  countdownOnly?: boolean;
 }
 
 export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = ({
@@ -32,13 +33,16 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
   onReserveSpot,
   priceLabel,
   compact = false,
+  countdownOnly = false,
 }) => {
   const preRegEnabled = Boolean(item.preRegistrationEnabled);
 
   return (
     <section
       className={`bg-[#121514] border border-white/10 text-white shadow-2xl relative overflow-hidden ${
-        compact
+        countdownOnly
+          ? 'rounded-[1.75rem] p-3.5 sm:p-4'
+          : compact
           ? 'rounded-[1.75rem] p-4 sm:p-5 space-y-3.5'
           : 'rounded-[2rem] p-5 sm:p-7 space-y-5'
       }`}
@@ -46,8 +50,8 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
       {/* Subtle Ambient Glow */}
       <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-[#0E7850]/15 blur-3xl pointer-events-none" />
 
-      {/* Top Row: Coming Soon + Conditional Remaining Slots (omitted in compact/headerless mode) */}
-      {!compact && (
+      {/* Top Row: Coming Soon + Conditional Remaining Slots (omitted in compact/headerless/countdownOnly mode) */}
+      {!compact && !countdownOnly && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2 relative z-10">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white">
@@ -142,6 +146,7 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
       </button>
 
       {/* Action Buttons: Show Interest + Conditional Reserve My Spot */}
+      {!countdownOnly && (
       <div className="space-y-2.5 relative z-10">
         {compact && remainingSlots !== null && (
           <div className="flex items-center justify-between px-1 text-[10px] font-black uppercase tracking-wider text-emerald-300">
@@ -215,6 +220,7 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
           </button>
         )}
       </div>
+      )}
     </section>
   );
 };
