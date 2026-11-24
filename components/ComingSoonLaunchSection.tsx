@@ -16,6 +16,7 @@ interface ComingSoonLaunchSectionProps {
   onShowInterest: () => void;
   onReserveSpot: () => void;
   priceLabel?: string;
+  compact?: boolean;
 }
 
 export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = ({
@@ -30,72 +31,85 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
   onShowInterest,
   onReserveSpot,
   priceLabel,
+  compact = false,
 }) => {
   const preRegEnabled = Boolean(item.preRegistrationEnabled);
 
   return (
-    <section className="rounded-[2rem] bg-[#121514] border border-white/10 p-5 sm:p-7 text-white shadow-2xl space-y-5 relative overflow-hidden">
+    <section
+      className={`bg-[#121514] border border-white/10 text-white shadow-2xl relative overflow-hidden ${
+        compact
+          ? 'rounded-[1.75rem] p-4 sm:p-5 space-y-3.5'
+          : 'rounded-[2rem] p-5 sm:p-7 space-y-5'
+      }`}
+    >
       {/* Subtle Ambient Glow */}
       <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full bg-[#0E7850]/15 blur-3xl pointer-events-none" />
 
-      {/* Top Row: Coming Soon + Conditional Remaining Slots */}
-      <div className="flex flex-wrap items-center justify-between gap-2 relative z-10">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white">
-          <Sparkles className="w-3 h-3 text-emerald-400" />
-          Coming Soon
-        </span>
+      {/* Top Row: Coming Soon + Conditional Remaining Slots (omitted in compact/headerless mode) */}
+      {!compact && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2 relative z-10">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white">
+              <Sparkles className="w-3 h-3 text-emerald-400" />
+              Coming Soon
+            </span>
 
-        {remainingSlots !== null && (
-          <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${
-              remainingSlots > 0
-                ? 'bg-emerald-950/80 border-emerald-500/30 text-emerald-300'
-                : 'bg-rose-950/80 border-rose-500/30 text-rose-300'
-            }`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                remainingSlots > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
-              }`}
-            />
-            {remainingSlots > 0
-              ? `Limited Slots • ${remainingSlots} left`
-              : 'All Slots Reserved'}
-          </span>
-        )}
-      </div>
+            {remainingSlots !== null && (
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${
+                  remainingSlots > 0
+                    ? 'bg-emerald-950/80 border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-950/80 border-rose-500/30 text-rose-300'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    remainingSlots > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                  }`}
+                />
+                {remainingSlots > 0
+                  ? `Limited Slots • ${remainingSlots} left`
+                  : 'All Slots Reserved'}
+              </span>
+            )}
+          </div>
 
-      {/* Title & Subtitle */}
-      <div className="space-y-1.5 relative z-10">
-        <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white leading-tight">
-          {item.title}
-        </h3>
-        {(item as any).subtitle && (
-          <p className="text-xs sm:text-sm text-white/70 font-medium leading-relaxed">
-            {(item as any).subtitle}
-          </p>
-        )}
-      </div>
+          {/* Title & Subtitle */}
+          <div className="space-y-1.5 relative z-10">
+            <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white leading-tight">
+              {item.title}
+            </h3>
+            {(item as any).subtitle && (
+              <p className="text-xs sm:text-sm text-white/70 font-medium leading-relaxed">
+                {(item as any).subtitle}
+              </p>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Clickable Launch Countdown Box (Clicking triggers Show Interest + Notify popup) */}
       <button
         type="button"
         onClick={onShowInterest}
         disabled={isRecordingInterest}
-        className="w-full text-left rounded-2xl bg-[#1B1F1D] hover:bg-[#212624] border border-white/10 hover:border-emerald-500/40 p-4 sm:p-5 transition-all cursor-pointer group relative z-10"
+        className={`w-full text-left rounded-2xl bg-[#1B1F1D] hover:bg-[#212624] border border-white/10 hover:border-emerald-500/40 transition-all cursor-pointer group relative z-10 ${
+          compact ? 'p-3.5' : 'p-4 sm:p-5'
+        }`}
         title="Tap to get notified when this goes live"
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-white/60 group-hover:text-emerald-300 transition-colors">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/60 group-hover:text-emerald-300 transition-colors">
             Launch Countdown
           </span>
-          <span className="text-[10px] font-bold text-emerald-400/90 flex items-center gap-1">
+          <span className="text-[10px] font-bold text-emerald-400/90 flex items-center gap-1 shrink-0">
             <Bell className="w-3 h-3" />
             {hasShownInterest ? 'Notifying you' : 'Tap to notify me'}
           </span>
         </div>
 
-        <div className="grid grid-cols-4 gap-2.5 sm:gap-3">
+        <div className={`grid grid-cols-4 ${compact ? 'gap-1.5 sm:gap-2' : 'gap-2.5 sm:gap-3'}`}>
           {[
             { label: 'Days', value: countdown.days },
             { label: 'Hours', value: countdown.hours },
@@ -104,12 +118,22 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
           ].map((unit) => (
             <div
               key={unit.label}
-              className="rounded-xl bg-[#0A0C0B] border border-white/5 py-3 px-2 text-center shadow-inner"
+              className={`rounded-xl bg-[#0A0C0B] border border-white/5 text-center shadow-inner ${
+                compact ? 'py-2.5 px-1' : 'py-3 px-2'
+              }`}
             >
-              <div className="text-xl sm:text-2xl font-black tabular-nums tracking-tight text-white">
+              <div
+                className={`font-black tabular-nums tracking-tight text-white ${
+                  compact ? 'text-lg sm:text-xl' : 'text-xl sm:text-2xl'
+                }`}
+              >
                 {unit.value}
               </div>
-              <div className="text-[10px] font-bold text-white/50 mt-0.5 uppercase tracking-wider">
+              <div
+                className={`font-bold text-white/50 mt-0.5 uppercase tracking-wider ${
+                  compact ? 'text-[9px]' : 'text-[10px]'
+                }`}
+              >
                 {unit.label}
               </div>
             </div>
@@ -119,11 +143,27 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
 
       {/* Action Buttons: Show Interest + Conditional Reserve My Spot */}
       <div className="space-y-2.5 relative z-10">
+        {compact && remainingSlots !== null && (
+          <div className="flex items-center justify-between px-1 text-[10px] font-black uppercase tracking-wider text-emerald-300">
+            <span className="flex items-center gap-1.5">
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  remainingSlots > 0 ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                }`}
+              />
+              Limited Slots
+            </span>
+            <span className={remainingSlots > 0 ? 'text-emerald-300' : 'text-rose-300'}>
+              {remainingSlots > 0 ? `${remainingSlots} left` : 'All Slots Reserved'}
+            </span>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={onShowInterest}
           disabled={isRecordingInterest}
-          className={`w-full py-3.5 px-5 rounded-xl font-black text-xs sm:text-sm tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2 border ${
+          className={`w-full py-3.5 px-4 rounded-xl font-black text-xs tracking-wide transition-all cursor-pointer flex items-center justify-center gap-2 border ${
             hasShownInterest
               ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
               : 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
@@ -131,12 +171,12 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
         >
           {hasShownInterest ? (
             <>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>Interest Registered • We&apos;ll Notify You</span>
             </>
           ) : (
             <>
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4 h-4 shrink-0" />
               <span>{isRecordingInterest ? 'Recording...' : 'Show Interest'}</span>
             </>
           )}
@@ -147,7 +187,7 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
             type="button"
             onClick={onReserveSpot}
             disabled={isReservingSpot || (isFull && !hasReservedSpot)}
-            className={`w-full py-3.5 px-5 rounded-xl font-black text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
+            className={`w-full py-3.5 px-4 rounded-xl font-black text-xs tracking-wide transition-all flex items-center justify-center gap-2 ${
               hasReservedSpot
                 ? 'bg-[#0E7850]/25 border border-emerald-500/40 text-emerald-300 cursor-pointer'
                 : isFull
@@ -157,7 +197,7 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
           >
             {hasReservedSpot ? (
               <>
-                <TicketCheck className="w-4 h-4 text-emerald-400" />
+                <TicketCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Spot Reserved • Mail Sent When Live</span>
               </>
             ) : isFull ? (
@@ -169,7 +209,7 @@ export const ComingSoonLaunchSection: React.FC<ComingSoonLaunchSectionProps> = (
                 <span>
                   Reserve My Spot{priceLabel ? ` • ${priceLabel}` : ''}
                 </span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 shrink-0" />
               </>
             )}
           </button>

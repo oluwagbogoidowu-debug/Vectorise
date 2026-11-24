@@ -11,7 +11,7 @@ import Button from '../components/Button';
 import FormattedText from '../components/FormattedText';
 import DynamicSectionRenderer from '../components/DynamicSectionRenderer';
 import LocalLogo from '../components/LocalLogo';
-import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar, Plus, Minus, Bell, CheckCircle2, TicketCheck } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, ArrowRight, ShieldCheck, Package, Zap, Calendar, Plus, Minus } from 'lucide-react';
 import { getSprintCashPrice } from '../utils/sprintUtils';
 import { paymentService } from '../services/paymentService';
 import { toast } from 'sonner';
@@ -600,23 +600,6 @@ const TrackDescriptionPage: React.FC = () => {
                     <div className="lg:col-span-8">
                         {/* MAIN CONTENT */}
                         <div className="space-y-8">
-                            {isComingSoonTrack && (
-                                <ComingSoonLaunchSection
-                                    item={track}
-                                    itemType="track"
-                                    countdown={launchActions.countdown}
-                                    remainingSlots={launchActions.remainingSlots}
-                                    isFull={launchActions.isFull}
-                                    hasShownInterest={launchActions.hasShownInterest}
-                                    hasReservedSpot={launchActions.hasReservedSpot}
-                                    isRecordingInterest={launchActions.isRecordingInterest}
-                                    isReservingSpot={launchActions.isReservingSpot}
-                                    onShowInterest={launchActions.handleShowInterest}
-                                    onReserveSpot={launchActions.handleReserveSpot}
-                                    priceLabel={`₦${discountedPrice.toLocaleString()}`}
-                                />
-                            )}
-
                             <section className="animate-fade-in py-2">
                                 <SectionHeading>Track Overview</SectionHeading>
                                 <div className="text-base md:text-lg text-gray-600 font-medium leading-[1.6] mt-6">
@@ -648,7 +631,7 @@ const TrackDescriptionPage: React.FC = () => {
                     </div>
 
                     <aside className="lg:col-span-4 space-y-6">
-                        <div className="bg-white rounded-[3rem] p-10 md:p-12 border border-gray-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] lg:sticky lg:top-8 overflow-hidden relative group/card">
+                        <div className={`bg-white rounded-[3rem] border border-gray-100 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] lg:sticky lg:top-8 overflow-hidden relative group/card ${isComingSoonTrack ? 'p-6 sm:p-8' : 'p-10 md:p-12'}`}>
                             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-primary/40 via-primary to-primary/40"></div>
                             
                             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl group-hover/card:bg-primary/10 transition-colors duration-700"></div>
@@ -666,7 +649,7 @@ const TrackDescriptionPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 mb-10 relative z-10">
+                            <div className={`space-y-4 relative z-10 ${isComingSoonTrack ? 'mb-6' : 'mb-10'}`}>
                                 <div className="flex items-center gap-5 p-5 bg-gray-50/50 rounded-[2rem] border border-gray-100 group/item transition-all hover:bg-white hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5">
                                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm border border-gray-100 transition-all group-hover/item:scale-110 group-hover/item:bg-primary group-hover/item:text-white">
                                         <Package className="w-6 h-6" />
@@ -691,83 +674,21 @@ const TrackDescriptionPage: React.FC = () => {
                             
                             <div className="space-y-4 relative z-10">
                                 {isComingSoonTrack ? (
-                                    <>
-                                        {launchActions.remainingSlots !== null && (
-                                            <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-emerald-50 border border-emerald-200/70 text-[11px] font-black text-[#0E7850]">
-                                                <span>Limited Slots</span>
-                                                <span>
-                                                    {launchActions.remainingSlots > 0
-                                                        ? `${launchActions.remainingSlots} remaining`
-                                                        : 'All spots filled'}
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {!user && (
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Enter email</label>
-                                                <input 
-                                                    type="email" 
-                                                    value={guestEmail}
-                                                    onChange={(e) => {
-                                                        setGuestEmail(e.target.value);
-                                                        if (emailError) setEmailError('');
-                                                    }}
-                                                    placeholder="your@email.com"
-                                                    className={`w-full px-6 py-4 bg-gray-50 border rounded-2xl focus:ring-8 focus:ring-primary/5 focus:border-primary outline-none text-sm font-black text-black transition-all ${emailError ? 'border-red-500' : 'border-gray-100'}`}
-                                                />
-                                                {emailError && <p className="text-[9px] text-red-500 font-black uppercase mt-1 ml-1">{emailError}</p>}
-                                            </div>
-                                        )}
-
-                                        <button
-                                            type="button"
-                                            onClick={launchActions.handleShowInterest}
-                                            disabled={launchActions.isRecordingInterest}
-                                            className="w-full py-5 px-6 rounded-[2rem] border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-900 text-[11px] uppercase tracking-[0.2em] font-black transition-all cursor-pointer flex items-center justify-center gap-2"
-                                        >
-                                            {launchActions.hasShownInterest ? (
-                                                <>
-                                                    <CheckCircle2 className="w-4 h-4 text-[#0E7850]" />
-                                                    <span>Interest Registered</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Bell className="w-4 h-4 text-[#0E7850]" />
-                                                    <span>{launchActions.isRecordingInterest ? 'Recording...' : 'Show Interest'}</span>
-                                                </>
-                                            )}
-                                        </button>
-
-                                        {track.preRegistrationEnabled && (
-                                            <Button
-                                                onClick={launchActions.handleReserveSpot}
-                                                disabled={launchActions.isReservingSpot || (launchActions.isFull && !launchActions.hasReservedSpot)}
-                                                className="w-full py-6 rounded-[2rem] shadow-2xl shadow-primary/30 text-[11px] uppercase tracking-[0.22em] font-black group/btn"
-                                            >
-                                                {launchActions.hasReservedSpot ? (
-                                                    <>
-                                                        <TicketCheck className="w-4 h-4 mr-2" />
-                                                        <span>Spot Reserved</span>
-                                                    </>
-                                                ) : launchActions.isFull ? (
-                                                    <span>Spots Filled</span>
-                                                ) : launchActions.isReservingSpot ? (
-                                                    <span>Processing...</span>
-                                                ) : (
-                                                    <>
-                                                        <span>Reserve My Spot</span>
-                                                        <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                                                    </>
-                                                )}
-                                            </Button>
-                                        )}
-
-                                        <div className="flex items-center justify-center gap-2 pt-2 opacity-40 group-hover/card:opacity-60 transition-opacity">
-                                            <ShieldCheck className="w-3 h-3 text-gray-400" />
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Launch Notification Included</span>
-                                        </div>
-                                    </>
+                                    <ComingSoonLaunchSection
+                                        item={track}
+                                        itemType="track"
+                                        countdown={launchActions.countdown}
+                                        remainingSlots={launchActions.remainingSlots}
+                                        isFull={launchActions.isFull}
+                                        hasShownInterest={launchActions.hasShownInterest}
+                                        hasReservedSpot={launchActions.hasReservedSpot}
+                                        isRecordingInterest={launchActions.isRecordingInterest}
+                                        isReservingSpot={launchActions.isReservingSpot}
+                                        onShowInterest={launchActions.handleShowInterest}
+                                        onReserveSpot={launchActions.handleReserveSpot}
+                                        priceLabel={`₦${discountedPrice.toLocaleString()}`}
+                                        compact={true}
+                                    />
                                 ) : (
                                     <>
                                         {!user && (
