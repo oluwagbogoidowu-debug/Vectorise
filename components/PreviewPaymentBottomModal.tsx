@@ -58,10 +58,16 @@ export const PreviewPaymentBottomModal: React.FC<PreviewPaymentBottomModalProps>
   const [isProcessing, setIsProcessing] = useState(false);
 
   const tiers = useMemo(() => resolveSprintPricingTiers(sprint), [sprint]);
-  const { isCoinSprint, coinCost: basePointCost } = getSprintPaymentMode(sprint);
+  const { isCoinSprint, isFreeSprint, coinCost: basePointCost } = getSprintPaymentMode(sprint);
   const userBalance = (user as Participant)?.walletBalance ?? 0;
 
   const getTierPricing = (tierId: PricingTierId) => {
+    if (isFreeSprint) {
+      return {
+        cashPrice: 0,
+        coinCost: 0
+      };
+    }
     if (isCoinSprint && tierId === 'standard' && typeof sprint?.standardPrice !== 'number') {
       const exactCoins = Math.max(0, basePointCost);
       return {
@@ -441,7 +447,9 @@ export const PreviewPaymentBottomModal: React.FC<PreviewPaymentBottomModalProps>
                       {activeTier.number} {activeTier.name}
                     </div>
                     <div className="text-sm font-semibold text-[#0E7850] dark:text-[#16B976] mt-0.5 tabular-nums">
-                      {isCoinSprint
+                      {isFreeSprint || activeCashPrice === 0
+                        ? 'FREE'
+                        : isCoinSprint
                         ? `${activeCoinCost} coins (${activeTier.currencySymbol}${activeCashPrice.toLocaleString()})`
                         : `${activeTier.currencySymbol}${activeCashPrice.toLocaleString()} • ${activeCoinCost} coins`}
                     </div>

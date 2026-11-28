@@ -254,6 +254,11 @@ const SprintCard: React.FC<SprintCardProps> = ({
                                     <div className={`px-3 py-1.5 rounded-xl text-white font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 ${isInactive ? 'bg-white/10 text-white/60 cursor-not-allowed' : 'bg-white/20'}`}>
                                         {isInactive ? (
                                             <><Lock className="w-3 h-3 text-amber-400" /> {inactiveLabel || "Locked"}</>
+                                        ) : sprint.pricingType === 'free' ? (
+                                            <>
+                                                <span>FREE</span>
+                                                {pricing.isRerun && <span className="ml-1 text-[7px] text-amber-300 font-bold bg-black/20 px-1 py-0.5 rounded">RERUN</span>}
+                                            </>
                                         ) : sprint.pricingType === 'credits' ? (
                                             <>
                                                 <span>🪙 {pricing.pointCost}</span>
@@ -413,8 +418,8 @@ const SprintCard: React.FC<SprintCardProps> = ({
                                 {isInactive ? (
                                     <><Lock className="w-3 h-3 text-gray-400 dark:text-zinc-500" /> <span>{inactiveLabel || (level ? `Level ${level} • Inactive` : "Inactive • Unlocks Next")}</span></>
                                 ) : effectiveIsRerun ? (
-                                    sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost} • Rerun (50% Off)</>) : (<>₦{pricing.price.toLocaleString()} • Rerun (50% Off)</>)
-                                ) : isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost}</>) : `₦${pricing.price.toLocaleString()}`}
+                                    sprint.pricingType === 'free' ? 'FREE • Rerun' : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost} • Rerun (50% Off)</>) : (<>₦{pricing.price.toLocaleString()} • Rerun (50% Off)</>)
+                                ) : isEnrolled ? "Active Journey" : isQueued ? "Next in Queue" : sprint.pricingType === 'free' ? "FREE" : sprint.pricingType === 'credits' ? (<><span className="text-sm">🪙</span> {pricing.pointCost}</>) : `₦${pricing.price.toLocaleString()}`}
                             </div>
                         </div>
                     )}

@@ -477,8 +477,9 @@ const SignUpPage: React.FC = () => {
                           console.error("Error parsing pending_first_action in SignUpPage:", err);
                       }
                       const hasPendingPreview = Boolean(pendingFirstAction && (!pendingFirstAction.sprintId || pendingFirstAction.sprintId === targetSprintId));
-                      const isCoinBased = sprint.pricingType === 'credits' || (sprint.pointCost !== undefined && sprint.pointCost >= 0);
-                      if (fromPayment || isFoundational || isCoinBased || sprint.price === 0 || hasPendingPreview) {
+                      const isCoinBased = sprint.pricingType === 'credits' || (sprint.pricingType !== 'free' && sprint.pointCost !== undefined && sprint.pointCost >= 0);
+                      const isFreePricing = sprint.pricingType === 'free' || sprint.price === 0;
+                      if (fromPayment || isFoundational || isCoinBased || isFreePricing || hasPendingPreview) {
                           const enrollment = await sprintService.enrollUser(firebaseUser.uid, targetSprintId, sprint.duration, {
                               firstActionInput: pendingFirstAction?.firstActionInput,
                               taskInputs: pendingFirstAction?.taskInputs,

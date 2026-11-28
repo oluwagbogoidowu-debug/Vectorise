@@ -464,7 +464,7 @@ const CreateSprint: React.FC = () => {
         completePrice: string;
         outcomeTag: string;
         sprintType: 'Fundamentals' | 'Core' | 'Expert';
-        pricingType: 'cash' | 'credits';
+        pricingType: 'cash' | 'credits' | 'free';
         pointCost: number;
     }>({
         title: '',
@@ -534,12 +534,12 @@ const CreateSprint: React.FC = () => {
             audience: formData.audience,
             overrideOrchestrator: formData.overrideOrchestrator,
             duration: duration,
-            price: Number(formData.standardPrice || formData.price) || 500,
-            standardPrice: Number(formData.standardPrice) || 500,
-            completePrice: Number(formData.completePrice) || 1000,
+            price: formData.pricingType === 'free' ? 0 : (formData.standardPrice !== '' ? Number(formData.standardPrice) : 500),
+            standardPrice: formData.pricingType === 'free' ? 0 : (formData.standardPrice !== '' ? Number(formData.standardPrice) : 500),
+            completePrice: formData.pricingType === 'free' ? 0 : (formData.completePrice !== '' ? Number(formData.completePrice) : 1000),
             description: formData.subtitle || formData.title,
             currency: 'NGN',
-            pointCost: formData.pointCost || 0,
+            pointCost: formData.pricingType === 'free' ? 0 : (Number(formData.pointCost) || 0),
             pricingType: formData.pricingType,
             outcomeTag: formData.outcomeTag || OUTCOME_TAGS[0],
             sprintType: formData.sprintType,
@@ -577,7 +577,9 @@ const CreateSprint: React.FC = () => {
             audience: formData.audience,
             overrideOrchestrator: formData.overrideOrchestrator,
             duration: Number(formData.duration),
-            price: 0,
+            price: formData.pricingType === 'free' ? 0 : Number(formData.standardPrice || 0),
+            pricingType: formData.pricingType,
+            pointCost: formData.pricingType === 'free' ? 0 : Number(formData.pointCost || 0),
             published: false,
             approvalStatus: 'draft',
             dailyContent: [],
@@ -902,20 +904,34 @@ const CreateSprint: React.FC = () => {
                                             <label className={labelClasses}>Pricing Type</label>
                                             <CustomSelect
                                                 options={[
-                                                    { value: "cash", label: "Cash (NGN/USD)" },
-                                                    { value: "credits", label: "Credits (Points)" }
+                                                    { value: "cash", label: "Cash" },
+                                                    { value: "credits", label: "Coin" },
+                                                    { value: "free", label: "Free" }
                                                 ]}
                                                 value={formData.pricingType}
-                                                onChange={(val) => setFormData(prev => ({ ...prev, pricingType: val }))}
+                                                onChange={(val) => setFormData(prev => ({ ...prev, pricingType: val as 'cash' | 'credits' | 'free' }))}
                                                 className="mt-2"
                                             />
                                         </div>
-                                        {formData.pricingType === 'credits' ? (
+                                        {formData.pricingType === 'free' ? (
+                                            <div className="md:col-span-2 bg-emerald-50/60 border border-emerald-200/70 rounded-2xl p-5 flex items-center justify-between gap-4">
+                                                <div>
+                                                    <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest block">Free Sprint Access</span>
+                                                    <p className="text-xs font-medium text-gray-600 mt-1">
+                                                        Participants can access and complete this sprint at no cost (₦0 / 0 Coins).
+                                                    </p>
+                                                </div>
+                                                <span className="px-3 py-1 rounded-xl bg-white border border-emerald-200 text-xs font-black text-[#0E7850] uppercase tracking-widest shrink-0">
+                                                    Free
+                                                </span>
+                                            </div>
+                                        ) : formData.pricingType === 'credits' ? (
                                             <div>
-                                                <label className={labelClasses}>Point Cost</label>
+                                                <label className={labelClasses}>Coin Cost</label>
                                                 <input 
                                                     type="number" 
                                                     name="pointCost" 
+                                                    min={0}
                                                     value={formData.pointCost || 0} 
                                                     onChange={handleChange} 
                                                     className={inputClasses + " mt-2"} 
@@ -929,6 +945,7 @@ const CreateSprint: React.FC = () => {
                                                     <input 
                                                         type="number" 
                                                         name="standardPrice" 
+                                                        min={0}
                                                         value={formData.standardPrice} 
                                                         onChange={(e) => setFormData(prev => ({ ...prev, standardPrice: e.target.value, price: e.target.value }))} 
                                                         className={inputClasses + " mt-2"} 
@@ -940,6 +957,7 @@ const CreateSprint: React.FC = () => {
                                                     <input 
                                                         type="number" 
                                                         name="completePrice" 
+                                                        min={0}
                                                         value={formData.completePrice} 
                                                         onChange={handleChange} 
                                                         className={inputClasses + " mt-2"} 

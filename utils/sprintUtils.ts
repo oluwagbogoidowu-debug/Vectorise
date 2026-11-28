@@ -1008,6 +1008,16 @@ export const getEffectiveSprintPricing = (
             discountLabel: ''
         };
     }
+    if (sprint.pricingType === 'free') {
+        return {
+            price: 0,
+            pointCost: 0,
+            isRerun,
+            originalPrice: 0,
+            originalPointCost: 0,
+            discountLabel: ''
+        };
+    }
     const rawPrice = sprint.price ?? 1000;
     const rawPointCost = sprint.pointCost ?? 10;
     
@@ -1043,7 +1053,7 @@ export const COIN_NAIRA_RATE = 20;
  * the cash equivalent is pointCost * 20 Naira.
  */
 export function getSprintCashPrice(sprint?: Sprint | null): number {
-    if (!sprint) return 0;
+    if (!sprint || sprint.pricingType === 'free') return 0;
     
     // Explicit credit/coin pricing
     if (sprint.pricingType === 'credits') {
@@ -1067,6 +1077,7 @@ export function getSprintCashPrice(sprint?: Sprint | null): number {
 export interface SprintPaymentModeInfo {
     isCoinSprint: boolean;
     isCashSprint: boolean;
+    isFreeSprint: boolean;
     coinCost: number;
     cashCost: number;
     isPaidSprint: boolean;
@@ -1077,6 +1088,18 @@ export function getSprintPaymentMode(sprint?: Sprint | null): SprintPaymentModeI
         return {
             isCoinSprint: false,
             isCashSprint: false,
+            isFreeSprint: false,
+            coinCost: 0,
+            cashCost: 0,
+            isPaidSprint: false
+        };
+    }
+
+    if (sprint.pricingType === 'free') {
+        return {
+            isCoinSprint: false,
+            isCashSprint: false,
+            isFreeSprint: true,
             coinCost: 0,
             cashCost: 0,
             isPaidSprint: false
@@ -1101,6 +1124,7 @@ export function getSprintPaymentMode(sprint?: Sprint | null): SprintPaymentModeI
     return {
         isCoinSprint,
         isCashSprint: !isCoinSprint,
+        isFreeSprint: false,
         coinCost,
         cashCost,
         isPaidSprint

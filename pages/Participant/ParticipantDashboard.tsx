@@ -32,7 +32,7 @@ import { paymentService } from '../../services/paymentService';
 import { MILESTONES, calculateMilestoneStatValue, computeMilestoneStats } from '../../services/milestoneConstants';
 import { shineService } from '../../services/shineService';
 import { localNotificationScheduler } from '../../services/localNotificationScheduler';
-import { getExploreFirstSprint, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
+import { getExploreFirstSprint, isSprintRerun, getEffectiveSprintPricing, getSprintPaymentMode } from '../../utils/sprintUtils';
 
 /**
  * Calculates if a day is locked based on the "Next Midnight" logic.
@@ -1128,15 +1128,10 @@ const ParticipantDashboard: React.FC = () => {
     }
   };
 
-  const isRecommendedCoinSprint = useMemo(() => {
-    if (!recommendedNextSprint) return true;
-    if (recommendedNextSprint.pricingType === 'credits') return true;
-    if (recommendedNextSprint.pricingType === 'cash') return false;
-    if ((recommendedNextSprint.pointCost ?? 0) > 0 && !(recommendedNextSprint.price && recommendedNextSprint.price > 0)) return true;
-    return (recommendedNextSprint.pointCost ?? 0) > 0;
+  const { isCoinSprint: isRecommendedCoinSprint, isCashSprint: isRecommendedCashSprint, isFreeSprint: isRecommendedFreeSprint } = useMemo(() => {
+    if (!recommendedNextSprint) return { isCoinSprint: true, isCashSprint: false, isFreeSprint: false, coinCost: 0, cashCost: 0, isPaidSprint: false };
+    return getSprintPaymentMode(recommendedNextSprint);
   }, [recommendedNextSprint]);
-
-  const isRecommendedCashSprint = !isRecommendedCoinSprint;
 
   const isRecommendedRerun = useMemo(() => {
     if (!recommendedNextSprint || !user) return false;
@@ -1152,8 +1147,8 @@ const ParticipantDashboard: React.FC = () => {
     
     setIsProcessing(true);
     try {
-        if (isRecommendedCashSprint) {
-            const cashPrice = recommendedPricing.price;
+        if (isRecommendedCashSprint || isRecommendedFreeSprint) {
+            const cashPrice = isRecommendedFreeSprint ? 0 : recommendedPricing.price;
             if (cashPrice === 0) {
                 const enrollment = await sprintService.enrollUser(
                     user.id, 
@@ -2299,7 +2294,7 @@ const ParticipantDashboard: React.FC = () => {
                                     </button>
 
                                     {/* WALLET / PRICING SECTION */}
-                                    {isRecommendedCashSprint ? (
+                                    {(isRecommendedCashSprint || isRecommendedFreeSprint) ? (
                                         <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-4 space-y-3.5">
                                             <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                                                 <span>Sprint Program</span>
@@ -2452,8 +2447,8 @@ const ParticipantDashboard: React.FC = () => {
                                             : 'bg-gray-100 text-gray-300 cursor-not-allowed'
                                         }`}
                                     >
-                                        {isProcessing ? "Processing..." : isRecommendedCashSprint ? (
-                                            recommendedPricing.price === 0
+                                        {isProcessing ? "Processing..." : (isRecommendedCashSprint || isRecommendedFreeSprint) ? (
+                                            (isRecommendedFreeSprint || recommendedPricing.price === 0)
                                                 ? "Start Free Sprint"
                                                 : `Start Day 1 Now • Pay ₦${recommendedPricing.price.toLocaleString()}`
                                         ) : (

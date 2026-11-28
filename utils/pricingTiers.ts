@@ -38,25 +38,38 @@ export const resolveSprintPricingTiers = (
   const remainingMoves = Math.max(0, totalMoves - freeMoves);
   const symbol = getCurrencySymbol(sprint?.currency);
 
-  const standardPrice =
-    typeof sprint?.standardPrice === 'number'
-      ? sprint.standardPrice
-      : typeof sprint?.price === 'number' && sprint.price > 0
-      ? sprint.price
-      : 500;
+  const isFreeSprint = sprint?.pricingType === 'free';
 
-  const completePrice =
-    typeof sprint?.completePrice === 'number' ? sprint.completePrice : 1000;
+  const standardPrice = isFreeSprint
+    ? 0
+    : typeof sprint?.standardPrice === 'number'
+    ? sprint.standardPrice
+    : typeof sprint?.price === 'number' && sprint.price > 0
+    ? sprint.price
+    : 500;
 
-  const standardFeatures = [
-    `First ${freeMoves} move${freeMoves === 1 ? '' : 's'} free.`,
-    remainingMoves > 0
-      ? `Unlock remaining ${remainingMoves} move${remainingMoves === 1 ? '' : 's'}.`
-      : 'Unlock full sprint experience.',
-    `Complete all ${totalMoves} move${totalMoves === 1 ? '' : 's'}.`,
-    'Save your reflections on VectoRise.',
-    'Access your completed audit on the platform.',
-  ];
+  const completePrice = isFreeSprint
+    ? 0
+    : typeof sprint?.completePrice === 'number'
+    ? sprint.completePrice
+    : 1000;
+
+  const standardFeatures = isFreeSprint
+    ? [
+        `All ${totalMoves} move${totalMoves === 1 ? '' : 's'} free.`,
+        `Complete all ${totalMoves} move${totalMoves === 1 ? '' : 's'}.`,
+        'Save your reflections on VectoRise.',
+        'Access your completed audit on the platform.',
+      ]
+    : [
+        `First ${freeMoves} move${freeMoves === 1 ? '' : 's'} free.`,
+        remainingMoves > 0
+          ? `Unlock remaining ${remainingMoves} move${remainingMoves === 1 ? '' : 's'}.`
+          : 'Unlock full sprint experience.',
+        `Complete all ${totalMoves} move${totalMoves === 1 ? '' : 's'}.`,
+        'Save your reflections on VectoRise.',
+        'Access your completed audit on the platform.',
+      ];
 
   const completeFeatures = [
     'Everything in Standard Access.',
@@ -70,20 +83,20 @@ export const resolveSprintPricingTiers = (
       id: 'standard',
       number: '01.',
       name: 'Standard Access',
-      badge: 'Core experience',
+      badge: isFreeSprint ? 'Free access' : 'Core experience',
       price: standardPrice,
       currencySymbol: symbol,
-      formattedPrice: `${symbol}${standardPrice.toLocaleString()}`,
+      formattedPrice: standardPrice === 0 ? 'FREE' : `${symbol}${standardPrice.toLocaleString()}`,
       features: standardFeatures,
     },
     complete: {
       id: 'complete',
       number: '02.',
       name: 'Complete Access',
-      badge: 'Best value',
+      badge: isFreeSprint ? 'Free full report' : 'Best value',
       price: completePrice,
       currencySymbol: symbol,
-      formattedPrice: `${symbol}${completePrice.toLocaleString()}`,
+      formattedPrice: completePrice === 0 ? 'FREE' : `${symbol}${completePrice.toLocaleString()}`,
       features: completeFeatures,
     },
   };

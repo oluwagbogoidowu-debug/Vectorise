@@ -436,7 +436,7 @@ const EditSprint: React.FC = () => {
       category: '',
       audience: [] as string[],
       difficulty: 'Beginner' as SprintDifficulty,
-      pricingType: 'cash' as 'cash' | 'credits',
+      pricingType: 'cash' as 'cash' | 'credits' | 'free',
       previewMode: 'vectorise' as 'vectorise' | 'flow',
       price: 500,
       standardPrice: 500,
@@ -886,18 +886,22 @@ const EditSprint: React.FC = () => {
               return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
           });
 
-          const resolvedStandardPrice =
-            typeof merged.standardPrice === 'number'
+          const isFreeMerged = merged.pricingType === 'free';
+          const resolvedStandardPrice = isFreeMerged
+            ? 0
+            : typeof merged.standardPrice === 'number'
               ? merged.standardPrice
               : (typeof merged.price === 'number' && merged.price > 0 ? merged.price : 500);
-          const resolvedCompletePrice =
-            typeof merged.completePrice === 'number' ? merged.completePrice : 1000;
+          const resolvedCompletePrice = isFreeMerged
+            ? 0
+            : typeof merged.completePrice === 'number' ? merged.completePrice : 1000;
 
           setEditSettings({
             ...merged,
             standardPrice: resolvedStandardPrice,
             completePrice: resolvedCompletePrice,
             price: resolvedStandardPrice,
+            pointCost: isFreeMerged ? 0 : (merged.pointCost ?? 0),
             audience: merged.audience || [],
             overrideOrchestrator: merged.overrideOrchestrator || false,
             dynamicSections: filteredSections
@@ -2634,6 +2638,8 @@ const EditSprint: React.FC = () => {
     const normalizedPreReg = normalizedComingSoon ? Boolean(editSettings.preRegistrationEnabled) : false;
     const normalizedLimitedSlots = normalizedComingSoon && normalizedPreReg ? Boolean(editSettings.hasLimitedSlots) : false;
 
+    const isFreePricing = editSettings.pricingType === 'free';
+
     // 2. Prepare updated data
     let updatedSprintData: Partial<Sprint> = {
       title: editSettings.title,
@@ -2645,12 +2651,12 @@ const EditSprint: React.FC = () => {
       difficulty: editSettings.difficulty,
       audience: editSettings.audience || [],
       overrideOrchestrator: editSettings.overrideOrchestrator || false,
-      price: editSettings.standardPrice ?? editSettings.price ?? 500,
-      standardPrice: editSettings.standardPrice ?? editSettings.price ?? 500,
-      completePrice: editSettings.completePrice ?? 1000,
+      price: isFreePricing ? 0 : (editSettings.standardPrice ?? editSettings.price ?? 500),
+      standardPrice: isFreePricing ? 0 : (editSettings.standardPrice ?? editSettings.price ?? 500),
+      completePrice: isFreePricing ? 0 : (editSettings.completePrice ?? 1000),
       currency: editSettings.currency,
-      pointCost: editSettings.pointCost,
-      pricingType: editSettings.pricingType,
+      pointCost: isFreePricing ? 0 : (editSettings.pointCost ?? 0),
+      pricingType: editSettings.pricingType || 'cash',
       previewMode: editSettings.previewMode || 'vectorise',
       duration: editSettings.duration,
       outcomeTag: editSettings.outcomeTag,
@@ -2771,17 +2777,18 @@ const EditSprint: React.FC = () => {
       console.error("Error calculating next version:", e);
     }
     
+    const isFreeParent = sprint.pricingType === 'free';
     setVersionSettings({
       duration: sprint.duration || 7,
       category: sprint.category || '',
       audience: sprint.audience || [],
       difficulty: sprint.difficulty || 'Beginner',
-      pricingType: sprint.pricingType || 'cash',
+      pricingType: (sprint.pricingType || 'cash') as 'cash' | 'credits' | 'free',
       previewMode: sprint.previewMode || 'vectorise',
-      price: sprint.standardPrice ?? (sprint.price && sprint.price > 0 ? sprint.price : 500),
-      standardPrice: sprint.standardPrice ?? (sprint.price && sprint.price > 0 ? sprint.price : 500),
-      completePrice: sprint.completePrice ?? 1000,
-      pointCost: sprint.pointCost || 0,
+      price: isFreeParent ? 0 : (sprint.standardPrice ?? (sprint.price && sprint.price > 0 ? sprint.price : 500)),
+      standardPrice: isFreeParent ? 0 : (sprint.standardPrice ?? (sprint.price && sprint.price > 0 ? sprint.price : 500)),
+      completePrice: isFreeParent ? 0 : (sprint.completePrice ?? 1000),
+      pointCost: isFreeParent ? 0 : (sprint.pointCost || 0),
       outcomeTag: sprint.outcomeTag || '',
       checkInReminder: sprint.checkInReminder || false,
       checkInReminderDays: sprint.checkInReminderDays || 7,
@@ -2856,10 +2863,10 @@ const EditSprint: React.FC = () => {
         audience: versionSettings.audience,
         pricingType: versionSettings.pricingType,
         previewMode: versionSettings.previewMode || 'vectorise',
-        price: versionSettings.standardPrice ?? versionSettings.price,
-        standardPrice: versionSettings.standardPrice ?? versionSettings.price,
-        completePrice: versionSettings.completePrice ?? 1000,
-        pointCost: versionSettings.pointCost,
+        price: versionSettings.pricingType === 'free' ? 0 : (versionSettings.standardPrice ?? versionSettings.price),
+        standardPrice: versionSettings.pricingType === 'free' ? 0 : (versionSettings.standardPrice ?? versionSettings.price),
+        completePrice: versionSettings.pricingType === 'free' ? 0 : (versionSettings.completePrice ?? 1000),
+        pointCost: versionSettings.pricingType === 'free' ? 0 : versionSettings.pointCost,
         outcomeTag: versionSettings.outcomeTag,
         checkInReminder: versionSettings.checkInReminder,
         checkInReminderDays: versionSettings.checkInReminderDays,
@@ -8425,10 +8432,11 @@ const EditSprint: React.FC = () => {
                     <label className={labelClasses}>Pricing Type</label>
                     <CustomSelect
                       value={versionSettings.pricingType}
-                      onChange={val => setVersionSettings({...versionSettings, pricingType: val as 'cash' | 'credits'})}
+                      onChange={val => setVersionSettings({...versionSettings, pricingType: val as 'cash' | 'credits' | 'free'})}
                       options={[
-                        { value: 'cash', label: 'Cash (NGN/USD)' },
-                        { value: 'credits', label: 'Credits (Points)' }
+                        { value: 'cash', label: 'Cash' },
+                        { value: 'credits', label: 'Coin' },
+                        { value: 'free', label: 'Free' }
                       ]}
                       className="mt-2"
                     />
@@ -8451,13 +8459,26 @@ const EditSprint: React.FC = () => {
                   </div>
 
                   {/* Price / points cost */}
-                  {versionSettings.pricingType === 'credits' ? (
+                  {versionSettings.pricingType === 'free' ? (
+                    <div className="md:col-span-2 bg-emerald-50/60 border border-emerald-200/70 rounded-2xl p-5 flex items-center justify-between gap-4">
+                      <div>
+                        <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest block">Free Sprint Access</span>
+                        <p className="text-xs font-medium text-gray-600 mt-1">
+                          Participants can access and complete this sprint at no cost (₦0 / 0 Coins).
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 rounded-xl bg-white border border-emerald-200 text-xs font-black text-[#0E7850] uppercase tracking-widest shrink-0">
+                        Free
+                      </span>
+                    </div>
+                  ) : versionSettings.pricingType === 'credits' ? (
                     <div>
-                      <label className={labelClasses}>Point Cost</label>
+                      <label className={labelClasses}>Coin Cost</label>
                       <input 
                         type="number" 
+                        min={0}
                         value={versionSettings.pointCost} 
-                        onChange={e => setVersionSettings({...versionSettings, pointCost: Number(e.target.value)})}
+                        onChange={e => setVersionSettings({...versionSettings, pointCost: Math.max(0, Number(e.target.value))})}
                         className={registryInputClasses + " mt-2"}
                         placeholder="0" 
                       />
@@ -8619,6 +8640,19 @@ const EditSprint: React.FC = () => {
                             <label className={labelClasses + " text-primary mb-4 block"}>Administrative Actions</label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
+                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Pricing Type</label>
+                                    <CustomSelect 
+                                        value={editSettings.pricingType || 'cash'} 
+                                        onChange={val => setEditSettings({...editSettings, pricingType: val as 'cash' | 'credits' | 'free'})}
+                                        options={[
+                                            { value: 'cash', label: 'Cash' },
+                                            { value: 'credits', label: 'Coin' },
+                                            { value: 'free', label: 'Free' }
+                                        ]}
+                                        className="mt-2"
+                                    />
+                                </div>
+                                <div>
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Currency</label>
                                     <CustomSelect 
                                         value={editSettings.currency || 'NGN'} 
@@ -8627,31 +8661,59 @@ const EditSprint: React.FC = () => {
                                         className="mt-2"
                                     />
                                 </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">01. Standard Access Price</label>
-                                    <input 
-                                        type="number" 
-                                        min={0}
-                                        value={editSettings.standardPrice ?? editSettings.price ?? 500} 
-                                        onChange={e => {
-                                            const val = Math.max(0, Number(e.target.value));
-                                            setEditSettings({...editSettings, standardPrice: val, price: val});
-                                        }}
-                                        className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
-                                        placeholder="500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">02. Complete Access Price</label>
-                                    <input 
-                                        type="number" 
-                                        min={0}
-                                        value={editSettings.completePrice ?? 1000} 
-                                        onChange={e => setEditSettings({...editSettings, completePrice: Math.max(0, Number(e.target.value))})}
-                                        className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
-                                        placeholder="1000"
-                                    />
-                                </div>
+                                {editSettings.pricingType === 'free' ? (
+                                    <div className="sm:col-span-2 bg-white border border-emerald-200/80 rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
+                                        <div>
+                                            <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest block">Free Sprint Access</span>
+                                            <p className="text-xs font-medium text-gray-500 mt-0.5">
+                                                This sprint is free for participants (₦0 / 0 Coins).
+                                            </p>
+                                        </div>
+                                        <span className="px-3 py-1 rounded-xl bg-emerald-50 text-xs font-black text-[#0E7850] uppercase tracking-widest shrink-0">
+                                            Free
+                                        </span>
+                                    </div>
+                                ) : editSettings.pricingType === 'credits' ? (
+                                    <div className="sm:col-span-2">
+                                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Coin Cost</label>
+                                        <input 
+                                            type="number" 
+                                            min={0}
+                                            value={editSettings.pointCost ?? 0} 
+                                            onChange={e => setEditSettings({...editSettings, pointCost: Math.max(0, Number(e.target.value))})}
+                                            className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">01. Standard Access Price</label>
+                                            <input 
+                                                type="number" 
+                                                min={0}
+                                                value={editSettings.standardPrice ?? editSettings.price ?? 500} 
+                                                onChange={e => {
+                                                    const val = Math.max(0, Number(e.target.value));
+                                                    setEditSettings({...editSettings, standardPrice: val, price: val});
+                                                }}
+                                                className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
+                                                placeholder="500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">02. Complete Access Price</label>
+                                            <input 
+                                                type="number" 
+                                                min={0}
+                                                value={editSettings.completePrice ?? 1000} 
+                                                onChange={e => setEditSettings({...editSettings, completePrice: Math.max(0, Number(e.target.value))})}
+                                                className="w-full px-6 py-4 bg-white border border-primary/20 rounded-2xl text-lg font-black text-primary shadow-sm outline-none focus:ring-4 focus:ring-primary/5"
+                                                placeholder="1000"
+                                            />
+                                        </div>
+                                    </>
+                                )}
                                 <div className="sm:col-span-2 pt-2">
                                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">
                                         Referral Share Text (Optional Sprint Override)
@@ -8932,10 +8994,11 @@ const EditSprint: React.FC = () => {
                                                 <label className={labelClasses}>Pricing Type</label>
                                                 <CustomSelect
                                                     value={editSettings.pricingType || 'cash'}
-                                                    onChange={val => setEditSettings({...editSettings, pricingType: val as 'cash' | 'credits'})}
+                                                    onChange={val => setEditSettings({...editSettings, pricingType: val as 'cash' | 'credits' | 'free'})}
                                                     options={[
-                                                        { value: "cash", label: "Cash (NGN/USD)" },
-                                                        { value: "credits", label: "Credits (Points)" }
+                                                        { value: "cash", label: "Cash" },
+                                                        { value: "credits", label: "Coin" },
+                                                        { value: "free", label: "Free" }
                                                     ]}
                                                     className="mt-2"
                                                 />
@@ -8955,10 +9018,22 @@ const EditSprint: React.FC = () => {
                                                     Default is Vectorise. Flow Mode allows continuous preview from Move to Move without signing in.
                                                 </p>
                                             </div>
-                                            {editSettings.pricingType === 'credits' ? (
+                                            {editSettings.pricingType === 'free' ? (
+                                                <div className="md:col-span-2 bg-emerald-50/60 border border-emerald-200/70 rounded-2xl p-5 flex items-center justify-between gap-4">
+                                                    <div>
+                                                        <span className="text-[10px] font-black text-[#0E7850] uppercase tracking-widest block">Free Sprint Access</span>
+                                                        <p className="text-xs font-medium text-gray-600 mt-1">
+                                                            Participants can start and complete all {editSettings.duration || sprint?.duration || 7} moves for free (₦0 / 0 Coins).
+                                                        </p>
+                                                    </div>
+                                                    <span className="px-3 py-1 rounded-xl bg-white border border-emerald-200 text-xs font-black text-[#0E7850] uppercase tracking-widest shrink-0">
+                                                        Free
+                                                    </span>
+                                                </div>
+                                            ) : editSettings.pricingType === 'credits' ? (
                                                 <div>
-                                                    <label className={labelClasses}>Point Cost</label>
-                                                    <input type="number" value={editSettings.pointCost || 0} onChange={e => setEditSettings({...editSettings, pointCost: Number(e.target.value)})} className={registryInputClasses + " mt-2"} placeholder="0" />
+                                                    <label className={labelClasses}>Coin Cost</label>
+                                                    <input type="number" min={0} value={editSettings.pointCost || 0} onChange={e => setEditSettings({...editSettings, pointCost: Math.max(0, Number(e.target.value))})} className={registryInputClasses + " mt-2"} placeholder="0" />
                                                 </div>
                                             ) : (
                                                 <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">

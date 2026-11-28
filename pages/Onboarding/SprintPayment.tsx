@@ -9,7 +9,7 @@ import { sprintService } from '../../services/sprintService';
 import { trackService } from '../../services/trackService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sprint, Track, Participant } from '../../types';
-import { getSprintCashPrice } from '../../utils/sprintUtils';
+import { getSprintCashPrice, getSprintPaymentMode } from '../../utils/sprintUtils';
 
 const SprintPayment: React.FC = () => {
   const navigate = useNavigate();
@@ -55,7 +55,7 @@ const SprintPayment: React.FC = () => {
     loadTrackData();
   }, [selectedTrack]);
 
-  const isCreditSprint = selectedSprint?.pricingType === 'credits';
+  const { isCoinSprint: isCreditSprint, isFreeSprint } = getSprintPaymentMode(selectedSprint);
 
   const getPrice = () => {
     if (selectedTrack) {
@@ -70,6 +70,7 @@ const SprintPayment: React.FC = () => {
       const total = baseTotal + rerunCost;
       return total * (1 - selectedTrack.discountPercentage / 100);
     }
+    if (isFreeSprint) return 0;
     return isCreditSprint ? (selectedSprint?.pointCost ?? 10) : (selectedSprint?.price ?? 3000);
   };
 

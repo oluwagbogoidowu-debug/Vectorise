@@ -16,7 +16,7 @@ import SprintCard from '../../components/SprintCard';
 import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
-import { getSprintCoverImage } from '../../utils/sprintUtils';
+import { getSprintCoverImage, getSprintPaymentMode } from '../../utils/sprintUtils';
 import { PricingTierId, resolveSprintPricingTiers } from '../../utils/pricingTiers';
 import { ClaimCoinQuickDrawer } from '../../components/ClaimCoinQuickDrawer';
 import { ComingSoonLaunchSection, LaunchActionModals } from '../../components/ComingSoonLaunchSection';
@@ -408,22 +408,17 @@ const SprintLandingPage: React.FC = () => {
         pricingSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
-    const isCoinSprint = useMemo(() => {
-        if (!sprint) return true;
-        if (sprint.pricingType === 'credits') return true;
-        if (sprint.pricingType === 'cash') return false;
-        if ((sprint.pointCost ?? 0) > 0 && !(sprint.price && sprint.price > 0)) return true;
-        return (sprint.pointCost ?? 0) > 0;
+    const { isCoinSprint, isCashSprint, isFreeSprint } = useMemo(() => {
+        if (!sprint) return { isCoinSprint: true, isCashSprint: false, isFreeSprint: false, coinCost: 0, cashCost: 0, isPaidSprint: false };
+        return getSprintPaymentMode(sprint);
     }, [sprint]);
-
-    const isCashSprint = !isCoinSprint;
     const isComingSoonSprint = Boolean(sprint?.isComingSoon);
 
     const comingSoonReserveAmount = useMemo(() => {
-        if (!sprint) return 0;
+        if (!sprint || isFreeSprint) return 0;
         if (isCashSprint) return effectiveCashPrice;
         return sprint.price || ((sprint.pointCost || 10) * 20);
-    }, [sprint, isCashSprint, effectiveCashPrice]);
+    }, [sprint, isFreeSprint, isCashSprint, effectiveCashPrice]);
 
     const comingSoonPriceLabel = useMemo(() => {
         if (comingSoonReserveAmount <= 0) return '';
@@ -519,8 +514,8 @@ const SprintLandingPage: React.FC = () => {
                 // Logged in user
                 if (!user) return;
 
-                if (isCashSprint) {
-                    const cashPrice = effectiveCashPrice;
+                if (isCashSprint || isFreeSprint) {
+                    const cashPrice = isFreeSprint ? 0 : effectiveCashPrice;
                     if (cashPrice === 0) {
                         const enrollment = await sprintService.enrollUser(
                             user.id,
@@ -946,7 +941,7 @@ const SprintLandingPage: React.FC = () => {
                                         </h3>
                                         {!isComingSoonSprint && (
                                             <span className="px-3 py-1 rounded-full bg-[#0E7850]/10 border border-[#0E7850]/20 text-[#0E7850] text-[10px] font-black uppercase tracking-wider">
-                                                Get a free trial
+                                                {isFreeSprint ? 'Free access' : 'Get a free trial'}
                                             </span>
                                         )}
                                     </div>
@@ -1160,7 +1155,9 @@ const SprintLandingPage: React.FC = () => {
                                 </div>
                                 <div className="text-right shrink-0">
                                     <p className="text-xs font-black text-[#0E7850]">{activeTier.formattedPrice}</p>
-                                    <p className="text-[10px] font-semibold text-gray-400">First 2 moves free</p>
+                                    <p className="text-[10px] font-semibold text-gray-400">
+                                        {isFreeSprint ? 'All moves free' : 'First 2 moves free'}
+                                    </p>
                                 </div>
                             </div>
                         ) : (
@@ -1176,8 +1173,8 @@ const SprintLandingPage: React.FC = () => {
                                     </p>
                                 </div>
                                 <div className="text-right shrink-0">
-                                    <p className="text-[11px] font-bold text-[#0E7850]">Free trial</p>
-                                    <p className="text-[10px] font-medium text-gray-400">First 2 moves</p>
+                                    <p className="text-[11px] font-bold text-[#0E7850]">{isFreeSprint ? 'Free sprint' : 'Free trial'}</p>
+                                    <p className="text-[10px] font-medium text-gray-400">{isFreeSprint ? 'Full access' : 'First 2 moves'}</p>
                                 </div>
                             </button>
                         )}
@@ -1230,7 +1227,7 @@ const SprintLandingPage: React.FC = () => {
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-50 rounded-lg border border-emerald-200/60 mb-1.5">
                                 <Zap className="w-3 h-3 text-[#0E7850]" />
                                 <span className="text-[9px] font-black uppercase text-[#0E7850] tracking-wider">
-                                    {isCashSprint ? "Cash Sprint" : "Coin Sprint"}
+                                    {isFreeSprint ? "Free Sprint" : isCashSprint ? "Cash Sprint" : "Coin Sprint"}
                                 </span>
                             </div>
                             <h3 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight leading-tight">
@@ -1245,7 +1242,7 @@ const SprintLandingPage: React.FC = () => {
                         
                         {/* WALLET / PRICING SECTION - Only show if user is logged in */}
                         {user ? (
-                            isCashSprint ? (
+                            (isCashSprint || isFreeSprint) ? (
                                 <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-4 space-y-3.5 text-left">
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
                                         <span>Selected Tier</span>
@@ -1383,7 +1380,9 @@ const SprintLandingPage: React.FC = () => {
                                 <div className="bg-gray-50 rounded-2xl p-3.5 border border-gray-100 mb-4 text-left space-y-3">
                                     <div className="flex justify-between items-center">
                                         <span className="text-xs font-black uppercase text-gray-400">Total Price</span>
-                                        <span className="text-xs font-black text-gray-900">₦{(sprint.price || 1000).toLocaleString()}</span>
+                                        <span className="text-xs font-black text-gray-900">
+                                            {isFreeSprint || effectiveCashPrice === 0 ? 'FREE' : `₦${(sprint.price || 1000).toLocaleString()}`}
+                                        </span>
                                     </div>
 
                                     {/* Commitment Radio Button (For Guest) */}
@@ -1424,9 +1423,9 @@ const SprintLandingPage: React.FC = () => {
                                     commitmentContext?.isGuest && commitmentContext?.emailExists === false 
                                     ? "Start Day 1 Now" 
                                     : (
-                                        isCashSprint && !commitmentContext?.isGuest
+                                        (isCashSprint || isFreeSprint) && !commitmentContext?.isGuest
                                         ? (
-                                            effectiveCashPrice === 0
+                                            (isFreeSprint || effectiveCashPrice === 0)
                                                 ? "Start Free Sprint"
                                                 : `Payment for Package • ${pricingTiers.standard.currencySymbol}${effectiveCashPrice.toLocaleString()}`
                                         )

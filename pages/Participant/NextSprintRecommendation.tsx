@@ -20,7 +20,7 @@ import { shineService } from '../../services/shineService';
 import { Sprint, Coach, UserRole, Participant, LifecycleSlotAssignment, Track } from '../../types';
 import { CATEGORY_TO_STAGE_MAP, FOCUS_OPTIONS } from '../../services/mockData';
 import { GROWTH_AREAS, RISE_PATHWAYS } from '../../constants';
-import { getExploreNextRecommendation, isSprintRerun, getEffectiveSprintPricing } from '../../utils/sprintUtils';
+import { getExploreNextRecommendation, isSprintRerun, getEffectiveSprintPricing, getSprintPaymentMode } from '../../utils/sprintUtils';
 import TrackCard from '../../components/TrackCard';
 import { trackService } from '../../services/trackService';
 import { toast } from 'sonner';
@@ -363,15 +363,10 @@ export const NextSprintRecommendation: React.FC = () => {
     const sprintCost = pricing.pointCost;
     const sprintPrice = pricing.price;
 
-    const isCoinSprint = useMemo(() => {
-        if (!sprint) return true;
-        if (sprint.pricingType === 'credits') return true;
-        if (sprint.pricingType === 'cash') return false;
-        if ((sprint.pointCost ?? 0) > 0 && !(sprint.price && sprint.price > 0)) return true;
-        return (sprint.pointCost ?? 0) > 0;
+    const { isCoinSprint, isCashSprint, isFreeSprint } = useMemo(() => {
+        if (!sprint) return { isCoinSprint: true, isCashSprint: false, isFreeSprint: false, coinCost: 0, cashCost: 0, isPaidSprint: false };
+        return getSprintPaymentMode(sprint);
     }, [sprint]);
-
-    const isCashSprint = !isCoinSprint;
 
     // Update payment method default based on user balance
     useEffect(() => {
@@ -396,8 +391,8 @@ export const NextSprintRecommendation: React.FC = () => {
 
         setIsProcessingPayment(true);
 
-        // Handle Cash-Based Sprint Payment
-        if (isCashSprint) {
+        // Handle Cash-Based or Free Sprint Payment
+        if (isCashSprint || isFreeSprint) {
             try {
                 if (sprintPrice === 0) {
                     const enrollment = await sprintService.enrollUser(
@@ -944,7 +939,7 @@ export const NextSprintRecommendation: React.FC = () => {
                                 
         </div>
 
-                            {isCashSprint ? (
+                            {(isCashSprint || isFreeSprint) ? (
                                 /* Cash-Based Sprint Payment Layout */
                                 <div className="space-y-4 text-left">
                                     {/* Cost Summary Card */}

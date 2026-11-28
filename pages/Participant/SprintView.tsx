@@ -36,7 +36,7 @@ import ActionStepConfirmModal from "../../components/ActionStepConfirmModal";
 import { ArrangePollOptions } from "../../src/components/ArrangePollOptions";
 import { Participant } from "../../types";
 import { triggerHaptic, hapticPatterns, getHapticSettings, setHapticSettings, getSoundSettings, setSoundSettings } from "../../utils/haptics";
-import { getEffectiveSprintPricing, doesPreviewEnrollmentRequirePayment } from "../../utils/sprintUtils";
+import { getEffectiveSprintPricing, doesPreviewEnrollmentRequirePayment, getSprintPaymentMode } from "../../utils/sprintUtils";
 import { paymentService } from "../../services/paymentService";
 import BottomModalCoinCards from "../../components/BottomModalCoinCards";
 import PreviewPaymentBottomModal from "../../components/PreviewPaymentBottomModal";
@@ -1510,14 +1510,10 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
     return getEffectiveSprintPricing(sprint, true);
   }, [sprint]);
 
-  const isCoinSprint = useMemo(() => {
-    if (!sprint) return true;
-    if (sprint.pricingType === "credits") return true;
-    if (sprint.pricingType === "cash") return false;
-    if ((sprint.pointCost ?? 0) > 0 && !(sprint.price && sprint.price > 0)) return true;
-    return (sprint.pointCost ?? 0) > 0;
+  const { isCoinSprint, isCashSprint, isFreeSprint } = useMemo(() => {
+    if (!sprint) return { isCoinSprint: true, isCashSprint: false, isFreeSprint: false, coinCost: 0, cashCost: 0, isPaidSprint: false };
+    return getSprintPaymentMode(sprint);
   }, [sprint]);
-  const isCashSprint = !isCoinSprint;
 
   const userBalance = (user as Participant)?.walletBalance ?? 0;
   const rerunCost = rerunPricing.pointCost;
@@ -1692,7 +1688,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
         submission: "",
       }));
 
-      if (isCashSprint) {
+      if (isCashSprint || isFreeSprint) {
         if (rerunPrice === 0) {
           let nextRunNum = 2;
           if (isPreview) {
@@ -4857,7 +4853,7 @@ const SprintView: React.FC<SprintViewProps> = ({ isPreview = false, previewSprin
                 )}
               </div>
 
-              {isCashSprint ? (
+              {(isCashSprint || isFreeSprint) ? (
                 /* Cash-Based Sprint Payment Layout */
                 <div className="space-y-4 text-left">
                   {/* Cost Summary Card */}
