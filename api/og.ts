@@ -5,7 +5,7 @@ import {
   getRequestBaseUrl,
   injectOgMetaIntoHtml,
   resolveOgImageUrl,
-} from './lib/ogHelper';
+} from './lib/ogHelper.js';
 
 function getFirstString(val: unknown): string {
   if (typeof val === 'string') return val.trim();

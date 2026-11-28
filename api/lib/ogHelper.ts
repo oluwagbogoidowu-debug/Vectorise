@@ -1,4 +1,4 @@
-import { db, isFirebaseAdminAvailable } from './firebaseAdmin';
+import { db, isFirebaseAdminAvailable } from './firebaseAdmin.js';
 
 const FIREBASE_PROJECT_ID =
   process.env.FIREBASE_PROJECT_ID ||
