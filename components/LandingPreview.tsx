@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Sprint, Coach } from '../types';
 import FormattedText from './FormattedText';
 import DynamicSectionRenderer from './DynamicSectionRenderer';
-import { CheckCircle2, Clock } from 'lucide-react';
-import { PricingTierId, resolveSprintPricingTiers } from '../utils/pricingTiers';
+import { Clock } from 'lucide-react';
 
 interface LandingPreviewProps {
   sprint: Partial<Sprint>;
@@ -17,8 +16,6 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
 );
 
 const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint }) => {
-  const [selectedTier, setSelectedTier] = useState<PricingTierId | null>(null);
-  const tiers = resolveSprintPricingTiers(sprint);
 
   return (
     <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl overflow-hidden flex flex-col w-full h-[600px] text-[11px] font-sans selection:bg-primary/10">
@@ -80,81 +77,12 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint }) => {
               </div>
             </section>
           )}
-
-          {/* Pricing Tier Preview */}
-          <section className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[8px] font-black text-gray-900 uppercase tracking-wider">Select your tier to start</span>
-              <span className="text-[7px] font-black text-[#0E7850] bg-[#0E7850]/10 px-2 py-0.5 rounded-full uppercase">Get a free trial</span>
-            </div>
-
-            {[tiers.standard, tiers.complete].map((tier) => {
-              const isSelected = selectedTier === tier.id;
-              return (
-                <button
-                  key={tier.id}
-                  type="button"
-                  onClick={() => setSelectedTier(tier.id)}
-                  className={`w-full text-left rounded-xl p-3 border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-[#0E7850] bg-[#0E7850]/[0.04]'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <span className="text-[9px] font-black text-gray-900 block">
-                        {tier.number} {tier.name}
-                      </span>
-                      <span className="text-[7px] font-bold uppercase tracking-wider text-[#0E7850]">
-                        {tier.badge}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black text-gray-900">{tier.formattedPrice}</span>
-                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#0E7850] bg-[#0E7850]' : 'border-gray-300'}`}>
-                        {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    {tier.features.map((feat, idx) => (
-                      <div key={idx} className="flex items-start gap-1.5 text-[8px] text-gray-600">
-                        <CheckCircle2 className="w-2.5 h-2.5 text-[#0E7850] shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </div>
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
-          </section>
         </div>
       </div>
 
       {/* Fixed Bottom CTA Preview */}
-      <div className="border-t border-gray-100 bg-white px-4 py-2.5 space-y-1.5 shrink-0">
-        <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-gray-200/80 bg-gray-50/75">
-          <div className="min-w-0">
-            <span className="text-[8px] font-black text-gray-900 block truncate">
-              {selectedTier ? tiers[selectedTier].name : (sprint.title || 'Untitled Sprint')}
-            </span>
-            <span className="text-[7px] font-medium text-gray-500 block truncate">
-              {selectedTier ? (sprint.title || 'Untitled Sprint') : 'Select your tier to start'}
-            </span>
-          </div>
-          <div className="text-right shrink-0">
-            <span className="text-[8px] font-black text-[#0E7850] block">
-              {selectedTier ? tiers[selectedTier].formattedPrice : 'Free trial'}
-            </span>
-            <span className="text-[6.5px] font-medium text-gray-400 block">First 2 moves</span>
-          </div>
-        </div>
-        <span
-          className={`w-full block text-center py-2 rounded-xl text-[8px] font-black uppercase tracking-widest transition-colors ${
-            selectedTier ? 'bg-[#0E7850] text-white shadow-sm' : 'bg-gray-100 text-gray-400'
-          }`}
-        >
+      <div className="border-t border-gray-100 bg-white px-4 py-2.5 shrink-0">
+        <span className="w-full block text-center py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest bg-[#0E7850] text-white shadow-sm">
           Start for free
         </span>
       </div>
