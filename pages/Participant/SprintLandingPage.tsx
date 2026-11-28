@@ -740,7 +740,7 @@ const SprintLandingPage: React.FC = () => {
     };
 
     return (
-        <div className={`bg-[#F8F9FA] min-h-screen font-sans text-[13px] ${(enrollmentStatus === 'none' || isFromEditPreview) && !showCommitmentSheet ? 'pb-36 sm:pb-40' : 'pb-8 sm:pb-12'} selection:bg-primary/10 relative`}>
+        <div className={`bg-[#F8F9FA] min-h-screen font-sans text-[13px] ${(enrollmentStatus === 'none' || isFromEditPreview) && !showCommitmentSheet ? (isComingSoonSprint ? 'pb-28 sm:pb-32' : 'pb-20 sm:pb-24') : 'pb-8 sm:pb-12'} selection:bg-primary/10 relative`}>
             {/* NAVIGATION HEADER - Full Width */}
             {isOnboardingPath ? (
                 <header className="bg-white border-b border-gray-100 py-4 px-4 sm:px-6 lg:px-8">
@@ -876,7 +876,7 @@ const SprintLandingPage: React.FC = () => {
             </div>
 
             {/* TWO-COLUMN CONTENT LAYOUT */}
-            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6">
+            <div className="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-2">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
                     <div className={!isFromEditPreview && (enrollmentStatus === 'active' || enrollmentStatus === 'queued') ? "lg:col-span-8" : "lg:col-span-12 max-w-3xl mx-auto w-full"}>
                         {/* MAIN CONTENT */}
