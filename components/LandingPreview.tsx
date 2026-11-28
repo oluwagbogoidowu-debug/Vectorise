@@ -2,7 +2,9 @@ import React from 'react';
 import { Sprint, Coach } from '../types';
 import FormattedText from './FormattedText';
 import DynamicSectionRenderer from './DynamicSectionRenderer';
-import { Clock } from 'lucide-react';
+import { Clock, CheckCircle2 } from 'lucide-react';
+import { getSprintPaymentMode } from '../utils/sprintUtils';
+import { resolveSprintPricingTiers } from '../utils/pricingTiers';
 
 interface LandingPreviewProps {
   sprint: Partial<Sprint>;
@@ -16,6 +18,9 @@ const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) =
 );
 
 const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint }) => {
+  const { isCashSprint, isFreeSprint } = getSprintPaymentMode(sprint as Sprint);
+  const showCashTiers = isCashSprint && !isFreeSprint;
+  const pricingTiers = resolveSprintPricingTiers(sprint);
 
   return (
     <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl overflow-hidden flex flex-col w-full h-[600px] text-[11px] font-sans selection:bg-primary/10">
@@ -77,13 +82,53 @@ const LandingPreview: React.FC<LandingPreviewProps> = ({ sprint }) => {
               </div>
             </section>
           )}
+
+          {showCashTiers && (
+            <section className="space-y-2.5 animate-fade-in">
+              <SectionHeading>Select Your Tier</SectionHeading>
+              <div className="grid grid-cols-1 gap-2.5">
+                {[pricingTiers.standard, pricingTiers.complete].map((tier) => (
+                  <div
+                    key={tier.id}
+                    className={`rounded-2xl p-3.5 border ${
+                      tier.id === 'complete'
+                        ? 'border-[#0E7850]/30 bg-emerald-50/30'
+                        : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div>
+                        <div className="text-[8px] font-black uppercase tracking-wider text-[#0E7850]">
+                          {tier.number} {tier.name}
+                        </div>
+                        <div className="text-[7px] font-bold text-gray-400 uppercase tracking-wider">
+                          {tier.badge}
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-black text-gray-900 tabular-nums">
+                        {tier.formattedPrice}
+                      </span>
+                    </div>
+                    <div className="space-y-1 pt-1.5 border-t border-gray-100">
+                      {tier.features.slice(0, 3).map((feat, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-[8px] text-gray-600">
+                          <CheckCircle2 className="w-2.5 h-2.5 text-[#0E7850] shrink-0 mt-0.5" />
+                          <span>{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
 
       {/* Fixed Bottom CTA Preview */}
       <div className="border-t border-gray-100 bg-white px-4 py-2.5 shrink-0">
         <span className="w-full block text-center py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest bg-[#0E7850] text-white shadow-sm">
-          Start for free
+          {showCashTiers ? 'Select a tier to continue' : 'Start for free'}
         </span>
       </div>
     </div>

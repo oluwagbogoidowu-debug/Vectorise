@@ -1,79 +1,117 @@
 {
+  "functions": {
+    "api/og.ts": {
+      "includeFiles": "dist/index.html"
+    }
+  },
   "rewrites": [
     {
       "source": "/sprint/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
-        }
-      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/sprint/:id/",
       "destination": "/api/og?type=sprint&id=:id"
     },
     {
       "source": "/sprints/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
-        }
-      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/sprints/:id/",
       "destination": "/api/og?type=sprint&id=:id"
     },
     {
       "source": "/sprint/preview/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
-        }
-      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/sprint/preview/:id/",
       "destination": "/api/og?type=sprint&id=:id"
     },
     {
       "source": "/onboarding/description/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
-        }
-      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/onboarding/description/:id/",
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/onboarding/start-here/:id",
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/onboarding/start-here/:id/",
       "destination": "/api/og?type=sprint&id=:id"
     },
     {
       "source": "/join/:referralCode/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
-        }
-      ],
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/join/:referralCode/:id/",
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/challenge/:id",
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/challenge/:id/",
       "destination": "/api/og?type=sprint&id=:id"
     },
     {
       "source": "/track/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
-        }
-      ],
       "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/track/:id/",
+      "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/tracks/:id",
+      "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/tracks/:id/",
+      "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/track-starter/:id",
+      "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/track-starter/:id/",
+      "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/onboarding/track-starter/:id",
+      "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/onboarding/track-starter/:id/",
+      "destination": "/api/og?type=track&id=:id"
+    },
+    {
+      "source": "/track-start-here/:trackId/:id",
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/track-start-here/:trackId/:id/",
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/onboarding/track-start-here/:trackId/:id",
+      "destination": "/api/og?type=sprint&id=:id"
+    },
+    {
+      "source": "/onboarding/track-start-here/:trackId/:id/",
+      "destination": "/api/og?type=sprint&id=:id"
     },
     {
       "source": "/",
       "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(bot|crawler|spider|facebookexternalhit|facebot|whatsapp|slackbot|twitterbot|linkedinbot|telegrambot|discordbot|pinterest|applebot|embedly|vkshare).*"
-        },
         {
           "type": "query",
           "key": "sprintId",
@@ -81,6 +119,39 @@
         }
       ],
       "destination": "/api/og?type=sprint&id=:sprintId"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "sprint",
+          "value": "(?<sprintId>.+)"
+        }
+      ],
+      "destination": "/api/og?type=sprint&id=:sprintId"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "trackId",
+          "value": "(?<trackId>.+)"
+        }
+      ],
+      "destination": "/api/og?type=track&id=:trackId"
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "track",
+          "value": "(?<trackId>.+)"
+        }
+      ],
+      "destination": "/api/og?type=track&id=:trackId"
     },
     { "source": "/og", "destination": "/api/og" },
     { "source": "/(.*)", "destination": "/index.html" }

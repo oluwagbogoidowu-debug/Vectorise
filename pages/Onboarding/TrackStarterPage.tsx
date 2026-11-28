@@ -5,6 +5,7 @@ import { trackService } from '../../services/trackService';
 import { Track } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft } from 'lucide-react';
+import { applyEntityOgMeta } from '../../utils/seoMeta';
 
 export const TrackStarterPage: React.FC = () => {
     const { trackId } = useParams<{ trackId: string }>();
@@ -52,6 +53,17 @@ export const TrackStarterPage: React.FC = () => {
 
         loadTrack();
     }, [cleanTrackId, location.state]);
+
+    useEffect(() => {
+        if (!track) return;
+        applyEntityOgMeta({
+            title: track.title || 'Vectorise Track',
+            description: track.subtitle || track.description || 'Start your personal growth journey today.',
+            rawImage: track.coverImageUrl || '',
+            entityType: 'track',
+            entityId: track.id,
+        });
+    }, [track]);
 
     const starterQuestion = track?.starterQuestion?.question || "Where are you right now?";
     const pollOptions = track?.starterQuestion?.pollOptions && track.starterQuestion.pollOptions.length > 0

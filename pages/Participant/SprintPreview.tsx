@@ -30,6 +30,7 @@ import { ArrangePollOptions } from '../../src/components/ArrangePollOptions';
 import { userIdentificationService } from '../../services/userIdentificationService';
 import TagInput from '../../components/TagInput';
 import { FullBleedProgressNoteSlide } from '../../components/FullBleedProgressNoteSlide';
+import { applyEntityOgMeta } from '../../utils/seoMeta';
 
 const AutoGrowingTextarea: React.FC<{
   value: string;
@@ -243,6 +244,17 @@ const SprintPreview: React.FC = () => {
             }
         } catch (e) {}
     }, [sprintId, sprint?.id]);
+
+    useEffect(() => {
+        if (!sprint) return;
+        applyEntityOgMeta({
+            title: sprint.title || 'Vectorise Sprint',
+            description: sprint.subtitle || sprint.description || 'Start your personal growth journey today.',
+            rawImage: sprint.coverImageUrl || (sprint as any).blogImage || '',
+            entityType: 'sprint',
+            entityId: sprint.id,
+        });
+    }, [sprint]);
 
     useEffect(() => {
         const sId = sprint?.id || sprintId;

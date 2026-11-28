@@ -1,6 +1,9 @@
 import { db, isFirebaseAdminAvailable } from './firebaseAdmin';
 
-const FIREBASE_PROJECT_ID = 'vectorise-f19d4';
+const FIREBASE_PROJECT_ID =
+  process.env.FIREBASE_PROJECT_ID ||
+  process.env.VITE_FIREBASE_PROJECT_ID ||
+  'vectorise-f19d4';
 export const DEFAULT_OG_IMAGE =
   'https://lh3.googleusercontent.com/d/1jdtxp_51VdLMYNHsmyN-yNFTPN5GFjBd';
 
@@ -155,7 +158,7 @@ async function fetchFirstAvailable(
 
   // REST fallback (used on Vercel / serverless without Admin cert, or if Admin timed out)
   // Check top priority paths first in small parallel batches to avoid stalling crawlers
-  const batchSize = 4;
+  const batchSize = 11;
   for (let i = 0; i < paths.length; i += batchSize) {
     const batch = paths.slice(i, i + batchSize);
     const docs = await Promise.all(batch.map((p) => fetchFirestoreDocumentRest(p)));
@@ -225,16 +228,29 @@ export async function fetchSprintMetadataForOg(
   const matched = await fetchFirstAvailable(detailPaths);
 
   if (matched) {
-    const docData = matched.data;
+    let docData = matched.data;
     let rawImage = extractRawImageFromDoc(docData);
+    const hasTitle = Boolean(
+      (typeof docData.title === 'string' && docData.title.trim()) ||
+        (typeof docData.blogTitle === 'string' && docData.blogTitle.trim()) ||
+        (typeof docData.igniteTitle === 'string' && docData.igniteTitle.trim())
+    );
+    const hasDesc = Boolean(
+      (typeof docData.subtitle === 'string' && docData.subtitle.trim()) ||
+        (typeof docData.description === 'string' && docData.description.trim()) ||
+        (typeof docData.transformation === 'string' && docData.transformation.trim())
+    );
 
-    // If sprintdetails/info exists without an image field, check the parent item doc once
-    if (!rawImage && /\/(?:sprintdetails|details)\/info$/.test(matched.path)) {
+    // If sprintdetails/info exists without complete metadata, merge parent item doc
+    if ((!rawImage || !hasTitle || !hasDesc) && /\/(?:sprintdetails|details)\/info$/.test(matched.path)) {
       const parentPath = matched.path.replace(/\/(?:sprintdetails|details)\/info$/, '');
       const parentDoc = isFirebaseAdminAvailable()
         ? await fetchFirestoreDocumentAdmin(parentPath)
         : await fetchFirestoreDocumentRest(parentPath);
-      rawImage = extractRawImageFromDoc(parentDoc);
+      if (parentDoc) {
+        docData = { ...parentDoc, ...docData };
+        if (!rawImage) rawImage = extractRawImageFromDoc(parentDoc);
+      }
     }
 
     const title =
@@ -289,7 +305,7 @@ export async function fetchTrackMetadataForOg(
   const cached = getCachedOg(cacheKey);
   if (cached.hit) return cached.value;
 
-  const trackMatch = await fetchFirstAvailable([`tracks/${cleanId}`]);
+  const trackMatch = await fetchFirstAvailable([`tracks/${cleanId}`, `track/${cleanId}`]);
   if (!trackMatch) {
     setCachedOg(cacheKey, null);
     return null;
@@ -302,7 +318,17 @@ export async function fetchTrackMetadataForOg(
     (typeof trackData.subtitle === 'string' && trackData.subtitle.trim()) ||
     (typeof trackData.description === 'string' && trackData.description.trim()) ||
     'Start your personal growth journey today.';
-  const rawImage = extractRawImageFromDoc(trackData);
+  let rawImage = extractRawImageFromDoc(trackData);
+
+  if (!rawImage && Array.isArray(trackData.sprintIds) && trackData.sprintIds.length > 0) {
+    const firstSprintId = trackData.sprintIds.find((sid: any) => typeof sid === 'string' && sid.trim());
+    if (firstSprintId) {
+      const firstSprintOg = await fetchSprintMetadataForOg(firstSprintId).catch(() => null);
+      if (firstSprintOg?.rawImage) {
+        rawImage = firstSprintOg.rawImage;
+      }
+    }
+  }
 
   const result: OgEntityData = {
     id: cleanId,
@@ -415,8 +441,8 @@ export function injectOgMetaIntoHtml({
   // Strip any existing default meta tags so social crawlers only see the entity's tags
   let cleanedHtml = rawHtml
     .replace(/<meta\s+[^>]*name=["']description["'][^>]*>\s*/gi, '')
-    .replace(/<meta\s+[^>]*property=["']og:[^"']*["'][^>]*>\s*/gi, '')
-    .replace(/<meta\s+[^>]*name=["']twitter:[^"']*["'][^>]*>\s*/gi, '')
+    .replace(/<meta\s+[^>]*(?:property|name)=["']og:[^"']*["'][^>]*>\s*/gi, '')
+    .replace(/<meta\s+[^>]*(?:property|name)=["']twitter:[^"']*["'][^>]*>\s*/gi, '')
     .replace(/<link\s+[^>]*rel=["']canonical["'][^>]*>\s*/gi, '');
 
   const fullPageTitle =

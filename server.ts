@@ -440,27 +440,38 @@ Sitemap: ${baseUrl}/sitemap.xml`;
       '/sprints/:sprintId',
       '/sprint/preview/:sprintId',
       '/onboarding/description/:sprintId',
+      '/onboarding/start-here/:sprintId',
       '/join/:referralCode/:sprintId',
+      '/challenge/:sprintId',
       '/track/:trackId',
+      '/tracks/:trackId',
+      '/track-starter/:trackId',
+      '/onboarding/track-starter/:trackId',
+      '/track-start-here/:trackId/:sprintId',
+      '/onboarding/track-start-here/:trackId/:sprintId',
       '/',
     ],
     async (req, res, next) => {
       const sprintId =
         (typeof req.params?.sprintId === 'string' && req.params.sprintId) ||
         (typeof req.query?.sprintId === 'string' && req.query.sprintId) ||
+        (typeof req.query?.sprint === 'string' && req.query.sprint) ||
         '';
       const trackId =
-        typeof req.params?.trackId === 'string' ? req.params.trackId : '';
+        (typeof req.params?.trackId === 'string' && req.params.trackId) ||
+        (typeof req.query?.trackId === 'string' && req.query.trackId) ||
+        (typeof req.query?.track === 'string' && req.query.track) ||
+        '';
 
-      // Let plain root requests without ?sprintId fall through to normal SPA handling
+      // Let plain root requests without sprint/track params fall through to normal SPA handling
       if (!sprintId && !trackId) {
         return next();
       }
 
       try {
-        const entity = trackId
-          ? await fetchTrackMetadataForOg(trackId)
-          : await fetchSprintMetadataForOg(sprintId);
+        const entity = sprintId
+          ? await fetchSprintMetadataForOg(sprintId)
+          : await fetchTrackMetadataForOg(trackId);
 
         if (entity) {
           const candidateHtmlPaths =
@@ -520,10 +531,13 @@ Sitemap: ${baseUrl}/sitemap.xml`;
   if (process.env.NODE_ENV !== 'production' && vite) {
     app.use(vite.middlewares);
   } else {
-    // Serve static files in production
-    app.use(express.static(path.join(__dirname, 'dist')));
+    // Serve static files in production (works whether bundled into dist/server.cjs or run from root)
+    const distDir = fs.existsSync(path.join(__dirname, 'index.html'))
+      ? __dirname
+      : path.join(process.cwd(), 'dist');
+    app.use(express.static(distDir));
     app.get('*all', (req, res) => {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.join(distDir, 'index.html'));
     });
   }
 

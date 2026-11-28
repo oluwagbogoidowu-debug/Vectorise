@@ -17,6 +17,7 @@ import { paymentService } from '../services/paymentService';
 import { toast } from 'sonner';
 import { ComingSoonLaunchSection, LaunchActionModals } from '../components/ComingSoonLaunchSection';
 import { useLaunchActions } from '../hooks/useLaunchActions';
+import { applyEntityOgMeta } from '../utils/seoMeta';
 
 const SectionHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <h2 className="text-[11px] font-black text-primary uppercase tracking-[0.5em] mb-6">
@@ -280,6 +281,18 @@ const TrackDescriptionPage: React.FC = () => {
     useEffect(() => {
         setImageError(false);
     }, [track?.coverImageUrl]);
+
+    useEffect(() => {
+        if (!track) return;
+        const firstSprintCover = sprints.find((s) => s.coverImageUrl)?.coverImageUrl || '';
+        applyEntityOgMeta({
+            title: track.title || 'Vectorise Track',
+            description: track.subtitle || track.description || 'Start your personal growth journey today.',
+            rawImage: track.coverImageUrl || firstSprintCover,
+            entityType: 'track',
+            entityId: track.id,
+        });
+    }, [track, sprints]);
 
     const baseSprintsPrice = useMemo(() => {
         return sprints.reduce((sum, s) => sum + (getSprintCashPrice(s) || 0), 0);

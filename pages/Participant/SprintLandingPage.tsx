@@ -17,12 +17,13 @@ import { toast } from 'sonner';
 import { paymentService } from '../../services/paymentService';
 import { LIFECYCLE_SLOTS } from '../../services/mockData';
 import { getSprintCoverImage, getSprintPaymentMode } from '../../utils/sprintUtils';
-import { getCurrencySymbol } from '../../utils/pricingTiers';
+import { getCurrencySymbol, PricingTierId, resolveSprintPricingTiers } from '../../utils/pricingTiers';
 import { ClaimCoinQuickDrawer } from '../../components/ClaimCoinQuickDrawer';
 import { ComingSoonLaunchSection, LaunchActionModals } from '../../components/ComingSoonLaunchSection';
 import { useLaunchActions } from '../../hooks/useLaunchActions';
+import { applyEntityOgMeta } from '../../utils/seoMeta';
 
-import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X, Bell, TicketCheck } from 'lucide-react';
+import { Calendar, Zap, CheckCircle2, Clock, ArrowRight, Share2, X, Bell, TicketCheck, Check } from 'lucide-react';
 
 interface SectionHeadingProps {
   children: React.ReactNode;
@@ -299,40 +300,14 @@ const SprintLandingPage: React.FC = () => {
     }, [sprint?.coverImageUrl]);
 
     useEffect(() => {
-        if (!sprint || typeof document === 'undefined') return;
-        const sprintTitle = (sprint.title || 'Vectorise Sprint').trim();
-        const sprintDesc = (sprint.subtitle || sprint.description || 'Start your personal growth journey today.')
-            .replace(/[*_`#>~]+/g, '')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 200);
-        const rawCover = (sprint.coverImageUrl || (sprint as any).blogImage || '').trim();
-        const canonicalUrl = `${window.location.origin}${window.location.pathname}`;
-
-        document.title = `${sprintTitle} – Vectorise`;
-
-        const setMetaTag = (attr: 'property' | 'name', key: string, value: string) => {
-            if (!value) return;
-            let el = document.querySelector(`meta[${attr}="${key}"]`) as HTMLMetaElement | null;
-            if (!el) {
-                el = document.createElement('meta');
-                el.setAttribute(attr, key);
-                document.head.appendChild(el);
-            }
-            el.setAttribute('content', value);
-        };
-
-        setMetaTag('name', 'description', sprintDesc);
-        setMetaTag('property', 'og:title', sprintTitle);
-        setMetaTag('property', 'og:description', sprintDesc);
-        setMetaTag('property', 'og:url', canonicalUrl);
-        setMetaTag('name', 'twitter:title', sprintTitle);
-        setMetaTag('name', 'twitter:description', sprintDesc);
-        if (rawCover && !rawCover.startsWith('data:image/')) {
-            setMetaTag('property', 'og:image', rawCover);
-            setMetaTag('property', 'og:image:secure_url', rawCover);
-            setMetaTag('name', 'twitter:image', rawCover);
-        }
+        if (!sprint) return;
+        applyEntityOgMeta({
+            title: sprint.title || 'Vectorise Sprint',
+            description: sprint.subtitle || sprint.description || 'Start your personal growth journey today.',
+            rawImage: sprint.coverImageUrl || (sprint as any).blogImage || '',
+            entityType: 'sprint',
+            entityId: sprint.id,
+        });
     }, [sprint]);
 
     const hasCompletedOrActiveSprint = useMemo(() => {
@@ -387,15 +362,26 @@ const SprintLandingPage: React.FC = () => {
         if (!sprint) return { isCoinSprint: true, isCashSprint: false, isFreeSprint: false, coinCost: 0, cashCost: 0, isPaidSprint: false };
         return getSprintPaymentMode(sprint);
     }, [sprint]);
+    const showCashTiers = isCashSprint && !isFreeSprint;
     const isComingSoonSprint = Boolean(sprint?.isComingSoon);
     const currencySymbol = getCurrencySymbol(sprint?.currency);
 
+    const [selectedTier, setSelectedTier] = useState<PricingTierId | null>(null);
+    useEffect(() => {
+        setSelectedTier(null);
+    }, [sprint?.id]);
+
+    const pricingTiers = useMemo(() => resolveSprintPricingTiers(sprint), [sprint]);
+
     const effectiveCashPrice = useMemo(() => {
         if (!sprint || isFreeSprint) return 0;
+        if (showCashTiers) {
+            return selectedTier === 'complete' ? pricingTiers.complete.price : pricingTiers.standard.price;
+        }
         if (typeof sprint.standardPrice === 'number') return sprint.standardPrice;
         if (typeof sprint.price === 'number' && sprint.price > 0) return sprint.price;
         return 500;
-    }, [sprint, isFreeSprint]);
+    }, [sprint, isFreeSprint, showCashTiers, selectedTier, pricingTiers]);
 
     const comingSoonReserveAmount = useMemo(() => {
         if (!sprint || isFreeSprint) return 0;
@@ -413,13 +399,18 @@ const SprintLandingPage: React.FC = () => {
         itemType: 'sprint',
         priceAmount: comingSoonReserveAmount,
         currency: sprint?.currency || 'NGN',
+        selectedTier: showCashTiers ? (selectedTier || 'standard') : undefined,
         externalGuestEmail: guestEmail,
     });
 
     const handleJoinClick = async () => {
         if (!sprint) return;
+        if (showCashTiers && !selectedTier) {
+            toast.error('Please select an access tier to continue.');
+            return;
+        }
 
-        analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath }, user?.id);
+        analyticsTracker.trackEvent('sprint_intent_captured', { sprint_id: sprintId, onboarding: isOnboardingPath, selectedTier: showCashTiers ? selectedTier : undefined }, user?.id);
 
         // If user is logged in and not their first sprint, directly bring up the bottom modal bar for payment
         if (user && hasCompletedOrActiveSprint) {
@@ -435,6 +426,7 @@ const SprintLandingPage: React.FC = () => {
         navigate(`/sprint/preview/${sprint.id}`, {
             state: {
                 sprint: sprint,
+                ...(showCashTiers && selectedTier ? { selectedTier } : {}),
                 prefilledEmail: user?.email || guestEmail,
                 isOnboarding: isOnboardingPath,
                 forcePreview: true
@@ -505,7 +497,8 @@ const SprintLandingPage: React.FC = () => {
                                 coachId: sprint.coachId,
                                 pricePaid: 0,
                                 currency: sprint.currency || 'NGN',
-                                source: 'cash'
+                                source: 'cash',
+                                ...(showCashTiers && selectedTier ? { selectedTier } : {})
                             }
                         );
                         toast.success("Sprint started successfully!");
@@ -520,7 +513,8 @@ const SprintLandingPage: React.FC = () => {
                             trackId: sprint.trackId,
                             amount: cashPrice,
                             currency: sprint.currency || 'NGN',
-                            name: user.name || 'Vectorise User'
+                            name: user.name || 'Vectorise User',
+                            ...(showCashTiers && selectedTier ? { selectedTier } : {})
                         };
                         const checkoutUrl = await paymentService.initializeFlutterwave(payload);
                         setShowCommitmentSheet(false);
@@ -905,6 +899,72 @@ const SprintLandingPage: React.FC = () => {
                                 </section>
                             )}
 
+                            {showCashTiers && (
+                                <section className="animate-fade-in pt-2 space-y-4">
+                                    <div>
+                                        <SectionHeading>Select Your Tier</SectionHeading>
+                                        <p className="text-xs sm:text-sm text-gray-500 font-medium -mt-2">
+                                            Choose the access level that fits how you want to experience this sprint.
+                                        </p>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {([pricingTiers.standard, pricingTiers.complete] as const).map((tier) => {
+                                            const isSelected = selectedTier === tier.id;
+                                            return (
+                                                <button
+                                                    key={tier.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedTier(tier.id)}
+                                                    className={`text-left rounded-[1.75rem] p-5 sm:p-6 border transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+                                                        isSelected
+                                                            ? 'bg-emerald-50/50 border-[#0E7850] ring-2 ring-[#0E7850]/15 shadow-md'
+                                                            : 'bg-white border-gray-200/80 hover:border-gray-300 shadow-2xs'
+                                                    }`}
+                                                >
+                                                    <div>
+                                                        <div className="flex items-start justify-between gap-3 mb-3">
+                                                            <div>
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-[#0E7850] block">
+                                                                    {tier.number} {tier.name}
+                                                                </span>
+                                                                <span className={`inline-block mt-1 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${
+                                                                    tier.id === 'complete'
+                                                                        ? 'bg-[#0E7850]/10 text-[#0E7850]'
+                                                                        : 'bg-gray-100 text-gray-600'
+                                                                }`}>
+                                                                    {tier.badge}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <span className="text-lg sm:text-xl font-black text-gray-900 tabular-nums">
+                                                                    {tier.formattedPrice}
+                                                                </span>
+                                                                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                                                    isSelected
+                                                                        ? 'border-[#0E7850] bg-[#0E7850] text-white'
+                                                                        : 'border-gray-300 bg-white'
+                                                                }`}>
+                                                                    {isSelected && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <ul className="space-y-2 pt-3 border-t border-gray-100">
+                                                            {tier.features.map((feat, idx) => (
+                                                                <li key={idx} className="flex items-start gap-2 text-xs text-gray-600 font-medium leading-snug">
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#0E7850] shrink-0 mt-0.5" />
+                                                                    <span>{feat}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+
                             {isComingSoonSprint && (
                                 <ComingSoonLaunchSection
                                     item={sprint}
@@ -1037,15 +1097,19 @@ const SprintLandingPage: React.FC = () => {
                     <div className="max-w-screen-lg mx-auto">
                         <Button
                             onClick={handleJoinClick}
-                            disabled={isCheckingEmail}
+                            disabled={isCheckingEmail || (showCashTiers && !selectedTier)}
                             className={`w-full py-3.5 sm:py-4 rounded-2xl text-xs uppercase tracking-[0.14em] font-black border-0 group/btn transition-all ${
-                                !isCheckingEmail
+                                !isCheckingEmail && (!showCashTiers || Boolean(selectedTier))
                                     ? 'bg-[#0E7850] hover:bg-[#0b6140] text-white shadow-lg shadow-[#0E7850]/20 cursor-pointer'
                                     : 'bg-gray-100 text-gray-400 shadow-none disabled:opacity-100 cursor-not-allowed'
                             }`}
                         >
-                            {isCheckingEmail ? 'Opening Move 1...' : 'Start for free'}
-                            {!isCheckingEmail && (
+                            {isCheckingEmail
+                                ? 'Opening Move 1...'
+                                : showCashTiers && !selectedTier
+                                ? 'Select a tier to continue'
+                                : 'Start for free'}
+                            {!isCheckingEmail && (!showCashTiers || Boolean(selectedTier)) && (
                                 <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
                             )}
                         </Button>
@@ -1096,7 +1160,7 @@ const SprintLandingPage: React.FC = () => {
                             (isCashSprint || isFreeSprint) ? (
                                 <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-4 space-y-3.5 text-left">
                                     <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-gray-400">
-                                        <span>Sprint Program</span>
+                                        <span>{showCashTiers && selectedTier ? pricingTiers[selectedTier].name : 'Sprint Program'}</span>
                                         <span className="text-gray-900">{sprint.duration || 7} Days</span>
                                     </div>
                                     <div className="h-[1px] bg-gray-200 w-full"></div>

@@ -7,6 +7,7 @@ import { Sprint, Participant } from '../../types';
 import Button from '../../components/Button';
 import LocalLogo from '../../components/LocalLogo';
 import { getSprintOutcomes } from '../../utils/sprintUtils';
+import { applyEntityOgMeta } from '../../utils/seoMeta';
 
 const SprintInviteLanding: React.FC = () => {
     const { referralCode, sprintId } = useParams();
@@ -38,6 +39,17 @@ const SprintInviteLanding: React.FC = () => {
         };
         loadInviteData();
     }, [sprintId, referralCode]);
+
+    useEffect(() => {
+        if (!sprint) return;
+        applyEntityOgMeta({
+            title: sprint.title || 'Vectorise Sprint',
+            description: sprint.subtitle || sprint.description || 'Start your personal growth journey today.',
+            rawImage: sprint.coverImageUrl || (sprint as any).blogImage || '',
+            entityType: 'sprint',
+            entityId: sprint.id,
+        });
+    }, [sprint]);
 
     if (isLoading) {
         return (
